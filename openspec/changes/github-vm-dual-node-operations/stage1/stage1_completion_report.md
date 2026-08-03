@@ -2,7 +2,7 @@
 
 报告日期：2026-08-04（北京时间）
 
-状态：工程门禁正在闭环；阶段 1 人工 HALT 未批准，不进入阶段 2。
+状态：阶段 1 工程退出条件已有可复核证据；等待人工 HALT，未批准退出，不进入阶段 2。
 
 ## 1. 授权与隔离边界
 
@@ -78,4 +78,4 @@ DeepSeek V4 Flash 实际完成两轮有效 reviewer：第一轮接受 force-push
 
 ## 10. 阶段结论
 
-本报告只提交阶段 1 工程和审计证据，不自行批准阶段 1 退出。只有最终 main commit 的两个 required jobs 真实绿色、保护规则可读验证、运行时证据 artifact 与该 commit 一致、OpenSpec strict 通过后，才建议用户进行阶段 1 人工审批。即使用户批准阶段 1，也不等于批准 PostgreSQL、VM、数据库、runner、production deploy 或阶段 2。
+本报告只提交阶段 1 工程和审计证据，不自行批准阶段 1 退出。最终人工验收以 main commit 的两个 required jobs、可读保护规则、同 SHA runtime evidence artifact 和 OpenSpec strict 为准；这些机器证据满足时建议用户进行阶段 1 人工审批。即使用户批准阶段 1，也不等于批准 PostgreSQL、VM、数据库、runner、production deploy 或阶段 2。

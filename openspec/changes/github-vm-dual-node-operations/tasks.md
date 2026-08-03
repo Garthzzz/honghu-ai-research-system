@@ -2,7 +2,7 @@
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
 > 当前状态：阶段 0 已获用户批准退出；现仅授权执行阶段 1“安全 Git bootstrap 与 CI”。PostgreSQL、VM、数据库和任务实施均未获授权。
-> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复，bootstrap 最终修复提交两个 job 真实绿色；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除。最终修订仍须经 PR 和 main Actions 验证；阶段 1 人工 HALT 尚未批准。仓库当前仅为本轮审查临时 public，人工复核后应恢复 private。
+> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。阶段 1 人工 HALT 尚未批准。仓库当前仅为本轮审查临时 public，人工复核后应恢复 private。
 
 ## 0. 阶段 0 启动时已确认的历史事实
 
