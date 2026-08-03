@@ -133,7 +133,7 @@ def paper_path_violations(
             project_root=root,
             max_filename_chars=max_filename_chars,
             max_relative_path_chars=max_relative_path_chars,
-        ) != path.absolute():
+        ) != canonical_path(path):
             violations.append(path.absolute())
     return sorted(violations, key=lambda item: relative_path(item, root).as_posix())
 
@@ -148,7 +148,7 @@ def normalize_new_paper_file(
     Existing referenced corpora must use ``migrate_paper_paths`` so databases
     and manifests are updated together.
     """
-    source = path.absolute()
+    source = canonical_path(path)
     if not filesystem_path(source).is_file():
         raise FileNotFoundError(source)
     target = proposed_paper_path(source, project_root=project_root)

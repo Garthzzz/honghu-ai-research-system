@@ -18,6 +18,7 @@ sys.path.insert(0, str(ROOT / "tools" / "pipeline"))
 import consensus_compute  # noqa: E402
 import db_writer  # noqa: E402
 from tools.pipeline.paper_paths import normalize_new_paper_file  # noqa: E402
+from tools.portable_paths import relative_path  # noqa: E402
 from tools.pipeline.paper_source_manifest import enrich_claim_sources  # noqa: E402
 from tools.research_core.config import contract_version  # noqa: E402
 from tools.research_core.content_cache import ContentAddressedCache  # noqa: E402
@@ -95,7 +96,7 @@ def resolve_source_file(papers_subdir: str, source_file: str) -> tuple[Path, str
         raise FileNotFoundError(f"source_file 不存在: {candidate}")
     candidate = normalize_new_paper_file(candidate, project_root=ROOT)
     try:
-        relative = candidate.relative_to(ROOT).as_posix()
+        relative = relative_path(candidate, ROOT).as_posix()
     except ValueError as exc:
         raise ValueError(f"source_file 必须位于项目目录内: {candidate}") from exc
     return candidate, relative

@@ -27,6 +27,7 @@ from uuid import uuid4
 import fitz
 
 from tools.pipeline.paper_paths import normalize_new_paper_file, sanitize_filename
+from tools.portable_paths import relative_path
 from tools.pipeline.paper_source_manifest import (
     SCHEMA_VERSION as SOURCE_MANIFEST_SCHEMA,
     hash_file,
@@ -664,7 +665,7 @@ def _finalize_download(
         os.replace(staging_path, target)
         final = normalize_new_paper_file(target, project_root=ROOT)
     return DownloadedReport(
-        relative_path=final.relative_to(ROOT).as_posix(),
+        relative_path=relative_path(final, ROOT).as_posix(),
         sha256=digest,
         size_bytes=size_bytes,
         page_count=actual_pages,

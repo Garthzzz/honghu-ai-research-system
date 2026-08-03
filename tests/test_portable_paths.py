@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from tools.portable_paths import canonical_path, relative_path
+from tools.pipeline import ingest_research
 
 
 @unittest.skipUnless(os.name == "nt", "Windows alias contract")
@@ -46,6 +47,26 @@ class WindowsPortablePathTests(unittest.TestCase):
 
             with self.assertRaises(ValueError):
                 relative_path(outside, root)
+
+    def test_ingest_source_resolution_accepts_short_root_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            long_root = canonical_path(Path(temp))
+            report = long_root / "papers" / "demo" / "report.pdf"
+            report.parent.mkdir(parents=True)
+            report.write_bytes(b"fixture")
+            short_root = self._short_path(long_root)
+
+            original_root = ingest_research.ROOT
+            try:
+                ingest_research.ROOT = short_root
+                resolved, relative = ingest_research.resolve_source_file(
+                    "demo", "report.pdf"
+                )
+            finally:
+                ingest_research.ROOT = original_root
+
+            self.assertEqual(canonical_path(resolved), report)
+            self.assertEqual(relative, "papers/demo/report.pdf")
 
 
 if __name__ == "__main__":

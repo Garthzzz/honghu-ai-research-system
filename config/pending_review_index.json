@@ -1,0 +1,668 @@
+{
+  "schema_version": "honghu.pending_review_index.v1",
+  "privacy": "Raw paths remain only in the ignored local inventory. This public-safe index uses deterministic path hashes so a candidate can be matched without disclosing research titles or internal filenames.",
+  "source_inventory_canonical_sha256": "63373004c945e0e1c5d92f288836fdf1c138bfcb00c3e70303d5f825465b9f89",
+  "pending_count": 66,
+  "records": [
+    {
+      "safe_id": "pending:b1d963da8eb6af6c",
+      "path_sha256": "b1d963da8eb6af6cca8ee058e7fdf3f0088a47019068176254fb461e5d5b25a1",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 36251,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:2dc8be503f134a8c",
+      "path_sha256": "2dc8be503f134a8c964927936efd82dee76887833463be351a0cd327246d4c1f",
+      "scope": "docs",
+      "suffix": ".md",
+      "size_bytes": 1814,
+      "category": "legacy_or_diagnostic_document",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:84b80cb4e1a778a2",
+      "path_sha256": "84b80cb4e1a778a26d335612141d66079258ac16ad3bf33842947f3b5aae04f6",
+      "scope": "docs",
+      "suffix": ".md",
+      "size_bytes": 916,
+      "category": "legacy_or_diagnostic_document",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:e9dea2d59b834719",
+      "path_sha256": "e9dea2d59b8347197c5214db96872174c3d54674565030021ea7b403ef468a25",
+      "scope": "docs",
+      "suffix": ".md",
+      "size_bytes": 8520,
+      "category": "legacy_or_diagnostic_document",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:cee4f20ffef43f2b",
+      "path_sha256": "cee4f20ffef43f2b94b7d555102f4d02c211eb7eeedcdd9c52dc41dc37f204e2",
+      "scope": "docs",
+      "suffix": ".md",
+      "size_bytes": 2726,
+      "category": "legacy_or_diagnostic_document",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:5da098ca29b45450",
+      "path_sha256": "5da098ca29b45450d47a35a8cb020dc6e37a97d02a350421b7a822d5c1974858",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 6743,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:2e73ff16de048147",
+      "path_sha256": "2e73ff16de04814701edb6e1216ca9c498ba4f236ea5abc69648d35df420546a",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 6015,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:936dc068d194fbc8",
+      "path_sha256": "936dc068d194fbc883e7b0538d0a06829cba47a9b7e48e77273762a1ffc0a60c",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 52458,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:fdb86436b44146d4",
+      "path_sha256": "fdb86436b44146d414999476dc14f82e68b1f9842eed4af162d8763bb0c5d055",
+      "scope": "openspec",
+      "suffix": ".yaml",
+      "size_bytes": 40,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:a13c6ef854c439f4",
+      "path_sha256": "a13c6ef854c439f466c29b4dc2877aef53ecbcf1281a1f1c773ba57c6588acfa",
+      "scope": "openspec",
+      "suffix": ".json",
+      "size_bytes": 17824923,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:8500c98da4b801b6",
+      "path_sha256": "8500c98da4b801b6ba754782a2d2a231825279b7bdeb971014fec09b76baa998",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 6930,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:8f0145ef18a7c42e",
+      "path_sha256": "8f0145ef18a7c42eee9779698e77b36b1d7aca1d552e50b142a51450972a902b",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 2405,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:6f6690b846a7cc96",
+      "path_sha256": "6f6690b846a7cc96ec473ebf651dd2e0144580ad845bdf75c918e2721e3af3e0",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 5821,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:a122100798325a67",
+      "path_sha256": "a122100798325a67aab2483729ade8dd402151d852e327583c4c43fcd5b69300",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 3939,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:160b5e2c80e9695c",
+      "path_sha256": "160b5e2c80e9695c1fbffde253336c631cf2be09156001a9332e178ad346e01f",
+      "scope": "openspec",
+      "suffix": ".yaml",
+      "size_bytes": 40,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:8d8cbc849098590a",
+      "path_sha256": "8d8cbc849098590a35aa61b205173f10780c241f8a2371c0cdc76bd0446d1557",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 8035,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:6798323debd5a970",
+      "path_sha256": "6798323debd5a9706d90cdc9dc62e7b848e614519e49151ae1040faf07591305",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 4499,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:5b6123682f43d4e6",
+      "path_sha256": "5b6123682f43d4e6b096b94c353abb5dade73aad293d7b2eb8cccdb4341f8d54",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 2323,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:2c18f7ee2775c259",
+      "path_sha256": "2c18f7ee2775c2597e7969e42fa440ecb31656dc2c9658778969ae80f852a99b",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 1158,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:5e79caa75064d96e",
+      "path_sha256": "5e79caa75064d96efade05d8b2c92d79daaf0cd321e96db412ba2d92ba5765ef",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 2130,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:9a06b304f08f1caa",
+      "path_sha256": "9a06b304f08f1caa111aea135f410d8d3548371402f9bf77d1ae3a32cc7d446d",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 1146,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:440419522d341cad",
+      "path_sha256": "440419522d341cadddae288f15ee5fb47f70fcda4aadb13a5f63cd8d06a70b2d",
+      "scope": "openspec",
+      "suffix": ".md",
+      "size_bytes": 1950,
+      "category": "historical_change",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:ec7ac95a3c7fb958",
+      "path_sha256": "ec7ac95a3c7fb958c3b8c3a0f54f8e33b3651e09c9b66e3565b06b1d5d357a89",
+      "scope": "opportunity_lens",
+      "suffix": ".md",
+      "size_bytes": 4574,
+      "category": "legacy_opportunity_document",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:cd64e9b73df1df1a",
+      "path_sha256": "cd64e9b73df1df1a3aa5ad7c3d59e323bfc6d7439b4057a1abd5967133cc2067",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 12565,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:58594c674e0cda56",
+      "path_sha256": "58594c674e0cda5668cb2334304348d15da2d81b3e5fe7676696a46e6b013e10",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 17090,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:62f8895a80ee9756",
+      "path_sha256": "62f8895a80ee9756ca605da5014d353ff72b81993ad45a6645e3c819ec139f1a",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 19102,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:73cbfb948bd6b1e1",
+      "path_sha256": "73cbfb948bd6b1e11759e10d6828843631edc0c447220d73c5ba872499423295",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 460,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:992cd982d82792aa",
+      "path_sha256": "992cd982d82792aaedf87809d4643e9509502732cf4f224238c70ea80f30e848",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 2020,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:6adcd720bf1ddcb8",
+      "path_sha256": "6adcd720bf1ddcb8232106d93776060bdc00bc944f7977e826744ce60048573a",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 6039,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:f3c88c42ba8c9b2e",
+      "path_sha256": "f3c88c42ba8c9b2ea5cfdc3a0d28268a7f2c58a1c4cf3b3e7b782fec3ce42273",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4792,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:074a8ecd598f60ae",
+      "path_sha256": "074a8ecd598f60ae780f3593a6fee49e5e0ba7adecd386af18a9ee6e5d901d17",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4043,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:7c6153cfd3c62d56",
+      "path_sha256": "7c6153cfd3c62d564995855d52b4e57984d3dd8745f5fa15613d4333eccda273",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4672,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:ae8a859029843a60",
+      "path_sha256": "ae8a859029843a602b5055f8596b564f6f0322df5961071c744b2fe77288409b",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 8644,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:f7c24a6532441bb9",
+      "path_sha256": "f7c24a6532441bb9fffa8e48de156ac0a0726f63507d706354d604a19ca1ff33",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 3995,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:a431a93ccb73212b",
+      "path_sha256": "a431a93ccb73212b7270ecde1d02ec635c9b48ce52eae054d938462fe451f1bb",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 543,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:e30fe8bf44a9e0ed",
+      "path_sha256": "e30fe8bf44a9e0ed22b76ffe804c1abb8917b4abdb0ba1f6ebd5b39b702d33fc",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4974,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:6fa0ecb87f5b195b",
+      "path_sha256": "6fa0ecb87f5b195b6f7d1fc91ab7124a56d33c351abf0e4a67cce3dfa8e0ce88",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4348,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:732053cd0516a54d",
+      "path_sha256": "732053cd0516a54d94f22670d14ffac96cf2f263022b4581638dd835ed801dc8",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 5089,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:2a642aa796342097",
+      "path_sha256": "2a642aa796342097489a4c0a8f3c0dcd1a249a74248d52e66b39b9774be2dba8",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4554,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:1ff5e0845944edaa",
+      "path_sha256": "1ff5e0845944edaaf39d53a42d5f2ce19703b14ef450611cc77c201efb869f1a",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4765,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:a23c5b16e2f21cb4",
+      "path_sha256": "a23c5b16e2f21cb4c9879729a378d177b9031186466e8eb230ec912d0792e7ff",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 5880,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:009313688baa184e",
+      "path_sha256": "009313688baa184ed0009d1da9611f4eea9c290bcb9961d1a3098bc9705b8635",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 7788,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:fcda081cd2a7bb6a",
+      "path_sha256": "fcda081cd2a7bb6a1ce30789b6a77939c9c4eef97c8d288cc27149c4deb9d471",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4805,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:6823286ec271430d",
+      "path_sha256": "6823286ec271430db4f6f25bb7138b49598895d2f18e74de211eb68740f59749",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4900,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:500db10850207c0f",
+      "path_sha256": "500db10850207c0f3b9546c2df26dc6514f5de2326f38505112ab6840d3c76a4",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4743,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:345fea4c2c51cec0",
+      "path_sha256": "345fea4c2c51cec098e583571e63b1613f5ba16102d01a6d5ebf631b6eed10cc",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4434,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:ccb54ece4e9177e4",
+      "path_sha256": "ccb54ece4e9177e469bf6d102849109349e5ef9cca0820abbd36a8da5c7f6757",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 5268,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:592f7097f78739d7",
+      "path_sha256": "592f7097f78739d75481b8fc452dbbbb49a040d3c25b8231ca050ff000875835",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 583,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:0da2f7a4c32d2c8a",
+      "path_sha256": "0da2f7a4c32d2c8ac6ebef0dbf7b145a676795a24f888f942fe5570a331bd8df",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 3408,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:7f59631c0cae1f76",
+      "path_sha256": "7f59631c0cae1f76a169880c0f258057cf57f22ff1eee7758b86b91fed579f70",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 4749,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:25cc90fa734b1e69",
+      "path_sha256": "25cc90fa734b1e695af6a507b4d80f63f2d21770575ccb3d61301e4177fa3093",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 6252,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:73d3fc40072b0772",
+      "path_sha256": "73d3fc40072b0772254e2807017ca42cfc403727270427891fd9740fb153c960",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 5612,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:1b1aa99a08fe4f02",
+      "path_sha256": "1b1aa99a08fe4f024284ac4e350c9ec59a2bee1486399d219025f0365ca1b226",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 5701,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:f58d2d0a680e95f3",
+      "path_sha256": "f58d2d0a680e95f3adbf4184f5f80c9ebd71d1a822d67bce1c351ce4d5661b80",
+      "scope": "skills",
+      "suffix": ".md",
+      "size_bytes": 7506,
+      "category": "non_active_skill",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:69dd71f6746e1f58",
+      "path_sha256": "69dd71f6746e1f58c5ff879f5600b8335ed129ce971b1b172f14465d65685ada",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 4370,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:ef06bdbd06e1d22b",
+      "path_sha256": "ef06bdbd06e1d22bab99c46f955778ba1c9d5a5cfc25ebcf6d6e77b67ca596f2",
+      "scope": "审核代理",
+      "suffix": ".md",
+      "size_bytes": 3091,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:4ca99e335277dc3e",
+      "path_sha256": "4ca99e335277dc3e24207f91649bf6d1438652753255d60052681730079365f3",
+      "scope": "审核代理",
+      "suffix": ".md",
+      "size_bytes": 2690,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:3b988d4b88d620ec",
+      "path_sha256": "3b988d4b88d620ec6eb8c636113c1baf15f4f3d693329c1891d212e1e8f20817",
+      "scope": "审核代理",
+      "suffix": ".md",
+      "size_bytes": 2836,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:c8e7e7fe4c6e8506",
+      "path_sha256": "c8e7e7fe4c6e85066291e71826fac1359e4d1ca0da933dca836e5e5b55bda1b3",
+      "scope": "审核代理",
+      "suffix": ".md",
+      "size_bytes": 2636,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:371013beeabaef70",
+      "path_sha256": "371013beeabaef7025bdc6263e5ccbbfd1c5c0fbbb186af1635a02e486b1325e",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 6579,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:0224aaf61762d99f",
+      "path_sha256": "0224aaf61762d99f945538d65504bdb2e691c2cf3352fc9ff38c4aedfc2996b1",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 12655,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:02241f413c68182b",
+      "path_sha256": "02241f413c68182bd94d3b1ae75f04b65e7d2cbda4b19f69325c2f2f7ee43bca",
+      "scope": "project_root",
+      "suffix": ".txt",
+      "size_bytes": 1699,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:9ec826d30428fb20",
+      "path_sha256": "9ec826d30428fb20b9d095fa597ced80982e13c6e044186369ff9fe451725b7b",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 12065,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:34b5d7f98afa44ae",
+      "path_sha256": "34b5d7f98afa44aeaa5af6d96d9dd9a11e152eb97ac0e61d2afff3656854c11d",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 13876,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:571738351e569a7c",
+      "path_sha256": "571738351e569a7cd775f4c6684271143879caa16fa7e48a56acaecdba27e35a",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 23371,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    },
+    {
+      "safe_id": "pending:7244abd7e52bb291",
+      "path_sha256": "7244abd7e52bb291d0030cb100843b71e85f45bc42b76e5f7be630bcbcd1430c",
+      "scope": "project_root",
+      "suffix": ".md",
+      "size_bytes": 8519,
+      "category": "root_legacy_or_research_instruction",
+      "reason": "not covered by the approved tracked policy",
+      "status": "pending_review_untracked"
+    }
+  ]
+}

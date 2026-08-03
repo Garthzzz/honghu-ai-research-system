@@ -206,7 +206,8 @@ def collect_required_cache(
     builder so a release cannot silently forget cache files referenced by
     configuration or one of the four live databases.
     """
-    root = canonical_path(root)
+    caller_root = Path(root).absolute()
+    root = canonical_path(caller_root)
     config_paths = _config_paths(root)
     database_paths, database_value_counts = _database_paths(root)
     durable_paths = _durable_model_paths(root)
@@ -242,7 +243,11 @@ def collect_required_cache(
         "durable_model_directories": list(DURABLE_MODEL_DIRECTORIES),
         "files": records,
     }
-    return paths, manifest
+    # Preserve the caller's path spelling at the API boundary.  In particular,
+    # TemporaryDirectory on GitHub's Windows runner may return an 8.3 root even
+    # though child resolution uses the long spelling.
+    caller_paths = [caller_root / relative_path(path, root) for path in paths]
+    return caller_paths, manifest
 
 
 def build(root: Path, output: Path) -> dict[str, object]:
