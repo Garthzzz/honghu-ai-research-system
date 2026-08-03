@@ -148,3 +148,19 @@ DeepSeek 的三项意见及 Codex 判断：
 Codex 完成第一轮修订后先做本地全层复核，再推送 `8e83dfc6ddb85cde59c8777f5b1bc440e712324a`。远端 run `30847270449` 的两个 job 均为 success：553 项测试被收集，532 passed、21 skipped、53 subtests passed。Actions 上传的 `stage1-evidence-8e83dfc6ddb85cde59c8777f5b1bc440e712324a` 被重新下载检查，commit、run、760 个 tracked 文件、7 份 spec 和 66 条 pending-review 索引相互一致。GitHub API 同时回读确认 main 的两个 required checks、strict、PR gate、管理员约束、conversation resolution、force-push 禁令和删除禁令。
 
 DeepSeek 只收到这些脱敏结果和公开仓库标识，返回 `pass`，没有提出阶段 1 内的 must-fix，也没有要求范围扩张。Codex 独立复核后同意“没有新增工程缺口”，但不把 reviewer 的 pass 解释为阶段 1 人工批准；最终仍需 protected main 的 PR/main Actions 和用户 HALT。由于第二轮没有信息增量或未闭环问题，停止第三轮。
+
+## 阶段 2 release 实施审核（2026-08-04）
+
+### 第一轮：初始实现审查
+
+Codex 先在隔离 clone 中完成 exact-commit release、只读 candidate、schema compatibility、code-only rollback、本地 fixture 和测试，再向 DeepSeek发送公开 commit 与脱敏合同摘要。没有发送 key、Cookie、数据库、papers、用户内容、内网地址或源代码全文。
+
+DeepSeek 把 reviewer 身份写成 `postgresql-docker-redis`，并提出以下与代码事实冲突的意见：声称 candidate 没有设置 `query_only`、health 没有验证 manifest、POST 路由仍会处理 body，又虚构 Docker/Redis 配置和 VM 资源结论。这些均被拒绝：candidate 连接同时使用 `mode=ro` 和 `query_only`；health 会调用 `verify_release` 复算 manifest 和逐文件 hash；非安全 HTTP 方法在路由处理前统一返回 403；项目没有阶段 2 Docker/Redis 实现。
+
+这轮没有可采纳的工程增量。Codex独立审查反而发现并修正了两个真实问题：同 commit manifest 不应含构建时钟；rollback 必须用目标 release 的 schema contract，而不是当前 release contract。
+
+### 第二轮：远端绿色证据审查
+
+第二轮只发送远端 run `30856809650`、artifact identity、preflight、rollback 和禁止范围。DeepSeek 返回空的 `valid_must_fix`/`valid_should_fix`，但仍生成 `docker=true`、`redis=true`、`postgresql=true` 等不存在的断言，并在已明确“VM 尚未执行”时建议 `proceed`。
+
+Codex拒绝这些虚构字段，也拒绝阶段 2 退出建议：VM 只读并行候选仍是明确退出 gate。两轮连续没有有效新增问题，因此停止第三轮。阶段 2 的有效证据来自本地/fresh-clone 测试、远端 Actions、下载后重算的 artifact、只读数据库哈希和待完成的 VM 实测，不来自 DeepSeek 的结论。

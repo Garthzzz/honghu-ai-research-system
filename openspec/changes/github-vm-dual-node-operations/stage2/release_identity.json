@@ -1,0 +1,25 @@
+{
+  "schema_version": "honghu.stage2_review_identity.v1",
+  "repository": "Garthzzz/honghu-ai-research-system",
+  "branch": "phase2/repeatable-release",
+  "implementation_commit_sha": "f6788eb21d7bae6ae749feb07f6b863cbd00d46f",
+  "github_actions_run_id": "30856809650",
+  "github_actions_conclusion": "success",
+  "required_jobs": {
+    "boundary-and-contracts": "success",
+    "python-clean-environment": "success"
+  },
+  "artifact_id": "8872919897",
+  "artifact_name": "stage2-release-evidence-f6788eb21d7bae6ae749feb07f6b863cbd00d46f",
+  "release_manifest_sha256": "f4608e2e73eaa6c095d1b667697d06f9893b821e5b1431711a423786e98d002d",
+  "release_file_count": 567,
+  "release_content_bytes": 24483608,
+  "preflight_ok": true,
+  "rollback_performed": true,
+  "database_hashes_unchanged": true,
+  "contains_live_data": false,
+  "contains_papers_or_evidence": false,
+  "contains_secrets": false,
+  "vm_readonly_candidate_verified": false,
+  "phase2_halt_approved": false
+}

@@ -83,14 +83,14 @@
 **前置条件**：阶段 1 通过。  
 **回滚点**：继续使用当前 Viewer 启动与广播冷备；数据库不变。
 
-- [ ] [本阶段必须] 定义 deployment allowlist/manifest，区分 Git tracked closure 与运行所需 artifact closure。
-- [ ] [本阶段必须] 建立 immutable `releases/<sha>`、`current` 原子切换、`runtime`/secrets/data 外置和 deployment ledger。
-- [ ] [本阶段必须] 将 commit SHA、manifest hash、database schema version 暴露给 health/preflight 审计，但不得泄露凭据。
-- [ ] [本阶段必须] 验证 preflight、read-only smoke 和 code-only rollback；应用回滚不得改数据库或人工内容。
-- [ ] [本阶段必须] 定义 migration compatibility 声明，验证 code-only rollback 只在旧代码仍兼容当前 schema 时成立；forward-only migration 必须显式标记。
-- [ ] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
+- [x] [本阶段必须] 定义 deployment allowlist/manifest，区分 Git tracked closure 与运行所需 artifact closure。
+- [x] [本阶段必须] 建立 immutable `releases/<sha>`、`current` 原子切换、`runtime`/secrets/data 外置和 deployment ledger。
+- [x] [本阶段必须] 将 commit SHA、manifest hash、database schema version 暴露给 health/preflight 审计，但不得泄露凭据。
+- [x] [本阶段必须] 验证 preflight、read-only smoke 和 code-only rollback；应用回滚不得改数据库或人工内容。
+- [x] [本阶段必须] 定义 migration compatibility 声明，验证 code-only rollback 只在旧代码仍兼容当前 schema 时成立；forward-only migration 必须显式标记。
+- [x] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
 - [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
-- [ ] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。
+- [x] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。
 - [ ] [HALT] 提交 release 演练、rollback、clean clone 和本地离线开发证据，等待人工批准。
 
 **退出条件**：明确 commit 可重复部署；本地 dev/test 独立；VM 只读候选可回滚且不影响 live 系统。
