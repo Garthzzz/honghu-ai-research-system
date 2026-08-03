@@ -17,6 +17,8 @@ from tools.opportunity_lens.silicon_run_pack_support import (
     natural_citations,
     normalize_agent_data_points,
     normalize_agent_source,
+    normalize_deprecated_public_headings,
+    parallel_search_plan,
 )
 
 
@@ -198,6 +200,7 @@ def test_agent_source_and_parallel_series_normalization() -> None:
         "independence_rationale": "发行人原始报告。",
     })
     assert source["source_tier"] == "A"
+    assert source["source_channel"] == "web"
     points = normalize_agent_data_points({"data_points": [{
         "id": "DP001",
         "entity": "样本产线",
@@ -216,6 +219,44 @@ def test_agent_source_and_parallel_series_normalization() -> None:
     assert len(points) == 1
     assert len(points[0]["observations"]) == 2
     assert points[0]["source_excerpt_zh"] == "收入增长。"
+
+
+def test_source_channel_and_first_round_parallel_search_are_explicit() -> None:
+    local_source = normalize_agent_source({
+        "source_id": "S002",
+        "original_url_or_locator": "papers/硅片/公司年报.pdf",
+        "title": "公司年报",
+        "publisher": "样本公司",
+        "date": "2026-04-01",
+        "language": "zh",
+        "excerpt": "披露月产能。",
+        "independence_key": "issuer:sample:2026",
+    })
+    assert local_source["source_channel"] == "report"
+
+    plan = parallel_search_plan([
+        {
+            "axis_key": "capacity",
+            "query_text": "硅片月产能",
+            "languages": ["zh", "en"],
+            "status": "completed",
+        }
+    ])
+    assert [row["source_channel"] for row in plan] == ["report", "web"]
+    assert {row["axis_key"] for row in plan} == {"capacity"}
+
+
+def test_deprecated_deferred_research_heading_is_not_public() -> None:
+    rows = normalize_deprecated_public_headings([
+        {
+            "body_markdown": (
+                "### 如果想进一步研究，需要补充的信息\n\n"
+                "公开资料不足以判断客户认证。"
+            )
+        }
+    ])
+    assert "如果想进一步研究" not in rows[0]["body_markdown"]
+    assert "### 公开证据限制" in rows[0]["body_markdown"]
 
 
 def test_data_point_evidence_audit_corrects_and_drops_composite_claims() -> None:
