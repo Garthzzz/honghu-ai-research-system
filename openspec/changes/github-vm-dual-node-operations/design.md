@@ -2,9 +2,9 @@
 
 ## 1. 设计状态与边界
 
-本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。它仍处于人工审查阶段，只描述目标、边界、阶段和验收，不授权实施。
+本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。阶段 0 和阶段 1 已完成人工审查；当前只授权实施阶段 2 的 immutable release、本地 dev/test 边界和不切换生产的 VM 只读候选，后续阶段仍未授权。
 
-本轮不做：Git 初始化或远端操作、PostgreSQL 安装、live schema/data 修改、任务迁移、VM 部署、生产配置变更、资料上传或备份清理。
+阶段 2 不做：PostgreSQL 安装、live schema/data 修改、任务迁移、现有生产 Viewer 切换、VM 写接口、资料上传或备份清理。允许在隔离分支构建 exact-commit release，并在独立 VM 目录和端口运行只读并行候选。
 
 ## 2. 审计事实与问题定义
 
@@ -37,7 +37,7 @@
   ├─ 本地 Viewer
   └─ 独立 dev/test PostgreSQL
              │
-             ├──────── private GitHub application repository
+             ├──────── controlled GitHub application repository
              │          code/config template/migration/test/rules/SOP
              │
 VM production
@@ -238,7 +238,7 @@ pull → local branch → local migration/test data → local Viewer/browser
 - secret/path/credential 扫描；
 - live DB、WAL/SHM、backup、broadcast、runtime、个人上下文、临时 cache 和未批准大文件被排除；
 - 首次 staged inventory 由人工审查；
-- private repository 和访问权限确认。
+- 仓库可见性和访问权限经过明确批准；通常为 private，当前迁移/审核期 public 是用户明确例外，且禁止资产门禁仍须通过。
 
 已知测试失败可以在 bootstrap branch 中如实记录并修复。它们不应迫使修复过程继续发生在无版本历史的目录里。
 
@@ -391,7 +391,7 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 ### 阶段 1：安全 Git、CI 与版本边界
 
 目标：在不带生产数据和 secrets 的前提下建立可审核代码历史；让后续修复发生在 feature branch。  
-退出：bootstrap inventory 通过人工审查；CI 能稳定运行；活动 required checks 通过；main 受保护。安全 bootstrap 可以在个人 private 仓库中进行，但该仓库成为 production authority 前必须关闭公司控制权 gate。  
+退出：bootstrap inventory 通过人工审查；CI 能稳定运行；活动 required checks 通过；main 受保护。安全 bootstrap 可以在个人仓库中进行；当前 public 状态仅用于用户批准的迁移和审核，不等于 production authority，成为生产权威前仍必须关闭公司控制权 gate。
 回滚：删除未发布的本地 bootstrap 元数据或停止远端接入，不影响 live 系统。  
 禁止：VM 生产部署、数据迁移、任务切换。
 
@@ -430,7 +430,7 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 
 | 原机制 | 处置 | 理由 |
 |---|---|---|
-| private 应用仓库、allowlist、secret/path gate | 保留 | 与数据库选型无关 |
+| 受控应用仓库、allowlist、secret/path gate | 保留 | 当前 public 审核例外不放宽边界；与数据库选型无关 |
 | immutable release、commit SHA、preflight/health、code rollback | 保留 | 可重复部署核心能力 |
 | 四库 maintenance lock + 一致快照 | 仅迁移期保留 | 用于形成冻结迁移基线和审计档案；S3 后不是默认 production rollback target |
 | 本地 request workspace | 删除为通用同步能力 | 本地改用 dev/test PG；研究请求仍作为业务输入保留 |

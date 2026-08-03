@@ -12,7 +12,9 @@
 
 因此长期方向改为：
 
-> **private GitHub 应用仓库管理代码和正式规则；中央 PostgreSQL 管理 live 结构化数据；内部文件或对象存储管理 papers/evidence；本地 dev/test 与 VM production 分离。**
+> **受控 GitHub 应用仓库管理代码和正式规则；中央 PostgreSQL 管理 live 结构化数据；内部文件或对象存储管理 papers/evidence；本地 dev/test 与 VM production 分离。**
+
+长期正常边界仍优先采用 private/公司治理仓库。用户已明确批准迁移实施和人工审核期间保持 public，便于核验 Actions、提交和阶段证据；该公开例外不允许新增数据库、papers、用户内容、凭据或其他敏感资产，也不使个人账号仓库自动成为 production authority。
 
 SQLite 不立即下线，但只作为按业务切换单元迁移的现状。PostgreSQL 产生必须保留的新写入后，旧 SQLite 主要是冻结迁移基线、审计档案和有限修复材料，不再是默认无损回滚点。
 
@@ -92,7 +94,7 @@ SQLite 不立即下线，但只作为按业务切换单元迁移的现状。Post
 
 ### 安全 bootstrap commit
 
-只要求 tracked allowlist、secret/path gate、禁止资产排除、首次 staged inventory 人工审查和 private repository 权限确认。已知测试债务可以在 bootstrap branch 内修复。
+只要求 tracked allowlist、secret/path gate、禁止资产排除、首次 staged inventory 人工审查和仓库可见性/权限获得明确批准。已知测试债务可以在 bootstrap branch 内修复；当前 public 审核例外必须配套每阶段暴露复核。
 
 ### 合入受保护 main
 

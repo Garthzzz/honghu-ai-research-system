@@ -1,0 +1,68 @@
+{
+  "schema_version": "honghu.deployment_policy.v1",
+  "include_exact": [
+    "WindPy.py",
+    "requirements.lock.txt",
+    "restart_viewer.bat"
+  ],
+  "include_prefixes": [
+    "config/",
+    "opportunity_lens/intake_templates/",
+    "tools/"
+  ],
+  "forbidden_prefixes": [
+    ".git/",
+    "archive/",
+    "backup/",
+    "broadcast_packages/",
+    "cache/",
+    "data/",
+    "papers/",
+    "tools/dynamic/secrets/",
+    "workpapers/"
+  ],
+  "forbidden_suffixes": [
+    ".db",
+    ".db-journal",
+    ".db-shm",
+    ".db-wal",
+    ".dump",
+    ".log",
+    ".sqlite",
+    ".sqlite3"
+  ],
+  "external_runtime_closure": [
+    {
+      "id": "transition-sqlite-data",
+      "authority": "data_root",
+      "paths": [
+        "research.db",
+        "sentiment.db",
+        "opportunity_lens.db",
+        "financial.db"
+      ],
+      "candidate_access": "read_only",
+      "included_in_git_or_release": false
+    },
+    {
+      "id": "research-content",
+      "authority": "content_root",
+      "paths": [
+        "docs/industries",
+        "papers"
+      ],
+      "candidate_access": "read_only",
+      "included_in_git_or_release": false
+    },
+    {
+      "id": "mutable-runtime",
+      "authority": "state_root",
+      "paths": [
+        "cache",
+        "deployment_ledger.jsonl"
+      ],
+      "candidate_access": "read_write",
+      "included_in_git_or_release": false
+    }
+  ]
+}

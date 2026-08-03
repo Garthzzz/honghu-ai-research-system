@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from tools.research_core.config import contract_version, resolve_track_config
+from tools.runtime_paths import resolve_runtime_layout
 
 MODULE_NAME = "opportunity_lens"
 PROJECT_NAME = "Opportunity Lens"
@@ -10,12 +11,13 @@ ROUTE_PREFIX = "/opportunity-lens"
 API_PREFIX = "/api/opportunity-lens"
 
 ROOT = Path(__file__).resolve().parents[2]
-DATA_DIR = ROOT / "data"
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DATA_DIR = RUNTIME_LAYOUT.data_root
 DB_PATH = DATA_DIR / "opportunity_lens.db"
 RESEARCH_DB_PATH = DATA_DIR / "research.db"
 FINANCIAL_DB_PATH = DATA_DIR / "financial.db"
 SENTIMENT_DB_PATH = DATA_DIR / "sentiment.db"
-EXPORT_ROOT = ROOT / "cache" / "opportunity_lens_exports"
+EXPORT_ROOT = RUNTIME_LAYOUT.cache_root / "opportunity_lens_exports"
 
 SCHEMA_VERSION = "opportunity_lens.schema.v1_8"
 DESIGN_VERSION = "2026-07-12.workflow.v2"

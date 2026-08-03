@@ -1,0 +1,188 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+from .manager import (
+    ReleaseError,
+    activate_release,
+    build_release,
+    inspect_sqlite_contract,
+    preflight_release,
+    release_health_payload,
+    resolve_current_release,
+    rollback_release,
+    verify_release,
+)
+
+
+def _print(payload: object) -> None:
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+
+
+def _manifest_compatibility(release: Path) -> dict:
+    return verify_release(release)["schema_compatibility"]
+
+
+def _schema_for_release(release: Path, data_root: Path) -> dict:
+    return inspect_sqlite_contract(data_root, _manifest_compatibility(release))
+
+
+def _serve(args: argparse.Namespace) -> int:
+    release, pointer = resolve_current_release(args.deploy_root)
+    report = preflight_release(
+        release,
+        data_root=args.data_root,
+        content_root=args.content_root,
+        state_root=args.state_root,
+        require_content=not args.allow_missing_content,
+    )
+    if not report["ok"]:
+        _print(report)
+        return 1
+    env = os.environ.copy()
+    env.update(
+        {
+            "HONGHU_DATA_ROOT": str(args.data_root.resolve()),
+            "HONGHU_CONTENT_ROOT": str(args.content_root.resolve()),
+            "HONGHU_STATE_ROOT": str(args.state_root.resolve()),
+            "HONGHU_VIEWER_MODE": "readonly_candidate",
+            "HONGHU_RELEASE_COMMIT": str(pointer["commit_sha"]),
+            "HONGHU_RELEASE_MANIFEST": str(release / "RELEASE_MANIFEST.json"),
+            "HONGHU_RELEASE_MANIFEST_SHA256": str(pointer["manifest_sha256"]),
+            "HONGHU_DEPLOY_ROOT": str(args.deploy_root.resolve()),
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONUTF8": "1",
+            "PYTHONIOENCODING": "utf-8",
+        }
+    )
+    command = [
+        sys.executable,
+        "-m",
+        "flask",
+        "--app",
+        "tools.viewer.app:app",
+        "run",
+        f"--host={args.host}",
+        f"--port={args.port}",
+        "--no-debugger",
+        "--no-reload",
+    ]
+    return subprocess.call(command, cwd=release, env=env)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Honghu immutable release manager")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    build = sub.add_parser("build")
+    build.add_argument("--repo-root", type=Path, required=True)
+    build.add_argument("--deploy-root", type=Path, required=True)
+    build.add_argument("--commit", required=True)
+
+    verify = sub.add_parser("verify")
+    verify.add_argument("--release-dir", type=Path, required=True)
+
+    preflight = sub.add_parser("preflight")
+    preflight.add_argument("--release-dir", type=Path, required=True)
+    preflight.add_argument("--data-root", type=Path, required=True)
+    preflight.add_argument("--content-root", type=Path, required=True)
+    preflight.add_argument("--state-root", type=Path, required=True)
+    preflight.add_argument("--allow-missing-content", action="store_true")
+
+    activate = sub.add_parser("activate")
+    activate.add_argument("--deploy-root", type=Path, required=True)
+    activate.add_argument("--commit", required=True)
+    activate.add_argument("--data-root", type=Path, required=True)
+    activate.add_argument("--actor", required=True)
+
+    rollback = sub.add_parser("rollback")
+    rollback.add_argument("--deploy-root", type=Path, required=True)
+    rollback.add_argument("--data-root", type=Path, required=True)
+    rollback.add_argument("--actor", required=True)
+    rollback.add_argument("--target-commit")
+
+    current = sub.add_parser("current")
+    current.add_argument("--deploy-root", type=Path, required=True)
+
+    health = sub.add_parser("health")
+    health.add_argument("--deploy-root", type=Path, required=True)
+    health.add_argument("--data-root", type=Path, required=True)
+
+    serve = sub.add_parser("serve-readonly-candidate")
+    serve.add_argument("--deploy-root", type=Path, required=True)
+    serve.add_argument("--data-root", type=Path, required=True)
+    serve.add_argument("--content-root", type=Path, required=True)
+    serve.add_argument("--state-root", type=Path, required=True)
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=18080)
+    serve.add_argument("--allow-missing-content", action="store_true")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        if args.command == "build":
+            _print(build_release(args.repo_root, args.deploy_root, commit=args.commit))
+        elif args.command == "verify":
+            _print(verify_release(args.release_dir))
+        elif args.command == "preflight":
+            result = preflight_release(
+                args.release_dir,
+                data_root=args.data_root,
+                content_root=args.content_root,
+                state_root=args.state_root,
+                require_content=not args.allow_missing_content,
+            )
+            _print(result)
+            return 0 if result["ok"] else 1
+        elif args.command == "activate":
+            release = args.deploy_root / "releases" / args.commit
+            schema = inspect_sqlite_contract(
+                args.data_root, _manifest_compatibility(release)
+            )
+            _print(
+                activate_release(
+                    args.deploy_root,
+                    args.commit,
+                    actor=args.actor,
+                    schema_report=schema,
+                )
+            )
+        elif args.command == "rollback":
+            _, current = resolve_current_release(args.deploy_root)
+            target = args.target_commit or current.get("previous_commit_sha")
+            if not target:
+                raise ReleaseError("no previous release is recorded for rollback")
+            target_release = args.deploy_root.resolve() / "releases" / str(target)
+            schema = _schema_for_release(target_release, args.data_root)
+            _print(
+                rollback_release(
+                    args.deploy_root,
+                    actor=args.actor,
+                    schema_report=schema,
+                    target_commit=args.target_commit,
+                )
+            )
+        elif args.command == "current":
+            release, pointer = resolve_current_release(args.deploy_root)
+            _print({"release_dir": str(release), **pointer})
+        elif args.command == "health":
+            _print(
+                release_health_payload(args.deploy_root, data_root=args.data_root)
+            )
+        elif args.command == "serve-readonly-candidate":
+            return _serve(args)
+        return 0
+    except ReleaseError as exc:
+        _print({"ok": False, "error": str(exc)})
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

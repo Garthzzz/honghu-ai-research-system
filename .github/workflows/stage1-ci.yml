@@ -1,4 +1,4 @@
-name: Stage 1 Safe CI
+name: Honghu Protected CI
 
 on:
   pull_request:
@@ -7,6 +7,7 @@ on:
       - main
       - "bootstrap/**"
       - "feature/**"
+      - "phase2/**"
 
 permissions:
   contents: read
@@ -25,6 +26,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -59,11 +61,23 @@ jobs:
         shell: pwsh
         run: python tools/maintenance/build_stage1_evidence.py
 
+      - name: Build immutable release evidence bound to the checked-out commit
+        shell: pwsh
+        run: python tools/maintenance/build_stage2_evidence.py
+
       - name: Upload exact-commit Stage 1 evidence
         uses: actions/upload-artifact@v4
         with:
           name: stage1-evidence-${{ github.sha }}
           path: cache/git_bootstrap/stage1_evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload exact-commit Phase 2 release evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-release-evidence-${{ github.sha }}
+          path: cache/git_bootstrap/stage2_evidence/
           if-no-files-found: error
           retention-days: 30
 
@@ -79,6 +93,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - name: Set up the supported Python runtime
         uses: actions/setup-python@v6

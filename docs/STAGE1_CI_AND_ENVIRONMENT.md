@@ -25,6 +25,6 @@ CI 只使用 Git 中的代码、测试 fixture 和临时数据库。它不得连
 
 ## 4. Git 与生产治理边界
 
-当前个人账号下的 private repository 可作为安全 bootstrap 和开发 source of truth，但不是 production authority。阶段 1 不配置 VM deploy credential，不部署 VM，也不更改数据库或计划任务。成为生产权威前仍需完成公司资产控制或获批例外、第二位公司管理员/交接、2FA、账号恢复、branch protection、最小权限和公司控制的部署凭据。
+当前个人账号下的 repository 已完成安全 bootstrap 和开发 source-of-truth 建设，但不是 production authority。用户在 2026-08-04 明确要求仓库在迁移、实施和人工审核期间保持 public；公开状态不放宽 tracked boundary、secret/path gate 或生产治理门槛。阶段 1 未配置 VM deploy credential，未部署 VM，也未更改数据库或计划任务。成为生产权威前仍需完成公司资产控制或获批例外、第二位公司管理员/交接、2FA、账号恢复、branch protection、最小权限和公司控制的部署凭据。
 
 GitHub UI 中的 branch protection/ruleset 需要在 workflow 首次成功运行后，由有权限的管理员将上述两个 check 设为 main 的 required status checks。本阶段报告必须区分“workflow 已配置”“远端运行已通过”和“规则已由管理员启用”。

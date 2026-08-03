@@ -13,6 +13,56 @@
       "reason": "阶段 1 将既有、受测试的硅片 reviewer 从被排除的 cache 迁入正式源代码；该事务语义不是新业务写路径，保留用于一次性原子记录七类 review。",
       "owner": "Opportunity Lens publication governance",
       "future_cutover_unit_candidate": "research publication and review ledger"
+    },
+    {
+      "path": "tools/release/dev_fixture.py",
+      "domain": "release local dev/test fixture",
+      "rule": "sqlite3_connect",
+      "max_count": 2,
+      "reason": "Phase 2 creates only synthetic SQLite fixtures outside live roots so clean-clone release and Viewer tests never touch production databases.",
+      "owner": "application release governance",
+      "future_cutover_unit_candidate": "local dev/test data platform",
+      "sunset_condition": "Remove when the PostgreSQL dev/test fixture is authoritative in a later approved phase."
+    },
+    {
+      "path": "tools/release/manager.py",
+      "domain": "release schema compatibility inspection",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "Phase 2 release preflight opens transition-era SQLite files strictly read-only to fingerprint schemas and verify rollback compatibility.",
+      "owner": "application release governance",
+      "future_cutover_unit_candidate": "central data platform migration governance",
+      "sunset_condition": "Remove after all production cutover units use PostgreSQL compatibility inspection."
+    },
+    {
+      "path": "tools/release/manager.py",
+      "domain": "release schema compatibility inspection",
+      "rule": "pragma",
+      "max_count": 2,
+      "reason": "Read-only query_only and schema metadata PRAGMAs support compatibility verification without mutating transition databases.",
+      "owner": "application release governance",
+      "future_cutover_unit_candidate": "central data platform migration governance",
+      "sunset_condition": "Remove after all production cutover units use PostgreSQL compatibility inspection."
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "domain": "read-only parallel Viewer candidate",
+      "rule": "sqlite3_connect",
+      "max_count": 4,
+      "reason": "One bounded direct connection selects SQLite URI read-only mode for the Phase 2 candidate so GET validation cannot create WAL or change live data.",
+      "owner": "Viewer release governance",
+      "future_cutover_unit_candidate": "Viewer data-access boundary",
+      "sunset_condition": "Remove when Viewer readers use the approved data-access layer in a later phase."
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "domain": "read-only parallel Viewer candidate",
+      "rule": "pragma",
+      "max_count": 5,
+      "reason": "Two bounded query_only PRAGMAs enforce read-only behavior for research and sentiment candidate connections; existing live-mode PRAGMAs remain legacy baseline.",
+      "owner": "Viewer release governance",
+      "future_cutover_unit_candidate": "Viewer data-access boundary",
+      "sunset_condition": "Remove when Viewer readers use the approved data-access layer in a later phase."
     }
   ],
   "counts_by_file_rule": {

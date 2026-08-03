@@ -1,8 +1,11 @@
 from pathlib import Path
 
+from tools.runtime_paths import resolve_runtime_layout
+
 
 ROOT = Path(__file__).resolve().parents[2]
-DB_PATH = ROOT / "data" / "financial.db"
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DB_PATH = RUNTIME_LAYOUT.data_root / "financial.db"
 SCHEMA_VERSION = "financial.schema.v1"
 
 FACT_TYPES = {

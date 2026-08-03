@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: Safe application repository boundary
-The system SHALL manage deployable application versions in a private application repository and SHALL exclude live databases, WAL/SHM, runtime state, backups, broadcast archives, credentials, personal scratch, temporary cache, and unapproved large materials from Git history.
+The system SHALL manage deployable application versions in an explicitly approved application repository and SHALL exclude live databases, WAL/SHM, runtime state, backups, broadcast archives, credentials, personal scratch, temporary cache, and unapproved large materials from Git history. Private visibility remains the normal long-term boundary; a public migration-review exception requires explicit user approval, repeated exposure review, and SHALL NOT grant production authority.
 
 #### Scenario: Bootstrap inventory review
 - **WHEN** the first Git index is prepared
@@ -10,6 +10,10 @@ The system SHALL manage deployable application versions in a private application
 #### Scenario: Formal project rules survive a clean clone
 - **WHEN** a developer creates a clean clone
 - **THEN** the clone SHALL contain the team `AGENTS.md`, active OpenSpec, required skills, database migrations, tests, deployment/recovery SOPs, and other formal rules needed for development and review
+
+#### Scenario: Repository is temporarily public for migration review
+- **WHEN** the user explicitly keeps the repository public so reviewers can inspect code, Actions, commits, and evidence
+- **THEN** every stage SHALL re-run exposure review, prohibited assets SHALL remain blocked, and production authority SHALL remain gated independently
 
 ### Requirement: Separate Git, main, and production gates
 The system SHALL distinguish the gate for creating a safe initial Git history from the gates for merging to protected `main` and deploying production.

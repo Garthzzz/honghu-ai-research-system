@@ -1,6 +1,6 @@
 # Viewer Windows 内网部署
 
-> 当前状态：本文记录现有广播包和 SQLite Viewer 部署流程。GitHub immutable release 与 PostgreSQL 目标架构尚未实施；人工批准前不得把下述广播流程误称为新架构发布，也不得把旧 SQLite 文件视为 PostgreSQL 产生新写入后的无损回滚点。目标设计见 `openspec/changes/github-vm-dual-node-operations/`。
+> 当前状态：本文首先记录现有广播包和 SQLite Viewer 生产流程；阶段 2 另行建立 Git exact-commit immutable release 和只读并行候选，但不切换现有生产 Viewer。PostgreSQL 仍未实施。不得把广播包误称为新架构发布，也不得把旧 SQLite 文件视为 PostgreSQL 产生新写入后的无损回滚点。目标设计见 `openspec/changes/github-vm-dual-node-operations/`。
 
 ## 当前部署闭包
 
@@ -90,3 +90,19 @@ python tools\viewer\preflight.py --root C:\industry_demo
 ## 数据库传输
 
 不要在源库仍有写入进程时只复制单个 `.db` 文件。应先停止写入任务，或使用 SQLite backup API 生成一致性快照，再传输快照；否则 WAL 中尚未 checkpoint 的数据可能遗漏。部署脚本只读检查目标库，不会修改数据库。
+
+## 阶段 2：只读并行候选，不替换现有生产
+
+阶段 2 的候选目录、端口和状态与当前 `C:\industry_demo` 分离：
+
+- 代码：`C:\honghu-ai-research-candidate\releases\<full-sha>`；
+- 原子指针：`C:\honghu-ai-research-candidate\current`；
+- 可变状态：`C:\honghu-ai-research-candidate\runtime`；
+- 候选端口：默认 `18080`，不得使用生产 `8080`；
+- 数据和研究内容：只读引用现有生产根目录，不复制、不迁移、不改变权威；
+- HTTP：GET/HEAD/OPTIONS 可用，POST/PUT/PATCH/DELETE 全局返回 403；
+- 计划任务：不安装、不禁用、不迁移。
+
+候选部署入口为 `tools/release/Deploy-ReadonlyCandidate.ps1`。它从明确的 full commit SHA 构建 manifest 驱动 release，先做只读 SQLite schema 检查，再启动并验证候选。该脚本只用于人工批准的 Phase 2 候选，不会修改 `restart_viewer.bat`、生产端口或现有任务。
+
+release 不包含 `data/`、`papers/`、backup、broadcast、cache、凭据或用户内容。运行闭包分为 tracked code closure 与 external runtime closure；缺少外部权威时 preflight 必须失败，不能把 live 文件复制进 Git release 充数。完整操作和本地开发命令见 `docs/RELEASE_AND_LOCAL_DEVELOPMENT.md`。

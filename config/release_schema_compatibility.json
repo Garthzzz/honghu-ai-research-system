@@ -1,0 +1,20 @@
+{
+  "schema_version": "honghu.release_schema_compatibility.v1",
+  "backend": "sqlite-transition",
+  "migration_phase": "pre-postgresql",
+  "forward_only_migrations": [],
+  "code_only_rollback": {
+    "allowed": true,
+    "requires_same_backend": true,
+    "requires_required_tables": true,
+    "changes_data_authority": false,
+    "changes_user_content": false
+  },
+  "required_tables": {
+    "research.db": ["industry", "source", "company"],
+    "sentiment.db": ["senti_raw", "stock_kline", "funda_semi_nodes"],
+    "opportunity_lens.db": ["opportunity_run", "opportunity_source", "opportunity_entity"],
+    "financial.db": ["financial_security", "financial_observation", "financial_model_run"]
+  },
+  "contract_policy": "A destructive or forward-only database contract requires a separately approved release. Code-only rollback is valid only while this table contract and backend remain compatible."
+}

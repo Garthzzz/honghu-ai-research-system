@@ -2,11 +2,11 @@
 
 泓湖 AI 研究系统已经由本地研究工作站、VM Viewer、七个定时任务、A/B/C 研究发布、财务模型、动态/情绪流水线和人工内容共同组成。继续把四套 SQLite 作为长期跨节点事实源，需要自建快照、change-set、CAS、冲突合并、事件回放和双端恢复；这会重复实现中央事务数据库已经提供的能力，并把真正需要的研究发布、审计和任务补漏埋在同步基础设施中。
 
-本变更重新确定迁移方向：先用 private GitHub 应用仓库建立安全、可审核、可重复的代码交付，再逐步把结构化 live data 迁移到中央 PostgreSQL。SQLite 保持当前生产可用状态并按 cutover unit 迁移；PostgreSQL 产生切换后有效新写入后，旧 SQLite 只作为迁移基线、审计档案和有限修复材料，不得被描述成可无损退回的 production rollback target。
+本变更重新确定迁移方向：先用受控 GitHub 应用仓库建立安全、可审核、可重复的代码交付，再逐步把结构化 live data 迁移到中央 PostgreSQL。长期资料边界仍以 private/公司治理为目标；用户已明确批准迁移实施与人工审核期间暂时保持 public，以便核验远端代码、Actions、提交和阶段证据。该公开例外不放宽禁止资产边界，也不授予 production authority。SQLite 保持当前生产可用状态并按 cutover unit 迁移；PostgreSQL 产生切换后有效新写入后，旧 SQLite 只作为迁移基线、审计档案和有限修复材料，不得被描述成可无损退回的 production rollback target。
 
 ## What Changes
 
-- 将 private `honghu-ai-research-system` 定义为代码、配置模板、database migration、测试、部署/恢复脚本、活动 OpenSpec、团队 `AGENTS.md`、生产和审核依赖 skills 及正式 SOP 的权威版本库；live rows、数据库文件、WAL/SHM、backup、runtime、credentials、个人 scratch 和未批准大文件不得进入普通 Git 历史。
+- 将受控 `honghu-ai-research-system` 定义为代码、配置模板、database migration、测试、部署/恢复脚本、活动 OpenSpec、团队 `AGENTS.md`、生产和审核依赖 skills 及正式 SOP 的权威版本库；当前 public 状态来自用户明确审核授权，不改变 live rows、数据库文件、WAL/SHM、backup、runtime、credentials、个人 scratch 和未批准大文件不得进入普通 Git 历史的门槛。
 - 将中央 PostgreSQL 定义为长期结构化生产数据的单一事实源。优先使用一个 PostgreSQL instance 和一个主要业务 database，以逻辑 schema、共享主体身份、角色和 writer 权限分域；只有明确的容量、权限、故障域或独立扩容证据才物理拆库。
 - 将四套 SQLite 明确定义为受控过渡状态。迁移单位是具有完整业务事务语义的 cutover unit，不一定等于文件、schema 或表；每个可写对象、writer 和完整事务边界只能有一个 owning unit，其他 unit 只能声明 dependency。混合期必须显式记录每个 unit 的 authoritative backend、reader、writer、runner、S0—S4 状态和依赖，禁止重叠 ownership、自动后端回退和跨两种存储的伪事务。
 - 删除通用 `ops-snapshot`、`research-change-set`、跨机器 CAS/reverse change-set 和长期双写目标，但保留研究 publisher 和人工内容更新本身需要的稳定发布身份、expected/base revision、幂等、stale conflict、依赖簇原子事务和 ledger；禁止静默 last-write-wins。
@@ -48,3 +48,7 @@
 ### 阶段 1 授权边界
 
 用户已在第三轮合同一致性校验后批准阶段 0 退出。该批准只开放阶段 1 的安全 Git bootstrap、测试基线修复、lockfile、CI 和受保护 main 准备，不包含 PostgreSQL production、数据或任务切换、VM production deploy、人工写接口或 production authority 授予；后续阶段仍须分别人工批准。
+
+### 阶段 2 授权边界
+
+用户已于 2026-08-04 批准阶段 1 退出并授权 immutable release、本地 dev/test 边界、health/preflight、代码级回滚和不切换现有生产的 VM 只读并行候选。该批准不包含 PostgreSQL、live SQLite 修改、计划任务迁移、生产 Viewer 切换、VM 写接口或 production authority。仓库在迁移和人工审核期间按用户要求保持 public，每阶段继续执行公开暴露复核。

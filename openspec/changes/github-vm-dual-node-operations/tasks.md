@@ -1,8 +1,8 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0 已获用户批准退出；现仅授权执行阶段 1“安全 Git bootstrap 与 CI”。PostgreSQL、VM、数据库和任务实施均未获授权。
-> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。阶段 1 人工 HALT 尚未批准。仓库当前仅为本轮审查临时 public，人工复核后应恢复 private。
+> 当前状态：阶段 0、阶段 1 均已获用户批准退出；现仅授权执行阶段 2“可重复 release 与本地开发边界”。PostgreSQL、数据库后端切换、计划任务迁移和现有生产 Viewer 切换均未获授权。
+> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
 
@@ -70,7 +70,7 @@
 - [x] [本阶段必须] 已准备 main 的 CI、required-check 名称和治理边界，并明确 bootstrap branch、main merge 和 deployable commit 的不同门槛。
 - [x] [人工 GitHub gate] 已在 bootstrap 修复提交两个远端 job 真实绿色后创建 `main`；GitHub API 回读确认默认分支为 `main`，required checks 为 `boundary-and-contracts`、`python-clean-environment`，strict update、PR review gate、管理员约束和 conversation resolution 已启用，force push 与 branch deletion 已禁止。该仓库仍只是 bootstrap/development source，不是 production authority，也不授权 VM deployment。
 - [ ] [production gate] 应用仓库在成为 production authority 前，完成公司资产归属或经批准例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
-- [ ] [HALT] 提交 tracked inventory、CI 结果、已知例外和 Git diff，等待人工批准。
+- [x] [HALT] 用户已于 2026-08-04 05:31:09 +08:00 完成人工复核并批准阶段 1 退出。批准人：用户；批准范围仅为阶段 2 的 immutable release、本地 dev/test 边界、health/preflight、代码级 rollback 和不切换生产的 VM 只读并行候选；未批准 PostgreSQL production、live SQLite 修改、计划任务迁移、现有生产 Viewer 切换或 production authority；下一人工 HALT 位于阶段 2 结束。
 
 **退出条件**：干净 clone 可恢复正式开发/审核规则；活动测试稳定通过；main 受保护；仓库历史不含禁止资产。仓库控制权 gate 可以不阻止安全 bootstrap，但未关闭前禁止 production deploy。
 
