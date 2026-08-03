@@ -1,84 +1,81 @@
 # 阶段 1 实施与验收报告
 
-报告时间：2026-08-03 22:13:21 +08:00
-状态：实现工作完成；等待 GitHub UI 人工 gate 与阶段 1 HALT 审查，不进入阶段 2。
+报告日期：2026-08-04（北京时间）
 
-## 1. 批准、工作区与提交
+状态：工程门禁正在闭环；阶段 1 人工 HALT 未批准，不进入阶段 2。
 
-- 阶段 0 批准已记录于 `tasks.md`：批准人是用户，时间为 2026-08-03 21:12:55 +08:00，范围仅限安全 Git bootstrap、边界、测试、依赖锁和 CI。
-- 活动目录 `D:\quant\industry_demo` 只完成首个安全历史，没有切换 branch、reset、clean、迁移或环境变更。后续修复均在 sibling clone `D:\quant\industry_demo_stage1` 完成；最终复验使用第二个 fresh clone `D:\quant\industry_demo_stage1_verify_20260803`。
-- remote：`https://github.com/Garthzzz/honghu-ai-research-system`；只推送 `bootstrap/stage1-safe-history`。
-- commit：`2787c54`（安全初始历史）、`1f39dbf`（测试、lockfile 与 CI）、`ecb7640`（clean-clone artifact 分层修正）。报告与任务状态将在后续审计 commit 中固化。
-- 未创建或推送 main，未修改远端历史，未使用内容仓库，未配置 VM credential。
+## 1. 授权与隔离边界
 
-## 2. Git 边界与首次 inventory
+- 用户已于 2026-08-03 21:12:55 +08:00 批准阶段 0 退出，授权范围仅为安全 Git 接入、版本边界、测试基线、依赖锁和 CI。
+- 活动目录 `D:\quant\industry_demo` 没有被切换 branch、reset、clean、迁移或用于破坏性测试。代码修复与远端操作在 sibling clone `D:\quant\industry_demo_stage1` 完成。
+- 未授权也未执行 PostgreSQL、live SQLite 写入或 schema 变更、计划任务变更、VM 部署、papers/数据库/备份/用户内容上传、内容仓库操作或阶段 2。
 
-- 当前 tracked：751 个文件、26,949,970 bytes；最大对象 `tools/viewer/static/vendor/plotly.min.js` 为 4,847,499 bytes，属于 Viewer 明确依赖的冻结 vendor 资源，低于 10 MiB block 门槛。
-- 主要类型：Python 484、Markdown 91、HTML 65、字体 60、JSON 13、JavaScript 8、CSS 7、YAML/YML 5、SQL 3、依赖 input 2、TXT 2。
-- 首次 bootstrap inventory 是 742 个文件、26,848,959 bytes；分类为应用源代码 545、测试 93、正式治理/spec 93、部署/配置 11。完整逐文件清单、大小、SHA256 和扫描详情保存在本地 ignored `cache/git_bootstrap/`，可供人工复核但不上传排除资产路径。
-- tracked allowlist 的机器权威是 `config/git_tracked_policy.json`；`.gitignore` 只提供误操作防线，不替代 allowlist、staged gate 或未来 deployment manifest。
-- tracked：应用代码、测试、CI、正式规则、活动 OpenSpec、选定活动 skills、正式 SOP、配置模板和必要静态资源。
-- excluded：四套 SQLite 及 WAL/SHM/journal、PostgreSQL dump、backup、broadcast、runtime/log/cache、secrets/Cookie/browser state、papers/evidence、Opportunity Lens intake/outputs、用户研究内容、个人上下文和 history/archive。
-- 初次全项目审计有 66 个不确定文件保持 `pending_review`，主要是非活动 skills、历史 OpenSpec、旧 prompt/TODO 和诊断说明；均未跟踪。隔离 clone 中新增的虚拟环境被明确分类为 runtime，不再污染 pending-review 统计。
+## 2. Git 历史与远端范围
 
-## 3. 安全扫描和 Git 属性
+- 应用仓库：`Garthzzz/honghu-ai-research-system`。
+- bootstrap branch：`bootstrap/stage1-safe-history`。
+- 当前仓库临时为 public，仅用于本轮审查；这不是长期批准状态，也不是 production authority。
+- 初始安全 inventory 为 742 个文件。后续新增内容只包括 CI、依赖与测试合同、阶段审计证据、Windows 路径兼容修复、pending-review 安全索引和精确提交证据生成器；没有把 excluded 资产补进 Git。
+- 本轮最终修订暂存后的 tracked 文件数为 760；相对首次增加 18 个，均落在上述获准类别。最终字节数、类型分布和逐文件身份不在这里手工冻结，以成功 main run 的 runtime artifact 为准。
+- 最终逐文件数量、体积、类型分布、最大对象和 SHA256 由 required job 在精确 checkout 后生成 `stage1-evidence-{github.sha}` artifact。该机制避免让 tracked 报告伪造包含自身的 commit SHA。
 
-- 首次及后续 staged/tracked allowlist gate：通过。
-- secret/path/credential 扫描：通过；没有输出或提交 secret 值。minified vendor 的低置信赋值误报仅对显式 vendor 例外，高置信 key/token/private-key 规则仍执行。
-- DB/WAL/SHM/backup/broadcast：tracked 中为 0。
-- Windows 保留名、不安全路径、超长相对路径、symlink/junction/reparse 和路径逃逸：通过。
-- 大文件：无普通对象超过 10 MiB；未启用 Git LFS。
-- `.gitattributes` 固定源文件换行，Windows 脚本使用 CRLF，二进制字体/图片不做文本转换；lockfile 与 requirements input 固定 LF。
-- staged gate 曾按设计阻断两次：一是 `.git/` 前缀错误误伤 `.github/`，二是正式迁入的旧 reviewer 含 `BEGIN IMMEDIATE`。两者均增加回归测试并显式收口，没有绕过门禁。
+## 3. tracked、excluded 与 pending-review
 
-## 4. SQLite dependency baseline 与 writer 定义
+- tracked allowlist 权威：`config/git_tracked_policy.json`；`.gitignore` 只是误操作防线，不代替 allowlist、gate 或未来 deployment manifest。
+- tracked 包含应用源代码、测试、CI、正式项目规则、活动 OpenSpec、审核实际依赖的 skills、正式 SOP、配置模板和必要静态资源。
+- excluded 包含 SQLite/WAL/SHM/journal、PostgreSQL dump、backup、broadcast、runtime/log/cache、凭据和浏览器状态、papers/evidence、用户研究内容、个人 scratch 和历史归档。
+- 原始全项目 inventory 中 66 个不确定文件继续保持 untracked。`config/pending_review_index.json` 长期保存每项的路径 SHA256、安全范围、后缀、大小、分类、暂不纳入原因和状态，但不公开原始路径或内容；完整路径映射只留在 ignored 本地 inventory。
+- Git 全历史对象路径复核没有发现数据库、backup、broadcast、papers、Cookie 或 storage-state 被提交。
 
-- legacy baseline：589 个静态规则命中、163 个 Python 文件；覆盖 `sqlite3.connect()`、`ATTACH`、`PRAGMA`、`BEGIN IMMEDIATE`、SQLite conflict DML 和硬编码 `data/*.db`。
-- writer 按 domain mutation path、write endpoint、writer operation 或 transaction contract 审计，不等同于进程、Viewer 或整个 scheduler。
-- `silicon_review_recorder.py` 是从 excluded cache 迁入正式源码的既有 review 事务，不是新增业务能力；已登记 domain、rule、reason、owner 和 future cutover-unit candidate。最终 ratchet 为 pass。
-- 阶段 1 没有创建 cutover registry，也没有重构生产数据访问层。
+## 4. 远端 CI 根因与修复
 
-## 5. 测试修复和分层
+原提交 `3db233b6c8a302f49740da40005d93a010c3f67a` 的远端 `python-clean-environment` 连续失败。真实日志显示五个测试都源于 GitHub Windows runner 把同一临时目录分别暴露为 8.3 短名和规范长名；直接使用 `Path.relative_to()` 做词法比较时，路径在文件系统上相同、字符串上却不属于同一根目录。
 
-- 修复 `scheduler.py`、`seed_3a.py` import-time 重包 stdout/stderr 导致的 pytest capture 失效。
-- 把受测试的硅片 reviewer 从 cache 移入 `tools/opportunity_lens/silicon_review_recorder.py`，测试不再导入 ignored runtime 文件。
-- Run16 evidence catalog 改为 build-time fail-closed 加载，clean clone 可收集模块，但真实构建缺少 governed artifact 仍明确失败。
-- 硅片 V2 builder 增加每个问题轴独立 `report`/`web` 第一轮任务、确定性 `source_channel` 和退役公开标题归一；新增不依赖研究产物的回归测试。
-- 修复 `lithium_battery_research_content.py` 两处 Python 3.10 不允许的 f-string 反斜杠表达式，不改变公式和研究值。
-- 修复前：pytest 在 import-time capture 处无法形成稳定根基线；解除该问题后，本地混合 artifact 全量曾为 626 passed、21 skipped、42 failed、41 errors，失败集中于缺失/不完整的被排除研究产物。
-- 最终 clean clone：全量 compile 通过；clean core 为 526 passed、21 skipped、53 subtests passed。
-- `config/ci_test_tiers.json` 显式列出 22 个 governed-artifact integration 模块。这些测试需要被禁止上传的研究 pack、evidence ledger、Excel、冻结模型、正式 intake 或 live 只读快照，不计作 CI coverage，也没有被声明为通过。
-- 活动测试：clean core；兼容/受控集成：manifest 中的 22 个模块；正式退役：本阶段没有以删除或永久 xfail 方式退役测试。
-- 没有运行会访问供应商 API、公司内网或 live DB 的测试。
+第一次修复只增加了公共路径 helper，仍有两个实际调用点绕过 helper，而且一个 API 把规范长路径返回给短路径调用者，因此远端仍失败。第二次修复：
 
-## 6. Python 环境与 CI
+- 内部安全比较统一使用 Windows 规范路径；
+- 公共 API 边界保留调用者原有路径表示；
+- `ingest_research`、paper path 校验/规范化和 DataYes 下载路径全部改走安全 helper；
+- 回归测试不只测 helper，而是把真实 ingest 调用链绑定到实际 8.3 alias。
 
-- 支持基线：Python 3.10；fresh clone 实测 Python 3.10.20。
-- `requirements.in` / `requirements-dev.in` 为直接依赖输入；`requirements.lock.txt` 是 Windows/Python 3.10 的 74 包 hash-pinned 权威；`requirements.txt` 仅为兼容入口。
-- 使用隔离 `.venv-stage1` 与 fresh-clone `.venv-verify` 安装；未升级或修改活动 base/quant 环境，也未假定缺失的 `industry` 与它们等价。
-- clean environment 同步 74 个锁定包成功；随后 gate、ratchet、OpenSpec、compile 和 core tests 全部通过。
-- workflow：`.github/workflows/stage1-ci.yml`。
-- required-check 候选：`boundary-and-contracts`、`python-clean-environment`。
-- CI 只有 `contents: read`，checkout 不持久化 credential，不访问 live DB、内网、供应商 API、papers、用户内容或 VM，不部署任何系统。
-- 私有 GitHub Actions 的实际远端运行状态未通过本机 CLI读取；不得用 GCM 导出 token 来绕过。需要用户在 GitHub UI 核验 workflow run。
+提交 `f0532d9846fddef7d25e359170d1335136206525` 的远端 run `30845719227` 已真实通过两个 job：`boundary-and-contracts` 与 `python-clean-environment`。远端 clean-clone 结果为 531 passed、21 skipped、53 subtests passed；加入精确提交证据回归后，本地同层结果为 532 passed、21 skipped、53 subtests passed。随后该绿色提交用于创建 `main`；main 同 SHA 的 run `30846637590` 也已完成且两个 job 均为 success，没有在失败 CI 上宣布完成。
 
-## 7. main、仓库治理和人工事项
+## 5. 精确提交证据
 
-- 当前 remote 只有 `bootstrap/stage1-safe-history`，main 尚未创建/保护。
-- 管理员需在 GitHub UI 审核 branch 与 Actions 后创建/确认 main，启用 branch protection/ruleset，并要求两个 check；禁止 force push 和直接绕过应由公司治理决定。
-- 个人账号 private repository 目前只是 bootstrap/development source，不是 production authority。公司资产控制或批准例外、第二管理员/交接、2FA、账号恢复、最小权限和公司控制的 VM deploy credential 仍是生产 gate。
+- `tools/maintenance/build_stage1_evidence.py` 只读取 `git ls-files` 中的 tracked 文件。
+- 每次 required CI checkout 后生成：`final_inventory.json`、`capability_spec_identities.runtime.json`、`stage1_completion_report.runtime.md`。
+- runtime evidence 记录 branch/ref、精确 commit SHA、UTC 生成时间、run id、逐文件大小与 SHA256、类型分布、七份 capability spec hashes 和 pending-review 索引 hash。
+- `stage1/capability_spec_identities.json` 保存静态合同 hashes 和运行时绑定方法；人工验收应以成功 main run 上传的同名 SHA artifact 为最终证据。
+- 候选提交 `8e83dfc6ddb85cde59c8777f5b1bc440e712324a` 的 run `30847270449` 已实际上传 artifact `8869204834`；下载复核为 760 个 tracked 文件、27,008,599 bytes、7 份 spec、66 条 pending-review 索引，binding commit 与 run 均准确。
+
+## 6. 测试、解释器与 CI 合同
+
+- 支持基线为 Python 3.10；`requirements.in` / `requirements-dev.in` 是直接依赖输入，`requirements.lock.txt` 是 Windows/Python 3.10 的 hash-pinned 权威，`requirements.txt` 仅为兼容入口。
+- 没有升级或修改 live base/quant 环境，也没有把缺失的 `industry` 环境与它们视为等价。
+- CI job：`boundary-and-contracts`、`python-clean-environment`。
+- CI 覆盖 compile、clean collection/core tests、tracked/secret/path/large-file gate、SQLite dependency ratchet、OpenSpec strict、lockfile clean install 和精确提交证据。
+- CI 只有 `contents: read`，checkout 不持久化 credential；不访问 live DB、内网、供应商生产 API、papers、用户内容或 VM。
+- governed-artifact integration tests 仍由显式 manifest 分层，因为其必要 artifact 被禁止上传；没有把它们伪装成通过，也没有用永久 xfail、删除测试或降低合同门槛掩盖失败。
+
+## 7. SQLite ratchet 与 writer 粒度
+
+- 当前 legacy SQLite 命中按 baseline 保留；新 PR 不得静默增加 `sqlite3.connect()`、`ATTACH`、`PRAGMA`、`BEGIN IMMEDIATE`、SQLite 专属 conflict DML、硬编码 `data/*.db` 或跨库自增 ID 依赖。
+- writer 按 domain mutation path、write endpoint、writer operation 或 transaction contract 审计，不等于整个 Python/Viewer/scheduler 进程。
+- 阶段 1 没有构建 cutover registry，也没有重构生产数据访问层。
+
+## 8. main、保护与仓库治理
+
+- GitHub API 回读确认默认分支为 `main`；required checks 为 `boundary-and-contracts` 与 `python-clean-environment`，strict update、PR review gate、管理员约束和 conversation resolution 已启用，force push 与 branch deletion 已禁止。
+- 最终阶段修订必须通过 PR 和 main Actions，不能用管理员身份直接绕过保护。
+- 当前个人账号仓库可作为 bootstrap/development source，但未获得 production authority。公司资产归属或批准例外、第二管理员/交接、2FA、账号恢复、最小权限和公司控制的 VM deploy credential 仍是未来 production gate。
 - 内容仓库保持 `RESERVED-UNUSED`，本阶段未连接或写入。
 
-## 8. 正式规范、恢复文档与未执行事项
+## 9. 临时公开风险
 
-- 七份 capability specs 均进入 Git；`stage1/capability_spec_identities.json` 的 SHA256 全部复核匹配。本阶段只包含 bootstrap 前已经批准的 writer-operation 粒度澄清，没有静默修改架构合同。
-- `codex_context/BACKUP_REGISTRY.md` 作为恢复事实/目标合同进入 Git，但未刷新、prune、复制或验证 PostgreSQL restore。
-- `docs/VIEWER_内网部署.md` 与 `docs/AUTOMATION_SETUP.md` 保持第三轮已审查的当前事实/目标状态区分；本阶段未改环境、任务或 Viewer。
-- 财务建模文档只保留已批准的顶部物理存储状态说明；未修改模型、公式、历史数据或 `financial.db`。
-- DeepSeek 实际调用 0 轮；确定性 gate 与 fresh clone 已产生直接证据，没有必要外发更多项目摘要。
-- OpenSpec strict 在 clean clone 通过。
-- 明确未执行：PostgreSQL 安装/启动/schema、live SQLite 数据或 schema 写入、migration、任务变更、VM deploy、deploy key、production release、papers/evidence/数据库/backup/用户内容上传、backup refresh/prune、内容仓库操作和阶段 2。
+`public_repository_exposure_review.md` 记录了公开状态下的额外风险：tracked 历史没有发现禁止资产或凭据，但包含固定内网代理调用形态、Windows 内部路径、任务节奏和研究/运维流程。这些不一定是 secret，却不适合长期公开。人工复核结束后应及时恢复 private；本阶段没有擅自删除正式代码或改写生产配置。
 
-## 9. 退出判断
+DeepSeek V4 Flash 实际完成两轮有效 reviewer：第一轮接受 force-push 禁令，拒绝其要求强行解决全部 pending 文件和放弃 Windows runner 的错误意见；第二轮在远端 CI、runtime artifact 和保护规则全部有证据后返回 pass、无新增 must-fix。连续无新增问题后停止第三轮。
 
-阶段 1 的代码、边界、测试、lockfile、CI 和远端 bootstrap branch 已完成并可复验；但 `main` 的远端 Actions 结果和 branch protection/ruleset 需要管理员在 GitHub UI 完成，因此尚不能自行勾选阶段 1 HALT 或宣告 production authority。人工审查建议顺序：本报告 → bootstrap inventory → Git diff/commits → workflow 与 Actions → GitHub main/ruleset → capability hashes → `tasks.md` 的阶段 1 HALT。
+## 10. 阶段结论
+
+本报告只提交阶段 1 工程和审计证据，不自行批准阶段 1 退出。只有最终 main commit 的两个 required jobs 真实绿色、保护规则可读验证、运行时证据 artifact 与该 commit 一致、OpenSpec strict 通过后，才建议用户进行阶段 1 人工审批。即使用户批准阶段 1，也不等于批准 PostgreSQL、VM、数据库、runner、production deploy 或阶段 2。

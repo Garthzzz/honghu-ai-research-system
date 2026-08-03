@@ -16,6 +16,7 @@
 - 全项目分类把 `data/`、`backup/`、`broadcast_packages/`、`cache/`、`papers/`、`funda/`、`tools/dynamic/secrets/`、Opportunity Lens intake/run outputs 和研究员 workpapers 作为不可暂存边界；这些子树不进入 staged inventory。
 - `docs/industries/` 属于研究内容，不进入应用仓库；`codex_context/LIVE_STATE.md` 属于随 live DB 变化的运行快照，不进入 Git。
 - 仍有 `66` 个文件保持 `pending_review`，主要是历史 OpenSpec、非活动 skills、旧 prompt/TODO、诊断说明与根目录研究请求；本次没有猜测纳入。
+- 为避免 ignored cache 丢失后只剩计数，最终历史新增 `config/pending_review_index.json`：每项只保存路径 SHA256、安全范围、后缀、大小、分类、暂不纳入原因和状态，不公开原始路径或文件内容。原始路径映射仍只留在本地 ignored inventory。
 - `tools/vocab_queue.jsonl` 是待人工合并的运行队列，审查中从 staged index 移除并加入显式排除。
 
 ## 3. 安全门禁
@@ -34,3 +35,7 @@
 ## 5. 对 live 工作区的影响
 
 本次只在活动根目录增加 `.git` 元数据和阶段 1 源文件，没有切换 branch、reset、clean、移动文件、修改 live SQLite、启动 migration、调整计划任务或改 Viewer/VM 配置。后续代码修复在 sibling clone 中进行。
+
+## 6. 首次证据与最终证据的关系
+
+本文件冻结首次 bootstrap 的 742 个文件，不随阶段后续 commit 改写成“最终 inventory”。最终 tracked inventory、spec hashes、branch/ref、生成时间和 commit SHA 由 required CI 在精确 checkout 后生成 `stage1-evidence-{github.sha}` artifact；两者分别回答“首次提交了什么”和“最终被验收的提交包含什么”。

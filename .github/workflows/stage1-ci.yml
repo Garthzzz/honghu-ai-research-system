@@ -22,17 +22,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout without persisted credentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
       - name: Set up Node for OpenSpec validation
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "22"
 
@@ -55,6 +55,18 @@ jobs:
         shell: pwsh
         run: openspec validate github-vm-dual-node-operations --strict
 
+      - name: Build evidence bound to the checked-out commit
+        shell: pwsh
+        run: python tools/maintenance/build_stage1_evidence.py
+
+      - name: Upload exact-commit Stage 1 evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage1-evidence-${{ github.sha }}
+          path: cache/git_bootstrap/stage1_evidence/
+          if-no-files-found: error
+          retention-days: 30
+
   python-clean-environment:
     name: python-clean-environment
     runs-on: windows-latest
@@ -64,12 +76,12 @@ jobs:
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Checkout without persisted credentials
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
 
       - name: Set up the supported Python runtime
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
           cache: pip

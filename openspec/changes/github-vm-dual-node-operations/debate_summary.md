@@ -126,3 +126,25 @@ DeepSeek 返回中，以下意见被拒绝：
 Codex 先在隔离 clone 中完成 allowlist、staged gate、SQLite ratchet、测试修复、hash-pinned 环境和 CI，并通过远端 fresh clone 复验。本阶段没有调用 DeepSeek：门禁两次真实阻断分别发现 `.git/` 误伤 `.github/` 和受控 artifact 测试污染 clean-clone coverage，随后均由确定性回归测试关闭；继续向外部模型发送抽象摘要没有可识别的信息增量。该选择符合“可以使用、连续无增量即停止”，也避免无必要发送项目结构信息。
 
 这不等于外部模型批准了阶段 1。阶段 1 的证据是 staged/tracked gate、SQLite ratchet、OpenSpec strict、clean environment 安装、compile、clean-clone tests 和远端 commit identity；main ruleset 与人工 HALT 仍由用户完成。
+
+## 阶段 1 远端 CI 闭环审查（2026-08-04 追加）
+
+### 第一轮：Windows 路径修复、证据绑定和仓库保护
+
+Codex 先读取失败 run 的真实日志，确认五个失败都来自 GitHub Windows runner 对同一路径的 8.3 短名/规范长名表示差异；随后经过两次定向修复，把真实 ingest、paper path 和 DataYes 路径调用链纳入回归测试。提交 `f0532d9846fddef7d25e359170d1335136206525` 的两个远端 job 均真实绿色，clean-clone 为 531 passed、21 skipped、53 subtests passed。
+
+发送给 DeepSeek V4 Flash 的内容只有上述脱敏根因、测试结果和四项待办：精确 commit 证据、pending-review 安全索引、main required checks/force-push 保护、公开暴露面审计。没有发送 key、Cookie、源代码、数据库、papers、用户内容或内部端点。前两次响应把推理预算耗尽而没有给出最终 reviewer 内容，不计作有效 review；缩短问题后取得一份完整结果。
+
+DeepSeek 的三项意见及 Codex 判断：
+
+- 接受：main 必须禁止 force push；它与已批准仓库治理合同一致。
+- 拒绝：“66 个 pending-review 必须全部解决后才能合并”。这些文件的正确状态就是保持 untracked 并有可持续安全索引，强行纳入反而违反合规边界。
+- 拒绝：“Windows runner 不适用”。同一 runner 上的最终修复已经通过两个实际 job；应保留 Windows 作为真实目标环境，而不是用换 runner 隐藏路径缺陷。
+
+据此修订：增加 exact-checkout runtime evidence、长期 pending-review 哈希索引、公开仓库暴露面报告，并继续要求 main 的两个 required checks 和 force-push 禁令。没有接受任何 PostgreSQL、Docker、Redis、CDC、额外 VM 或阶段 2 范围扩张。
+
+### 第二轮：精确提交证据与远端治理一致性
+
+Codex 完成第一轮修订后先做本地全层复核，再推送 `8e83dfc6ddb85cde59c8777f5b1bc440e712324a`。远端 run `30847270449` 的两个 job 均为 success：553 项测试被收集，532 passed、21 skipped、53 subtests passed。Actions 上传的 `stage1-evidence-8e83dfc6ddb85cde59c8777f5b1bc440e712324a` 被重新下载检查，commit、run、760 个 tracked 文件、7 份 spec 和 66 条 pending-review 索引相互一致。GitHub API 同时回读确认 main 的两个 required checks、strict、PR gate、管理员约束、conversation resolution、force-push 禁令和删除禁令。
+
+DeepSeek 只收到这些脱敏结果和公开仓库标识，返回 `pass`，没有提出阶段 1 内的 must-fix，也没有要求范围扩张。Codex 独立复核后同意“没有新增工程缺口”，但不把 reviewer 的 pass 解释为阶段 1 人工批准；最终仍需 protected main 的 PR/main Actions 和用户 HALT。由于第二轮没有信息增量或未闭环问题，停止第三轮。
