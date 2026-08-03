@@ -46,6 +46,7 @@
 - 每次 required CI checkout 后生成：`final_inventory.json`、`capability_spec_identities.runtime.json`、`stage1_completion_report.runtime.md`。
 - runtime evidence 记录 branch/ref、精确 commit SHA、UTC 生成时间、run id、逐文件大小与 SHA256、类型分布、七份 capability spec hashes 和 pending-review 索引 hash。
 - `stage1/capability_spec_identities.json` 保存静态合同 hashes 和运行时绑定方法；人工验收应以成功 main run 上传的同名 SHA artifact 为最终证据。
+- 候选提交 `8e83dfc6ddb85cde59c8777f5b1bc440e712324a` 的 run `30847270449` 已实际上传 artifact `8869204834`；下载复核为 760 个 tracked 文件、27,008,599 bytes、7 份 spec、66 条 pending-review 索引，binding commit 与 run 均准确。
 
 ## 6. 测试、解释器与 CI 合同
 
@@ -72,6 +73,8 @@
 ## 9. 临时公开风险
 
 `public_repository_exposure_review.md` 记录了公开状态下的额外风险：tracked 历史没有发现禁止资产或凭据，但包含固定内网代理调用形态、Windows 内部路径、任务节奏和研究/运维流程。这些不一定是 secret，却不适合长期公开。人工复核结束后应及时恢复 private；本阶段没有擅自删除正式代码或改写生产配置。
+
+DeepSeek V4 Flash 实际完成两轮有效 reviewer：第一轮接受 force-push 禁令，拒绝其要求强行解决全部 pending 文件和放弃 Windows runner 的错误意见；第二轮在远端 CI、runtime artifact 和保护规则全部有证据后返回 pass、无新增 must-fix。连续无新增问题后停止第三轮。
 
 ## 10. 阶段结论
 

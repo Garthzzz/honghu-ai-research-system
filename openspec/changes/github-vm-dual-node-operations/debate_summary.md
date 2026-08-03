@@ -142,3 +142,9 @@ DeepSeek 的三项意见及 Codex 判断：
 - 拒绝：“Windows runner 不适用”。同一 runner 上的最终修复已经通过两个实际 job；应保留 Windows 作为真实目标环境，而不是用换 runner 隐藏路径缺陷。
 
 据此修订：增加 exact-checkout runtime evidence、长期 pending-review 哈希索引、公开仓库暴露面报告，并继续要求 main 的两个 required checks 和 force-push 禁令。没有接受任何 PostgreSQL、Docker、Redis、CDC、额外 VM 或阶段 2 范围扩张。
+
+### 第二轮：精确提交证据与远端治理一致性
+
+Codex 完成第一轮修订后先做本地全层复核，再推送 `8e83dfc6ddb85cde59c8777f5b1bc440e712324a`。远端 run `30847270449` 的两个 job 均为 success：553 项测试被收集，532 passed、21 skipped、53 subtests passed。Actions 上传的 `stage1-evidence-8e83dfc6ddb85cde59c8777f5b1bc440e712324a` 被重新下载检查，commit、run、760 个 tracked 文件、7 份 spec 和 66 条 pending-review 索引相互一致。GitHub API 同时回读确认 main 的两个 required checks、strict、PR gate、管理员约束、conversation resolution、force-push 禁令和删除禁令。
+
+DeepSeek 只收到这些脱敏结果和公开仓库标识，返回 `pass`，没有提出阶段 1 内的 must-fix，也没有要求范围扩张。Codex 独立复核后同意“没有新增工程缺口”，但不把 reviewer 的 pass 解释为阶段 1 人工批准；最终仍需 protected main 的 PR/main Actions 和用户 HALT。由于第二轮没有信息增量或未闭环问题，停止第三轮。
