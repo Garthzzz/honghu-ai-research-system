@@ -30,6 +30,8 @@ from tools.opportunity_lens.silicon_run_pack_support import (
     natural_citations,
     normalize_agent_data_points,
     normalize_agent_source,
+    normalize_deprecated_public_headings,
+    parallel_search_plan,
     sha256_file,
     source_uri,
     write_json,
@@ -4544,9 +4546,13 @@ def build_pack(*, output_dir: Path) -> dict[str, Any]:
         for ref in claim_refs
     ]
     builder.entities = entities
-    builder.entity_sections = _replace_public_fact_source_refs(entity_sections)
+    builder.entity_sections = normalize_deprecated_public_headings(
+        _replace_public_fact_source_refs(entity_sections)
+    )
     builder.entity_investment_targets = targets
-    builder.sections = _replace_public_fact_source_refs(_main_sections())
+    builder.sections = normalize_deprecated_public_headings(
+        _replace_public_fact_source_refs(_main_sections())
+    )
     builder.visuals = _replace_public_fact_source_refs(
         [
             _visual(outputs),
@@ -4560,12 +4566,12 @@ def build_pack(*, output_dir: Path) -> dict[str, Any]:
             _supplier_relationship_visual(supplier_relationships),
         ]
     )
-    builder.search_plan = [
+    builder.search_plan = parallel_search_plan([
         {"axis_key": "global_fab_projects", "query_text": "全球晶圆厂扩产、设备搬入、量产和月产能", "languages": ["zh", "en", "ja", "ko"], "status": "completed"},
         {"axis_key": "product_demand", "query_text": "先进逻辑、DRAM HBM、NAND、200毫米和SOI硅片需求", "languages": ["zh", "en", "ja", "ko"], "status": "completed"},
         {"axis_key": "wafer_suppliers", "query_text": "硅片供应商扩产、客户认证、销量、价格、利用率和盈利", "languages": ["zh", "en", "ja"], "status": "completed"},
         {"axis_key": "counterevidence", "query_text": "项目延期、利用现有洁净室、库存、价格下降和阶段性过剩", "languages": ["zh", "en", "ja", "ko"], "status": "completed"},
-    ]
+    ])
     builder.supplement_requests = [
         {
             "entity_key": "global_300mm_fab_expansion",

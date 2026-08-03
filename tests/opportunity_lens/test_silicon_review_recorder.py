@@ -7,9 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from cache.opportunity_lens.silicon_expansion_20260719 import (
-    record_silicon_reviews as recorder,
-)
+from tools.opportunity_lens import silicon_review_recorder as recorder
 from tools.opportunity_lens.artifact_freeze import ArtifactFreeze, sha256_bytes
 from tools.opportunity_lens.browser_audit_contract import BrowserAuditValidation
 from tools.opportunity_lens.db import connect

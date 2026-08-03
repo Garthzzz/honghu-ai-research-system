@@ -1,5 +1,5 @@
-# industry_demo 活动 Python 依赖
-# SQLite 为标准库。版本是兼容下限，不是完整 lockfile。
+# 兼容安装入口；可重复环境以 requirements.lock.txt 为权威。
+# SQLite 为标准库。本文件保留给尚未切换 lockfile 的旧安装入口。
 
 # Viewer / Markdown / config
 Flask>=3.0
@@ -18,6 +18,6 @@ Pillow>=10.0
 playwright>=1.45
 keyring>=25.0
 
-# 数据源政策：新增市场、估值、财务和 K 线只允许 Tushare HTTP 接口与 yfinance。
-# 不安装或调用 Wind/Akshare 作为新数据源。Playwright 默认复用本机 Chrome；
+# 数据源政策：A 股 Wind 仅走项目固定内网 HTTP 代理，Tushare 按字段补缺；
+# 海外以 yfinance 为主，Akshare 继续禁止。Playwright 默认复用本机 Chrome；
 # 如需 bundled browser，应由环境管理员显式执行 playwright install。

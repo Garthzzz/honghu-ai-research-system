@@ -8,6 +8,8 @@
 *.yml text eol=lf
 *.toml text eol=lf
 *.sql text eol=lf
+requirements*.txt text eol=lf
+requirements*.in text eol=lf
 *.html text eol=lf
 *.css text eol=lf
 *.js text eol=lf

@@ -5,6 +5,16 @@
     "not_equivalent_to": "whole process, Viewer application, or scheduled-task process",
     "phase1_scope": "static operation-level ratchet; no cutover-unit ownership assignment"
   },
+  "documented_exceptions": [
+    {
+      "path": "tools/opportunity_lens/silicon_review_recorder.py",
+      "domain": "opportunity_lens publication review",
+      "rule": "begin_immediate",
+      "reason": "阶段 1 将既有、受测试的硅片 reviewer 从被排除的 cache 迁入正式源代码；该事务语义不是新业务写路径，保留用于一次性原子记录七类 review。",
+      "owner": "Opportunity Lens publication governance",
+      "future_cutover_unit_candidate": "research publication and review ledger"
+    }
+  ],
   "counts_by_file_rule": {
     "tools/dynamic/ai_funnel.py": {
       "sqlite_conflict_dml": 2
@@ -333,6 +343,9 @@
     },
     "tools/opportunity_lens/run16_pack_builder.py": {
       "sqlite3_connect": 2
+    },
+    "tools/opportunity_lens/silicon_review_recorder.py": {
+      "begin_immediate": 1
     },
     "tools/opportunity_lens/run_immutability_audit.py": {
       "pragma": 4,

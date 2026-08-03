@@ -19,14 +19,9 @@ voice 子进程的认证/系统错误会进入 ``error``，连续第三次失败
   python scheduler.py status    # 看 fetch_schedule 当前状态
 """
 from __future__ import annotations
-import sqlite3, sys, io, json, subprocess
+import sqlite3, sys, json, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
-
-try:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-except Exception:
-    pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DB = ROOT / "data" / "research.db"

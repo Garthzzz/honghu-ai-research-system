@@ -12,6 +12,8 @@
 
 详细分类、例外和提交前门禁见 [Git 仓库边界](docs/GIT_REPOSITORY_BOUNDARY.md)。当前迁移合同见 `openspec/changes/github-vm-dual-node-operations/`。
 
+阶段 1 的解释器、依赖锁、CI 和测试分层见 [阶段 1 CI 与环境合同](docs/STAGE1_CI_AND_ENVIRONMENT.md)。
+
 ## 当前实施阶段
 
 阶段 1 仅建立安全 Git bootstrap、测试基线、依赖锁和 CI。它不授权 PostgreSQL production、数据库切换、任务迁移或 VM 部署。

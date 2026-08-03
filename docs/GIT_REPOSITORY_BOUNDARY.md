@@ -52,3 +52,7 @@
 ## 6. 生产治理限制
 
 个人账号下的 private 仓库可用于 bootstrap 和开发，但在公司资产控制、共同管理/交接、2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential 完成前，不是 production authority。阶段 1 不配置 VM credential，也不部署 production。
+
+## 7. CI 与环境
+
+阶段 1 的 Python 3.10、hash-pinned lockfile、clean-clone 测试分层和 required-check 合同见 [阶段 1 CI、测试分层与 Python 环境合同](STAGE1_CI_AND_ENVIRONMENT.md)。CI 不使用被仓库边界排除的研究资料或 live 数据；受控 artifact 集成测试不会被伪装成 clean-clone coverage。

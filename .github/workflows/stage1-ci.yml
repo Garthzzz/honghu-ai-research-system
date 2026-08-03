@@ -1,0 +1,92 @@
+name: Stage 1 Safe CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "bootstrap/**"
+      - "feature/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stage1-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  boundary-and-contracts:
+    name: boundary-and-contracts
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Set up Node for OpenSpec validation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install the pinned OpenSpec CLI
+        shell: pwsh
+        run: npm install --global @fission-ai/openspec@1.6.0
+
+      - name: Validate tracked repository boundary
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force cache/git_bootstrap | Out-Null
+          python tools/maintenance/git_stage1_guard.py gate --scope tracked --output cache/git_bootstrap/ci_tracked_gate.json
+
+      - name: Enforce the SQLite dependency ratchet
+        shell: pwsh
+        run: |
+          python tools/maintenance/git_stage1_guard.py sqlite-ratchet --baseline config/sqlite_dependency_baseline.json --output cache/git_bootstrap/ci_sqlite_ratchet.json
+
+      - name: Validate the approved OpenSpec change
+        shell: pwsh
+        run: openspec validate github-vm-dual-node-operations --strict
+
+  python-clean-environment:
+    name: python-clean-environment
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      HONGHU_CI: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Checkout without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up the supported Python runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+          cache-dependency-path: requirements.lock.txt
+
+      - name: Install the exact locked environment
+        shell: pwsh
+        run: python -m pip install --require-hashes --requirement requirements.lock.txt
+
+      - name: Compile tracked Python sources and tests
+        shell: pwsh
+        run: python -m compileall -q tools tests
+
+      - name: Validate clean-clone test collection
+        shell: pwsh
+        run: python tools/ci/run_test_tier.py --collect-only
+
+      - name: Run clean-clone core tests
+        shell: pwsh
+        run: python tools/ci/run_test_tier.py

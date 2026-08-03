@@ -30,12 +30,29 @@ from tools.opportunity_lens.run16_application_industry_research import (
     expanded_company_rows,
 )
 from tools.opportunity_lens.run16_source_catalog import evidence_summary
+from tools.opportunity_lens.run16_source_catalog import APPLICATION_EVIDENCE_PATH
 from tools.opportunity_lens.run_pack_contract import (
     public_markdown_character_count,
     validate_run_pack,
 )
 
 
+RUN16_ARTIFACTS_AVAILABLE = APPLICATION_EVIDENCE_PATH.is_file()
+
+
+class Run16CleanCloneBoundaryTests(unittest.TestCase):
+    def test_evidence_artifacts_are_loaded_at_build_time_not_import_time(self) -> None:
+        if RUN16_ARTIFACTS_AVAILABLE:
+            self.assertGreater(evidence_summary()["source_count"], 0)
+        else:
+            with self.assertRaisesRegex(Exception, "Run16"):
+                evidence_summary()
+
+
+@unittest.skipUnless(
+    RUN16_ARTIFACTS_AVAILABLE,
+    "requires governed Run16 evidence artifacts that are intentionally excluded from Git",
+)
 class Run16PackBuilderTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

@@ -434,7 +434,7 @@ def test_fact_specific_provenance_is_consistent_across_raw_and_public_outputs() 
         for point in amat["target_data_points"]
         if point.get("metric_category") == "current_valuation_and_profitability"
     )
-    assert "PS-TTM）接口未返回、当前不可得" in amat_valuation["value_text"]
+    assert "滚动市销率接口未返回、当前不可得" in amat_valuation["value_text"]
 
     public_text = json.dumps(
         {

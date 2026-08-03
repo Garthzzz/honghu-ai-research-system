@@ -2412,6 +2412,7 @@ def make_companies(industry_id: int, s: dict[str, int]) -> str:
 """.strip()
         )
 
+    company_sections = "\n\n".join(sections)
     body = f"""
 # 锂电池行业公司透视：九家公司分别建模、分别估值
 
@@ -2451,7 +2452,7 @@ def make_companies(industry_id: int, s: dict[str, int]) -> str:
 
 这张表的目的不是给公司打总分，而是先识别价值由什么驱动。相同的负自由现金流，在{company('比亚迪')}主要来自集团全球扩张，在{company('中创新航')}和{company('亿纬锂能')}来自动储产能爬坡，在{company('孚能科技')}则叠加亏损与低利用率；只有项目回报、融资能力和拐点时间明确后，才能判断负现金是成长投资还是价值侵蚀。
 
-{"\n\n".join(sections)}
+{company_sections}
 
 ## 总结
 
@@ -2511,6 +2512,9 @@ def make_valuation(industry_id: int, s: dict[str, int]) -> str:
             )
         refs.extend(COMPANY_PUBLIC_ANALYSIS[name]["refs"])
 
+    result_table_rows = "\n".join(result_rows)
+    parameter_table_rows = "\n".join(parameter_rows)
+    reconciliation_table_rows = "\n".join(reconciliation_rows)
     body = f"""
 # 锂电池行业估值对比：利润增长、资产回报与现金兑现
 
@@ -2536,13 +2540,13 @@ PE区间结合公司历史估值、真正可比公司的市场倍数、增长质
 
 | 公司 | 当前市值（亿元） | 2027E归母净利润（亿元） | 正常化PE价值（亿元） | PB—ROE价值（亿元） | 当前隐含2027E PE |
 |---|---:|---:|---:|---:|---:|
-{"\n".join(result_rows)}
+{result_table_rows}
 
 ### 上下限参数怎样形成
 
 | 公司 | PE参数 | PE参数依据 | PB参数 | PB参数依据 |
 |---|---:|---|---:|---|
-{"\n".join(parameter_rows)}
+{parameter_table_rows}
 
 PB—ROE不是给所有高增长公司强行套资产估值。它在资产密集、资本开支高的电池制造业中承担“利润增长是否需要更多净资产”的诊断：如果利润增长但净资产扩张更快，ROE和合理PB会下降；如果规模效应、技术和客户使新增资本获得更高回报，PB可以上升。对{company('孚能科技')}这类亏损后扭亏公司，公式在低ROE下容易产生不稳定或负值，因此模型使用0.45—0.55倍资产折价带，只作资产回报诊断，不冒充永续模型结果。
 
@@ -2550,7 +2554,7 @@ PB—ROE不是给所有高增长公司强行套资产估值。它在资产密集
 
 | 公司 | 外部基准及日期 | 2026—2028归母净利润（亿元） | 独立模型相对外部基准 |
 |---|---|---:|---:|
-{"\n".join(reconciliation_rows)}
+{reconciliation_table_rows}
 
 {company('宁德时代')}、{company('比亚迪')}、{company('国轩高科')}和{company('鹏辉能源')}使用截至2026年7月28日的数据商一致预期，单独列示且不与底层卖方报告重复计权；{company('中创新航')}、{company('亿纬锂能')}、{company('瑞浦兰钧')}和{company('欣旺达')}分别采用2026年5—6月可完整核验的单家机构模型；{company('孚能科技')}最近两个季度没有可用完整模型，因此不使用2025年8月旧研报填补当前盈利中位数。
 

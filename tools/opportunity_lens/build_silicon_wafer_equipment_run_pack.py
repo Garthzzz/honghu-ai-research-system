@@ -30,6 +30,8 @@ from tools.opportunity_lens.silicon_run_pack_support import (
     natural_citations,
     normalize_agent_data_points,
     normalize_agent_source,
+    normalize_deprecated_public_headings,
+    parallel_search_plan,
     sha256_file,
     source_uri,
     write_json,
@@ -5207,7 +5209,7 @@ def build_pack(*, output_dir: Path) -> dict[str, Any]:
         )
     ]
     builder.entities = entities
-    builder.entity_sections = entity_sections
+    builder.entity_sections = normalize_deprecated_public_headings(entity_sections)
     builder.entity_investment_targets = targets
     builder.sections = _main_sections()
     builder.visuals = [
@@ -5221,13 +5223,13 @@ def build_pack(*, output_dir: Path) -> dict[str, Any]:
         _listed_company_ranking_visual(),
         _listed_financial_snapshot_visual(),
     ]
-    builder.search_plan = [
+    builder.search_plan = parallel_search_plan([
         {"axis_key": "downstream_demand_transmission", "query_text": "先进逻辑、DRAM/HBM、NAND、功率与SOI项目怎样改变硅片品类和设备工序", "languages": ["zh", "en", "ko"], "status": "completed"},
         {"axis_key": "wafer_maker_projects", "query_text": "全球硅片厂扩产、项目进度、设备搬入与客户认证", "languages": ["zh", "en", "ja", "ko"], "status": "completed"},
         {"axis_key": "equipment_contracts", "query_text": "硅片厂招股书、问询回复和设备商订单中的具名供应关系", "languages": ["zh", "en", "ja"], "status": "completed"},
         {"axis_key": "process_boundary", "query_text": "长晶、切磨抛、外延、终洗和裸片检测的直接产品范围", "languages": ["zh", "en", "ja"], "status": "completed"},
         {"axis_key": "counterevidence", "query_text": "项目延期、利用率、售价、验收失败和资本开支后移", "languages": ["zh", "en", "ja", "ko"], "status": "completed"},
-    ]
+    ])
     builder.supplement_requests = [
         {
             "entity_key": "semiconductor_crystal_growth_tools",

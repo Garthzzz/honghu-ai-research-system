@@ -1,0 +1,31 @@
+{
+  "schema_version": "honghu.ci_test_tiers.v1",
+  "core": {
+    "description": "Clean-clone tests that use temporary databases and checked-in fixtures only.",
+    "ignore_modules": [
+      "tests/opportunity_lens/test_byd_luxshare_competition_model.py",
+      "tests/opportunity_lens/test_byd_luxshare_human_report.py",
+      "tests/opportunity_lens/test_byd_luxshare_run_pack_builder.py",
+      "tests/opportunity_lens/test_evidence_resolver.py",
+      "tests/opportunity_lens/test_high_multilayer_pcb_models.py",
+      "tests/opportunity_lens/test_run13_financial_data_boundary.py",
+      "tests/opportunity_lens/test_run13_v3_model.py",
+      "tests/opportunity_lens/test_run15_financial_model.py",
+      "tests/opportunity_lens/test_run16_financial_portfolio_model.py",
+      "tests/opportunity_lens/test_run18_nev_model.py",
+      "tests/opportunity_lens/test_run18_pack_builder.py",
+      "tests/opportunity_lens/test_silicon_expansion_run_pack_builders.py",
+      "tests/research_workflow/test_battery_policy_model.py",
+      "tests/research_workflow/test_calculator_live_formulas.py",
+      "tests/research_workflow/test_copper_calculator_model.py",
+      "tests/research_workflow/test_copper_lithium_valuation_parameters.py",
+      "tests/research_workflow/test_copper_workbook_model.py",
+      "tests/research_workflow/test_lithium_battery_research_package.py",
+      "tests/research_workflow/test_lithium_calculator_ledger.py"
+    ]
+  },
+  "governed_artifact_integration": {
+    "description": "Local/manual integration tests that require excluded research packs, evidence ledgers, workbooks, frozen model artifacts, or live read-only database snapshots.",
+    "policy": "These modules remain tracked and must not be reported as clean-clone CI coverage. Their governed inputs must not be uploaded to application Git merely to make CI green."
+  }
+}

@@ -34,9 +34,9 @@ from tools.opportunity_lens.run16_executable_portfolio_freeze import (
     validate_executable_artifact,
 )
 from tools.opportunity_lens.run16_source_catalog import (
-    SOURCES,
     build_claims,
     build_data_points,
+    build_sources,
     evidence_summary,
 )
 from tools.opportunity_lens.run_pack_builder import RunPackBuilder
@@ -143,7 +143,24 @@ MOJIBAKE_MARKERS = tuple(
     )
 )
 
-SOURCE_BY_REF = {str(source["ref"]): source for source in SOURCES}
+SOURCES: list[dict[str, Any]] = []
+SOURCE_BY_REF: dict[str, dict[str, Any]] = {}
+
+
+def _load_source_catalog() -> None:
+    """Load evidence-backed sources only when a Run16 build is requested.
+
+    The evidence ledgers are governed research artifacts and intentionally stay
+    outside the application Git repository.  Keeping this load out of module
+    import lets clean clones collect unit tests without weakening the builder's
+    fail-closed behavior when a real Run16 rebuild is requested.
+    """
+
+    if SOURCES:
+        return
+    sources = build_sources()
+    SOURCES.extend(sources)
+    SOURCE_BY_REF.update({str(source["ref"]): source for source in sources})
 
 
 class Run16PackInputError(ValueError):
@@ -4020,6 +4037,7 @@ def _public_draft(pack: Mapping[str, Any]) -> str:
 
 
 def build_pack() -> dict[str, Any]:
+    _load_source_catalog()
     model, executable, reconciliation, company_map = load_frozen_artifacts()
     sections, parts = _public_sections(model, reconciliation, company_map)
     intake = parse_markdown_intake_text(INTAKE_PATH.read_text(encoding="utf-8"))

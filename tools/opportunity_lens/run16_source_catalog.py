@@ -477,8 +477,5 @@ def evidence_summary() -> dict[str, int]:
     }
 
 
-SOURCES = build_sources()
-
-
 if __name__ == "__main__":
     print(json.dumps(evidence_summary(), ensure_ascii=False, indent=2))

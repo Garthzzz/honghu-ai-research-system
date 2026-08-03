@@ -134,6 +134,12 @@ def normalize_agent_source(
             source.get("independence_rationale")
             or "按原始发布主体、底层文件与披露事项归并；转载和同一底稿不重复计数。"
         ),
+        "source_channel": (
+            str(source.get("source_channel") or "").strip().lower()
+            if str(source.get("source_channel") or "").strip().lower()
+            in {"report", "web"}
+            else ("web" if locator.startswith(("http://", "https://")) else "report")
+        ),
     }
     if locator.startswith(("http://", "https://")):
         result["url"] = locator
@@ -160,6 +166,39 @@ def normalize_agent_source(
     if source.get("date_note"):
         result["date_note"] = str(source["date_note"])
     return result
+
+
+def parallel_search_plan(
+    rows: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Compile each first-round research axis into independent report/web tasks."""
+
+    plan: list[dict[str, Any]] = []
+    for row in rows:
+        if row.get("source_channel"):
+            raise ValueError("parallel search-plan input must not preselect one source channel")
+        for source_channel in ("report", "web"):
+            task = copy.deepcopy(dict(row))
+            task["source_channel"] = source_channel
+            plan.append(task)
+    return plan
+
+
+def normalize_deprecated_public_headings(
+    rows: Sequence[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Remove a retired deferred-research heading from legacy silicon prose."""
+
+    normalized: list[dict[str, Any]] = []
+    for row in rows:
+        item = copy.deepcopy(dict(row))
+        body = str(item.get("body_markdown") or "")
+        item["body_markdown"] = body.replace(
+            "### 如果想进一步研究，需要补充的信息",
+            "### 公开证据限制",
+        )
+        normalized.append(item)
+    return normalized
 
 
 def normalize_agent_data_points(

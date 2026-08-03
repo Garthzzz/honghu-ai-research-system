@@ -13,14 +13,9 @@ Stage 3-A 数据播种 — ?? 顺序:source 先于 opinion_leader(附修订;FK �
 re-run 安全。绝不编造:URL/handle 全来自 config(user 提供 / Claude 推荐 Dylan)。
 """
 from __future__ import annotations
-import sqlite3, sys, io, json
+import sqlite3, sys, json
 from pathlib import Path
 from datetime import datetime
-
-try:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-except Exception:
-    pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DB = ROOT / "data" / "research.db"

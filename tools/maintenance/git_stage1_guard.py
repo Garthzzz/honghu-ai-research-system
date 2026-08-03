@@ -146,7 +146,9 @@ def classify(rel: str, policy: Policy) -> tuple[str, str]:
 
 
 def _iter_files(root: Path, policy: Policy) -> Iterator[tuple[str, Path, os.stat_result]]:
-    excluded_walk = tuple(prefix.rstrip("/") for prefix in policy.excluded_prefixes)
+    # Keep the trailing slash for prefix matching.  Stripping it would make
+    # ``.git/`` also match a legitimate sibling such as ``.github/``.
+    excluded_walk = policy.excluded_prefixes
     for current, dirs, names in os.walk(root, topdown=True, followlinks=False):
         current_path = Path(current)
         rel_dir = current_path.relative_to(root).as_posix()
