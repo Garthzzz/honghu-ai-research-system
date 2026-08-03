@@ -37,7 +37,7 @@
 
 ## 3. 本地和 clean-clone 证据
 
-- 隔离工作目录完整核心测试：560 项收集，539 passed、21 skipped、53 subtests passed；21 项是已登记、需要受控研究 artifact 的集成测试，不属于 clean-clone 核心层。
+- 隔离工作目录在最新分支 head 上完整收集 561 项测试；clean-core 实跑得到 540 passed、21 skipped、53 subtests passed。21 项是已登记、需要受控研究 artifact 的集成测试，不属于 clean-clone 核心层。
 - fresh clone `D:\quant\industry_demo_phase2_verify_7c8eca4` 精确检出 `7c8eca4d2d24ecc25c3e7fbae47015483d36ec14`，再次得到 539 passed、21 skipped、53 subtests passed。
 - 本地 exact-commit evidence 对 `0fc2562c5a4c4a3fc0739f0ec2181dd1274e1ceb` 完成 preflight 和一次真实 code-only rollback，四个合成数据库的 SHA256 前后完全一致。
 - staged/tracked boundary、secret/path/credential/large-file gate、Windows path gate、SQLite ratchet 和 `openspec validate --strict` 均通过。
@@ -52,6 +52,8 @@
 
 该 artifact 已重新下载核验：release 包含 567 个文件、24,483,608 bytes，manifest SHA256 为 `f4608e2e73eaa6c095d1b667697d06f9893b821e5b1431711a423786e98d002d`，本地重算一致；绑定的 commit、run id、preflight、rollback ledger 和数据库哈希不变证据相互一致。
 
+阶段报告和公开暴露复核加入后，分支 head 为 `ba1ffabfed5390bef9646a6174fdd2a066094eac`。其 push run `30857992230` 与 PR run `30857995440` 的两个 required job 均为 success，PR #3 状态为 clean/mergeable；main 仍保持受保护且未合并。该 head 的本地 exact-commit evidence 再次得到 567 个文件、24,483,608 bytes，manifest SHA256 为 `b146b7520f1ea560051b85276cd487beeeffd87f8faca6a389056c6efb3a4195`，preflight、code-only rollback 和数据库哈希不变检查均通过。
+
 ## 5. VM 只读候选
 
 当前生产 `http://10.5.1.240:8080/api/health` 仍返回成功，release version 仍为既有广播版本；端口 18080 未监听，说明没有偷偷启动候选或切换生产。
@@ -62,4 +64,4 @@ VM 验收必须取得：独立候选根、18080 health、commit/manifest/schema 
 
 ## 6. 当前结论
 
-代码层、本地开发边界、clean clone、preflight 和 rollback 已形成可验证实现；远端 CI 与 VM 只读候选仍是剩余 gate。阶段 2 HALT 保持未批准，阶段 3 未开始。
+代码层、本地开发边界、clean clone、preflight、rollback 与远端 CI 已形成可验证实现；VM 只读候选是唯一剩余 gate。阶段 2 HALT 保持未批准，阶段 3 未开始。
