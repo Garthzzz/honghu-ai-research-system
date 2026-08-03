@@ -1,7 +1,16 @@
 {
   "schema_version": "honghu.capability_spec_identity.v1",
-  "captured_at": "2026-08-03T21:12:55+08:00",
+  "captured_at": "2026-08-04T03:39:03+08:00",
   "phase": "stage1-safe-git-bootstrap",
+  "commit_binding": {
+    "method": "github-actions-post-checkout-runtime-evidence",
+    "repository": "Garthzzz/honghu-ai-research-system",
+    "target_branch": "main",
+    "required_job": "boundary-and-contracts",
+    "artifact_name_template": "stage1-evidence-{github.sha}",
+    "runtime_identity_file": "capability_spec_identities.runtime.json",
+    "note": "The runtime artifact records the exact checked-out commit SHA, branch/ref, generation time, and these seven hashes. A tracked file cannot safely embed the SHA of the commit that contains itself."
+  },
   "specs": [
     {
       "path": "openspec/changes/github-vm-dual-node-operations/specs/application-release-deployment/spec.md",
@@ -35,5 +44,5 @@
   "stage1_architecture_diff": [
     "central-postgresql-data-platform: clarified writer-operation audit granularity only"
   ],
-  "note": "No Stage-2 or PostgreSQL implementation was performed. Hashes bind the reviewed Stage-1 bootstrap contract."
+  "note": "No Stage-2 or PostgreSQL implementation was performed. Static hashes identify the reviewed contracts; the successful required CI run binds them to the exact commit."
 }

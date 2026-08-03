@@ -126,3 +126,19 @@ DeepSeek 返回中，以下意见被拒绝：
 Codex 先在隔离 clone 中完成 allowlist、staged gate、SQLite ratchet、测试修复、hash-pinned 环境和 CI，并通过远端 fresh clone 复验。本阶段没有调用 DeepSeek：门禁两次真实阻断分别发现 `.git/` 误伤 `.github/` 和受控 artifact 测试污染 clean-clone coverage，随后均由确定性回归测试关闭；继续向外部模型发送抽象摘要没有可识别的信息增量。该选择符合“可以使用、连续无增量即停止”，也避免无必要发送项目结构信息。
 
 这不等于外部模型批准了阶段 1。阶段 1 的证据是 staged/tracked gate、SQLite ratchet、OpenSpec strict、clean environment 安装、compile、clean-clone tests 和远端 commit identity；main ruleset 与人工 HALT 仍由用户完成。
+
+## 阶段 1 远端 CI 闭环审查（2026-08-04 追加）
+
+### 第一轮：Windows 路径修复、证据绑定和仓库保护
+
+Codex 先读取失败 run 的真实日志，确认五个失败都来自 GitHub Windows runner 对同一路径的 8.3 短名/规范长名表示差异；随后经过两次定向修复，把真实 ingest、paper path 和 DataYes 路径调用链纳入回归测试。提交 `f0532d9846fddef7d25e359170d1335136206525` 的两个远端 job 均真实绿色，clean-clone 为 531 passed、21 skipped、53 subtests passed。
+
+发送给 DeepSeek V4 Flash 的内容只有上述脱敏根因、测试结果和四项待办：精确 commit 证据、pending-review 安全索引、main required checks/force-push 保护、公开暴露面审计。没有发送 key、Cookie、源代码、数据库、papers、用户内容或内部端点。前两次响应把推理预算耗尽而没有给出最终 reviewer 内容，不计作有效 review；缩短问题后取得一份完整结果。
+
+DeepSeek 的三项意见及 Codex 判断：
+
+- 接受：main 必须禁止 force push；它与已批准仓库治理合同一致。
+- 拒绝：“66 个 pending-review 必须全部解决后才能合并”。这些文件的正确状态就是保持 untracked 并有可持续安全索引，强行纳入反而违反合规边界。
+- 拒绝：“Windows runner 不适用”。同一 runner 上的最终修复已经通过两个实际 job；应保留 Windows 作为真实目标环境，而不是用换 runner 隐藏路径缺陷。
+
+据此修订：增加 exact-checkout runtime evidence、长期 pending-review 哈希索引、公开仓库暴露面报告，并继续要求 main 的两个 required checks 和 force-push 禁令。没有接受任何 PostgreSQL、Docker、Redis、CDC、额外 VM 或阶段 2 范围扩张。

@@ -2,6 +2,7 @@
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
 > 当前状态：阶段 0 已获用户批准退出；现仅授权执行阶段 1“安全 Git bootstrap 与 CI”。PostgreSQL、VM、数据库和任务实施均未获授权。
+> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复，bootstrap 最终修复提交两个 job 真实绿色；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除。最终修订仍须经 PR 和 main Actions 验证；阶段 1 人工 HALT 尚未批准。仓库当前仅为本轮审查临时 public，人工复核后应恢复 private。
 
 ## 0. 阶段 0 启动时已确认的历史事实
 
@@ -67,7 +68,7 @@
 - [x] [本阶段必须] 在 Git 历史中修复 import-time stdout 副作用和仍活动的 V2 builder 契约失败；受控研究产物测试与 clean-clone core 明确分层。
 - [x] [本阶段必须] 建立 Python 3.10 hash-pinned lockfile、标准测试入口、CI workflow 和两个 required-check 候选。
 - [x] [本阶段必须] 已准备 main 的 CI、required-check 名称和治理边界，并明确 bootstrap branch、main merge 和 deployable commit 的不同门槛。
-- [ ] [人工 GitHub gate] 由仓库管理员在 GitHub UI 创建/确认 main，审核 bootstrap 历史和 CI 结果后启用 branch protection/ruleset，并把 `boundary-and-contracts`、`python-clean-environment` 设为 required checks；不得把此操作解释为 production authority 或 VM deployment 授权。
+- [x] [人工 GitHub gate] 已在 bootstrap 修复提交两个远端 job 真实绿色后创建 `main`；GitHub API 回读确认默认分支为 `main`，required checks 为 `boundary-and-contracts`、`python-clean-environment`，strict update、PR review gate、管理员约束和 conversation resolution 已启用，force push 与 branch deletion 已禁止。该仓库仍只是 bootstrap/development source，不是 production authority，也不授权 VM deployment。
 - [ ] [production gate] 应用仓库在成为 production authority 前，完成公司资产归属或经批准例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
 - [ ] [HALT] 提交 tracked inventory、CI 结果、已知例外和 Git diff，等待人工批准。
 
