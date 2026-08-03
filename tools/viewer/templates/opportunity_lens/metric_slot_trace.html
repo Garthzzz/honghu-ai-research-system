@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ "研究指标追踪" if g.opp_viewer_v2 else "指标槽追踪" }}{% endblock %}
+{% block head_extra %}{% if g.opp_viewer_v2 %}{% include "opportunity_lens/_head_v2.html" %}{% else %}{% include "opportunity_lens/_head.html" %}{% endif %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar">
+    <div>
+      {% if g.opp_viewer_v2 %}
+      <p class="opp-eyebrow">研究指标 · {{ slot.factor_label }}</p>
+      <h1>{{ slot.slot_label or slot.slot_key }}</h1>
+      {% else %}
+      <p class="opp-eyebrow">指标槽 {{ slot.id }} · {{ slot.factor_label }}</p>
+      <h1>{{ slot.slot_label or slot.slot_key }}</h1>
+      <p class="opp-code" translate="no">{{ slot.slot_key }}</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="opp-panel">
+    <div class="opp-explain">
+      <h2>{{ "指标如何计算" if g.opp_viewer_v2 else "计算公式解释" }}</h2>
+      <h3>{{ "这项研究指标说明什么" if g.opp_viewer_v2 else "这条指标槽说明什么" }}</h3>
+      <p>{{ slot.human_explanation.headline|opp_public_text }}</p>
+      <dl>
+        <dt>对应因子</dt>
+        <dd>{{ slot.factor_label }}：{{ slot.factor_description }}</dd>
+        <dt>计算公式</dt>
+        <dd>{{ slot.human_explanation.formula|opp_public_text }}</dd>
+      </dl>
+      <ol>
+        {% for step in slot.human_explanation.plain_steps %}
+        <li>{{ step|opp_public_text }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+    <div class="opp-kpis">
+      <div class="opp-kpi"><span>状态</span><b>{{ slot.metric_slot_status|opp_label }}</b></div>
+      <div class="opp-kpi"><span>取值</span><b>{{ slot.value_status|opp_label }}</b></div>
+      <div class="opp-kpi"><span>分数</span><b>{% if slot.human_explanation.score_displayable %}{{ slot.slot_score }}{% else %}证据不足{% endif %}</b></div>
+      <div class="opp-kpi"><span>置信度</span><b>{{ "%.0f"|format((slot.slot_confidence or 0)*100) }}%</b></div>
+    </div>
+    <h2>关联证据</h2>
+    <div class="opp-wide-scroll">
+    <table class="opp-table opp-slot-evidence-table">
+      <thead><tr><th>角色</th><th>指标</th><th>取值</th><th>摘录</th><th>证据</th></tr></thead>
+      <tbody>
+      {% for link in slot.links %}
+      <tr>
+        <td>{{ link.link_role|opp_label }}</td>
+        <td>{{ link.metric|opp_label }}</td>
+        <td>{{ link.value_display }}</td>
+        <td>
+          <blockquote>{{ link.source_excerpt_display or link.source_excerpt }}</blockquote>
+          {% if link.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ link.source_excerpt_zh }}</span></div>{% endif %}
+        </td>
+        <td><button type="button" data-opp-evidence="{{ link.evidence_ref_uri }}" title="{{ link.evidence_ref_uri|opp_evidence_title }}">{{ link.evidence_ref_uri|opp_evidence_label }}</button></td>
+      </tr>
+      {% else %}
+      <tr>
+        <td>来源级支撑</td>
+        <td>{{ slot.metric_name or slot.slot_label or (slot.slot_key if not g.opp_viewer_v2 else "当前研究指标") }}</td>
+        <td>{{ slot.value_status|opp_label }}</td>
+        <td>{% if g.opp_viewer_v2 %}这个研究指标目前没有直接数据点支持；现阶段只能回到已绑定来源核验，不能把空白理解成额外数据。{% else %}该指标槽尚未建立数据点级链接，当前只能回到已绑定来源核验，不能把空白关联解释成额外数据点。{% endif %}</td>
+        <td>
+          {% if slot.evidence_ref_uri %}
+          <button type="button" data-opp-evidence="{{ slot.evidence_ref_uri }}" title="{{ slot.evidence_ref_uri|opp_evidence_title }}">{{ slot.evidence_ref_uri|opp_evidence_label }}</button>
+          {% else %}
+          未绑定来源
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <details class="opp-json-box">
+      <summary>{{ "查看复算方法说明" if g.opp_viewer_v2 else "这张表背后的字段说明" }}</summary>
+      <div class="opp-json-help">
+        <p><b>复算字段说明</b></p>
+        <ul>
+          {% for item in slot.human_explanation.json_guide %}
+          <li>{{ item|opp_public_text }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </details>
+  </div>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

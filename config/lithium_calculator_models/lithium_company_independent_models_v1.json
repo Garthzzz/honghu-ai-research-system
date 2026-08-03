@@ -1,0 +1,4452 @@
+{
+  "schema_version": "lithium_company_independent_models.v1",
+  "as_of_date": "2026-07-27",
+  "research_run_ref": "btrack_lithium_and_carbonate_20260727",
+  "workbook_contract": {
+    "path": "碳酸锂标的估值测算20260606.xlsx",
+    "sha256": "sha256:1275eef63cf84708bb9c56a460e286e51e86318d8174037a737dedac78300091",
+    "formula_contract": {
+      "project_attributable_output": "=E4*$C$3",
+      "resource_profit_grid": "=($D56/1.13-E$6/1.13)*E$5*0.85+($D56/1.13-E$10/1.13)*E$9*0.85+($D56/1.13-E$18/1.13)*E$17*0.85+($D56/1.13-E$22/1.13)*E$21*0.85+($D56/1.13-E$26/1.13)*E$25*0.85+($D56/1.13-E$34/1.13)*E$33*0.85+($D56/1.13-E$30/1.13)*E$29*0.85+($D56/1.13-E$38/1.13)*E$37*0.85+($D56/1.13-E$42/1.13)*E$41*0.85+($D56/1.13-E$14/1.13)*E$13*0.85+($D56/1.13-E$46/1.13)*E$45*0.85+($D56/1.13-E$50/1.13)*E$49*0.85+($D56/1.13-E$54/1.13)*E$53*0.85",
+      "other_business_valuation": "=E76*E77",
+      "implied_resource_equity_value": "=$C$83-E78-E81-E82",
+      "implied_resource_pe": "=E$83/E56",
+      "cross_company_resource_value": "=$K47-D36",
+      "cross_company_resource_multiple": "=D47/D14"
+    },
+    "transfer_policy": "迁移逐项目权益产量、商品价格利润矩阵、其他业务拆分、资源业务隐含估值和单位权益产量估值；不照搬工作簿中的旧股价、旧股本、外部链接、锂价、成本、税后系数或估值倍数。所有这些输入在本模型中重新列示并冻结。"
+  },
+  "supply_demand_artifacts": {
+    "lithium": {
+      "path": "cache/lithium_research/models/lithium_supply_demand_model_v1.json",
+      "sha256": "sha256:be2f288e59e00746b3d40ac5f46920d51ef2fb475d663958f094881ce7d078a1"
+    },
+    "carbonate": {
+      "path": "cache/lithium_research/models/carbonate_supply_demand_model_v1.json",
+      "sha256": "sha256:f23afe78729b80d0ffcab4385dcc1f851273795f7ad20b7c81fc806f5840aaed"
+    }
+  },
+  "independent_freeze": {
+    "external_consensus_read": false,
+    "current_market_snapshot_read": false,
+    "company_count": 13,
+    "records": [
+      {
+        "company": "赣锋锂业",
+        "input_path": "cache/lithium_research/models/company_freezes/002460_SZ_input.json",
+        "input_sha256": "sha256:daddbc0564ee20635011380e59855c8d4832e938ee6ae35ddea7fb68cc467704",
+        "output_path": "cache/lithium_research/models/company_freezes/002460_SZ_output.json",
+        "output_sha256": "sha256:eb39440feebfa83a6f894d7434d12dac62fda407ad59b1af520a1fda7eff5330",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "融捷股份",
+        "input_path": "cache/lithium_research/models/company_freezes/002192_SZ_input.json",
+        "input_sha256": "sha256:b3db68bada0f1ae655f96a08e5410df47da6130d049834363a138e4425c37284",
+        "output_path": "cache/lithium_research/models/company_freezes/002192_SZ_output.json",
+        "output_sha256": "sha256:7c16f3e7a04987b864e3c9a196b70f1b2fd86bccd9ee93454fead56db303e489",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "盛新锂能",
+        "input_path": "cache/lithium_research/models/company_freezes/002240_SZ_input.json",
+        "input_sha256": "sha256:d52abb2f71dd345c55b1439cc6279e08310e00eb9aa4131f13d51f7c6aae9afe",
+        "output_path": "cache/lithium_research/models/company_freezes/002240_SZ_output.json",
+        "output_sha256": "sha256:b83a10f8ef54ae86242c6c49949df3fecde54d80e15182205a9f5819b3a20cd0",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "盐湖股份",
+        "input_path": "cache/lithium_research/models/company_freezes/000792_SZ_input.json",
+        "input_sha256": "sha256:283cd577975c84d04fbf9b5f0e5a75bd586de135deae4d79ea055c5f916f898d",
+        "output_path": "cache/lithium_research/models/company_freezes/000792_SZ_output.json",
+        "output_sha256": "sha256:3fa99d219f1233a3cee02ede3e4000b559301df50912d71733269a58799bad72",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "大中矿业",
+        "input_path": "cache/lithium_research/models/company_freezes/001203_SZ_input.json",
+        "input_sha256": "sha256:035b29c94e8525a0a5b224abed92c4360510ec3b44dd5096ca32d63a6ac59e27",
+        "output_path": "cache/lithium_research/models/company_freezes/001203_SZ_output.json",
+        "output_sha256": "sha256:6530d8ca2bd79ad2751024b826f5231a50b47f173abffa5b14114560c854f7b9",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "雅化集团",
+        "input_path": "cache/lithium_research/models/company_freezes/002497_SZ_input.json",
+        "input_sha256": "sha256:e03b49331d14546f9de55d9f14b89b19d08144d2954349fa118f1a2147da09a1",
+        "output_path": "cache/lithium_research/models/company_freezes/002497_SZ_output.json",
+        "output_sha256": "sha256:fdb980820fe822a45e42e996cffb5e830a92c4e4d12c311954e84edf66500495",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "天华新能",
+        "input_path": "cache/lithium_research/models/company_freezes/300390_SZ_input.json",
+        "input_sha256": "sha256:76ad1265c57b0edf12b37f24aafe2acb936db3fccc90d0146c20c0312166df1b",
+        "output_path": "cache/lithium_research/models/company_freezes/300390_SZ_output.json",
+        "output_sha256": "sha256:35d164483783bb79a3772e61176487e34608a870890bd03c7637b5b43c413b76",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "天齐锂业",
+        "input_path": "cache/lithium_research/models/company_freezes/002466_SZ_input.json",
+        "input_sha256": "sha256:63660603d0080f11dfa60ea35ec05407c2058d719d48c8de7acb9b41cb003671",
+        "output_path": "cache/lithium_research/models/company_freezes/002466_SZ_output.json",
+        "output_sha256": "sha256:a68b47cad22a9c7262824e50f93fd77bd18b44321104f193bb163d0c33a5a56c",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "永杉锂业",
+        "input_path": "cache/lithium_research/models/company_freezes/603399_SH_input.json",
+        "input_sha256": "sha256:c19c5d17ec51c35badaff22d2fcaa4f44480dff8fc4f5ba20678ef564ec5b987",
+        "output_path": "cache/lithium_research/models/company_freezes/603399_SH_output.json",
+        "output_sha256": "sha256:a5e07876c0bdcb17619267f9fd9971ed151f73a1093abcd9d6a5265553d05d9c",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "中矿资源",
+        "input_path": "cache/lithium_research/models/company_freezes/002738_SZ_input.json",
+        "input_sha256": "sha256:f7c3ec1ba65fef31f52978a70fe102e08425684d09c24abfa9ef6b6ebabecbc8",
+        "output_path": "cache/lithium_research/models/company_freezes/002738_SZ_output.json",
+        "output_sha256": "sha256:c17bb07995266a3430932c6b5cf8711f8d6feb1cc3be477ff409e6127f8e3ebf",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "藏格矿业",
+        "input_path": "cache/lithium_research/models/company_freezes/000408_SZ_input.json",
+        "input_sha256": "sha256:17dae942293fb4d85aedce7d4d828436351b8254cc871c5043b1f873a8a58edf",
+        "output_path": "cache/lithium_research/models/company_freezes/000408_SZ_output.json",
+        "output_sha256": "sha256:cb6944577a25e306c2cdca4921fda59c2ec112d36d093c23656b8c285d4cac54",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "西藏城投",
+        "input_path": "cache/lithium_research/models/company_freezes/600773_SH_input.json",
+        "input_sha256": "sha256:4157b7439016e1aed3809f8ee324a7cd025697b3a993f9d64f218528615b388e",
+        "output_path": "cache/lithium_research/models/company_freezes/600773_SH_output.json",
+        "output_sha256": "sha256:c59cf76e6391bebd1e7a23bf34070b265504cb2bb90c2b92946053fda94665f0",
+        "frozen_before_external_reconciliation": true
+      },
+      {
+        "company": "永兴材料",
+        "input_path": "cache/lithium_research/models/company_freezes/002756_SZ_input.json",
+        "input_sha256": "sha256:8321f893e944bee3837821db6a8446a62137eca3be85d915401a493a473dda8f",
+        "output_path": "cache/lithium_research/models/company_freezes/002756_SZ_output.json",
+        "output_sha256": "sha256:b716717ef8a8b1a6ec7a2f7265321cee3199c017d42b843e04b51fea825eb634",
+        "frozen_before_external_reconciliation": true
+      }
+    ]
+  },
+  "companies": [
+    {
+      "company": "赣锋锂业",
+      "research_company_id": 640,
+      "ticker": "002460.SZ",
+      "model_type": "全球资源与锂盐一体化",
+      "actual_2025": {
+        "revenue_rmb_bn": 23.0817,
+        "net_income_rmb_bn": 1.613,
+        "operating_cash_flow_rmb_bn": 2.9448,
+        "capex_rmb_bn": 7.4217,
+        "equity_rmb_bn": 51.8376,
+        "assets_rmb_bn": 113.2581,
+        "roe_pct": 3.7111,
+        "roa_pct": 2.2514
+      },
+      "project_and_operating_evidence": [
+        "Cauchari-Olaroz由公司控制46.67%，2025年产量3.41万吨碳酸锂，2026年目标3.5—4.0万吨。",
+        "Goulamina由公司控制65%，2025年干基精矿产量33.66万吨；Mariana 2万吨氯化锂产线已投产。",
+        "加不斯一期60万吨选矿项目处于爬坡，四川赣锋5万吨锂盐项目进入爬坡。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 12.5,
+          "2027": 16.0,
+          "2028": 19.0
+        },
+        "resource_share": {
+          "2026": 0.8,
+          "2027": 0.82,
+          "2028": 0.84
+        },
+        "resource_cost": {
+          "2026": 6.0,
+          "2027": 5.8,
+          "2028": 5.7
+        },
+        "processing_margin": {
+          "2026": 1.3,
+          "2027": 1.3,
+          "2028": 1.4
+        },
+        "after_tax_factor": 0.7,
+        "other_profit": {
+          "2026": 0.5,
+          "2027": 0.7,
+          "2028": 0.9
+        },
+        "corporate_cost": {
+          "2026": 0.2,
+          "2027": 0.25,
+          "2028": 0.3
+        },
+        "revenue": {
+          "2026": 38.0,
+          "2027": 46.0,
+          "2028": 54.0
+        },
+        "equity": {
+          "2026": 55.0,
+          "2027": 60.0,
+          "2028": 67.0
+        },
+        "fcfe_conversion": 0.68
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 12.5,
+            "resource_share_pct": 80.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 10.0,
+            "processing_volume_10kt_lce": 2.5,
+            "resource_after_tax_profit_rmb_bn": 2.4779,
+            "processing_after_tax_profit_rmb_bn": 0.2013,
+            "other_profit_rmb_bn": 0.44,
+            "corporate_cost_rmb_bn": 0.2,
+            "revenue_rmb_bn": 29.64,
+            "net_income_rmb_bn": 2.9192,
+            "fcfe_rmb_bn": 1.9851,
+            "equity_rmb_bn": 55.0,
+            "roe_pct": 5.46
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 16.0,
+            "resource_share_pct": 82.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.8,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 13.12,
+            "processing_volume_10kt_lce": 2.88,
+            "resource_after_tax_profit_rmb_bn": 2.6008,
+            "processing_after_tax_profit_rmb_bn": 0.2319,
+            "other_profit_rmb_bn": 0.616,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 35.88,
+            "net_income_rmb_bn": 3.1987,
+            "fcfe_rmb_bn": 2.1751,
+            "equity_rmb_bn": 60.0,
+            "roe_pct": 5.56
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 19.0,
+            "resource_share_pct": 84.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.7,
+            "processing_margin_10k_rmb_t_incl_vat": 1.4,
+            "resource_volume_10kt_lce": 15.96,
+            "processing_volume_10kt_lce": 3.04,
+            "resource_after_tax_profit_rmb_bn": 3.2626,
+            "processing_after_tax_profit_rmb_bn": 0.2636,
+            "other_profit_rmb_bn": 0.792,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 42.12,
+            "net_income_rmb_bn": 4.0183,
+            "fcfe_rmb_bn": 2.7324,
+            "equity_rmb_bn": 67.0,
+            "roe_pct": 6.33
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 12.5,
+            "resource_share_pct": 80.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 10.0,
+            "processing_volume_10kt_lce": 2.5,
+            "resource_after_tax_profit_rmb_bn": 5.5752,
+            "processing_after_tax_profit_rmb_bn": 0.2013,
+            "other_profit_rmb_bn": 0.5,
+            "corporate_cost_rmb_bn": 0.2,
+            "revenue_rmb_bn": 38.0,
+            "net_income_rmb_bn": 6.0765,
+            "fcfe_rmb_bn": 4.1321,
+            "equity_rmb_bn": 55.0,
+            "roe_pct": 11.38
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 16.0,
+            "resource_share_pct": 82.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.8,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 13.12,
+            "processing_volume_10kt_lce": 2.88,
+            "resource_after_tax_profit_rmb_bn": 6.6645,
+            "processing_after_tax_profit_rmb_bn": 0.2319,
+            "other_profit_rmb_bn": 0.7,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 46.0,
+            "net_income_rmb_bn": 7.3464,
+            "fcfe_rmb_bn": 4.9956,
+            "equity_rmb_bn": 60.0,
+            "roe_pct": 12.78
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 19.0,
+            "resource_share_pct": 84.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.7,
+            "processing_margin_10k_rmb_t_incl_vat": 1.4,
+            "resource_volume_10kt_lce": 15.96,
+            "processing_volume_10kt_lce": 3.04,
+            "resource_after_tax_profit_rmb_bn": 7.2173,
+            "processing_after_tax_profit_rmb_bn": 0.2636,
+            "other_profit_rmb_bn": 0.9,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 54.0,
+            "net_income_rmb_bn": 8.081,
+            "fcfe_rmb_bn": 5.495,
+            "equity_rmb_bn": 67.0,
+            "roe_pct": 12.73
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 12.5,
+            "resource_share_pct": 80.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 10.0,
+            "processing_volume_10kt_lce": 2.5,
+            "resource_after_tax_profit_rmb_bn": 7.4336,
+            "processing_after_tax_profit_rmb_bn": 0.2013,
+            "other_profit_rmb_bn": 0.55,
+            "corporate_cost_rmb_bn": 0.2,
+            "revenue_rmb_bn": 44.84,
+            "net_income_rmb_bn": 7.985,
+            "fcfe_rmb_bn": 5.4298,
+            "equity_rmb_bn": 55.0,
+            "roe_pct": 14.95
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 16.0,
+            "resource_share_pct": 82.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.8,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 13.12,
+            "processing_volume_10kt_lce": 2.88,
+            "resource_after_tax_profit_rmb_bn": 9.1027,
+            "processing_after_tax_profit_rmb_bn": 0.2319,
+            "other_profit_rmb_bn": 0.77,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 54.28,
+            "net_income_rmb_bn": 9.8547,
+            "fcfe_rmb_bn": 6.7012,
+            "equity_rmb_bn": 60.0,
+            "roe_pct": 17.14
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 19.0,
+            "resource_share_pct": 84.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.7,
+            "processing_margin_10k_rmb_t_incl_vat": 1.4,
+            "resource_volume_10kt_lce": 15.96,
+            "processing_volume_10kt_lce": 3.04,
+            "resource_after_tax_profit_rmb_bn": 10.1833,
+            "processing_after_tax_profit_rmb_bn": 0.2636,
+            "other_profit_rmb_bn": 0.99,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 63.72,
+            "net_income_rmb_bn": 11.137,
+            "fcfe_rmb_bn": 7.5731,
+            "equity_rmb_bn": 67.0,
+            "roe_pct": 17.54
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 88.16,
+          "high_rmb_bn": 117.54,
+          "inputs": {
+            "net_income_rmb_bn": 7.3464,
+            "pe_range": [
+              12.0,
+              16.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。全球资源与电池业务提供分散度，上沿保留规模溢价；多项目爬坡与资本开支限制上沿。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "有效参考",
+          "forecast_year": 2027,
+          "low_rmb_bn": 50.4,
+          "high_rmb_bn": 78.0,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              10.82,
+              12.73
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.85,
+            "pb_range": [
+              0.84,
+              1.3
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘85%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 48.97,
+          "high_rmb_bn": 67.84,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              4.1321,
+              4.9956,
+              5.495
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 79.43,
+            "low_terminal_value_share_pct": 76.56,
+            "high_terminal_value_share_pct": 82.45
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 88.16,
+        "high_rmb_bn": 117.54,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "资源、盐湖、锂盐及电池业务并存，PE、PB—ROE和FCFE交叉验证。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002460_SZ_input.json",
+        "input_sha256": "sha256:daddbc0564ee20635011380e59855c8d4832e938ee6ae35ddea7fb68cc467704",
+        "output_path": "cache/lithium_research/models/company_freezes/002460_SZ_output.json",
+        "output_sha256": "sha256:eb39440feebfa83a6f894d7434d12dac62fda407ad59b1af520a1fda7eff5330",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "融捷股份",
+      "research_company_id": 641,
+      "ticker": "002192.SZ",
+      "model_type": "高品位锂矿与权益锂盐",
+      "actual_2025": {
+        "revenue_rmb_bn": 0.8405,
+        "net_income_rmb_bn": 0.2788,
+        "operating_cash_flow_rmb_bn": 0.3105,
+        "capex_rmb_bn": 0.2643,
+        "equity_rmb_bn": 3.5899,
+        "assets_rmb_bn": 4.9244,
+        "roe_pct": 8.0933,
+        "roa_pct": 6.996
+      },
+      "project_and_operating_evidence": [
+        "134号脉采矿能力105万吨/年、选矿能力45万吨/年，另规划35万吨/年选矿扩建。",
+        "2025年锂精矿产量18.56万吨，同比增长174.83%。",
+        "合并锂盐产能0.3万吨，联营2万吨锂盐产线满产并规划扩至4万吨。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 2.32,
+          "2027": 2.6,
+          "2028": 3.6
+        },
+        "resource_share": {
+          "2026": 1.0,
+          "2027": 1.0,
+          "2028": 1.0
+        },
+        "resource_cost": {
+          "2026": 4.8,
+          "2027": 4.7,
+          "2028": 4.7
+        },
+        "processing_margin": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "after_tax_factor": 0.7,
+        "other_profit": {
+          "2026": 0.08,
+          "2027": 0.1,
+          "2028": 0.12
+        },
+        "corporate_cost": {
+          "2026": 0.2,
+          "2027": 0.21,
+          "2028": 0.23
+        },
+        "revenue": {
+          "2026": 1.5,
+          "2027": 1.8,
+          "2028": 2.4
+        },
+        "equity": {
+          "2026": 4.5,
+          "2027": 5.5,
+          "2028": 7.0
+        },
+        "fcfe_conversion": 0.7
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 2.32,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.32,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.7473,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.0704,
+            "corporate_cost_rmb_bn": 0.2,
+            "revenue_rmb_bn": 1.17,
+            "net_income_rmb_bn": 0.6177,
+            "fcfe_rmb_bn": 0.4324,
+            "equity_rmb_bn": 4.5,
+            "roe_pct": 15.27
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 2.6,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.6,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.6926,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.088,
+            "corporate_cost_rmb_bn": 0.21,
+            "revenue_rmb_bn": 1.404,
+            "net_income_rmb_bn": 0.5706,
+            "fcfe_rmb_bn": 0.3994,
+            "equity_rmb_bn": 5.5,
+            "roe_pct": 11.41
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 3.6,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.6,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.9589,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.1056,
+            "corporate_cost_rmb_bn": 0.23,
+            "revenue_rmb_bn": 1.872,
+            "net_income_rmb_bn": 0.8345,
+            "fcfe_rmb_bn": 0.5842,
+            "equity_rmb_bn": 7.0,
+            "roe_pct": 13.35
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 2.32,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.32,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.4659,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.08,
+            "corporate_cost_rmb_bn": 0.2,
+            "revenue_rmb_bn": 1.5,
+            "net_income_rmb_bn": 1.3459,
+            "fcfe_rmb_bn": 0.9421,
+            "equity_rmb_bn": 4.5,
+            "roe_pct": 33.27
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 2.6,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.6,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.4979,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.1,
+            "corporate_cost_rmb_bn": 0.21,
+            "revenue_rmb_bn": 1.8,
+            "net_income_rmb_bn": 1.3879,
+            "fcfe_rmb_bn": 0.9715,
+            "equity_rmb_bn": 5.5,
+            "roe_pct": 27.76
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 3.6,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.6,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.851,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.12,
+            "corporate_cost_rmb_bn": 0.23,
+            "revenue_rmb_bn": 2.4,
+            "net_income_rmb_bn": 1.741,
+            "fcfe_rmb_bn": 1.2187,
+            "equity_rmb_bn": 7.0,
+            "roe_pct": 27.86
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 2.32,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.32,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.8971,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.088,
+            "corporate_cost_rmb_bn": 0.2,
+            "revenue_rmb_bn": 1.77,
+            "net_income_rmb_bn": 1.7851,
+            "fcfe_rmb_bn": 1.2495,
+            "equity_rmb_bn": 4.5,
+            "roe_pct": 44.13
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 2.6,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.6,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.9811,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.11,
+            "corporate_cost_rmb_bn": 0.21,
+            "revenue_rmb_bn": 2.124,
+            "net_income_rmb_bn": 1.8811,
+            "fcfe_rmb_bn": 1.3167,
+            "equity_rmb_bn": 5.5,
+            "roe_pct": 37.62
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 3.6,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.6,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.52,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.132,
+            "corporate_cost_rmb_bn": 0.23,
+            "revenue_rmb_bn": 2.832,
+            "net_income_rmb_bn": 2.422,
+            "fcfe_rmb_bn": 1.6954,
+            "equity_rmb_bn": 7.0,
+            "roe_pct": 38.75
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 13.88,
+          "high_rmb_bn": 19.43,
+          "inputs": {
+            "net_income_rmb_bn": 1.3879,
+            "pe_range": [
+              10.0,
+              14.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。高品位资源支持中部倍数，但单一核心矿山和小市值波动使上限低于一体化龙头。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 7.59,
+          "high_rmb_bn": 13.91,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              16.5,
+              22.0
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.75,
+            "pb_range": [
+              1.38,
+              2.53
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘75%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 10.78,
+          "high_rmb_bn": 14.96,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              0.9421,
+              0.9715,
+              1.2187
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 79.98,
+            "low_terminal_value_share_pct": 77.16,
+            "high_terminal_value_share_pct": 82.94
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 13.88,
+        "high_rmb_bn": 19.43,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "产量集中且扩产审批敏感，资源利润法为主，PB—ROE只作周期约束。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002192_SZ_input.json",
+        "input_sha256": "sha256:b3db68bada0f1ae655f96a08e5410df47da6130d049834363a138e4425c37284",
+        "output_path": "cache/lithium_research/models/company_freezes/002192_SZ_output.json",
+        "output_sha256": "sha256:7c16f3e7a04987b864e3c9a196b70f1b2fd86bccd9ee93454fead56db303e489",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "盛新锂能",
+      "research_company_id": 642,
+      "ticker": "002240.SZ",
+      "model_type": "矿盐一体化并含外购矿加工",
+      "actual_2025": {
+        "revenue_rmb_bn": 5.0643,
+        "net_income_rmb_bn": -0.8881,
+        "operating_cash_flow_rmb_bn": 0.95,
+        "capex_rmb_bn": 0.9302,
+        "equity_rmb_bn": 11.6075,
+        "assets_rmb_bn": 22.4764,
+        "roe_pct": -7.9734,
+        "roa_pct": -3.3584
+      },
+      "project_and_operating_evidence": [
+        "已建锂盐产能13.7万吨/年、锂金属500吨/年。",
+        "业隆沟精矿产能7.5万吨/年，Sabi Star精矿产能29万吨/年。",
+        "木绒矿设计原矿处理能力300万吨/年，投产和爬坡决定自给率改善速度。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 10.0,
+          "2027": 12.0,
+          "2028": 13.5
+        },
+        "resource_share": {
+          "2026": 0.4,
+          "2027": 0.46,
+          "2028": 0.52
+        },
+        "resource_cost": {
+          "2026": 6.2,
+          "2027": 6.0,
+          "2028": 5.9
+        },
+        "processing_margin": {
+          "2026": 1.2,
+          "2027": 1.3,
+          "2028": 1.4
+        },
+        "after_tax_factor": 0.68,
+        "other_profit": {
+          "2026": 0.05,
+          "2027": 0.08,
+          "2028": 0.1
+        },
+        "corporate_cost": {
+          "2026": 0.75,
+          "2027": 0.75,
+          "2028": 0.78
+        },
+        "revenue": {
+          "2026": 12.0,
+          "2027": 14.5,
+          "2028": 16.5
+        },
+        "equity": {
+          "2026": 13.0,
+          "2027": 15.0,
+          "2028": 17.5
+        },
+        "fcfe_conversion": 0.58
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 10.0,
+            "resource_share_pct": 40.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 4.0,
+            "processing_volume_10kt_lce": 6.0,
+            "resource_after_tax_profit_rmb_bn": 0.9147,
+            "processing_after_tax_profit_rmb_bn": 0.4333,
+            "other_profit_rmb_bn": 0.044,
+            "corporate_cost_rmb_bn": 0.75,
+            "revenue_rmb_bn": 9.36,
+            "net_income_rmb_bn": 0.642,
+            "fcfe_rmb_bn": 0.3723,
+            "equity_rmb_bn": 13.0,
+            "roe_pct": 5.22
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 12.0,
+            "resource_share_pct": 46.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 5.52,
+            "processing_volume_10kt_lce": 6.48,
+            "resource_after_tax_profit_rmb_bn": 0.9965,
+            "processing_after_tax_profit_rmb_bn": 0.5069,
+            "other_profit_rmb_bn": 0.0704,
+            "corporate_cost_rmb_bn": 0.75,
+            "revenue_rmb_bn": 11.31,
+            "net_income_rmb_bn": 0.8239,
+            "fcfe_rmb_bn": 0.4778,
+            "equity_rmb_bn": 15.0,
+            "roe_pct": 5.88
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 13.5,
+            "resource_share_pct": 52.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.9,
+            "processing_margin_10k_rmb_t_incl_vat": 1.4,
+            "resource_volume_10kt_lce": 7.02,
+            "processing_volume_10kt_lce": 6.48,
+            "resource_after_tax_profit_rmb_bn": 1.3096,
+            "processing_after_tax_profit_rmb_bn": 0.5459,
+            "other_profit_rmb_bn": 0.088,
+            "corporate_cost_rmb_bn": 0.78,
+            "revenue_rmb_bn": 12.87,
+            "net_income_rmb_bn": 1.1635,
+            "fcfe_rmb_bn": 0.6748,
+            "equity_rmb_bn": 17.5,
+            "roe_pct": 7.16
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 10.0,
+            "resource_share_pct": 40.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 4.0,
+            "processing_volume_10kt_lce": 6.0,
+            "resource_after_tax_profit_rmb_bn": 2.1182,
+            "processing_after_tax_profit_rmb_bn": 0.4333,
+            "other_profit_rmb_bn": 0.05,
+            "corporate_cost_rmb_bn": 0.75,
+            "revenue_rmb_bn": 12.0,
+            "net_income_rmb_bn": 1.8515,
+            "fcfe_rmb_bn": 1.0739,
+            "equity_rmb_bn": 13.0,
+            "roe_pct": 15.05
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 12.0,
+            "resource_share_pct": 46.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 5.52,
+            "processing_volume_10kt_lce": 6.48,
+            "resource_after_tax_profit_rmb_bn": 2.6574,
+            "processing_after_tax_profit_rmb_bn": 0.5069,
+            "other_profit_rmb_bn": 0.08,
+            "corporate_cost_rmb_bn": 0.75,
+            "revenue_rmb_bn": 14.5,
+            "net_income_rmb_bn": 2.4943,
+            "fcfe_rmb_bn": 1.4467,
+            "equity_rmb_bn": 15.0,
+            "roe_pct": 17.82
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 13.5,
+            "resource_share_pct": 52.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.9,
+            "processing_margin_10k_rmb_t_incl_vat": 1.4,
+            "resource_volume_10kt_lce": 7.02,
+            "processing_volume_10kt_lce": 6.48,
+            "resource_after_tax_profit_rmb_bn": 2.9993,
+            "processing_after_tax_profit_rmb_bn": 0.5459,
+            "other_profit_rmb_bn": 0.1,
+            "corporate_cost_rmb_bn": 0.78,
+            "revenue_rmb_bn": 16.5,
+            "net_income_rmb_bn": 2.8653,
+            "fcfe_rmb_bn": 1.6619,
+            "equity_rmb_bn": 17.5,
+            "roe_pct": 17.63
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 10.0,
+            "resource_share_pct": 40.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 4.0,
+            "processing_volume_10kt_lce": 6.0,
+            "resource_after_tax_profit_rmb_bn": 2.8404,
+            "processing_after_tax_profit_rmb_bn": 0.4333,
+            "other_profit_rmb_bn": 0.055,
+            "corporate_cost_rmb_bn": 0.75,
+            "revenue_rmb_bn": 14.16,
+            "net_income_rmb_bn": 2.5786,
+            "fcfe_rmb_bn": 1.4956,
+            "equity_rmb_bn": 13.0,
+            "roe_pct": 20.96
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 12.0,
+            "resource_share_pct": 46.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 5.52,
+            "processing_volume_10kt_lce": 6.48,
+            "resource_after_tax_profit_rmb_bn": 3.6539,
+            "processing_after_tax_profit_rmb_bn": 0.5069,
+            "other_profit_rmb_bn": 0.088,
+            "corporate_cost_rmb_bn": 0.75,
+            "revenue_rmb_bn": 17.11,
+            "net_income_rmb_bn": 3.4989,
+            "fcfe_rmb_bn": 2.0293,
+            "equity_rmb_bn": 15.0,
+            "roe_pct": 24.99
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 13.5,
+            "resource_share_pct": 52.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.9,
+            "processing_margin_10k_rmb_t_incl_vat": 1.4,
+            "resource_volume_10kt_lce": 7.02,
+            "processing_volume_10kt_lce": 6.48,
+            "resource_after_tax_profit_rmb_bn": 4.2667,
+            "processing_after_tax_profit_rmb_bn": 0.5459,
+            "other_profit_rmb_bn": 0.11,
+            "corporate_cost_rmb_bn": 0.78,
+            "revenue_rmb_bn": 19.47,
+            "net_income_rmb_bn": 4.1426,
+            "fcfe_rmb_bn": 2.4027,
+            "equity_rmb_bn": 17.5,
+            "roe_pct": 25.49
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 24.94,
+          "high_rmb_bn": 34.92,
+          "inputs": {
+            "net_income_rmb_bn": 2.4943,
+            "pe_range": [
+              10.0,
+              14.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。资源覆盖改善但仍含外购矿加工和在建项目，采用行业中低部。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 16.05,
+          "high_rmb_bn": 29.25,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              13.22,
+              17.63
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.75,
+            "pb_range": [
+              1.07,
+              1.95
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘75%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 14.6,
+          "high_rmb_bn": 20.3,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              1.0739,
+              1.4467,
+              1.6619
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 80.41,
+            "low_terminal_value_share_pct": 77.64,
+            "high_terminal_value_share_pct": 83.31
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 24.94,
+        "high_rmb_bn": 34.92,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "外购矿与自有矿成本差异大，必须拆分资源利润和加工利润。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002240_SZ_input.json",
+        "input_sha256": "sha256:d52abb2f71dd345c55b1439cc6279e08310e00eb9aa4131f13d51f7c6aae9afe",
+        "output_path": "cache/lithium_research/models/company_freezes/002240_SZ_output.json",
+        "output_sha256": "sha256:b83a10f8ef54ae86242c6c49949df3fecde54d80e15182205a9f5819b3a20cd0",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "盐湖股份",
+      "research_company_id": 643,
+      "ticker": "000792.SZ",
+      "model_type": "低成本盐湖锂与钾肥",
+      "actual_2025": {
+        "revenue_rmb_bn": 15.5012,
+        "net_income_rmb_bn": 8.4755,
+        "operating_cash_flow_rmb_bn": 10.1609,
+        "capex_rmb_bn": 1.6415,
+        "equity_rmb_bn": 47.8867,
+        "assets_rmb_bn": 55.7816,
+        "roe_pct": 20.7902,
+        "roa_pct": 13.7457
+      },
+      "project_and_operating_evidence": [
+        "原有碳酸锂设计产能4万吨/年，2025年维持高利用率。",
+        "新建4万吨/年一体化项目进入试生产。",
+        "2025年碳酸锂产量约4.65万吨、销量约4.56万吨，钾肥仍是利润底仓。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 6.5,
+          "2027": 8.0,
+          "2028": 8.0
+        },
+        "resource_share": {
+          "2026": 1.0,
+          "2027": 1.0,
+          "2028": 1.0
+        },
+        "resource_cost": {
+          "2026": 3.3,
+          "2027": 3.2,
+          "2028": 3.2
+        },
+        "processing_margin": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "after_tax_factor": 0.72,
+        "other_profit": {
+          "2026": 5.8,
+          "2027": 6.0,
+          "2028": 6.2
+        },
+        "corporate_cost": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "revenue": {
+          "2026": 23.0,
+          "2027": 26.0,
+          "2028": 28.0
+        },
+        "equity": {
+          "2026": 55.0,
+          "2027": 65.0,
+          "2028": 75.0
+        },
+        "fcfe_conversion": 0.88
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 6.5,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 6.5,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.7749,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.104,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 17.94,
+            "net_income_rmb_bn": 7.8789,
+            "fcfe_rmb_bn": 6.9334,
+            "equity_rmb_bn": 55.0,
+            "roe_pct": 15.32
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 8.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.9565,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.28,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 20.28,
+            "net_income_rmb_bn": 8.2365,
+            "fcfe_rmb_bn": 7.2481,
+            "equity_rmb_bn": 65.0,
+            "roe_pct": 13.73
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 8.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.9565,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.456,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 21.84,
+            "net_income_rmb_bn": 8.4125,
+            "fcfe_rmb_bn": 7.403,
+            "equity_rmb_bn": 75.0,
+            "roe_pct": 12.02
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 6.5,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 6.5,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 4.8457,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.8,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 23.0,
+            "net_income_rmb_bn": 10.6457,
+            "fcfe_rmb_bn": 9.3682,
+            "equity_rmb_bn": 55.0,
+            "roe_pct": 20.69
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 8.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 5.5051,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.0,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 26.0,
+            "net_income_rmb_bn": 11.5051,
+            "fcfe_rmb_bn": 10.1245,
+            "equity_rmb_bn": 65.0,
+            "roe_pct": 19.18
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 8.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 4.9954,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.2,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 28.0,
+            "net_income_rmb_bn": 11.1954,
+            "fcfe_rmb_bn": 9.852,
+            "equity_rmb_bn": 75.0,
+            "roe_pct": 15.99
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 6.5,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 6.5,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 6.0881,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.38,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 27.14,
+            "net_income_rmb_bn": 12.4681,
+            "fcfe_rmb_bn": 10.972,
+            "equity_rmb_bn": 55.0,
+            "roe_pct": 24.24
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 8.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 7.0343,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.6,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 30.68,
+            "net_income_rmb_bn": 13.6343,
+            "fcfe_rmb_bn": 11.9982,
+            "equity_rmb_bn": 65.0,
+            "roe_pct": 22.72
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 8.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 6.5246,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.82,
+            "corporate_cost_rmb_bn": 0.0,
+            "revenue_rmb_bn": 33.04,
+            "net_income_rmb_bn": 13.3446,
+            "fcfe_rmb_bn": 11.7432,
+            "equity_rmb_bn": 75.0,
+            "roe_pct": 19.06
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 126.56,
+          "high_rmb_bn": 161.07,
+          "inputs": {
+            "net_income_rmb_bn": 11.5051,
+            "pe_range": [
+              11.0,
+              14.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。低成本盐湖和钾肥底仓提高稳定性，但商品周期与扩建资本使上限不超过14倍。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "有效参考",
+          "forecast_year": 2027,
+          "low_rmb_bn": 76.7,
+          "high_rmb_bn": 112.45,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              14.39,
+              15.99
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.9,
+            "pb_range": [
+              1.18,
+              1.73
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘90%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 90.46,
+          "high_rmb_bn": 124.35,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              9.3682,
+              10.1245,
+              9.852
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 77.39,
+            "low_terminal_value_share_pct": 74.3,
+            "high_terminal_value_share_pct": 80.64
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 126.56,
+        "high_rmb_bn": 161.07,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "钾肥提供利润底仓，锂业务用资源利润法，PB—ROE适用性高于纯加工企业。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/000792_SZ_input.json",
+        "input_sha256": "sha256:283cd577975c84d04fbf9b5f0e5a75bd586de135deae4d79ea055c5f916f898d",
+        "output_path": "cache/lithium_research/models/company_freezes/000792_SZ_output.json",
+        "output_sha256": "sha256:3fa99d219f1233a3cee02ede3e4000b559301df50912d71733269a58799bad72",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "大中矿业",
+      "research_company_id": 644,
+      "ticker": "001203.SZ",
+      "model_type": "铁矿现金流加锂项目期权",
+      "actual_2025": {
+        "revenue_rmb_bn": 4.0897,
+        "net_income_rmb_bn": 0.736,
+        "operating_cash_flow_rmb_bn": 1.1577,
+        "capex_rmb_bn": 1.9434,
+        "equity_rmb_bn": 7.3191,
+        "assets_rmb_bn": 17.0374,
+        "roe_pct": 10.643,
+        "roa_pct": 6.7759
+      },
+      "project_and_operating_evidence": [
+        "鸡脚山一期2万吨碳酸锂项目计划2026年投产。",
+        "加达锂矿预计2027年开始贡献。",
+        "铁矿业务是当前现金流基础，锂业务在投产前不应替代现有利润。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 0.5,
+          "2027": 3.0,
+          "2028": 6.0
+        },
+        "resource_share": {
+          "2026": 1.0,
+          "2027": 1.0,
+          "2028": 1.0
+        },
+        "resource_cost": {
+          "2026": 4.8,
+          "2027": 4.7,
+          "2028": 4.6
+        },
+        "processing_margin": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "after_tax_factor": 0.68,
+        "other_profit": {
+          "2026": 0.8,
+          "2027": 0.85,
+          "2028": 0.9
+        },
+        "corporate_cost": {
+          "2026": 0.08,
+          "2027": 0.1,
+          "2028": 0.12
+        },
+        "revenue": {
+          "2026": 6.0,
+          "2027": 9.0,
+          "2028": 12.0
+        },
+        "equity": {
+          "2026": 8.5,
+          "2027": 10.0,
+          "2028": 13.5
+        },
+        "fcfe_conversion": 0.45
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 0.5,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.5,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.1565,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.704,
+            "corporate_cost_rmb_bn": 0.08,
+            "revenue_rmb_bn": 4.68,
+            "net_income_rmb_bn": 0.7805,
+            "fcfe_rmb_bn": 0.3512,
+            "equity_rmb_bn": 8.5,
+            "roe_pct": 9.87
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 3.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.7763,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.748,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 7.02,
+            "net_income_rmb_bn": 1.4243,
+            "fcfe_rmb_bn": 0.6409,
+            "equity_rmb_bn": 10.0,
+            "roe_pct": 15.4
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 6.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.6,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 6.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.5887,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.792,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 9.36,
+            "net_income_rmb_bn": 2.2607,
+            "fcfe_rmb_bn": 1.0173,
+            "equity_rmb_bn": 13.5,
+            "roe_pct": 19.24
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 0.5,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.5,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.3069,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.8,
+            "corporate_cost_rmb_bn": 0.08,
+            "revenue_rmb_bn": 6.0,
+            "net_income_rmb_bn": 1.0269,
+            "fcfe_rmb_bn": 0.4621,
+            "equity_rmb_bn": 8.5,
+            "roe_pct": 12.98
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 3.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.6789,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.85,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 9.0,
+            "net_income_rmb_bn": 2.4289,
+            "fcfe_rmb_bn": 1.093,
+            "equity_rmb_bn": 10.0,
+            "roe_pct": 26.26
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 6.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.6,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 6.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 3.0329,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.9,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 12.0,
+            "net_income_rmb_bn": 3.8129,
+            "fcfe_rmb_bn": 1.7158,
+            "equity_rmb_bn": 13.5,
+            "roe_pct": 32.45
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 0.5,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.5,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.3972,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.88,
+            "corporate_cost_rmb_bn": 0.08,
+            "revenue_rmb_bn": 7.08,
+            "net_income_rmb_bn": 1.1972,
+            "fcfe_rmb_bn": 0.5387,
+            "equity_rmb_bn": 8.5,
+            "roe_pct": 15.14
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 3.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.7,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.2205,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.935,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 10.62,
+            "net_income_rmb_bn": 3.0555,
+            "fcfe_rmb_bn": 1.375,
+            "equity_rmb_bn": 10.0,
+            "roe_pct": 33.03
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 6.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.6,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 6.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 4.1161,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.99,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 14.16,
+            "net_income_rmb_bn": 4.9861,
+            "fcfe_rmb_bn": 2.2437,
+            "equity_rmb_bn": 13.5,
+            "roe_pct": 42.43
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 21.86,
+          "high_rmb_bn": 31.58,
+          "inputs": {
+            "net_income_rmb_bn": 2.4289,
+            "pe_range": [
+              9.0,
+              13.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。铁矿现金流提供底仓，锂项目尚在建设爬坡，使用低于成熟锂资源公司的区间。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 12.8,
+          "high_rmb_bn": 25.3,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              15.4,
+              22.0
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.7,
+            "pb_range": [
+              1.28,
+              2.53
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘70%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 14.19,
+          "high_rmb_bn": 20.05,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              0.4621,
+              1.093,
+              1.7158
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 84.78,
+            "low_terminal_value_share_pct": 82.52,
+            "high_terminal_value_share_pct": 87.11
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 21.86,
+        "high_rmb_bn": 31.58,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "铁矿是当前利润基础，锂项目用分部估值并对投产延迟做折价。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/001203_SZ_input.json",
+        "input_sha256": "sha256:035b29c94e8525a0a5b224abed92c4360510ec3b44dd5096ca32d63a6ac59e27",
+        "output_path": "cache/lithium_research/models/company_freezes/001203_SZ_output.json",
+        "output_sha256": "sha256:6530d8ca2bd79ad2751024b826f5231a50b47f173abffa5b14114560c854f7b9",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "雅化集团",
+      "research_company_id": 645,
+      "ticker": "002497.SZ",
+      "model_type": "自有矿加锂盐与民爆",
+      "actual_2025": {
+        "revenue_rmb_bn": 8.5432,
+        "net_income_rmb_bn": 0.6324,
+        "operating_cash_flow_rmb_bn": -0.5698,
+        "capex_rmb_bn": 0.3127,
+        "equity_rmb_bn": 11.0032,
+        "assets_rmb_bn": 14.9026,
+        "roe_pct": 5.9792,
+        "roa_pct": 5.4552
+      },
+      "project_and_operating_evidence": [
+        "Kamativi精矿产能35万吨/年，已进入规模化生产。",
+        "李家沟精矿产能18—20万吨/年，2025年9月正式投产并达产。",
+        "锂盐设计产能约13万吨/年，民爆业务提供非锂利润。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 10.0,
+          "2027": 11.0,
+          "2028": 12.0
+        },
+        "resource_share": {
+          "2026": 0.35,
+          "2027": 0.4,
+          "2028": 0.44
+        },
+        "resource_cost": {
+          "2026": 6.5,
+          "2027": 6.2,
+          "2028": 6.0
+        },
+        "processing_margin": {
+          "2026": 0.9,
+          "2027": 1.0,
+          "2028": 1.1
+        },
+        "after_tax_factor": 0.68,
+        "other_profit": {
+          "2026": 0.35,
+          "2027": 0.38,
+          "2028": 0.4
+        },
+        "corporate_cost": {
+          "2026": 0.15,
+          "2027": 0.17,
+          "2028": 0.19
+        },
+        "revenue": {
+          "2026": 15.0,
+          "2027": 18.0,
+          "2028": 21.0
+        },
+        "equity": {
+          "2026": 12.5,
+          "2027": 14.5,
+          "2028": 17.0
+        },
+        "fcfe_conversion": 0.62
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 10.0,
+            "resource_share_pct": 35.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 3.5,
+            "processing_volume_10kt_lce": 6.5,
+            "resource_after_tax_profit_rmb_bn": 0.7372,
+            "processing_after_tax_profit_rmb_bn": 0.352,
+            "other_profit_rmb_bn": 0.308,
+            "corporate_cost_rmb_bn": 0.15,
+            "revenue_rmb_bn": 11.7,
+            "net_income_rmb_bn": 1.2472,
+            "fcfe_rmb_bn": 0.7733,
+            "equity_rmb_bn": 12.5,
+            "roe_pct": 10.61
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 11.0,
+            "resource_share_pct": 40.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 4.4,
+            "processing_volume_10kt_lce": 6.6,
+            "resource_after_tax_profit_rmb_bn": 0.7414,
+            "processing_after_tax_profit_rmb_bn": 0.3972,
+            "other_profit_rmb_bn": 0.3344,
+            "corporate_cost_rmb_bn": 0.17,
+            "revenue_rmb_bn": 14.04,
+            "net_income_rmb_bn": 1.3029,
+            "fcfe_rmb_bn": 0.8078,
+            "equity_rmb_bn": 14.5,
+            "roe_pct": 9.65
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 12.0,
+            "resource_share_pct": 44.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 5.28,
+            "processing_volume_10kt_lce": 6.72,
+            "resource_after_tax_profit_rmb_bn": 0.9532,
+            "processing_after_tax_profit_rmb_bn": 0.4448,
+            "other_profit_rmb_bn": 0.352,
+            "corporate_cost_rmb_bn": 0.19,
+            "revenue_rmb_bn": 16.38,
+            "net_income_rmb_bn": 1.56,
+            "fcfe_rmb_bn": 0.9672,
+            "equity_rmb_bn": 17.0,
+            "roe_pct": 9.9
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 10.0,
+            "resource_share_pct": 35.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 3.5,
+            "processing_volume_10kt_lce": 6.5,
+            "resource_after_tax_profit_rmb_bn": 1.7903,
+            "processing_after_tax_profit_rmb_bn": 0.352,
+            "other_profit_rmb_bn": 0.35,
+            "corporate_cost_rmb_bn": 0.15,
+            "revenue_rmb_bn": 15.0,
+            "net_income_rmb_bn": 2.3423,
+            "fcfe_rmb_bn": 1.4522,
+            "equity_rmb_bn": 12.5,
+            "roe_pct": 19.93
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 11.0,
+            "resource_share_pct": 40.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 4.4,
+            "processing_volume_10kt_lce": 6.6,
+            "resource_after_tax_profit_rmb_bn": 2.0653,
+            "processing_after_tax_profit_rmb_bn": 0.3972,
+            "other_profit_rmb_bn": 0.38,
+            "corporate_cost_rmb_bn": 0.17,
+            "revenue_rmb_bn": 18.0,
+            "net_income_rmb_bn": 2.6724,
+            "fcfe_rmb_bn": 1.6569,
+            "equity_rmb_bn": 14.5,
+            "roe_pct": 19.8
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 12.0,
+            "resource_share_pct": 44.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 5.28,
+            "processing_volume_10kt_lce": 6.72,
+            "resource_after_tax_profit_rmb_bn": 2.2241,
+            "processing_after_tax_profit_rmb_bn": 0.4448,
+            "other_profit_rmb_bn": 0.4,
+            "corporate_cost_rmb_bn": 0.19,
+            "revenue_rmb_bn": 21.0,
+            "net_income_rmb_bn": 2.879,
+            "fcfe_rmb_bn": 1.785,
+            "equity_rmb_bn": 17.0,
+            "roe_pct": 18.28
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 10.0,
+            "resource_share_pct": 35.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 3.5,
+            "processing_volume_10kt_lce": 6.5,
+            "resource_after_tax_profit_rmb_bn": 2.4221,
+            "processing_after_tax_profit_rmb_bn": 0.352,
+            "other_profit_rmb_bn": 0.385,
+            "corporate_cost_rmb_bn": 0.15,
+            "revenue_rmb_bn": 17.7,
+            "net_income_rmb_bn": 3.0092,
+            "fcfe_rmb_bn": 1.8657,
+            "equity_rmb_bn": 12.5,
+            "roe_pct": 25.61
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 11.0,
+            "resource_share_pct": 40.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 4.4,
+            "processing_volume_10kt_lce": 6.6,
+            "resource_after_tax_profit_rmb_bn": 2.8596,
+            "processing_after_tax_profit_rmb_bn": 0.3972,
+            "other_profit_rmb_bn": 0.418,
+            "corporate_cost_rmb_bn": 0.17,
+            "revenue_rmb_bn": 21.24,
+            "net_income_rmb_bn": 3.5048,
+            "fcfe_rmb_bn": 2.173,
+            "equity_rmb_bn": 14.5,
+            "roe_pct": 25.96
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 12.0,
+            "resource_share_pct": 44.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 5.28,
+            "processing_volume_10kt_lce": 6.72,
+            "resource_after_tax_profit_rmb_bn": 3.1773,
+            "processing_after_tax_profit_rmb_bn": 0.4448,
+            "other_profit_rmb_bn": 0.44,
+            "corporate_cost_rmb_bn": 0.19,
+            "revenue_rmb_bn": 24.78,
+            "net_income_rmb_bn": 3.8722,
+            "fcfe_rmb_bn": 2.4007,
+            "equity_rmb_bn": 17.0,
+            "roe_pct": 24.59
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 26.72,
+          "high_rmb_bn": 37.41,
+          "inputs": {
+            "net_income_rmb_bn": 2.6724,
+            "pe_range": [
+              10.0,
+              14.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。民爆业务提供下行缓冲，锂资源自给仍在提升，采用行业中部。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 16.96,
+          "high_rmb_bn": 29.58,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              14.26,
+              18.28
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.78,
+            "pb_range": [
+              1.17,
+              2.04
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘78%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 16.03,
+          "high_rmb_bn": 22.16,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              1.4522,
+              1.6569,
+              1.785
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 78.9,
+            "low_terminal_value_share_pct": 75.96,
+            "high_terminal_value_share_pct": 81.98
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 26.72,
+        "high_rmb_bn": 37.41,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "矿盐一体化改善成本，民爆提供非锂利润；需拆分外购矿加工。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002497_SZ_input.json",
+        "input_sha256": "sha256:e03b49331d14546f9de55d9f14b89b19d08144d2954349fa118f1a2147da09a1",
+        "output_path": "cache/lithium_research/models/company_freezes/002497_SZ_output.json",
+        "output_sha256": "sha256:fdb980820fe822a45e42e996cffb5e830a92c4e4d12c311954e84edf66500495",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "天华新能",
+      "research_company_id": 646,
+      "ticker": "300390.SZ",
+      "model_type": "大规模锂盐加工与非洲资源",
+      "actual_2025": {
+        "revenue_rmb_bn": 7.5488,
+        "net_income_rmb_bn": 0.4022,
+        "operating_cash_flow_rmb_bn": -0.3218,
+        "capex_rmb_bn": 3.3568,
+        "equity_rmb_bn": 15.6535,
+        "assets_rmb_bn": 23.0923,
+        "roe_pct": 3.5439,
+        "roa_pct": 2.5263
+      },
+      "project_and_operating_evidence": [
+        "已建锂盐产能16.5万吨/年，其中氢氧化锂13.5万吨、碳酸锂3万吨。",
+        "2025年氢氧化锂产量5.95万吨、碳酸锂产量4.74万吨。",
+        "Ogapa矿公司经济权益37.5%，金子峰项目计划2027年贡献。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 13.0,
+          "2027": 18.0,
+          "2028": 22.0
+        },
+        "resource_share": {
+          "2026": 0.55,
+          "2027": 0.62,
+          "2028": 0.68
+        },
+        "resource_cost": {
+          "2026": 7.0,
+          "2027": 6.7,
+          "2028": 6.5
+        },
+        "processing_margin": {
+          "2026": 1.1,
+          "2027": 1.2,
+          "2028": 1.3
+        },
+        "after_tax_factor": 0.68,
+        "other_profit": {
+          "2026": 0.2,
+          "2027": 0.22,
+          "2028": 0.24
+        },
+        "corporate_cost": {
+          "2026": 0.25,
+          "2027": 0.3,
+          "2028": 0.35
+        },
+        "revenue": {
+          "2026": 18.0,
+          "2027": 23.0,
+          "2028": 27.0
+        },
+        "equity": {
+          "2026": 18.0,
+          "2027": 22.0,
+          "2028": 27.0
+        },
+        "fcfe_conversion": 0.5
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 13.0,
+            "resource_share_pct": 55.00000000000001,
+            "resource_cost_10k_rmb_t_incl_vat": 7.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 7.15,
+            "processing_volume_10kt_lce": 5.85,
+            "resource_after_tax_profit_rmb_bn": 1.2908,
+            "processing_after_tax_profit_rmb_bn": 0.3872,
+            "other_profit_rmb_bn": 0.176,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 14.04,
+            "net_income_rmb_bn": 1.604,
+            "fcfe_rmb_bn": 0.802,
+            "equity_rmb_bn": 18.0,
+            "roe_pct": 9.53
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 18.0,
+            "resource_share_pct": 62.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.7,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 11.16,
+            "processing_volume_10kt_lce": 6.84,
+            "resource_after_tax_profit_rmb_bn": 1.5446,
+            "processing_after_tax_profit_rmb_bn": 0.4939,
+            "other_profit_rmb_bn": 0.1936,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 17.94,
+            "net_income_rmb_bn": 1.9322,
+            "fcfe_rmb_bn": 0.9661,
+            "equity_rmb_bn": 22.0,
+            "roe_pct": 9.66
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 22.0,
+            "resource_share_pct": 68.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.5,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 14.96,
+            "processing_volume_10kt_lce": 7.04,
+            "resource_after_tax_profit_rmb_bn": 2.2506,
+            "processing_after_tax_profit_rmb_bn": 0.5507,
+            "other_profit_rmb_bn": 0.2112,
+            "corporate_cost_rmb_bn": 0.35,
+            "revenue_rmb_bn": 21.06,
+            "net_income_rmb_bn": 2.6626,
+            "fcfe_rmb_bn": 1.3313,
+            "equity_rmb_bn": 27.0,
+            "roe_pct": 10.87
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 13.0,
+            "resource_share_pct": 55.00000000000001,
+            "resource_cost_10k_rmb_t_incl_vat": 7.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 7.15,
+            "processing_volume_10kt_lce": 5.85,
+            "resource_after_tax_profit_rmb_bn": 3.4421,
+            "processing_after_tax_profit_rmb_bn": 0.3872,
+            "other_profit_rmb_bn": 0.2,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 18.0,
+            "net_income_rmb_bn": 3.7794,
+            "fcfe_rmb_bn": 1.8897,
+            "equity_rmb_bn": 18.0,
+            "roe_pct": 22.46
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 18.0,
+            "resource_share_pct": 62.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.7,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 11.16,
+            "processing_volume_10kt_lce": 6.84,
+            "resource_after_tax_profit_rmb_bn": 4.9025,
+            "processing_after_tax_profit_rmb_bn": 0.4939,
+            "other_profit_rmb_bn": 0.22,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 23.0,
+            "net_income_rmb_bn": 5.3164,
+            "fcfe_rmb_bn": 2.6582,
+            "equity_rmb_bn": 22.0,
+            "roe_pct": 26.58
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 22.0,
+            "resource_share_pct": 68.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.5,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 14.96,
+            "processing_volume_10kt_lce": 7.04,
+            "resource_after_tax_profit_rmb_bn": 5.8516,
+            "processing_after_tax_profit_rmb_bn": 0.5507,
+            "other_profit_rmb_bn": 0.24,
+            "corporate_cost_rmb_bn": 0.35,
+            "revenue_rmb_bn": 27.0,
+            "net_income_rmb_bn": 6.2924,
+            "fcfe_rmb_bn": 3.1462,
+            "equity_rmb_bn": 27.0,
+            "roe_pct": 25.68
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 13.0,
+            "resource_share_pct": 55.00000000000001,
+            "resource_cost_10k_rmb_t_incl_vat": 7.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 7.15,
+            "processing_volume_10kt_lce": 5.85,
+            "resource_after_tax_profit_rmb_bn": 4.7329,
+            "processing_after_tax_profit_rmb_bn": 0.3872,
+            "other_profit_rmb_bn": 0.22,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 21.24,
+            "net_income_rmb_bn": 5.0902,
+            "fcfe_rmb_bn": 2.5451,
+            "equity_rmb_bn": 18.0,
+            "roe_pct": 30.25
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 18.0,
+            "resource_share_pct": 62.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.7,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 11.16,
+            "processing_volume_10kt_lce": 6.84,
+            "resource_after_tax_profit_rmb_bn": 6.9172,
+            "processing_after_tax_profit_rmb_bn": 0.4939,
+            "other_profit_rmb_bn": 0.242,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 27.14,
+            "net_income_rmb_bn": 7.3532,
+            "fcfe_rmb_bn": 3.6766,
+            "equity_rmb_bn": 22.0,
+            "roe_pct": 36.77
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 22.0,
+            "resource_share_pct": 68.0,
+            "resource_cost_10k_rmb_t_incl_vat": 6.5,
+            "processing_margin_10k_rmb_t_incl_vat": 1.3,
+            "resource_volume_10kt_lce": 14.96,
+            "processing_volume_10kt_lce": 7.04,
+            "resource_after_tax_profit_rmb_bn": 8.5524,
+            "processing_after_tax_profit_rmb_bn": 0.5507,
+            "other_profit_rmb_bn": 0.264,
+            "corporate_cost_rmb_bn": 0.35,
+            "revenue_rmb_bn": 31.86,
+            "net_income_rmb_bn": 9.0171,
+            "fcfe_rmb_bn": 4.5085,
+            "equity_rmb_bn": 27.0,
+            "roe_pct": 36.8
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 53.16,
+          "high_rmb_bn": 79.75,
+          "inputs": {
+            "net_income_rmb_bn": 5.3164,
+            "pe_range": [
+              10.0,
+              15.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。锂盐规模和客户结构支持上沿，非洲资源兑现与扩张资本限制进一步溢价。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 31.68,
+          "high_rmb_bn": 55.66,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              17.16,
+              22.0
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.78,
+            "pb_range": [
+              1.44,
+              2.53
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘78%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 27.46,
+          "high_rmb_bn": 38.24,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              1.8897,
+              2.6582,
+              3.1462
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 80.9,
+            "low_terminal_value_share_pct": 78.18,
+            "high_terminal_value_share_pct": 83.74
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 53.16,
+        "high_rmb_bn": 79.75,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "资源自给率决定利润弹性；扩产期资本开支使FCFE权重低于PE。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/300390_SZ_input.json",
+        "input_sha256": "sha256:76ad1265c57b0edf12b37f24aafe2acb936db3fccc90d0146c20c0312166df1b",
+        "output_path": "cache/lithium_research/models/company_freezes/300390_SZ_output.json",
+        "output_sha256": "sha256:35d164483783bb79a3772e61176487e34608a870890bd03c7637b5b43c413b76",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "天齐锂业",
+      "research_company_id": 647,
+      "ticker": "002466.SZ",
+      "model_type": "Greenbushes资源、锂盐与SQM权益",
+      "actual_2025": {
+        "revenue_rmb_bn": 10.3464,
+        "net_income_rmb_bn": 0.4626,
+        "operating_cash_flow_rmb_bn": 2.9605,
+        "capex_rmb_bn": 3.6034,
+        "equity_rmb_bn": 51.8922,
+        "assets_rmb_bn": 72.11,
+        "roe_pct": 1.0982,
+        "roa_pct": 6.2412
+      },
+      "project_and_operating_evidence": [
+        "Greenbushes五座选矿厂合计精矿产能214万吨/年。",
+        "2025年Greenbushes精矿产量135万吨，其中化学级130万吨；CGP3于2026年1月产出首批产品。",
+        "公司对Greenbushes的穿透权益与SQM权益法收益均需单独处理，不能按100%项目产量估值。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 7.5,
+          "2027": 8.5,
+          "2028": 9.2
+        },
+        "resource_share": {
+          "2026": 0.88,
+          "2027": 0.9,
+          "2028": 0.9
+        },
+        "resource_cost": {
+          "2026": 4.5,
+          "2027": 4.4,
+          "2028": 4.4
+        },
+        "processing_margin": {
+          "2026": 0.8,
+          "2027": 0.9,
+          "2028": 0.9
+        },
+        "after_tax_factor": 0.67,
+        "other_profit": {
+          "2026": 1.0,
+          "2027": 1.3,
+          "2028": 1.5
+        },
+        "corporate_cost": {
+          "2026": 0.6,
+          "2027": 0.6,
+          "2028": 0.6
+        },
+        "revenue": {
+          "2026": 22.0,
+          "2027": 25.0,
+          "2028": 27.0
+        },
+        "equity": {
+          "2026": 58.0,
+          "2027": 64.0,
+          "2028": 71.0
+        },
+        "fcfe_conversion": 0.72
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 7.5,
+            "resource_share_pct": 88.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.8,
+            "resource_volume_10kt_lce": 6.6,
+            "processing_volume_10kt_lce": 0.9,
+            "resource_after_tax_profit_rmb_bn": 2.1523,
+            "processing_after_tax_profit_rmb_bn": 0.0427,
+            "other_profit_rmb_bn": 0.88,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 17.16,
+            "net_income_rmb_bn": 2.475,
+            "fcfe_rmb_bn": 1.782,
+            "equity_rmb_bn": 58.0,
+            "roe_pct": 4.5
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 8.5,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.4,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 7.65,
+            "processing_volume_10kt_lce": 0.85,
+            "resource_after_tax_profit_rmb_bn": 2.0865,
+            "processing_after_tax_profit_rmb_bn": 0.0454,
+            "other_profit_rmb_bn": 1.144,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 19.5,
+            "net_income_rmb_bn": 2.6758,
+            "fcfe_rmb_bn": 1.9266,
+            "equity_rmb_bn": 64.0,
+            "roe_pct": 4.39
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 9.2,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.4,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 8.28,
+            "processing_volume_10kt_lce": 0.92,
+            "resource_after_tax_profit_rmb_bn": 2.2583,
+            "processing_after_tax_profit_rmb_bn": 0.0491,
+            "other_profit_rmb_bn": 1.32,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 21.06,
+            "net_income_rmb_bn": 3.0274,
+            "fcfe_rmb_bn": 2.1797,
+            "equity_rmb_bn": 71.0,
+            "roe_pct": 4.49
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 7.5,
+            "resource_share_pct": 88.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.8,
+            "resource_volume_10kt_lce": 6.6,
+            "processing_volume_10kt_lce": 0.9,
+            "resource_after_tax_profit_rmb_bn": 4.1089,
+            "processing_after_tax_profit_rmb_bn": 0.0427,
+            "other_profit_rmb_bn": 1.0,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 22.0,
+            "net_income_rmb_bn": 4.5516,
+            "fcfe_rmb_bn": 3.2772,
+            "equity_rmb_bn": 58.0,
+            "roe_pct": 8.28
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 8.5,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.4,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 7.65,
+            "processing_volume_10kt_lce": 0.85,
+            "resource_after_tax_profit_rmb_bn": 4.3544,
+            "processing_after_tax_profit_rmb_bn": 0.0454,
+            "other_profit_rmb_bn": 1.3,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 25.0,
+            "net_income_rmb_bn": 5.0998,
+            "fcfe_rmb_bn": 3.6718,
+            "equity_rmb_bn": 64.0,
+            "roe_pct": 8.36
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 9.2,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.4,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 8.28,
+            "processing_volume_10kt_lce": 0.92,
+            "resource_after_tax_profit_rmb_bn": 4.2221,
+            "processing_after_tax_profit_rmb_bn": 0.0491,
+            "other_profit_rmb_bn": 1.5,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 27.0,
+            "net_income_rmb_bn": 5.1712,
+            "fcfe_rmb_bn": 3.7232,
+            "equity_rmb_bn": 71.0,
+            "roe_pct": 7.66
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 7.5,
+            "resource_share_pct": 88.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.8,
+            "resource_volume_10kt_lce": 6.6,
+            "processing_volume_10kt_lce": 0.9,
+            "resource_after_tax_profit_rmb_bn": 5.2829,
+            "processing_after_tax_profit_rmb_bn": 0.0427,
+            "other_profit_rmb_bn": 1.1,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 25.96,
+            "net_income_rmb_bn": 5.8256,
+            "fcfe_rmb_bn": 4.1944,
+            "equity_rmb_bn": 58.0,
+            "roe_pct": 10.6
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 8.5,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.4,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 7.65,
+            "processing_volume_10kt_lce": 0.85,
+            "resource_after_tax_profit_rmb_bn": 5.7152,
+            "processing_after_tax_profit_rmb_bn": 0.0454,
+            "other_profit_rmb_bn": 1.43,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 29.5,
+            "net_income_rmb_bn": 6.5905,
+            "fcfe_rmb_bn": 4.7452,
+            "equity_rmb_bn": 64.0,
+            "roe_pct": 10.8
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 9.2,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.4,
+            "processing_margin_10k_rmb_t_incl_vat": 0.9,
+            "resource_volume_10kt_lce": 8.28,
+            "processing_volume_10kt_lce": 0.92,
+            "resource_after_tax_profit_rmb_bn": 5.6949,
+            "processing_after_tax_profit_rmb_bn": 0.0491,
+            "other_profit_rmb_bn": 1.65,
+            "corporate_cost_rmb_bn": 0.6,
+            "revenue_rmb_bn": 31.86,
+            "net_income_rmb_bn": 6.794,
+            "fcfe_rmb_bn": 4.8917,
+            "equity_rmb_bn": 71.0,
+            "roe_pct": 10.07
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 56.1,
+          "high_rmb_bn": 76.5,
+          "inputs": {
+            "net_income_rmb_bn": 5.0998,
+            "pe_range": [
+              11.0,
+              15.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。Greenbushes和SQM权益支持较高质量倍数，权益穿透、资本结构和周期限制上沿。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "有效参考",
+          "forecast_year": 2027,
+          "low_rmb_bn": 26.24,
+          "high_rmb_bn": 39.68,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              6.28,
+              7.66
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.82,
+            "pb_range": [
+              0.41,
+              0.62
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘82%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 33.83,
+          "high_rmb_bn": 46.63,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              3.2772,
+              3.6718,
+              3.7232
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 78.1,
+            "low_terminal_value_share_pct": 75.08,
+            "high_terminal_value_share_pct": 81.27
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 56.1,
+        "high_rmb_bn": 76.5,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "Greenbushes、自产锂盐与SQM权益法收益分开核验，不能把SQM销量重复并入自产。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002466_SZ_input.json",
+        "input_sha256": "sha256:63660603d0080f11dfa60ea35ec05407c2058d719d48c8de7acb9b41cb003671",
+        "output_path": "cache/lithium_research/models/company_freezes/002466_SZ_output.json",
+        "output_sha256": "sha256:a68b47cad22a9c7262824e50f93fd77bd18b44321104f193bb163d0c33a5a56c",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "永杉锂业",
+      "research_company_id": 648,
+      "ticker": "603399.SH",
+      "model_type": "外购原料锂盐加工",
+      "actual_2025": {
+        "revenue_rmb_bn": 5.421,
+        "net_income_rmb_bn": -0.3334,
+        "operating_cash_flow_rmb_bn": -0.4338,
+        "capex_rmb_bn": 0.0744,
+        "equity_rmb_bn": 1.5197,
+        "assets_rmb_bn": 3.5392,
+        "roe_pct": -20.5509,
+        "roa_pct": -8.3607
+      },
+      "project_and_operating_evidence": [
+        "2025年碳酸锂产量1.3814万吨、氢氧化锂产量1.4463万吨。",
+        "锂盐产能由2.5万吨增至4.5万吨。",
+        "2.2万吨扩建目标2026年10月投产，届时总产能超过6万吨。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 4.2,
+          "2027": 6.0,
+          "2028": 6.5
+        },
+        "resource_share": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "resource_cost": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "processing_margin": {
+          "2026": 1.0,
+          "2027": 1.1,
+          "2028": 1.2
+        },
+        "after_tax_factor": 0.65,
+        "other_profit": {
+          "2026": 0.02,
+          "2027": 0.03,
+          "2028": 0.04
+        },
+        "corporate_cost": {
+          "2026": 0.25,
+          "2027": 0.27,
+          "2028": 0.29
+        },
+        "revenue": {
+          "2026": 8.0,
+          "2027": 10.0,
+          "2028": 11.0
+        },
+        "equity": {
+          "2026": 1.5,
+          "2027": 2.0,
+          "2028": 2.8
+        },
+        "fcfe_conversion": 0.55
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 4.2,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 4.2,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.2416,
+            "other_profit_rmb_bn": 0.0176,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 6.24,
+            "net_income_rmb_bn": 0.0092,
+            "fcfe_rmb_bn": 0.0051,
+            "equity_rmb_bn": 1.5,
+            "roe_pct": 0.61
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 6.0,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 6.0,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.3796,
+            "other_profit_rmb_bn": 0.0264,
+            "corporate_cost_rmb_bn": 0.27,
+            "revenue_rmb_bn": 7.8,
+            "net_income_rmb_bn": 0.136,
+            "fcfe_rmb_bn": 0.0748,
+            "equity_rmb_bn": 2.0,
+            "roe_pct": 7.77
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 6.5,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 6.5,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.4487,
+            "other_profit_rmb_bn": 0.0352,
+            "corporate_cost_rmb_bn": 0.29,
+            "revenue_rmb_bn": 8.58,
+            "net_income_rmb_bn": 0.1939,
+            "fcfe_rmb_bn": 0.1066,
+            "equity_rmb_bn": 2.8,
+            "roe_pct": 8.08
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 4.2,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 4.2,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.2416,
+            "other_profit_rmb_bn": 0.02,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 8.0,
+            "net_income_rmb_bn": 0.0116,
+            "fcfe_rmb_bn": 0.0064,
+            "equity_rmb_bn": 1.5,
+            "roe_pct": 0.77
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 6.0,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 6.0,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.3796,
+            "other_profit_rmb_bn": 0.03,
+            "corporate_cost_rmb_bn": 0.27,
+            "revenue_rmb_bn": 10.0,
+            "net_income_rmb_bn": 0.1396,
+            "fcfe_rmb_bn": 0.0768,
+            "equity_rmb_bn": 2.0,
+            "roe_pct": 7.98
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 6.5,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 6.5,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.4487,
+            "other_profit_rmb_bn": 0.04,
+            "corporate_cost_rmb_bn": 0.29,
+            "revenue_rmb_bn": 11.0,
+            "net_income_rmb_bn": 0.1987,
+            "fcfe_rmb_bn": 0.1093,
+            "equity_rmb_bn": 2.8,
+            "roe_pct": 8.28
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 4.2,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 4.2,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.2416,
+            "other_profit_rmb_bn": 0.022,
+            "corporate_cost_rmb_bn": 0.25,
+            "revenue_rmb_bn": 9.44,
+            "net_income_rmb_bn": 0.0136,
+            "fcfe_rmb_bn": 0.0075,
+            "equity_rmb_bn": 1.5,
+            "roe_pct": 0.9
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 6.0,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 6.0,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.3796,
+            "other_profit_rmb_bn": 0.033,
+            "corporate_cost_rmb_bn": 0.27,
+            "revenue_rmb_bn": 11.8,
+            "net_income_rmb_bn": 0.1426,
+            "fcfe_rmb_bn": 0.0785,
+            "equity_rmb_bn": 2.0,
+            "roe_pct": 8.15
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 6.5,
+            "resource_share_pct": 0.0,
+            "resource_cost_10k_rmb_t_incl_vat": 0.0,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 6.5,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.4487,
+            "other_profit_rmb_bn": 0.044,
+            "corporate_cost_rmb_bn": 0.29,
+            "revenue_rmb_bn": 12.98,
+            "net_income_rmb_bn": 0.2027,
+            "fcfe_rmb_bn": 0.1115,
+            "equity_rmb_bn": 2.8,
+            "roe_pct": 8.44
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 1.12,
+          "high_rmb_bn": 1.68,
+          "inputs": {
+            "net_income_rmb_bn": 0.1396,
+            "pe_range": [
+              8.0,
+              12.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。外购原料加工、库存和价差波动使PE只作低倍数参考，不给予资源溢价。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 0.48,
+          "high_rmb_bn": 1.4,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              4.55,
+              8.28
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.55,
+            "pb_range": [
+              0.24,
+              0.7
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘55%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 0.89,
+          "high_rmb_bn": 1.26,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              0.0064,
+              0.0768,
+              0.1093
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 85.99,
+            "low_terminal_value_share_pct": 83.9,
+            "high_terminal_value_share_pct": 88.14
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 1.12,
+        "high_rmb_bn": 1.68,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "以加工费和库存周期建模，不把外购原料销量当资源租金。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/603399_SH_input.json",
+        "input_sha256": "sha256:c19c5d17ec51c35badaff22d2fcaa4f44480dff8fc4f5ba20678ef564ec5b987",
+        "output_path": "cache/lithium_research/models/company_freezes/603399_SH_output.json",
+        "output_sha256": "sha256:a5e07876c0bdcb17619267f9fd9971ed151f73a1093abcd9d6a5265553d05d9c",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "中矿资源",
+      "research_company_id": 649,
+      "ticker": "002738.SZ",
+      "model_type": "非洲锂矿、锂盐与铯铷",
+      "actual_2025": {
+        "revenue_rmb_bn": 6.5452,
+        "net_income_rmb_bn": 0.4576,
+        "operating_cash_flow_rmb_bn": 1.6018,
+        "capex_rmb_bn": 1.1978,
+        "equity_rmb_bn": 12.4879,
+        "assets_rmb_bn": 18.2039,
+        "roe_pct": 3.7569,
+        "roa_pct": 4.4743
+      },
+      "project_and_operating_evidence": [
+        "Bikita锂资源量折合343.41万吨LCE。",
+        "两条200万吨/年选矿线分别生产锂辉石和透锂长石精矿，设计精矿各约30万吨。",
+        "锂盐产能7.1万吨/年，升级后的3万吨产线于2026年1月投产。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 7.0,
+          "2027": 7.5,
+          "2028": 8.0
+        },
+        "resource_share": {
+          "2026": 0.85,
+          "2027": 0.88,
+          "2028": 0.9
+        },
+        "resource_cost": {
+          "2026": 5.5,
+          "2027": 5.3,
+          "2028": 5.2
+        },
+        "processing_margin": {
+          "2026": 1.0,
+          "2027": 1.1,
+          "2028": 1.2
+        },
+        "after_tax_factor": 0.68,
+        "other_profit": {
+          "2026": 0.3,
+          "2027": 0.35,
+          "2028": 0.4
+        },
+        "corporate_cost": {
+          "2026": 0.3,
+          "2027": 0.32,
+          "2028": 0.34
+        },
+        "revenue": {
+          "2026": 10.0,
+          "2027": 13.5,
+          "2028": 16.0
+        },
+        "equity": {
+          "2026": 14.5,
+          "2027": 17.5,
+          "2028": 21.0
+        },
+        "fcfe_conversion": 0.62
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 7.0,
+            "resource_share_pct": 85.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 5.95,
+            "processing_volume_10kt_lce": 1.05,
+            "resource_after_tax_profit_rmb_bn": 1.6112,
+            "processing_after_tax_profit_rmb_bn": 0.0632,
+            "other_profit_rmb_bn": 0.264,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 7.8,
+            "net_income_rmb_bn": 1.6384,
+            "fcfe_rmb_bn": 1.0158,
+            "equity_rmb_bn": 14.5,
+            "roe_pct": 12.14
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 7.5,
+            "resource_share_pct": 88.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 6.6,
+            "processing_volume_10kt_lce": 0.9,
+            "resource_after_tax_profit_rmb_bn": 1.4695,
+            "processing_after_tax_profit_rmb_bn": 0.0596,
+            "other_profit_rmb_bn": 0.308,
+            "corporate_cost_rmb_bn": 0.32,
+            "revenue_rmb_bn": 10.53,
+            "net_income_rmb_bn": 1.5171,
+            "fcfe_rmb_bn": 0.9406,
+            "equity_rmb_bn": 17.5,
+            "roe_pct": 9.48
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 7.2,
+            "processing_volume_10kt_lce": 0.8,
+            "resource_after_tax_profit_rmb_bn": 1.6464,
+            "processing_after_tax_profit_rmb_bn": 0.0578,
+            "other_profit_rmb_bn": 0.352,
+            "corporate_cost_rmb_bn": 0.34,
+            "revenue_rmb_bn": 12.48,
+            "net_income_rmb_bn": 1.7162,
+            "fcfe_rmb_bn": 1.0641,
+            "equity_rmb_bn": 21.0,
+            "roe_pct": 8.92
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 7.0,
+            "resource_share_pct": 85.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 5.95,
+            "processing_volume_10kt_lce": 1.05,
+            "resource_after_tax_profit_rmb_bn": 3.4015,
+            "processing_after_tax_profit_rmb_bn": 0.0632,
+            "other_profit_rmb_bn": 0.3,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 10.0,
+            "net_income_rmb_bn": 3.4647,
+            "fcfe_rmb_bn": 2.1481,
+            "equity_rmb_bn": 14.5,
+            "roe_pct": 25.68
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 7.5,
+            "resource_share_pct": 88.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 6.6,
+            "processing_volume_10kt_lce": 0.9,
+            "resource_after_tax_profit_rmb_bn": 3.4554,
+            "processing_after_tax_profit_rmb_bn": 0.0596,
+            "other_profit_rmb_bn": 0.35,
+            "corporate_cost_rmb_bn": 0.32,
+            "revenue_rmb_bn": 13.5,
+            "net_income_rmb_bn": 3.5449,
+            "fcfe_rmb_bn": 2.1979,
+            "equity_rmb_bn": 17.5,
+            "roe_pct": 22.16
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 7.2,
+            "processing_volume_10kt_lce": 0.8,
+            "resource_after_tax_profit_rmb_bn": 3.3795,
+            "processing_after_tax_profit_rmb_bn": 0.0578,
+            "other_profit_rmb_bn": 0.4,
+            "corporate_cost_rmb_bn": 0.34,
+            "revenue_rmb_bn": 16.0,
+            "net_income_rmb_bn": 3.4973,
+            "fcfe_rmb_bn": 2.1683,
+            "equity_rmb_bn": 21.0,
+            "roe_pct": 18.17
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 7.0,
+            "resource_share_pct": 85.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 1.0,
+            "resource_volume_10kt_lce": 5.95,
+            "processing_volume_10kt_lce": 1.05,
+            "resource_after_tax_profit_rmb_bn": 4.4757,
+            "processing_after_tax_profit_rmb_bn": 0.0632,
+            "other_profit_rmb_bn": 0.33,
+            "corporate_cost_rmb_bn": 0.3,
+            "revenue_rmb_bn": 11.8,
+            "net_income_rmb_bn": 4.5688,
+            "fcfe_rmb_bn": 2.8327,
+            "equity_rmb_bn": 14.5,
+            "roe_pct": 33.86
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 7.5,
+            "resource_share_pct": 88.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 1.1,
+            "resource_volume_10kt_lce": 6.6,
+            "processing_volume_10kt_lce": 0.9,
+            "resource_after_tax_profit_rmb_bn": 4.6469,
+            "processing_after_tax_profit_rmb_bn": 0.0596,
+            "other_profit_rmb_bn": 0.385,
+            "corporate_cost_rmb_bn": 0.32,
+            "revenue_rmb_bn": 15.93,
+            "net_income_rmb_bn": 4.7714,
+            "fcfe_rmb_bn": 2.9583,
+            "equity_rmb_bn": 17.5,
+            "roe_pct": 29.82
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 8.0,
+            "resource_share_pct": 90.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.2,
+            "processing_margin_10k_rmb_t_incl_vat": 1.2,
+            "resource_volume_10kt_lce": 7.2,
+            "processing_volume_10kt_lce": 0.8,
+            "resource_after_tax_profit_rmb_bn": 4.6794,
+            "processing_after_tax_profit_rmb_bn": 0.0578,
+            "other_profit_rmb_bn": 0.44,
+            "corporate_cost_rmb_bn": 0.34,
+            "revenue_rmb_bn": 18.88,
+            "net_income_rmb_bn": 4.8371,
+            "fcfe_rmb_bn": 2.999,
+            "equity_rmb_bn": 21.0,
+            "roe_pct": 25.13
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 38.99,
+          "high_rmb_bn": 53.17,
+          "inputs": {
+            "net_income_rmb_bn": 3.5449,
+            "pe_range": [
+              11.0,
+              15.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。资源自给与铯铷利润提高质量，非洲项目、扩产资本和周期限制上沿。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "有效参考",
+          "forecast_year": 2027,
+          "low_rmb_bn": 21.52,
+          "high_rmb_bn": 35.35,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              14.9,
+              18.17
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.82,
+            "pb_range": [
+              1.23,
+              2.02
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘82%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 19.96,
+          "high_rmb_bn": 27.42,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              2.1481,
+              2.1979,
+              2.1683
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 77.21,
+            "low_terminal_value_share_pct": 74.11,
+            "high_terminal_value_share_pct": 80.49
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 38.99,
+        "high_rmb_bn": 53.17,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "资源自给率高，铯铷提供非锂利润；PE、SOTP和PB—ROE均可使用。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002738_SZ_input.json",
+        "input_sha256": "sha256:f7c3ec1ba65fef31f52978a70fe102e08425684d09c24abfa9ef6b6ebabecbc8",
+        "output_path": "cache/lithium_research/models/company_freezes/002738_SZ_output.json",
+        "output_sha256": "sha256:c17bb07995266a3430932c6b5cf8711f8d6feb1cc3be477ff409e6127f8e3ebf",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "藏格矿业",
+      "research_company_id": 650,
+      "ticker": "000408.SZ",
+      "model_type": "盐湖锂、钾肥与巨龙铜业权益",
+      "actual_2025": {
+        "revenue_rmb_bn": 3.5768,
+        "net_income_rmb_bn": 3.8524,
+        "operating_cash_flow_rmb_bn": 2.1003,
+        "capex_rmb_bn": 0.0823,
+        "equity_rmb_bn": 16.2153,
+        "assets_rmb_bn": 17.6922,
+        "roe_pct": 25.5897,
+        "roa_pct": 24.7698
+      },
+      "project_and_operating_evidence": [
+        "2025年碳酸锂产量0.8808万吨、销量0.8957万吨。",
+        "原有设计产能1万吨/年，2025年利用率88.08%。",
+        "Mamico 5万吨项目公司间接权益26.95%，目标2026年下半年开始贡献；钾肥和巨龙铜业是重要利润来源。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 1.72,
+          "2027": 3.75,
+          "2028": 4.1
+        },
+        "resource_share": {
+          "2026": 1.0,
+          "2027": 1.0,
+          "2028": 1.0
+        },
+        "resource_cost": {
+          "2026": 3.8,
+          "2027": 4.0,
+          "2028": 4.0
+        },
+        "processing_margin": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "after_tax_factor": 0.7,
+        "other_profit": {
+          "2026": 5.7,
+          "2027": 6.6,
+          "2028": 7.2
+        },
+        "corporate_cost": {
+          "2026": 0.1,
+          "2027": 0.12,
+          "2028": 0.15
+        },
+        "revenue": {
+          "2026": 5.0,
+          "2027": 6.5,
+          "2028": 8.0
+        },
+        "equity": {
+          "2026": 20.0,
+          "2027": 25.0,
+          "2028": 31.0
+        },
+        "fcfe_conversion": 0.82
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 1.72,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 1.72,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.6606,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.016,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 3.9,
+            "net_income_rmb_bn": 5.5766,
+            "fcfe_rmb_bn": 4.5728,
+            "equity_rmb_bn": 20.0,
+            "roe_pct": 30.8
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 3.75,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.0,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.75,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.1615,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.808,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 5.07,
+            "net_income_rmb_bn": 6.8495,
+            "fcfe_rmb_bn": 5.6166,
+            "equity_rmb_bn": 25.0,
+            "roe_pct": 30.44
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 4.1,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.0,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 4.1,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.2699,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.336,
+            "corporate_cost_rmb_bn": 0.15,
+            "revenue_rmb_bn": 6.24,
+            "net_income_rmb_bn": 7.4559,
+            "fcfe_rmb_bn": 6.1138,
+            "equity_rmb_bn": 31.0,
+            "roe_pct": 26.63
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 1.72,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 1.72,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.1933,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 5.7,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 5.0,
+            "net_income_rmb_bn": 6.7933,
+            "fcfe_rmb_bn": 5.5705,
+            "equity_rmb_bn": 20.0,
+            "roe_pct": 37.52
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 3.75,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.0,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.75,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.323,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.6,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 6.5,
+            "net_income_rmb_bn": 8.803,
+            "fcfe_rmb_bn": 7.2185,
+            "equity_rmb_bn": 25.0,
+            "roe_pct": 39.12
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 4.1,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.0,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 4.1,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.2858,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 7.2,
+            "corporate_cost_rmb_bn": 0.15,
+            "revenue_rmb_bn": 8.0,
+            "net_income_rmb_bn": 9.3358,
+            "fcfe_rmb_bn": 7.6554,
+            "equity_rmb_bn": 31.0,
+            "roe_pct": 33.34
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 1.72,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 3.8,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 1.72,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.513,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 6.27,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 5.9,
+            "net_income_rmb_bn": 7.683,
+            "fcfe_rmb_bn": 6.3001,
+            "equity_rmb_bn": 20.0,
+            "roe_pct": 42.43
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 3.75,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.0,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 3.75,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 3.0199,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 7.26,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 7.67,
+            "net_income_rmb_bn": 10.1599,
+            "fcfe_rmb_bn": 8.3311,
+            "equity_rmb_bn": 25.0,
+            "roe_pct": 45.16
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 4.1,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 4.0,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 4.1,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 3.0478,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 7.92,
+            "corporate_cost_rmb_bn": 0.15,
+            "revenue_rmb_bn": 9.44,
+            "net_income_rmb_bn": 10.8178,
+            "fcfe_rmb_bn": 8.8706,
+            "equity_rmb_bn": 31.0,
+            "roe_pct": 38.63
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 105.64,
+          "high_rmb_bn": 140.85,
+          "inputs": {
+            "net_income_rmb_bn": 8.803,
+            "pe_range": [
+              12.0,
+              16.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。钾肥与巨龙铜业权益形成利润底仓，但高权益法利润和高周期ROE不能永久化。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "诊断",
+          "forecast_year": 2027,
+          "low_rmb_bn": 41.25,
+          "high_rmb_bn": 63.25,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              19.36,
+              22.0
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.88,
+            "pb_range": [
+              1.65,
+              2.53
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘88%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 68.26,
+          "high_rmb_bn": 94.55,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              5.5705,
+              7.2185,
+              7.6554
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 79.39,
+            "low_terminal_value_share_pct": 76.51,
+            "high_terminal_value_share_pct": 82.41
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 105.64,
+        "high_rmb_bn": 140.85,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "钾肥和巨龙铜业决定利润底仓，锂项目只对增量估值。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/000408_SZ_input.json",
+        "input_sha256": "sha256:17dae942293fb4d85aedce7d4d828436351b8254cc871c5043b1f873a8a58edf",
+        "output_path": "cache/lithium_research/models/company_freezes/000408_SZ_output.json",
+        "output_sha256": "sha256:cb6944577a25e306c2cdca4921fda59c2ec112d36d093c23656b8c285d4cac54",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "西藏城投",
+      "research_company_id": 651,
+      "ticker": "600773.SH",
+      "model_type": "未商业化盐湖项目与地产存量",
+      "actual_2025": {
+        "revenue_rmb_bn": 0.9187,
+        "net_income_rmb_bn": -0.5527,
+        "operating_cash_flow_rmb_bn": -0.4111,
+        "capex_rmb_bn": 0.0546,
+        "equity_rmb_bn": 3.9407,
+        "assets_rmb_bn": 10.1629,
+        "roe_pct": -12.0921,
+        "roa_pct": -4.7357
+      },
+      "project_and_operating_evidence": [
+        "公司持有国能矿业41%权益。",
+        "龙木错与结则茶卡合计资源量约390万吨LCE。",
+        "项目尚未商业化，7万吨和3万吨规划不能当作当前产量或基准利润。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 0.0,
+          "2027": 0.08,
+          "2028": 0.16
+        },
+        "resource_share": {
+          "2026": 1.0,
+          "2027": 1.0,
+          "2028": 1.0
+        },
+        "resource_cost": {
+          "2026": 5.5,
+          "2027": 5.5,
+          "2028": 5.3
+        },
+        "processing_margin": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "after_tax_factor": 0.65,
+        "other_profit": {
+          "2026": -0.2,
+          "2027": -0.1,
+          "2028": 0.0
+        },
+        "corporate_cost": {
+          "2026": 0.1,
+          "2027": 0.1,
+          "2028": 0.1
+        },
+        "revenue": {
+          "2026": 0.8,
+          "2027": 1.0,
+          "2028": 1.2
+        },
+        "equity": {
+          "2026": 3.6,
+          "2027": 3.5,
+          "2028": 3.5
+        },
+        "fcfe_conversion": 0.0,
+        "net_income_override": {
+          "2026": -0.3,
+          "2027": -0.15,
+          "2028": -0.05
+        },
+        "net_income_override_rationale": "盐湖项目尚未商业化，规划产能与小试/中试产量不计入基准归母利润；2026—2028使用地产存量和公司层损益逐步收敛的独立亏损路径。"
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝未商业化项目投产前的公司独立损失路径；规划产能和试验性产量不计入基准利润"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 0.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": -0.176,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 0.624,
+            "net_income_rmb_bn": -0.3,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.6,
+            "roe_pct": -7.96
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 0.08,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.08,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0161,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": -0.088,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 0.78,
+            "net_income_rmb_bn": -0.15,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.5,
+            "roe_pct": -4.23
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 0.16,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.16,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0341,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.0,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 0.936,
+            "net_income_rmb_bn": -0.05,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.5,
+            "roe_pct": -1.43
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 0.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": -0.2,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 0.8,
+            "net_income_rmb_bn": -0.3,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.6,
+            "roe_pct": -7.96
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 0.08,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.08,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0391,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": -0.1,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 1.0,
+            "net_income_rmb_bn": -0.15,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.5,
+            "roe_pct": -4.23
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 0.16,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.16,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0709,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.0,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 1.2,
+            "net_income_rmb_bn": -0.05,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.5,
+            "roe_pct": -1.43
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 0.0,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.0,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": -0.22,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 0.944,
+            "net_income_rmb_bn": -0.3,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.6,
+            "roe_pct": -7.96
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 0.08,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.08,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0529,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": -0.11,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 1.18,
+            "net_income_rmb_bn": -0.15,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.5,
+            "roe_pct": -4.23
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 0.16,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 0.16,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.0985,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.0,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 1.416,
+            "net_income_rmb_bn": -0.05,
+            "fcfe_rmb_bn": -0.0,
+            "equity_rmb_bn": 3.5,
+            "roe_pct": -1.43
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "条件化项目NAV",
+          "role": "未采用",
+          "forecast_year": 2028,
+          "low_rmb_bn": null,
+          "high_rmb_bn": null,
+          "inputs": {
+            "company_project_ownership_pct": 41.0,
+            "planned_capacity_10kt": 10.0
+          },
+          "parameter_basis": "已确认国能矿业41%权益和两盐湖规划产能，但尚缺同口径储量采序、回收率、建设与维持资本、单位成本、税制和投产时间，无法把规划产能可靠地转成项目净现值。",
+          "limitation": "关闭原4—8亿元条件值：该数值没有完整现金流底稿，也遗漏地产等非锂资产，既不能当项目NAV，也不能与公司总市值直接比较。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": null,
+        "high_rmb_bn": null,
+        "method": "没有满足数据门槛的核心估值方法，暂不形成总股权价值区间"
+      },
+      "valuation_note": "项目尚未商业化，不使用PE；只做条件化项目NAV和资产负债约束。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。",
+        "盐湖项目尚未商业化，规划产能与小试/中试产量不计入基准归母利润；2026—2028使用地产存量和公司层损益逐步收敛的独立亏损路径。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/600773_SH_input.json",
+        "input_sha256": "sha256:4157b7439016e1aed3809f8ee324a7cd025697b3a993f9d64f218528615b388e",
+        "output_path": "cache/lithium_research/models/company_freezes/600773_SH_output.json",
+        "output_sha256": "sha256:c59cf76e6391bebd1e7a23bf34070b265504cb2bb90c2b92946053fda94665f0",
+        "frozen_before_external_reconciliation": true
+      }
+    },
+    {
+      "company": "永兴材料",
+      "research_company_id": 652,
+      "ticker": "002756.SZ",
+      "model_type": "云母矿盐一体化与特钢",
+      "actual_2025": {
+        "revenue_rmb_bn": 7.4231,
+        "net_income_rmb_bn": 0.6615,
+        "operating_cash_flow_rmb_bn": 0.4735,
+        "capex_rmb_bn": 0.2043,
+        "equity_rmb_bn": 12.8586,
+        "assets_rmb_bn": 14.6069,
+        "roe_pct": 5.2839,
+        "roa_pct": 4.6179
+      },
+      "project_and_operating_evidence": [
+        "2025年锂业务产量2.4823万吨。",
+        "公司拥有较大锂云母资源并形成采选冶一体化。",
+        "特钢业务提供非锂利润和现金流缓冲。"
+      ],
+      "assumptions": {
+        "product_volume": {
+          "2026": 2.9,
+          "2027": 4.2,
+          "2028": 5.8
+        },
+        "resource_share": {
+          "2026": 1.0,
+          "2027": 1.0,
+          "2028": 1.0
+        },
+        "resource_cost": {
+          "2026": 5.5,
+          "2027": 5.3,
+          "2028": 5.2
+        },
+        "processing_margin": {
+          "2026": 0.0,
+          "2027": 0.0,
+          "2028": 0.0
+        },
+        "after_tax_factor": 0.7,
+        "other_profit": {
+          "2026": 0.3,
+          "2027": 0.32,
+          "2028": 0.35
+        },
+        "corporate_cost": {
+          "2026": 0.1,
+          "2027": 0.11,
+          "2028": 0.12
+        },
+        "revenue": {
+          "2026": 9.0,
+          "2027": 10.5,
+          "2028": 12.0
+        },
+        "equity": {
+          "2026": 14.0,
+          "2027": 16.0,
+          "2028": 19.0
+        },
+        "fcfe_conversion": 0.78
+      },
+      "formula": {
+        "resource_profit": "资源税后利润＝产品销量×资源自给比例×（含税锂价－含税资源成本）÷1.13×税后归母转换系数",
+        "processing_profit": "加工税后利润＝产品销量×（1－资源自给比例）×单位加工利润÷1.13×税后归母转换系数",
+        "net_income": "归母净利润＝资源利润＋加工利润＋其他业务利润－公司层成本"
+      },
+      "scenarios": {
+        "下行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 10.0,
+            "product_volume_10kt_lce": 2.9,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.9,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.8084,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.264,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 7.02,
+            "net_income_rmb_bn": 0.9724,
+            "fcfe_rmb_bn": 0.7585,
+            "equity_rmb_bn": 14.0,
+            "roe_pct": 7.24
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 4.2,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 4.2,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 0.9627,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.2816,
+            "corporate_cost_rmb_bn": 0.11,
+            "revenue_rmb_bn": 8.19,
+            "net_income_rmb_bn": 1.1343,
+            "fcfe_rmb_bn": 0.8847,
+            "equity_rmb_bn": 16.0,
+            "roe_pct": 7.56
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 9.0,
+            "product_volume_10kt_lce": 5.8,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 5.8,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.3653,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.308,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 9.36,
+            "net_income_rmb_bn": 1.5533,
+            "fcfe_rmb_bn": 1.2116,
+            "equity_rmb_bn": 19.0,
+            "roe_pct": 8.88
+          }
+        ],
+        "基准情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 15.0,
+            "product_volume_10kt_lce": 2.9,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.9,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 1.7066,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.3,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 9.0,
+            "net_income_rmb_bn": 1.9066,
+            "fcfe_rmb_bn": 1.4872,
+            "equity_rmb_bn": 14.0,
+            "roe_pct": 14.2
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 14.0,
+            "product_volume_10kt_lce": 4.2,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 4.2,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.2635,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.32,
+            "corporate_cost_rmb_bn": 0.11,
+            "revenue_rmb_bn": 10.5,
+            "net_income_rmb_bn": 2.4735,
+            "fcfe_rmb_bn": 1.9294,
+            "equity_rmb_bn": 16.0,
+            "roe_pct": 16.49
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 13.0,
+            "product_volume_10kt_lce": 5.8,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 5.8,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.8025,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.35,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 12.0,
+            "net_income_rmb_bn": 3.0325,
+            "fcfe_rmb_bn": 2.3653,
+            "equity_rmb_bn": 19.0,
+            "roe_pct": 17.33
+          }
+        ],
+        "上行情景": [
+          {
+            "year": 2026,
+            "carbonate_price_10k_rmb_t_incl_vat": 18.0,
+            "product_volume_10kt_lce": 2.9,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.5,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 2.9,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 2.2456,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.33,
+            "corporate_cost_rmb_bn": 0.1,
+            "revenue_rmb_bn": 10.62,
+            "net_income_rmb_bn": 2.4756,
+            "fcfe_rmb_bn": 1.9309,
+            "equity_rmb_bn": 14.0,
+            "roe_pct": 18.43
+          },
+          {
+            "year": 2027,
+            "carbonate_price_10k_rmb_t_incl_vat": 17.0,
+            "product_volume_10kt_lce": 4.2,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.3,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 4.2,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 3.0441,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.352,
+            "corporate_cost_rmb_bn": 0.11,
+            "revenue_rmb_bn": 12.39,
+            "net_income_rmb_bn": 3.2861,
+            "fcfe_rmb_bn": 2.5631,
+            "equity_rmb_bn": 16.0,
+            "roe_pct": 21.91
+          },
+          {
+            "year": 2028,
+            "carbonate_price_10k_rmb_t_incl_vat": 16.0,
+            "product_volume_10kt_lce": 5.8,
+            "resource_share_pct": 100.0,
+            "resource_cost_10k_rmb_t_incl_vat": 5.2,
+            "processing_margin_10k_rmb_t_incl_vat": 0.0,
+            "resource_volume_10kt_lce": 5.8,
+            "processing_volume_10kt_lce": 0.0,
+            "resource_after_tax_profit_rmb_bn": 3.8804,
+            "processing_after_tax_profit_rmb_bn": 0.0,
+            "other_profit_rmb_bn": 0.385,
+            "corporate_cost_rmb_bn": 0.12,
+            "revenue_rmb_bn": 14.16,
+            "net_income_rmb_bn": 4.1454,
+            "fcfe_rmb_bn": 3.2334,
+            "equity_rmb_bn": 19.0,
+            "roe_pct": 23.69
+          }
+        ]
+      },
+      "valuations": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "forecast_year": 2027,
+          "low_rmb_bn": 22.26,
+          "high_rmb_bn": 32.16,
+          "inputs": {
+            "net_income_rmb_bn": 2.4735,
+            "pe_range": [
+              9.0,
+              13.0
+            ]
+          },
+          "parameter_basis": "行业倍数锚来自东吴证券2026-02-26碳酸锂行业专题：2026年权益资源利润使用10—15倍PE、远期满产利润使用更低倍数；本模型选择2027年正常化集团利润，避免把项目价值重复加入。在产云母资源与特钢形成底仓，云母成本曲线和环保资本约束上沿。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "有效参考",
+          "forecast_year": 2027,
+          "low_rmb_bn": 17.6,
+          "high_rmb_bn": 30.56,
+          "inputs": {
+            "sustainable_roe_range_pct": [
+              13.52,
+              17.33
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "roe_normalization_factor": 0.78,
+            "pb_range": [
+              1.1,
+              1.91
+            ]
+          },
+          "parameter_basis": "可持续ROE上限取2028基准ROE并封顶22%，下限按公司项目成熟度、资源覆盖和业务质量将上限乘78%。低值使用12.5%股权成本/2.0%长期增长，高值使用10.5%/3.0%；区间由ROE、股权成本和增长敏感性直接计算，不再设置最低PB托底。",
+          "limitation": "PB只适合净资产能代表已投产经营资本的主体；权益法利润、未投产项目、加工库存或前期减值会削弱解释力。"
+        },
+        {
+          "method": "股权自由现金流",
+          "role": "诊断",
+          "forecast_year": 2026,
+          "low_rmb_bn": 20.65,
+          "high_rmb_bn": 28.75,
+          "inputs": {
+            "fcfe_rmb_bn": [
+              1.4872,
+              1.9294,
+              2.3653
+            ],
+            "base_cost_of_equity_pct": 11.5,
+            "base_terminal_growth_pct": 2.5,
+            "low_value_cost_of_equity_pct": 12.5,
+            "low_value_terminal_growth_pct": 2.0,
+            "high_value_cost_of_equity_pct": 10.5,
+            "high_value_terminal_growth_pct": 3.0,
+            "base_terminal_value_share_pct": 80.89,
+            "low_terminal_value_share_pct": 78.17,
+            "high_terminal_value_share_pct": 83.73
+          },
+          "parameter_basis": "下限使用12.5%股权成本/2.0%永续增长，上限使用10.5%/3.0%；这是同一组三年FCFE的参数敏感性，不是对单点估值任意加减15%。",
+          "limitation": "资本开支和营运资金预测有限，若终值占比过高则只作参考。"
+        }
+      ],
+      "independent_equity_value_range": {
+        "low_rmb_bn": 22.26,
+        "high_rmb_bn": 32.16,
+        "method": "只使用标记为核心的方法；参考与诊断结果不并入区间"
+      },
+      "valuation_note": "锂云母成本曲线和环保约束重要，特钢提供非锂利润。",
+      "limitations": [
+        "权益产量、资源自给率和成本包含研究估算，已在输入中逐年冻结，不是公司指引。",
+        "价格情景为含税人民币现货等价，不代表不同品级和长协的实际成交价。",
+        "公司层模型只给与输入精度匹配的区间，不能把项目产能等同于当年销售量。"
+      ],
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002756_SZ_input.json",
+        "input_sha256": "sha256:8321f893e944bee3837821db6a8446a62137eca3be85d915401a493a473dda8f",
+        "output_path": "cache/lithium_research/models/company_freezes/002756_SZ_output.json",
+        "output_sha256": "sha256:b716717ef8a8b1a6ec7a2f7265321cee3199c017d42b843e04b51fea825eb634",
+        "frozen_before_external_reconciliation": true
+      }
+    }
+  ],
+  "content_sha256": "sha256:dbd75a550ec606fa080b700c271e4af72b75b6cfef111292be4e4985a6f41074"
+}

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ co.name }} · 散户情绪监控{% endblock %}
+{% block content %}
+<style>
+.rm{max-width:1180px;margin:0 auto}.rm-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin:12px 0}
+.rm-head h1{margin:0;color:#13203a;font-size:25px}.rm-head .ticker{font-size:14px;color:#7b899e;font-weight:500;margin-left:8px}
+.rm-policy{border:1px solid #d9e5f4;border-left:4px solid #2470b8;background:#f5f9fe;border-radius:10px;padding:11px 14px;color:#40506a;font-size:12px;line-height:1.7}
+.rm-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}
+.rm-kpi{background:#fff;border:1px solid #e1e8f2;border-radius:12px;padding:13px 14px}.rm-kpi b{display:block;font-size:22px;color:#14223a;font-variant-numeric:tabular-nums}.rm-kpi span{font-size:11px;color:#75839a}.rm-kpi .low{color:#b45309}
+.rm-chart-card{background:#0b1322;border:1px solid #20304a;border-radius:14px;padding:14px;margin-top:14px;color:#e8f0fd}
+.rm-chart-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.rm-chart-head h2{font-size:15px;margin:0;color:#e8f0fd}
+.rm-tabs{display:inline-flex;border:1px solid #324768;border-radius:8px;overflow:hidden}.rm-tab{border:0;background:transparent;color:#aabbd5;padding:5px 15px;cursor:pointer;font-size:12px}.rm-tab.on{background:#274a78;color:#fff;font-weight:700}
+.rm-chart{width:100%;min-height:520px}.rm-note{font-size:11px;color:#93a7c7;line-height:1.65;margin-top:4px}.rm-source{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.rm-chip{font-size:11px;border:1px solid #cfd9e7;background:#f8fafc;color:#536178;border-radius:14px;padding:3px 9px}.rm-chip b{color:#17253d}
+.rm-empty{padding:60px 20px;text-align:center;color:#8ea3c4;border:1px dashed #324768;border-radius:10px;margin-top:10px}
+@media(max-width:760px){.rm-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.rm-chart{min-height:460px}}
+</style>
+
+<div class="rm">
+  <div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <a href="{{ url_for('dynamic_sentiment') }}">情绪</a> / <strong>{{ co.name }}</strong></div>
+  <header class="rm-head">
+    <div><h1>{{ co.name }}<span class="ticker">{{ co.ticker or '' }}</span></h1><p class="entity-meta">散户情绪、股价、散户发帖量统一时间轴</p></div>
+    {% if not is_new_stock %}<a class="btn btn-secondary" href="{{ url_for('company_tag', company_id=co.id) }}">公司透视</a>{% endif %}
+  </header>
+
+  <div class="rm-policy">
+    工作日 10:00 聚合前一交易日 16:00 至当日 09:30，14:00 聚合 09:30 至 13:00，17:00 聚合 13:00 至 16:00；周末不抓取、不进入日线。
+    净情绪 =（正面帖 − 负面帖）/ 已评分帖，范围为 [-1,1]；低样本数值会展示并明确标注，不再用当天未完成行遮住最近可用分。
+  </div>
+
+  {% if is_new_stock %}<div class="rm-policy" style="margin-top:8px">该标的仅存在于舆情监测闭集，名称来自 <code>senti_company</code>；基本面尚未进入 research.company，不再显示内部 #900xxx 编号。</div>{% endif %}
+
+  <div class="rm-kpis">
+    <div class="rm-kpi"><b class="{{ 'low' if not summ.retail_display_ready else '' }}">{{ '%+.2f'|format(summ.retail_latest) if summ.retail_latest is not none else '—' }}</b><span>最近情绪分{% if summ.retail_latest is not none and summ.retail_quality_label %} · {{ summ.retail_quality_label }}{% endif %}</span></div>
+    <div class="rm-kpi"><b>{{ summ.retail_valid or 0 }}</b><span>窗口内已评分帖</span></div>
+    <div class="rm-kpi"><b>{{ summ.heat_total or 0 }}</b><span>散户发帖量</span></div>
+    <div class="rm-kpi"><b>{{ '%.0f%%'|format(summ.retail_cov*100) if summ.retail_cov is not none else '—' }}</b><span>最近评分覆盖率</span></div>
+  </div>
+
+  <section class="rm-chart-card">
+    <div class="rm-chart-head">
+      <h2>股价 · 散户净情绪 · 散户发帖量</h2>
+      <div class="rm-tabs" role="tablist" aria-label="时间粒度">
+        <button type="button" class="rm-tab on" data-freq="window" role="tab" aria-selected="true">交易窗口</button>
+        <button type="button" class="rm-tab" data-freq="d" role="tab" aria-selected="false">日线</button>
+      </div>
+    </div>
+    <div id="retailChart" class="rm-chart" role="img" aria-label="{{ co.name }} 股价、散户情绪和发帖量图"></div>
+    <div class="rm-note">情绪 MA5 与发帖量 MA5 默认隐藏，点击图例即可显示或再次隐藏。低样本或进行中的真实值保留在主轨迹中，以黄色空心点/柱和悬浮状态区分；发帖量仅统计散户层，不再混入新闻条数。</div>
+  </section>
+
+  <div class="rm-source" aria-label="最近窗口来源构成">
+    {% for name, count in retail_src.items() %}<span class="rm-chip">{{ name }} <b>{{ count }}</b></span>{% endfor %}
+  </div>
+  {% if not summ.has_price %}<div class="rm-policy" style="margin-top:12px">该标的价格源本轮无可用数据；情绪与发帖量仍按真实抓取展示，不使用伪造价格补线。</div>{% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script>
+const PANELS={{ panels_json|safe }};
+const CONFIG={responsive:true,displaylogo:false,scrollZoom:true,modeBarButtonsToRemove:['select2d','lasso2d']};
+function drawRetail(freq){
+  const fig=PANELS[freq==='d'?'retail_d':'retail_window'];
+  const el=document.getElementById('retailChart');
+  if(!fig||!fig.data){el.innerHTML='<div class="rm-empty">该粒度暂无可验证数据</div>';return;}
+  Plotly.react(el,fig.data,fig.layout,CONFIG);
+}
+drawRetail('window');
+document.querySelectorAll('.rm-tab').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.rm-tab').forEach(x=>{x.classList.remove('on');x.setAttribute('aria-selected','false')});
+  btn.classList.add('on');btn.setAttribute('aria-selected','true');drawRetail(btn.dataset.freq);
+}));
+</script>
+{% endblock %}

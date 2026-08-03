@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Source · {{ src.title }}{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / Source / <strong>{{ src.title }}</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ src.title }}
+      <span class="tier-badge tier-{{ src.quality_tier }}">tier {{ src.quality_tier }}</span>
+      {% if src.value_layer %}<span class="value-layer-tag value-layer-{{ src.value_layer }}">{{ src.value_layer }}</span>{% endif %}
+      {% if src.is_forward_looking %}<span class="forecast-tag">前瞻(降级)</span>{% endif %}
+      {% if src.source_type == 'claude_lit_review' %}
+        <span class="ai-synth-tag"> AI 综合</span>
+      {% endif %}
+    </h1>
+    <p class="entity-meta">
+      类型:{{ t(src.source_type) }} · publisher:{{ src.publisher or '—' }} · 日期:{{ src.publish_date or '—' }}
+      {% if src.author %}· 作者:{{ src.author }}{% endif %}
+    </p>
+    {% if src.note %}<p class="core-dynamic">{{ src.note }}</p>{% endif %}
+  </div>
+  <div class="entity-header-actions">
+    {% if src.file_path %}<a class="btn" href="{{ url_for('serve_pdf', source_id=src.id) }}" target="_blank">查看原文 PDF</a>{% endif %}
+    {% set url_val = src.source_url or src.url %}
+    {% if url_val %}<a class="btn" href="{{ url_val }}" target="_blank" rel="noopener">原始 URL</a>{% endif %}
+  </div>
+</header>
+
+{% if key_args %}
+<section class="panel">
+  <h3 class="panel-title">核心观点(非数值)</h3>
+  <ul class="key-args-list">
+    {% for arg in key_args %}<li>{{ arg }}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3 class="panel-title">关联实体</h3>
+  {% if entities %}
+  <table class="data-table">
+    <thead><tr><th>类型</th><th>实体</th><th>覆盖度</th></tr></thead>
+    <tbody>
+      {% for e in entities %}
+      <tr>
+        <td>{{ e.entity_type }}</td>
+        <td>
+          {% if e.entity_type == 'industry' and e.entity_name %}
+            <a href="{{ url_for('industry_detail', industry_id=e.entity_id) }}">{{ e.entity_name }}</a>
+          {% elif e.entity_type == 'company' and e.entity_name %}
+            <a href="{{ url_for('company_tag', company_id=e.entity_id) }}">{{ e.entity_name }}</a>
+          {% elif e.entity_type == 'theme' and e.entity_name %}
+            <a href="{{ url_for('theme_detail', theme_id=e.entity_id) }}">{{ e.entity_name }}</a>
+          {% else %}
+            {{ e.entity_name or e.entity_id }}
+          {% endif %}
+        </td>
+        <td>{{ e.coverage or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无关联实体。</p>{% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">出处于本 source 的数据点</h3>
+  {% if data_points %}
+  <table class="data-table data-points-table">
+    <thead><tr><th>行业</th><th>指标</th><th>时点</th><th>数值</th><th>性质</th><th>倾向</th><th>原文摘录</th><th>溯源</th></tr></thead>
+    <tbody>
+      {% for d in data_points %}
+      <tr id="dp-{{ d.id }}" class="{% if src.quality_tier == 3 %}row-tier-3{% endif %} {% if d.is_forecast %}row-forecast{% endif %}">
+        <td>{% if d.industry_name %}<a href="{{ url_for('industry_detail', industry_id=d.industry_id) }}">{{ d.industry_name }}</a>{% else %}—{% endif %}</td>
+        <td>{{ d.metric }}</td>
+        <td>
+          <div class="cell-period">{{ d.period }}</div>
+          {% if d.as_of_date and d.as_of_date != d.period %}<div class="cell-as-of">@{{ d.as_of_date }}</div>{% endif %}
+        </td>
+        <td class="cell-value">
+          {% if d.value_num is not none %}{{ d.value_num }}{{ d.unit }}{% else %}{{ d.value_text }}{% if d.unit %} {{ d.unit }}{% endif %}{% endif %}
+        </td>
+        <td>{% if d.is_forecast %}<span class="forecast-tag tag-forecast">前瞻</span>{% else %}<span class="actual-tag tag-actual">实际</span>{% endif %}</td>
+        <td>
+          {% if d.sentiment == '看涨' %}<span class="sentiment-dot sentiment-bull">●</span><span class="sentiment-label-bull">看涨</span>
+          {% elif d.sentiment == '看跌' %}<span class="sentiment-dot sentiment-bear">●</span><span class="sentiment-label-bear">看跌</span>
+          {% elif d.sentiment == '中性' %}<span class="sentiment-dot sentiment-neutral">●</span><span class="sentiment-label-neutral">中性</span>
+          {% else %}<span class="sentiment-na">—</span>{% endif %}
+        </td>
+        <td class="cell-excerpt">{{ d.source_excerpt }}</td>
+        <td>
+          <button class="trace-btn"
+                  data-source-id="{{ src.id }}"
+                  data-excerpt="{{ d.source_excerpt|e }}"> 溯源</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">本 source 尚无 data_point 录入。</p>{% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  // 从溯源弹窗深链而来:?hl=<dp_id> → 高亮并滚动到对应数据点行
+  var hl = new URLSearchParams(location.search).get('hl');
+  if (!hl) return;
+  var row = document.getElementById('dp-' + hl);
+  if (row) {
+    row.classList.add('src-hl');
+    setTimeout(function () { row.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 60);
+  }
+})();
+</script>
+{% endblock %}

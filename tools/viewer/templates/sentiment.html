@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}散户情绪仪表盘 · 行研工具系统{% endblock %}
+{% block content %}
+<style>
+.se-wrap{max-width:1240px}
+.se-subnav{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0 4px}
+.se-tab{font-size:13px;padding:5px 13px;border-radius:20px;border:1px solid #d6deea;background:#fff;text-decoration:none;color:#33415c;transition:.15s}
+.se-tab:hover{border-color:#0070C0;color:#0070C0}
+.se-tab.on{background:#e8f1fb;border-color:#9cc4ee;color:#0a558c;font-weight:600}
+.se-tab-note{font-size:11.5px;color:#8090a8;margin-left:auto}
+.se-kpi{display:flex;gap:14px;flex-wrap:wrap;margin:14px 0}
+.se-kpi .k{background:#fff;border:1px solid #e3e8f0;border-radius:10px;padding:11px 18px;min-width:118px;box-shadow:0 1px 3px rgba(16,32,64,.05)}
+.se-kpi .k b{font-size:26px;display:block;color:#13203a;font-variant-numeric:tabular-nums;line-height:1.1}
+.se-kpi .k span{font-size:12px;color:#6b7891}
+/* 搜索 + 产业筛选 */
+.se-ctrl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 4px;position:sticky;top:0;background:rgba(247,249,252,.96);padding:8px 0;z-index:5}
+.se-ctrl input,.se-ctrl select{font-size:13px;padding:7px 12px;border:1px solid #cdd8e8;border-radius:9px;background:#fff;color:#1f2a44}
+.se-ctrl input{min-width:260px}
+.se-ctrl .hint{font-size:11.5px;color:#8090a8}
+.ind-group{margin:16px 0 4px}
+.ind-head{font-size:14px;color:#13203a;font-weight:600;border-left:3px solid #0070C0;padding-left:9px;margin:14px 0 8px;display:flex;align-items:center;gap:8px}
+.ind-head .cnt{font-size:12px;color:#7e8ba3;font-weight:400;background:#eef3fa;border-radius:12px;padding:1px 9px}
+.se-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:12px}
+.se-card{background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;display:block;transition:.15s;box-shadow:0 1px 3px rgba(16,32,64,.05)}
+.se-card:hover{border-color:#0070C0;box-shadow:0 4px 14px rgba(0,112,192,.12)}
+.se-card .nm{font-weight:600;font-size:15px;color:#13203a;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.se-card .tk{font-size:11px;color:#8090a8;font-weight:400}
+.se-pc{font-size:28px;font-weight:700;font-variant-numeric:tabular-nums;margin:5px 0 2px;letter-spacing:-.5px}
+.se-pc.pos{color:#d23a30}.se-pc.neg{color:#138a5e}.se-pc.flat{color:#5b6a85}
+.se-sub{font-size:12px;color:#5b6a85;display:flex;gap:9px;flex-wrap:wrap;align-items:center}
+.se-badge{font-size:11px;padding:1px 7px;border-radius:20px;border:1px solid}
+.b-hot{color:#b9670c;border-color:#f0cfa0;background:#fdf2e2}
+.b-dim{color:#6b7891;border-color:#d6deea;background:#f2f5f9}
+.b-ind{color:#5a4eaa;border-color:#ccc6ee;background:#f0eefb;font-size:10.5px}
+.se-note{font-size:12px;color:#6b7891;margin:20px 0 6px;line-height:1.8;border-top:1px solid #e3e8f0;padding-top:12px}
+#noMatch{display:none;color:#8090a8;font-size:13px;padding:20px}
+</style>
+<div class="se-wrap">
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <strong>散户情绪仪表盘</strong></div>
+<header class="entity-header"><div>
+  <h1>散户情绪仪表盘</h1>
+  <p class="entity-meta">股价 / 散户净情绪 / 散户发帖量 · 覆盖 <b>{{ kpi.covered }}</b> 个标的 · 工作日三窗口 · 数据 <code>sentiment.db</code></p>
+</div></header>
+
+<div class="se-subnav">
+  <span class="se-tab on">散户情绪墙</span>
+  <a class="se-tab" href="{{ url_for('chain_sentiment') }}">产业链图(A股)</a>
+  <a class="se-tab" href="{{ url_for('supplychain') }}">供应链图</a>
+  <a class="se-tab" href="{{ url_for('proxy_job') }}">招聘代理</a>
+  <span class="se-tab-note">最近活动与最近可用情绪分分开选取</span>
+</div>
+
+<div class="se-kpi">
+  <div class="k"><b>{{ kpi.covered }}</b><span>覆盖标的</span></div>
+  <div class="k"><b>{{ kpi.significant }}</b><span>评分完成且样本足</span></div>
+  <div class="k"><b>{{ kpi.with_score }}</b><span>已有情绪分</span></div>
+  <div class="k"><b>{{ kpi.industries }}</b><span>覆盖产业</span></div>
+</div>
+
+<div class="se-ctrl">
+  <input id="q" type="text" placeholder=" 搜索公司名 / 代码(如 中际旭创 / 300308)" autocomplete="off">
+  <select id="indSel">
+    <option value="">全部产业 ({{ kpi.industries }})</option>
+    {% for g in groups %}<option value="{{ g.name }}">{{ g.name }} ({{ g.companies|length }})</option>{% endfor %}
+  </select>
+  <span class="hint">按产业分组展示;输入即时筛选</span>
+</div>
+
+{% if rows %}
+{% for g in groups %}
+<section class="ind-group" data-ind="{{ g.name }}">
+  <div class="ind-head">{{ g.name }} <span class="cnt">{{ g.companies|length }} 只</span></div>
+  <div class="se-grid">
+    {% for r in g.companies %}
+    <a class="se-card" data-name="{{ r.company_name }}" data-ticker="{{ r.ticker }}"
+       href="{{ url_for('monitor3', company_id=r.company_id) }}">
+      <div class="nm"><span>{{ r.company_name }}</span><span class="tk">{{ r.ticker }}</span></div>
+      <div class="se-pc {{ 'pos' if (r.net_sentiment_weighted or 0)>0.05 else 'neg' if (r.net_sentiment_weighted or 0)<-0.05 else 'flat' }}">
+        {{ '%+.2f'|format(r.net_sentiment_weighted) if r.net_sentiment_weighted is not none else '—' }}
+        <span style="font-size:11px;color:#9aa6bb;font-weight:400">散户净情绪(加权)</span>
+      </div>
+      <div class="se-sub">
+        <span>{{ r.valid_count or 0 }} 条打分</span>
+        <span class="se-badge b-hot">{{ r.heat_total or 0 }} 散户帖</span>
+        {% if r.score_badge %}<span class="se-badge b-dim">{{ r.score_badge }}</span>{% elif r.coverage is not none and r.coverage<0.5 %}<span class="se-badge b-dim">抽样估计 {{ '%.0f%%'|format(r.coverage*100) }}</span>{% endif %}
+        {% if r.score_date %}<span class="se-badge b-dim">分值窗口 {{ r.score_date }}</span>{% endif %}
+      </div>
+      <div class="se-sub" style="margin-top:4px">
+        {% for ind in r.industries[:3] %}<span class="se-badge b-ind">{{ ind }}</span>{% endfor %}
+      </div>
+      {% if r.spark_pts %}<svg style="margin-top:7px" width="100" height="22" viewBox="0 0 100 22"><polyline points="{{ r.spark_pts }}" fill="none" stroke="#0070C0" stroke-width="1.5"/></svg>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+<div id="noMatch">没有匹配的公司。</div>
+{% else %}
+<div class="empty-state"><p>暂无可验证的散户情绪数据；系统不会用内部编号或造数占位。</p></div>
+{% endif %}
+
+<div class="se-note">
+  <b>口径</b>：散户 = 雪球 / 东财股吧 / 同花顺；微博不抓取、不计分。“帖”仅统计散户层。工作日 10:00、14:00、17:00 聚合，周末全部静默。发帖量取最近活动窗口；分值优先取最近“评分完成且样本足”的日线或窗口，没有时才展示最近已有评分，并精确标记“低样本”或“评分进行中”。窗口评分完成但附加源仍在补抓时单独标记，不冒充完整日线。
+</div>
+</div>
+
+<script>
+(function(){
+  const q=document.getElementById('q'), indSel=document.getElementById('indSel'), noMatch=document.getElementById('noMatch');
+  function apply(){
+    const term=(q.value||'').trim().toLowerCase(), ind=indSel.value;
+    let total=0;
+    document.querySelectorAll('.ind-group').forEach(g=>{
+      let vis=0;
+      const gname=g.getAttribute('data-ind');
+      const indOk=(!ind||ind===gname);
+      g.querySelectorAll('.se-card').forEach(c=>{
+        const m=(!term||(c.getAttribute('data-name')||'').toLowerCase().includes(term)||(c.getAttribute('data-ticker')||'').toLowerCase().includes(term));
+        const show=m&&indOk;
+        c.style.display=show?'':'none';
+        if(show)vis++;
+      });
+      g.style.display=vis?'':'none';
+      total+=vis;
+    });
+    noMatch.style.display=total?'none':'block';
+  }
+  q.addEventListener('input',apply);
+  indSel.addEventListener('change',apply);
+})();
+</script>
+{% endblock %}

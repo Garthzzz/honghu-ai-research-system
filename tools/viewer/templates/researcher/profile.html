@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}{{ r.display_name or r.name }} · 研究员{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('hypotheses_index') }}">研究员观点</a> /
+  <strong>{{ r.display_name or r.name }}</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ r.display_name or r.name }}</h1>
+    <div class="rs-focus">
+      {% if r.focus_list %}关注领域:{% for i in r.focus_list %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% endfor %}
+      {% elif r.focus_summary %}关注领域:{{ r.focus_summary }}
+      {% else %}<span class="rs-empty">关注领域未填(待研究员补充)</span>{% endif %}
+    </div>
+    {% if r.bio %}<p class="rs-bio">{{ r.bio }}</p>{% endif %}
+    <div class="rs-stats">
+      <span><b>{{ stat.active }}</b> 跟踪中</span>
+      <span><b>{{ stat.partially_falsified }}</b> 部分证伪</span>
+      <span><b>{{ stat.falsified }}</b> 已证伪</span>
+      <span><b>{{ stat.confirmed }}</b> 已确认</span>
+      <span class="rs-hit">命中率:N/A <span class="rs-hit-note">(接期货系统后统计)</span></span>
+    </div>
+  </div>
+  <div class="entity-header-actions">
+    <a class="btn" href="{{ url_for('hypothesis_new') }}">+ 新建假说</a>
+  </div>
+</header>
+
+<section class="deep-industries">
+  <div class="deep-industries-head">
+    <h2 class="deep-industries-title">{{ r.display_name or r.name }} 的假说</h2>
+    <span class="deep-industries-sub">{{ hyps|length }} 条</span>
+  </div>
+  {% if hyps %}
+  <div class="hyp-grid">
+    {% for h in hyps %}
+    {% set primary = (h.trades | selectattr('trade_scenario','equalto','primary') | list | first) %}
+    <article class="hyp-card hyp-st-border-{{ h.status }}">
+      <div class="hyp-card-head">
+        <a class="hyp-card-title" href="{{ url_for('hypothesis_detail', hid=h.id) }}">{{ h.title }}</a>
+        <div class="hyp-card-badges">
+          <span class="hyp-dir hyp-dir-{{ h.thesis_type }}">{{ hl(h.thesis_type) }}</span>
+          <span class="hyp-st hyp-st-{{ h.status }}">{{ hl(h.status) }}</span>
+        </div>
+      </div>
+      <div class="hyp-card-tags">
+        {% for i in h.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}
+      </div>
+      {% if h.hypothesis_text %}<p class="hyp-card-text">{{ h.hypothesis_text[:140] }}{% if h.hypothesis_text|length > 140 %}…{% endif %}</p>{% endif %}
+      {% if primary %}<div class="hyp-trade-line"> <span class="hyp-dir hyp-dir-tt-{{ primary.direction }}">{{ hl(primary.direction) }}</span> {{ primary.target_description[:48] }}</div>{% endif %}
+      <div class="hyp-card-foot"><a href="{{ url_for('hypothesis_detail', hid=h.id) }}">详情 →</a></div>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<p class="empty-state">该研究员暂无假说。</p>{% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">🧾 最近动态</h3>
+  {% if timeline %}
+  <ul class="hyp-timeline">
+    {% for u in timeline %}
+    <li class="hyp-tl-item">
+      <span class="hyp-tl-date">{{ (u.created_at or '')[:16] }}</span>
+      <span class="hyp-tl-type hyp-tl-{{ u.update_type }}">{{ {'create':'创建','edit_text':'改文本','status_change':'改状态','signal_update':'信号','trade_update':'交易','cite_add':'引用'}.get(u.update_type, u.update_type) }}</span>
+      <a class="hyp-tl-link" href="{{ url_for('hypothesis_detail', hid=u.hypothesis_id) }}">{{ u.hyp_title }}</a>
+      {% if u.update_note %}<span class="hyp-tl-note">{{ u.update_note }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="hyp-empty">暂无动态。</p>{% endif %}
+</section>
+{% endblock %}

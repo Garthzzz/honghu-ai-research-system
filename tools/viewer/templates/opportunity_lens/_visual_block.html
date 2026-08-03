@@ -1,0 +1,156 @@
+<div class="opp-visual {{ visual.red_flag_level }}{% if visual.display_data and visual.display_data.columns and visual.display_data.rows and visual.block_type != 'heatmap' %} opp-visual-table-card{% endif %}">
+  <h3>{{ visual.title|opp_public_text }}</h3>
+  <p>{{ (visual.subtitle or visual.empty_state_reason)|opp_public_text }}</p>
+  {% if visual.block_type == "heatmap" and visual.data.factors %}
+  <div class="opp-heatmap-legend" aria-label="热力图图例">
+    <span class="cold">低分/证据弱</span>
+    <span class="mid">中等</span>
+    <span class="hot">高分/信号强</span>
+    <span class="unrated">证据不足</span>
+  </div>
+  <div class="opp-heatmap">
+    {% for f in visual.data.factors %}
+    {% set score = f.score_adjusted or 0 %}
+    {% set score_displayable = (not f.score_status or f.score_status == "complete") and (not f.factor_readiness_status or f.factor_readiness_status in ["ready", "limited"]) %}
+    {% set heat_class = ("heat-low" if score < 50 else "heat-mid" if score < 70 else "heat-high" if score < 85 else "heat-peak") if score_displayable else "heat-unrated" %}
+    <a class="{{ heat_class }}" href="/opportunity-lens/factor/{{ f.id }}"{% if score_displayable %} style="--score: {{ score }}; --score-pct: {{ score }}%"{% endif %}{% if not g.opp_viewer_v2 %} data-code="{{ f.factor_code }}"{% endif %} title="{{ f.factor_label }}｜{% if not score_displayable and f.missing_reason %}{{ f.missing_reason|opp_public_text }}{% else %}{{ f.factor_formula|opp_public_text }}{% endif %}{% if not g.opp_viewer_v2 %}｜{{ f.factor_code }}{% endif %}" aria-label="查看 {{ f.factor_label }} 因子追踪{% if not score_displayable and f.missing_reason %}；{{ f.missing_reason|opp_public_text }}{% endif %}">
+      <span class="opp-heat-label">{{ f.factor_label }}</span>
+      <b>{% if score_displayable %}{{ "%.0f"|format(score) }}{% else %}证据不足{% endif %}</b>
+      {% if score_displayable %}<span class="opp-heat-scale" aria-hidden="true"><i></i></span>{% endif %}
+      <span class="opp-heat-formula">{% if not score_displayable and f.missing_reason %}点击查看缺少哪些指标{% else %}点击查看计算方法与证据{% endif %}</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% elif visual.block_type == "line_chart" %}
+  <div class="opp-visual-notes">
+    {% if visual.data.what %}<p><b>是什么数据</b><span>{{ visual.data.what|opp_public_text }}</span></p>{% endif %}
+    {% if visual.data.time_window %}<p><b>时间范围</b><span>{{ visual.data.time_window|opp_public_text }}</span></p>{% endif %}
+    {% if visual.data.how_to_read %}<p><b>怎么看</b><span>{{ visual.data.how_to_read|opp_public_text }}</span></p>{% endif %}
+    {% if visual.data.analysis %}<p><b>分析</b><span>{{ visual.data.analysis|opp_public_text }}</span></p>{% endif %}
+  </div>
+  {% if visual.data.chart and visual.data.chart.panels %}
+  <div class="opp-line-chart-grid">
+    {% for panel in visual.data.chart.panels %}
+    {% if panel.series %}
+    <div class="opp-line-chart-panel">
+      <div class="opp-line-chart-head">
+        <b>{{ panel.title|opp_public_text }}</b>
+        <span>{{ panel.x_start }} 至 {{ panel.x_end }}{% if panel.unit %} · {{ panel.unit }}{% endif %}</span>
+      </div>
+      <div class="opp-line-chart-wrap" aria-label="{{ panel.title }} 长期走势">
+        <div class="opp-line-axis-label opp-line-axis-y-label">{{ (panel.y_axis_label or "纵轴：数值")|opp_public_text }}</div>
+        <div class="opp-line-axis-label opp-line-axis-x-label">{{ (panel.x_axis_label or "横轴：时间")|opp_public_text }}</div>
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img">
+          <line x1="0" y1="20" x2="100" y2="20"></line>
+          <line x1="0" y1="50" x2="100" y2="50"></line>
+          <line x1="0" y1="80" x2="100" y2="80"></line>
+          {% for series in panel.series %}
+          <polyline points="{{ series.svg_points }}" style="--series-color: {{ series.color }}"></polyline>
+          {% endfor %}
+        </svg>
+        {% for tick in panel.y_ticks %}
+        <div class="opp-line-y" style="top: {{ tick.position }}%">{{ tick.label }}</div>
+        {% else %}
+        <div class="opp-line-y opp-line-y-top">{{ panel.y_max }}</div>
+        <div class="opp-line-y opp-line-y-bottom">{{ panel.y_min }}</div>
+        {% endfor %}
+        {% for tick in panel.x_ticks %}
+        <div class="opp-line-x" style="left: {{ tick.position }}%">{{ tick.label }}</div>
+        {% endfor %}
+      </div>
+      <div class="opp-line-legend">
+        {% for series in panel.series %}
+        <span><i style="--series-color: {{ series.color }}"></i>{{ series.label|opp_public_text }}：{{ series.latest_period }} {{ series.latest_value }}，{{ series.observation_count }} 个观测</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if visual.display_data and visual.display_data.columns and visual.display_data.rows %}
+  <div class="opp-wide-scroll">
+    <table class="opp-table opp-visual-table">
+      {% include "opportunity_lens/_visual_table_colgroup.html" %}
+      <thead>
+        <tr>
+          {% for col in visual.display_data.columns %}
+          <th>{{ col|opp_public_text }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in visual.display_data.rows %}
+        <tr>
+          {% for cell in row %}
+          <td>{{ cell|opp_inline_evidence }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% elif visual.block_type == "time_series" %}
+  <div class="opp-visual-notes">
+    {% if visual.data.what %}<p><b>是什么数据</b><span>{{ visual.data.what|opp_public_text }}</span></p>{% endif %}
+    {% if visual.data.time_window %}<p><b>时间范围</b><span>{{ visual.data.time_window|opp_public_text }}</span></p>{% endif %}
+    {% if visual.data.how_to_read %}<p><b>怎么看</b><span>{{ visual.data.how_to_read|opp_public_text }}</span></p>{% endif %}
+    {% if visual.data.analysis %}<p><b>分析</b><span>{{ visual.data.analysis|opp_public_text }}</span></p>{% endif %}
+  </div>
+  {% if visual.display_data and visual.display_data.columns and visual.display_data.rows %}
+  <div class="opp-wide-scroll">
+    <table class="opp-table opp-visual-table">
+      {% include "opportunity_lens/_visual_table_colgroup.html" %}
+      <thead>
+        <tr>
+          {% for col in visual.display_data.columns %}
+          <th>{{ col|opp_public_text }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in visual.display_data.rows %}
+        <tr>
+          {% for cell in row %}
+          <td>{{ cell|opp_inline_evidence }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% elif visual.display_data and visual.display_data.columns and visual.display_data.rows %}
+  <div class="opp-wide-scroll">
+    <table class="opp-table opp-visual-table">
+      {% include "opportunity_lens/_visual_table_colgroup.html" %}
+      <thead>
+        <tr>
+          {% for col in visual.display_data.columns %}
+          <th>{{ col|opp_public_text }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in visual.display_data.rows %}
+        <tr>
+          {% for cell in row %}
+          <td>{{ cell|opp_inline_evidence }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif visual.data %}
+  <div class="opp-empty">该数据块尚未配置人读图表或表格，页面已阻止直接输出机器结构；请在研究包中补充受支持的 display_data。</div>
+  {% else %}
+  <div class="opp-empty">{{ visual.empty_state_reason or "暂无可视化数据。" }}</div>
+  {% endif %}
+  <div class="opp-evidence-list">
+    {% for ref in visual.evidence_ref_uri_list %}
+    <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+    {% endfor %}
+  </div>
+</div>

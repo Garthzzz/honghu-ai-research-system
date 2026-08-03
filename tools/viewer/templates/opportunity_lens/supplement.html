@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}机会透镜补证{% endblock %}
+{% block head_extra %}{% if g.opp_viewer_v2 %}{% include "opportunity_lens/_head_v2.html" %}{% else %}{% include "opportunity_lens/_head.html" %}{% endif %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar"><div><p class="opp-eyebrow">扫描 {{ run.id }}</p><h1>补证请求</h1></div></div>
+  {% if g.opp_viewer_v2 %}{% include "opportunity_lens/_nav_v2.html" %}{% else %}{% include "opportunity_lens/_nav.html" %}{% endif %}
+  <div class="opp-panel">
+    <div class="opp-wide-scroll">
+    <table class="opp-table opp-supplement-table">
+      <thead><tr><th>优先级</th><th>阻塞状态</th><th>复核状态</th><th>请求</th><th>证据</th></tr></thead>
+      <tbody>
+      {% for item in requests %}
+      <tr><td>{{ item.priority|opp_label }}</td><td>{{ item.blocking_status|opp_label }}</td><td>{{ item.review_status|opp_label }}</td><td>{{ item.request_title }}</td><td>{% if item.evidence_ref_uri %}<button type="button" data-opp-evidence="{{ item.evidence_ref_uri }}" title="{{ item.evidence_ref_uri|opp_evidence_title }}">{{ item.evidence_ref_uri|opp_evidence_label }}</button>{% else %}<span class="opp-muted">未关联证据</span>{% endif %}</td></tr>
+      {% else %}
+      <tr><td colspan="5">暂无补证请求。</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

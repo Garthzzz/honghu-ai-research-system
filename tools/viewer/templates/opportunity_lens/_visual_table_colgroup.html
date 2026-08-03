@@ -1,0 +1,14 @@
+<colgroup>
+  {% for col in visual.display_data.columns %}
+  {% set label = col|string %}
+  {% if "观测" in label or label in ["证据", "方向", "权重", "覆盖度", "置信度", "分数", "调整后分数", "状态", "强度", "ID"] %}
+  <col class="opp-col-short">
+  {% elif "来源" in label or "原文" in label or "摘录" in label or "说明" in label or "分析" in label or "用途" in label or "公式" in label %}
+  <col class="opp-col-wide">
+  {% elif "时间" in label or "期间" in label or "日期" in label %}
+  <col class="opp-col-date">
+  {% else %}
+  <col class="opp-col-medium">
+  {% endif %}
+  {% endfor %}
+</colgroup>

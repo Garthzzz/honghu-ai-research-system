@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ center.name }} · 产业链全景{% endblock %}
+{% block head_extra %}<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('industry_detail', industry_id=center.id) }}">{{ center.name }}</a> /
+  <strong>产业链全景</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ center.name }} · 产业链全景</h1>
+    <p class="entity-meta">以 {{ center.name }} 为中心,一阶上下游关系。阶段 3 可扩展二阶 + mermaid/d3 图。</p>
+  </div>
+</header>
+
+{% if chain_net %}
+<section class="chart-card">
+  <div class="chart-card-title">{{ center.name }} · 上下游网络 <span class="panel-sub">可交互</span></div>
+  <div class="chart-card-note"> 拖拽平移 · 滚轮缩放 · 点击节点进入对应行业 · 连线为一阶上下游关系(来自 db）</div>
+  {{ chain_net|safe }}
+</section>
+{% endif %}
+
+<div class="chain-board">
+  <div class="chain-col chain-up">
+    <div class="chain-col-header">上游 ({{ upstream|length }})</div>
+    {% if upstream %}
+      {% for u in upstream %}
+      <a class="chain-node tier-{{ u.tier }}" href="{{ url_for('industry_detail', industry_id=u.node_id) }}">
+        <div class="chain-node-name">{{ u.node_name }}</div>
+        <div class="chain-node-meta">
+          <span>{{ u.relation_type }}</span>
+          {% if u.cost_share is not none %}<span>占成本 {{ '%.0f'|format(u.cost_share*100) }}%</span>{% endif %}
+          {% if u.bargaining_power %}<span class="bp-{{ u.bargaining_power }}">{{ t(u.bargaining_power) }}</span>{% endif %}
+        </div>
+        {% if u.note %}<div class="chain-node-note">{{ u.note }}</div>{% endif %}
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">尚无上游关系。</div>
+    {% endif %}
+  </div>
+
+  <div class="chain-col chain-center">
+    <div class="chain-col-header">本节点</div>
+    <div class="chain-node chain-node-center">
+      <div class="chain-node-name">{{ center.name }}</div>
+      <div class="chain-node-meta">
+        <span class="tier-badge tier-{{ center.tier }}">tier {{ center.tier }}</span>
+        <span class="status-badge status-{{ center.status }}">{{ center.status }}</span>
+      </div>
+      {% if center.core_dynamic %}<div class="chain-node-note">{{ center.core_dynamic }}</div>{% endif %}
+    </div>
+  </div>
+
+  <div class="chain-col chain-down">
+    <div class="chain-col-header">下游 ({{ downstream|length }})</div>
+    {% if downstream %}
+      {% for d in downstream %}
+      <a class="chain-node tier-{{ d.tier }}" href="{{ url_for('industry_detail', industry_id=d.node_id) }}">
+        <div class="chain-node-name">{{ d.node_name }}</div>
+        <div class="chain-node-meta">
+          <span>{{ d.relation_type }}</span>
+          {% if d.demand_share is not none %}<span>占需求 {{ '%.0f'|format(d.demand_share*100) }}%</span>{% endif %}
+          {% if d.bargaining_power %}<span class="bp-{{ d.bargaining_power }}">{{ t(d.bargaining_power) }}</span>{% endif %}
+        </div>
+        {% if d.note %}<div class="chain-node-note">{{ d.note }}</div>{% endif %}
+      </a>
+      {% endfor %}
+    {% else %}
+      <div class="empty-state">尚无下游关系。</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

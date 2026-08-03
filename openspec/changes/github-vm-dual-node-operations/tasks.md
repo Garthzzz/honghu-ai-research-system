@@ -1,0 +1,173 @@
+# 泓湖 AI 研究系统迁移任务
+
+> 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
+> 当前状态：阶段 0 已获用户批准退出；现仅授权执行阶段 1“安全 Git bootstrap 与 CI”。PostgreSQL、VM、数据库和任务实施均未获授权。
+
+## 0. 已确认事实，不重复执行
+
+- 两个 private GitHub repository 已由用户创建；此前只做过临时 tag push/delete 连通性验证。
+- 当前工作区尚未初始化 Git。
+- 本轮不重新登录、不重新测试远端、不修改仓库。
+- 当前四套 SQLite 和 Viewer 可用；测试失败与七个任务异常状态按 `baseline.md` 原样保留。
+
+## 1. 原百项计划的处置
+
+| 原计划项 | 分类 | 新处置 |
+|---|---|---|
+| private 应用仓库、tracked allowlist、secret/path gate | 本阶段必须 | 阶段 1 |
+| branch protection、CI、lockfile | 本阶段必须 | 阶段 1 |
+| immutable release、`releases/current/runtime`、health、code rollback | 本阶段必须 | 阶段 2 |
+| 四库日常 `ops-snapshot` 给本地开发使用 | 被 PostgreSQL 替代 | 不建设长期能力 |
+| 通用 `research-change-set`、CAS、reverse change-set、冲突队列 | 被 PostgreSQL 替代 | 删除长期目标 |
+| 四库一致 SQLite backup | 仅 SQLite 过渡期需要 | 用于冻结迁移基线和审计；PostgreSQL 有有效新写入后不再是默认回退点 |
+| 用户内容 Git outbox/event/materializer/replay | 删除 | 默认不实施 |
+| 用户内容 revision、soft delete、audit | 本阶段必须 | 阶段 3 试点或相应域迁移 |
+| Opportunity/A/B staging、review、publisher、ledger | 本阶段必须 | 随域迁移保持 |
+| SQLite migration ledger | 仅 SQLite 过渡期需要 | 用于确认源 schema；目标由 PostgreSQL migration history 接替 |
+| 通用稳定 UUID 层 | 删除 | 不为 SQLite 双端 CAS 建设覆盖所有表的 UUID 系统 |
+| 业务稳定身份与 legacy mapping | 本阶段必须 | 跨域、跨环境、可发布和需审计对象必须有稳定身份或明确映射，不强制统一 UUID |
+| 任务 manifest、服务账户、运行锁、checkpoint、补漏 | 本阶段必须 | 阶段 5 |
+| Viewer 身份、权限、CSRF、审计 | 后续强化，但生产写开放前必须 | 阶段 5 |
+| PostgreSQL 只读副本、自动故障转移、容量自动扩缩 | 后续强化 | 基于实际恢复目标另立 change |
+| GitHub 客户端加密灾备 | 后续强化/待合规 | 不作为 live 或唯一备份 |
+| 广播包 | 仅过渡期需要 | 保留为冷备，完成空机恢复后再决定退出 |
+
+## 阶段 0：架构审查与人工批准
+
+**目标**：把长期目标从 SQLite 双端同步改为 GitHub + 中央 PostgreSQL，并让 baseline、proposal、design、tasks 和 specs 一致。  
+**非目标**：任何实现或生产操作。  
+**前置条件**：只读代码、schema、测试和任务审计。  
+**回滚点**：文档 diff；不影响 live 系统。
+
+- [x] [本阶段必须] 复核四库职责、写入者、SQLite 方言耦合和 Viewer 写接口。
+- [x] [本阶段必须] 保留真实测试失败、任务状态和 `analyst_note=0` 等事实。
+- [x] [本阶段必须] 重写 baseline、proposal、design、tasks 和 capability specs。
+- [x] [本阶段必须] 修订直接冲突的迁移总说明和内容仓库定位。
+- [x] [架构决策] 内容仓库标记为 `RESERVED-UNUSED`：保持空置、无生产凭据、不作为 live/backup authority；未来备份用途另行评估，不在本轮操作远端。
+- [x] [本阶段必须] 完成本次不超过三轮的脱敏 DeepSeek 反驳审查并追加记录接受/拒绝。
+- [x] [HALT] 用户已于 2026-08-03 21:12:55 +08:00 完成人工审查并批准阶段 0 退出。批准人：用户；批准范围仅为阶段 1 的安全 Git 接入、版本边界、测试基线、依赖锁和 CI；未批准 PostgreSQL、VM、数据库或任务实施；下一人工 HALT 位于阶段 1 结束。
+
+**退出条件**：OpenSpec 严格校验通过；文档不存在长期四库同步、通用 SQLite CAS 或用户内容实时 Git 复制的相互矛盾；用户明确批准。
+
+**建议结论**：第三轮合同校验通过后，可建议用户批准阶段 0 退出，但不得自行勾选上面的 HALT。该批准只开放阶段 1 的 allowlist、扫描、staged inventory、安全 Git bootstrap、测试修复、lockfile、CI 和受保护 main 准备，不授权任何 PostgreSQL production、生产数据访问层改造、数据库/runner 切换、VM production deploy、人工写接口或 production authority。
+
+**禁止事项**：初始化/push Git、连接远端、安装 PostgreSQL、修改 live DB、迁移任务、部署 VM。
+
+## 阶段 1：安全 Git bootstrap 与 CI
+
+**目标**：先建立安全可审核的代码历史，再在 feature branch 修复基线。  
+**非目标**：VM 生产部署、数据库迁移和任务切换。  
+**前置条件**：阶段 0 人工批准。  
+**回滚点**：尚未部署时停止 bootstrap；不改变生产数据和任务。
+
+- [ ] [本阶段必须] 生成 tracked allowlist、ignore policy 和 staged inventory；逐项排除 live DB、WAL/SHM、backup、broadcast、runtime、临时 cache、secrets、个人上下文和未批准大文件。
+- [ ] [本阶段必须] 明确 `AGENTS.md`、活动 OpenSpec、生产/审核 skills、正式 context、migration、测试和 SOP 的 tracked 边界；阶段 1 的 writer inventory 按可审计的 mutation path/write endpoint/writer operation/transaction contract 记录，不把整个进程等同于一个 writer，也不在本阶段构建 cutover unit registry。
+- [ ] [本阶段必须] 运行 secret/path/credential/Windows-path gate，并由人工审查首次 staged inventory。
+- [ ] [本阶段必须] 建立 bootstrap commit/branch；不得把已知测试债务伪装成通过。
+- [ ] [本阶段必须] 在 Git 历史中修复 import-time stdout 副作用和仍活动的 V2 builder 契约失败。
+- [ ] [本阶段必须] 建立可重建 Python 环境、lockfile、标准测试入口和 CI required checks。
+- [ ] [本阶段必须] 启用受保护 main；明确 bootstrap branch、main merge 和 deployable commit 的不同门槛。
+- [ ] [production gate] 应用仓库在成为 production authority 前，完成公司资产归属或经批准例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
+- [ ] [HALT] 提交 tracked inventory、CI 结果、已知例外和 Git diff，等待人工批准。
+
+**退出条件**：干净 clone 可恢复正式开发/审核规则；活动测试稳定通过；main 受保护；仓库历史不含禁止资产。仓库控制权 gate 可以不阻止安全 bootstrap，但未关闭前禁止 production deploy。
+
+**禁止事项**：在 VM 活动目录直接 pull、部署 production、提交任何 live data。
+
+## 阶段 2：可重复 release 与本地开发边界
+
+**目标**：建立可重复应用交付和不依赖 VM 在线的本地开发流程。  
+**非目标**：开启 VM 写接口、迁移任务或切换数据库。  
+**前置条件**：阶段 1 通过。  
+**回滚点**：继续使用当前 Viewer 启动与广播冷备；数据库不变。
+
+- [ ] [本阶段必须] 定义 deployment allowlist/manifest，区分 Git tracked closure 与运行所需 artifact closure。
+- [ ] [本阶段必须] 建立 immutable `releases/<sha>`、`current` 原子切换、`runtime`/secrets/data 外置和 deployment ledger。
+- [ ] [本阶段必须] 将 commit SHA、manifest hash、database schema version 暴露给 health/preflight 审计，但不得泄露凭据。
+- [ ] [本阶段必须] 验证 preflight、read-only smoke 和 code-only rollback；应用回滚不得改数据库或人工内容。
+- [ ] [本阶段必须] 定义 migration compatibility 声明，验证 code-only rollback 只在旧代码仍兼容当前 schema 时成立；forward-only migration 必须显式标记。
+- [ ] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
+- [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
+- [ ] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。
+- [ ] [HALT] 提交 release 演练、rollback、clean clone 和本地离线开发证据，等待人工批准。
+
+**退出条件**：明确 commit 可重复部署；本地 dev/test 独立；VM 只读候选可回滚且不影响 live 系统。
+
+## 阶段 3：依赖建模、数据访问层、PostgreSQL dev/test 与切换单元试点
+
+**目标**：在不碰 production 的前提下先弄清真实事务边界，建立 PostgreSQL migration 和一个可验证的低风险切换单元试点。  
+**非目标**：四域生产迁移、长期双方言或通用同步器。  
+**前置条件**：阶段 2 通过；用户决定 PostgreSQL 试验环境。  
+**回滚点**：销毁 dev/test 试点，live SQLite 不变。
+
+- [ ] [本阶段必须] 建立机器可读 SQLite dependency inventory，至少记录文件路径、所属数据域、读/写属性、SQLite 专属语义、`ATTACH` 依赖、关联页面/API/任务/publisher、候选切换单元、权威后端和迁移状态；持续更新而不是只生成一次统计数字。
+- [ ] [本阶段必须] 产出并人工审查数据域依赖图、read/write 路径清单、跨域事务图、`ATTACH` 替代边界、共享身份依赖，以及必须共同成功的业务操作。
+- [ ] [本阶段必须] 建立版本化 cutover unit registry 和 authoritative-backend matrix：每个可写对象、writer 和完整事务边界只能有一个 owning unit，其他 unit 只能声明 dependency；登记每个 unit 的包含/依赖对象、S0—S4 状态、责任人和边界变更历史，执行 ownership 重叠/冲突检查。共享身份是否单独成基础 unit 由依赖与事务审计决定，迁移脚本不得自动漂移边界。
+- [ ] [本阶段必须] 明确不得把一次业务事务拆到 SQLite/PostgreSQL 分别提交；无法安全拆分的 reader、writer、任务、页面和 publisher 必须共同切换或先重构边界。
+- [ ] [本阶段必须] 设计统一连接、事务、repository/writer 和 migration 边界；业务代码不再新增直接 SQLite 文件依赖。
+- [ ] [本阶段必须] 建立 PostgreSQL dev/test 和可重复 migration/fixture 流程；测试直接使用 PostgreSQL 语义。
+- [ ] [本阶段必须] 定义主要 database 的逻辑域、共享身份、role/writer 权限和审计边界；物理拆库必须有证据。
+- [ ] [本阶段必须] 定义稳定业务身份与 legacy mapping 合同；保存 SQLite database/table/id 到稳定身份和 PostgreSQL 目标对象的可验证映射，允许内部 surrogate key，不强制全局 UUID。
+- [ ] [本阶段必须] 建立 expand–migrate/backfill–application transition–contract migration 合同；破坏性 contract 必须放在后续独立批准 release，每个 migration 说明 compatibility、backup、verification 和 recovery strategy。
+- [ ] [本阶段必须] 在阶段 3 结束、任何 production 数据切换前，按数据类别批准 target RPO/RTO，明确可接受损失/恢复时间、可补抓与不可补抓数据，以及它们对备份、PITR 和部署拓扑的约束。
+- [ ] [本阶段必须] 选择一个低风险切换单元试点。选择需比较数据量、共享身份、写复杂度、已有 ledger、对账和恢复；不得未经审计固定顺序。
+- [ ] [本阶段必须] 为试点验证计数、主外键、业务不变量、revision/audit、性能和恢复；publisher/user-content 更新必须测试稳定 release id、幂等重试、expected/base revision、stale conflict、禁止 silent last-write-wins 和依赖簇原子性。
+- [ ] [本阶段必须] 明确用户内容受控导出格式以满足可移植性，但不建立实时 Git 复制。
+- [ ] [HALT] 提交试点设计、测试、对账、rollback rehearsal 和下一域排序建议，等待人工批准。
+
+**退出条件**：inventory、依赖/事务图、cutover unit registry、唯一 ownership/dependency、重叠检查、权威后端、稳定身份和 migration compatibility 均通过人工审查；target RPO/RTO 已批准；试点在 dev/test 完整通过；没有 live 变更；证明数据访问层不是简单 SQL 字符串替换。
+
+## 阶段 4：按切换单元迁移 PostgreSQL 与生产后端切换
+
+**目标**：按完整业务事务边界将唯一生产事实源切换到 PostgreSQL，并显式记录 S0–S4 状态。  
+**非目标**：一次性迁移全部四库、无期限双写或四个 PostgreSQL database 的机械复制。  
+**前置条件**：阶段 3 通过；target RPO/RTO、生产拓扑、备份位置和维护窗口获批。  
+**回滚/恢复边界**：S1 可放弃试点；S2 是短时切换栅栏，只有 PostgreSQL writer 已停写且水位、审计和人工批准共同证明尚无必须保留的新写入，才可恢复 SQLite writer；无法证明时按 S3。S3/S4 的旧 SQLite 仅作迁移基线、审计和有限修复材料，不是无损 production rollback target。
+
+- [ ] [本阶段必须] 按共享身份、事务依赖、写入复杂度、数据量、停机容忍和现有 ledger 确定切换单元顺序；`sentiment` 默认靠后但以 inventory 审计为准。
+- [ ] [本阶段必须] 每个切换单元先完成 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单。
+- [ ] [本阶段必须] 每个切换单元执行源目标计数、关系、时间序列、状态机、稳定身份映射和业务不变量对账；验证相关页面、API、publisher 和写路径。
+- [ ] [本阶段必须] 在短维护窗口切换唯一 writer；优先 shadow read。进入 S2 时 PostgreSQL 是唯一指定 writer、SQLite writer 已停止并冻结；记录 cutover epoch、SQLite 最终权威业务水位、PostgreSQL 首条正式业务 commit 水位、验证写、uncertain response、操作者和证据。首条必须保留的正式写提交即进入 S3，无法证明未提交的 uncertain response 按 S3。任何连接失败不得静默回写 SQLite；未经独立批准不得 shadow write。
+- [ ] [本阶段必须] 保留研究 staging/reviewer/publisher、financial revision/reconciliation、用户内容 revision/audit 和任务 ledger；验证 publication/release identity、幂等 retry、expected revision、stale conflict 和依赖簇事务原子性。
+- [ ] [本阶段必须] 分别记录数据后端和任务执行节点。允许本地唯一 runner 在受限权限下暂连 production PostgreSQL，但必须登记任务、临时 owner、开始时间、唯一 runner、数据库角色/权限、网络/凭据、checkpoint、暂留原因、退出条件、下一 HALT、VM 前置和逾期升级方式；本地断线不得触发 SQLite 回退。若不采用，该 runner 与切换单元同窗切换。任何状态均不得双 runner。
+- [ ] [仅 SQLite 过渡期需要] 生成切换单元对应的一致 SQLite 基线和 migration manifest；禁止作为日常开发同步源，并在 S3 后标明“不可直接恢复生产 writer”。
+- [ ] [本阶段必须] 演练 S1 放弃、S2 在停写与水位证明下的回退、S2 uncertain response 按 S3 收口，以及 S3 后 PostgreSQL 前向修复/兼容代码回滚/旁路恢复选择性修复；不得用同一“rollback”标签混淆这些动作。
+- [ ] [本阶段必须] 对单域逻辑错误将备份恢复到旁路环境，选择性提取并审计修复；禁止为单域错误原地回退整个 production database。
+- [ ] [本阶段必须] 稳定观察期后把旧 SQLite 标记为迁移基线与审计档案；删除应用写入口，不立即删除文件。
+- [ ] [HALT] 每完成一个切换单元即提交对账、性能、身份映射、并发、故障与恢复证据，等待下一个单元批准。
+
+**退出条件**：该切换单元 PostgreSQL 是唯一 writer；权威后端和唯一 runner 明确；旧 SQLite 角色与当前状态一致；备份可恢复；无未解释数据差异或并发覆盖。
+
+## 阶段 5：任务迁移、生产安全与恢复强化
+
+**目标**：将对应任务安全迁至 VM，并完成用户写入、监控、备份和空机恢复的生产门槛。  
+**非目标**：一次切七个任务或过早建设高可用集群。  
+**前置条件**：相关切换单元的数据后端已切换且稳定；对应任务的生产数据库权限和 runner 状态获批。  
+**回滚点**：逐任务停 VM、恢复原 runner；保持唯一 writer、唯一 runner 和 checkpoint 连续，任务主机回滚不得改变数据后端权威。
+
+- [ ] [本阶段必须] 统一七个任务 manifest、服务账户、固定环境、单实例锁、checkpoint/ledger、失败分类和数据新鲜度。
+- [ ] [本阶段必须] 为 VM 正常/异常关机定义自动启动顺序、漏窗识别、可补抓范围、不可补缺口记录和追平状态。
+- [ ] [本阶段必须] 按“VM disabled 安装→人工真实试跑→停本地→启 VM→观察→本地保持 disabled”逐任务切换。
+- [ ] [本阶段必须] 对采用“本地 runner 先连接 production PostgreSQL”的中间状态复核阶段 4 登记项和退出条件；VM 启用前证明本地已停止，切换完成后撤销不再需要的本地 production 写角色、凭据和网络访问。长期不能退出时必须在人工 HALT 升级处置，不得默认为长期架构。
+- [ ] [本阶段必须] 修复当前失败/未正常完成任务，不能把迁移当成掩盖历史失败的方法。
+- [ ] [本阶段必须] 在开放人工写接口前完成身份、最小权限、CSRF、revision、soft delete 和 audit。
+- [ ] [本阶段必须] 复核生产控制是否符合阶段 3 已批准的 target RPO/RTO；若目标变化，返回对应设计 gate 重新批准，不在阶段 5 静默改写目标。
+- [ ] [本阶段必须] 建立 VM 外备份并完成整库灾难恢复、旁路单域逻辑恢复和空机真实 restore test；记录实际可恢复时间点、恢复耗时、未恢复数据、补抓耗时和选择性修复耗时，形成 measured RPO/RTO 并与目标逐类对账。
+- [ ] [本阶段必须] 建立 Viewer、database、task、artifact 和 backup 健康/告警；区分进程存活和数据新鲜。
+- [ ] [后续强化] 基于实际恢复目标评估 PostgreSQL 物理分离、只读副本、连续归档和自动故障转移，另立 change 后实施。
+- [ ] [后续强化] 经合规批准后，评估客户端加密的低频 GitHub Release 灾备；不得替代内部备份。
+- [ ] [HALT] 提交任务观察、权限审计、restore test、空机恢复和最终生产迁移验收报告，等待人工验收。
+
+**退出条件**：任务不双跑；临时本地 production 写权限已按合同撤销；停机后可识别并处理缺口；用户内容可审计；VM 整体损坏可恢复；measured RPO/RTO 达到 target；生产运行证据完整。
+
+## 全程禁止事项
+
+- 不把 live PostgreSQL dump、SQLite、WAL/SHM 或用户内容提交应用 Git。
+- 不通过拆小请求、临时脚本或未审计同步器绕过阶段门槛。
+- 不让本地和 VM 同一生产任务同时启用。
+- 不在没有唯一 writer、唯一 runner、切换状态和恢复证据时切换数据。
+- 不把 PostgreSQL 已产生有效新写入后的旧 SQLite 称为无损回滚点。
+- 不让应用在 PostgreSQL 失败时静默自动回退 SQLite。
+- 不把一个业务事务拆到 SQLite/PostgreSQL 分别提交后声称原子完成。
+- 不把备份文件存在、任务进程启动或页面能打开等同于迁移成功。
+- 不在任何 HALT 点自动继续。

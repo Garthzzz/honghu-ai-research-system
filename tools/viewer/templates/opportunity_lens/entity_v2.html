@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}{{ entity.display_name or entity.canonical_name }}{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head_v2.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page opp-entity-page">
+  <div class="opp-titlebar">
+    <div>
+      <p class="opp-eyebrow">{% if entity.entity_research_mode == "theory_research" %}专题研究{% else %}公司与标的研究{% endif %} · 研究对象 {{ entity.id }}</p>
+      <h1>{{ entity.display_name or entity.canonical_name }}</h1>
+    </div>
+  </div>
+  {% if entity.maturation %}{% set run = {"id": entity.maturation[0].run_id} %}{% else %}{% set run = none %}{% endif %}
+  {% include "opportunity_lens/_nav_v2.html" %}
+
+  <section class="opp-panel opp-entity-intro">
+    <h2>{% if entity.entity_research_mode == "theory_research" %}研究问题、证据与结论{% else %}公司研究、证据与投资含义{% endif %}</h2>
+    {% if entity.sections %}
+      {% for section in entity.sections %}
+      <article class="opp-section" data-opp-section-key="{{ section.section_key or '' }}">
+        {% set section_title = (section.section_title or "")|trim %}
+        {% set normalized_section_title = section_title|replace("，", "、")|replace(",", "、") %}
+        {% if normalized_section_title not in ["研究实体介绍", "研究实体介绍、证据链与投资结论"] %}<h3>{{ section.section_title }}</h3>{% endif %}
+        <div class="opp-markdown" data-opp-research-layout>{{ section.body_markdown|opp_markdown }}</div>
+        {% if section.evidence_ref_uri_list %}
+        <div class="opp-evidence-list" aria-label="本页研究证据">
+          {% for ref in section.evidence_ref_uri_list %}
+          <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="opp-entity-brief-grid">
+        <article><h3>研究问题</h3><p>{{ entity.entity_research_brief.research_object }}</p></article>
+        <article><h3>证据与数据</h3><p>{{ entity.entity_research_brief.evidence_summary }}</p></article>
+        <article><h3>分析</h3><p>{{ entity.entity_research_brief.analysis_summary }}</p></article>
+        <article><h3>结论</h3><p>{{ entity.entity_research_brief.conclusion }}</p></article>
+      </div>
+    {% endif %}
+  </section>
+
+  {% if entity.entity_research_mode != "theory_research" and entity.investment_targets %}
+  <section class="opp-panel">
+    <h2>相关标的与投资含义</h2>
+    <div class="opp-target-scenarios">
+      {% for target in entity.investment_targets %}
+      <article>
+        <h3><a href="{{ target.target_detail_link }}">{{ target.target_name }}</a>{% if target.ticker %} <span class="opp-code" translate="no">{{ target.ticker }}</span>{% endif %}</h3>
+        <p><b>为什么相关：</b>{{ target.exposure_rationale }}</p>
+        <p><b>当前判断：</b>{{ target.relative_preference or target.investment_view or "目前公开资料不足以形成差异化判断。" }}</p>
+        <p><b>证实后：</b>{{ target.confirmed_scenario_action or "根据新增证据重新评估。" }}</p>
+        <p><b>证伪后：</b>{{ target.falsified_scenario_action or "降低该风险情景的权重。" }}</p>
+        <p><b>主要风险：</b>{{ target.risk_note }}</p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <section class="opp-panel" id="opp-entity-evidence">
+    <h2>证据和数据</h2>
+    {% if entity.display_data_points %}
+    <h3>关键数据点</h3>
+    <p class="opp-muted">展示最能解释本研究对象的 {{ entity.display_data_points|length }} 条数据；完整 {{ entity.data_point_total_count or entity.data_points|length }} 条记录保留在证据库。</p>
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-data-table opp-key-data-table">
+        <thead><tr><th>指标</th><th>期间</th><th>数值</th><th>引用原文</th><th>来源</th><th>证据</th></tr></thead>
+        <tbody>
+        {% for dp in entity.display_data_points %}
+        <tr>
+          <td>{{ dp.metric }}</td>
+          <td>{{ dp.period or dp.as_of_date }}</td>
+          <td>{{ dp.value_display }}</td>
+          <td><blockquote>{{ dp.source_excerpt_display or dp.source_excerpt }}</blockquote>{% if dp.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ dp.source_excerpt_zh }}</span></div>{% endif %}</td>
+          <td>{{ dp.source_title_zh or dp.source_title or "来源标题未记录" }}<br><span class="opp-muted">{{ dp.source_publisher or "发布方未记录" }} · {{ dp.source_publish_date or "日期未记录" }}</span>{% if dp.freshness_warning %}<div class="opp-stale-warning">{{ dp.freshness_warning }}</div>{% endif %}</td>
+          <td><button type="button" data-opp-evidence="{{ dp.evidence_ref_uri }}" title="{{ dp.evidence_ref_uri|opp_evidence_title }}">查看原文</button></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% if entity.research_data_points %}
+    <h3>研究指标与计算证据</h3>
+    <p class="opp-muted">这些记录用于复核正文中的指标、事实和计算；结论仍以本页正文为准。</p>
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-data-table opp-research-data-table">
+        <thead><tr><th>指标或计算项</th><th>期间</th><th>结果或事实</th><th>引用原文</th><th>如何用于判断</th><th>证据</th></tr></thead>
+        <tbody>
+        {% for dp in entity.research_data_points %}
+        <tr>
+          <td>{{ dp.data_point_title }}<br><span class="opp-muted">{{ dp.metric }}</span></td>
+          <td>{{ dp.period or dp.as_of_date }}</td>
+          <td>{{ dp.value_display }}</td>
+          <td><blockquote>{{ dp.source_excerpt_display or dp.source_excerpt }}</blockquote>{% if dp.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ dp.source_excerpt_zh }}</span></div>{% endif %}<br><span class="opp-muted">{{ dp.source_title_zh or dp.source_title }} · {{ dp.source_publish_date or "日期未记录" }}</span></td>
+          <td>{{ dp.interpretation }}{% if dp.research_use and dp.research_use != dp.interpretation %}<br><b>研究用途：</b>{{ dp.research_use }}{% endif %}{% if dp.limitations %}<br><b>限制：</b>{{ dp.limitations }}{% endif %}</td>
+          <td><button type="button" data-opp-evidence="{{ dp.evidence_ref_uri }}" title="{{ dp.evidence_ref_uri|opp_evidence_title }}">查看原文</button></td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% if entity.claims %}
+    <h3>关键证据</h3>
+    <div class="opp-claim-list">
+      {% for claim in entity.claims[:8] %}
+      <article class="opp-claim-card">
+        <h4>{{ claim.claim_type|opp_label }}</h4>
+        <p>{{ claim.claim_text }}</p>
+        {% if claim.source_excerpt %}<blockquote>{{ claim.source_excerpt_display or claim.source_excerpt }}</blockquote>{% endif %}
+        {% if claim.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ claim.source_excerpt_zh }}</span></div>{% endif %}
+        <div class="opp-muted">{{ claim.source_title_zh or claim.source_title or "来源标题未记录" }} · {{ claim.source_publish_date or "日期未记录" }}</div>
+        {% if claim.evidence_ref_uri %}<button type="button" data-opp-evidence="{{ claim.evidence_ref_uri }}" title="{{ claim.evidence_ref_uri|opp_evidence_title }}">查看原文</button>{% endif %}
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not entity.display_data_points and not entity.research_data_points and not entity.claims %}
+    <div class="opp-empty">目前还没有可展示的实体级证据或数据点。</div>
+    {% endif %}
+
+    {% if entity.visuals %}
+    <h3>相关图表</h3>
+    <div class="opp-visual-stack">
+      {% for visual in entity.visuals %}
+      {% include "opportunity_lens/_visual_block.html" %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  {% if entity.entity_research_mode != "theory_research" %}
+  <section class="opp-panel" id="opp-entity-score">
+    <h2>因子与评分</h2>
+    {% if entity.score %}
+    {% if entity.score.score_status == "complete" %}
+    <div class="opp-score">{{ "%.1f"|format(entity.score.score_point or 0) }} <span>{{ entity.score.score_grade }}</span></div>
+    <p class="opp-entity-note">评分用于比较风险和验证优先级，不代替正文中的公司进展、财务结果和投资判断。</p>
+    {% else %}
+    <div class="opp-score">未评级</div>
+    <p class="opp-entity-note">关键研究指标覆盖不足，因此本页不展示正式评分或排名；请结合正文证据与待补信息判断。</p>
+    {% endif %}
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-factor-table">
+        <thead><tr><th>因子</th><th>衡量什么</th><th>评分</th><th>证据支撑</th></tr></thead>
+        <tbody>
+        {% for f in entity.score.factor_scores %}
+        {% set factor_score_displayable = f.score_status == "complete" and (not f.factor_readiness_status or f.factor_readiness_status in ["ready", "limited"]) %}
+        <tr>
+          <td><a href="/opportunity-lens/factor/{{ f.id }}">{{ f.factor_label }}</a></td>
+          <td>{{ f.factor_description|opp_public_text }}<br><span class="opp-muted">{{ f.factor_formula|opp_public_text }}</span></td>
+          <td>{{ "%.1f"|format(f.score_adjusted or 0) if factor_score_displayable else "证据不足" }}</td>
+          <td>{% if factor_score_displayable %}{{ "%.0f"|format((f.confidence or 0) * 100) }}%{% elif f.missing_reason %}{{ f.missing_reason|opp_public_text }}{% else %}需要补充可复算指标{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">本研究对象没有可展示的评分。</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="opp-panel" id="opp-entity-sources">
+    <h2>来源</h2>
+    <p class="opp-muted">本页展示直接支撑该研究对象的来源；点击可查看原文、发布日期和证据层级。</p>
+    <div class="opp-entity-evidence-grid">
+      {% for source in entity.sources[:12] %}
+      <article class="opp-source-card">
+        <button type="button" class="opp-source" data-opp-evidence="opp://source/{{ source.id }}" title="{{ source.title }} · {{ source.publisher or '发布方未记录' }} · {{ source.publish_date or '日期未记录' }}">{{ source.source_tier|opp_label }} · {{ source.title_zh or source.title }}</button>
+        {% if source.excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ source.excerpt_zh }}</span></div>{% endif %}
+        {% if source.freshness_warning %}<div class="opp-stale-warning">{{ source.freshness_warning }}</div>{% endif %}
+      </article>
+      {% else %}
+      <div class="opp-empty">目前没有关联来源。</div>
+      {% endfor %}
+    </div>
+  </section>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

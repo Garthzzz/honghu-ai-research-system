@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}机会透镜审计{% endblock %}
+{% block head_extra %}{% if g.opp_viewer_v2 %}{% include "opportunity_lens/_head_v2.html" %}{% else %}{% include "opportunity_lens/_head.html" %}{% endif %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar"><div><p class="opp-eyebrow">扫描 {{ run.id }}</p><h1>审计看板</h1></div><span class="opp-flag {{ board.summary.level }}">{{ board.summary.level|opp_label }}</span></div>
+  {% if g.opp_viewer_v2 %}{% include "opportunity_lens/_nav_v2.html" %}{% else %}{% include "opportunity_lens/_nav.html" %}{% endif %}
+  <div class="opp-panel">
+    <div class="opp-wide-scroll">
+    <table class="opp-table opp-audit-table">
+      <thead><tr><th>严重度</th><th>状态</th><th>问题</th><th>影响对象</th><th>证据</th></tr></thead>
+      <tbody>
+      {% for issue in board.issues %}
+      <tr><td><span class="opp-flag {{ 'red' if issue.audit_severity=='p0' else 'yellow' if issue.audit_severity=='p1' else 'none' }}">{{ issue.audit_severity|opp_label }}</span></td><td>{{ issue.audit_issue_status|opp_label }}</td><td>{{ issue.issue_title }}</td><td>{{ issue.affected_display }}</td><td>{% if issue.evidence_ref_uri %}<button type="button" data-opp-evidence="{{ issue.evidence_ref_uri }}" title="{{ issue.evidence_ref_uri|opp_evidence_title }}">{{ issue.evidence_ref_uri|opp_evidence_label }}</button>{% else %}<span class="opp-muted">未关联证据</span>{% endif %}</td></tr>
+      {% else %}
+      <tr><td colspan="5">暂无审计问题。</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

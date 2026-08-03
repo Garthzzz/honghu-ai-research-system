@@ -1,0 +1,8 @@
+{
+  "module_name": "opportunity_lens",
+  "route_prefix": "/opportunity-lens",
+  "api_prefix": "/api/opportunity-lens",
+  "canonical_entity_id": "opportunity_entity.id",
+  "run_scoped_maturation": "opportunity_entity_maturation.maturation_status",
+  "forbidden_new_enum_labels": ["score_ready", "promoted_to_entity"]
+}

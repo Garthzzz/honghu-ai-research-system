@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}产业链全景 · 行研工具系统{% endblock %}
+
+{% block head_extra %}
+<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>
+{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('research_home') }}">行业研究</a> / <strong>产业链全景</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>产业链全景</h1>
+    <p class="entity-meta">
+      先按一级研究板块拆分，再观察细分行业之间的需求、供应和配套关系。当前覆盖
+      <b>AI算力与半导体产业链</b>和<b>有色金属与新能源材料</b>；节点可点击进入行业详情。
+    </p>
+  </div>
+</header>
+
+<section class="chart-card">
+  <div class="chart-card-title">AI算力与半导体产业链 <span class="panel-sub">可交互 · 五条价值链</span></div>
+  <div class="chart-card-note">
+    {% for direction in ai_chain_directions %}
+    <span class="net-legend"><span class="net-dot" style="background:{{ direction.color }}"></span>{{ direction.name }}</span>
+    {% endfor %}
+    <span class="chain-interaction-note">拖拽平移 · 滚轮缩放 · 点击节点进入行业详情</span>
+  </div>
+  {{ chain_net|safe }}
+  <div class="ai-chain-direction-grid">
+    {% for direction in ai_chain_directions %}
+    <div class="ai-chain-direction-card" style="--chain-accent:{{ direction.color }}">
+      <b>{{ direction.name }}</b><span>{{ direction.description }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="explainer chain-explainer">
+    <span class="ex-row"><b>结构：</b>算力生成、数据搬运、物理承载、能源供给和软件变现共同构成闭环，不再把产业链简化为“GPU—服务器—光模块”。</span>
+    <span class="ex-row"><b>阅读：</b>同色是一条价值链；圆形代表深度研究，菱形代表基础跟踪。应用只在收费、留存和现金流兑现后形成最终价值。</span>
+    <span class="ex-row"><b>边界：</b>连线用于呈现已登记的产业关系与页面父子导航，不代表收入权重或供需弹性。</span>
+  </div>
+</section>
+
+<section class="chart-card metals-chain-card">
+  <div class="chart-card-title">有色金属与新能源材料 <span class="panel-sub">资源 → 加工与产品</span></div>
+  <div class="chart-card-note">
+    <span class="net-legend"><span class="net-dot" style="background:#f59e0b"></span>共同需求</span>
+    <span class="net-legend"><span class="net-dot" style="background:#0d9488"></span>已深度覆盖</span>
+    <span class="chain-interaction-note">铜、锂、碳酸锂与锂电池使用各自独立供需和公司模型</span>
+  </div>
+  {{ metals_chain_net|safe }}
+  <div class="explainer chain-explainer">
+    <span class="ex-row"><b>铜：</b>直接连接电网、数据中心、电气化和制造投资，核心是矿端供给、冶炼加工和资本周期。</span>
+    <span class="ex-row"><b>锂：</b>上游资源按矿山、盐湖和权益计量；碳酸锂是加工产品口径，不能把资源量直接当产品供给。</span>
+    <span class="ex-row"><b>锂电池：</b>承接锂资源与碳酸锂的材料成本传导，同时由动力、储能需求、产能利用率和区域政策决定产品盈利。</span>
+    <span class="ex-row"><b>共同点：</b>资源国政策、项目执行、成本曲线和资本纪律共同决定行业供给与上市公司现金。</span>
+  </div>
+</section>
+
+{% if key_facts %}
+<section class="panel">
+  <h3 class="panel-title">AI关键路径数据 <span class="panel-sub">点击来源标记查看原文</span></h3>
+  <div class="macro-fact-grid">
+    {% for f in key_facts %}
+    <div class="macro-fact">
+      <div class="macro-fact-label">{{ f.label }}</div>
+      <div class="macro-fact-value">{{ f.value }}
+        {% if f.as_of %}<span class="macro-fact-asof">@{{ f.as_of }}</span>{% endif %}
+        {% if f.consensus %}<span class="consensus-pill consensus-{{ f.consensus }}">{{ f.consensus }}</span>{% endif %}
+        <sup class="src-ref" data-source-id="{{ f.source_id }}" tabindex="0" role="button" title="点击溯源 source #{{ f.source_id }}">[{{ f.source_id }}]</sup>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <h3 class="panel-title">已登记的跨行业关系 <span class="panel-sub">按研究事实展示</span></h3>
+  {% if cross_rels %}
+  <div class="macro-rel-list">
+    {% for r in cross_rels %}
+    <div class="macro-rel">
+      <div class="macro-rel-head">
+        <a class="macro-rel-node" href="{{ url_for('industry_detail', industry_id=r.upstream_id) }}">{{ r.up_name }}</a>
+        <span class="macro-rel-arrow">──{{ r.relation_type }}──▶</span>
+        <a class="macro-rel-node" href="{{ url_for('industry_detail', industry_id=r.downstream_id) }}">{{ r.down_name }}</a>
+        {% if r.bargaining_power %}<span class="macro-rel-bp bp-{{ r.bargaining_power }}">{{ t(r.bargaining_power) }}</span>{% endif %}
+      </div>
+      <div class="macro-rel-note">
+        {{ r.note }}
+        {% if r.source_id %}<sup class="src-ref" data-source-id="{{ r.source_id }}" tabindex="0" role="button" title="点击溯源 source #{{ r.source_id }}">[{{ r.source_id }}]</sup>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="empty-state">暂无跨行业关系记录。</p>{% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">环节覆盖状态</h3>
+  <h4 class="chain-coverage-title">AI算力与半导体产业链</h4>
+  <div class="ind-card-grid">
+    {% for name, ind in ai_covered.items() %}
+    <a class="deep-entry-card" href="{{ url_for('industry_detail', industry_id=ind.id) }}">
+      <div class="deep-entry-title">{{ ind.name }} <span class="tier-badge tier-{{ ind.tier }}">tier {{ ind.tier }}</span></div>
+      <div class="deep-entry-desc">{{ ind.status }} · 点击进入行业详情</div>
+    </a>
+    {% endfor %}
+  </div>
+  <h4 class="chain-coverage-title">有色金属与新能源材料</h4>
+  <div class="ind-card-grid">
+    {% for name, ind in metals_covered.items() %}
+    <a class="deep-entry-card" href="{{ url_for('industry_detail', industry_id=ind.id) }}">
+      <div class="deep-entry-title">{{ ind.name }} <span class="tier-badge tier-{{ ind.tier }}">tier {{ ind.tier }}</span></div>
+      <div class="deep-entry-desc">{{ ind.status }} · 点击进入行业详情</div>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% endblock %}

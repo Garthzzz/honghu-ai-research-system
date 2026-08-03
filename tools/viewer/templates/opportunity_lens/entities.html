@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}机会透镜机会实体{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar"><div><p class="opp-eyebrow">扫描 {{ run.id }}</p><h1>机会实体排序</h1></div></div>
+  {% include "opportunity_lens/_nav.html" %}
+  <div class="opp-panel">
+    <div class="opp-wide-scroll">
+      {% include "opportunity_lens/_entity_table.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}

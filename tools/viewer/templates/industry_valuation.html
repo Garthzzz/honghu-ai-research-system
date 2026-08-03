@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% block title %}{{ ind.name }} · 估值对比{% endblock %}
+{% block head_extra %}<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>{% endblock %}
+
+{% macro listing_badge(ls) -%}
+{% if ls %}<span class="listing-badge listing-{{ ls }}">{{ t(ls) }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro src_sup(sid) -%}
+{% if sid %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<style>
+.val-viz-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}.val-viz-card{border:1px solid #e1e7f0;border-radius:14px;background:#fff;padding:14px;min-width:0}.val-viz-card.wide{grid-column:1/-1}.val-viz-card h3{font-size:14px;color:#20304a;margin:0 0 4px}.val-viz-card p{font-size:11px;color:#718096;margin:0 0 8px}.val-viz{min-height:390px}.val-heatmap-scroll{max-width:100%;overflow-x:auto;overflow-y:hidden;scrollbar-gutter:stable}.val-heatmap-canvas{min-width:720px}.val-formula{display:block;font-size:10.5px;color:#718096;font-weight:400;margin-top:3px;line-height:1.45}.val-kv-table .val-formula{max-width:300px}.val-core-row{background:#f8fbff}.val-provider{display:inline-block;color:#52647c;font-size:10.5px;line-height:1.35}.val-provider[title]{cursor:help}.copper-group-badge{display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--group-color) 38%,#fff);border-radius:999px;background:color-mix(in srgb,var(--group-color) 10%,#fff);color:#26364d;padding:3px 8px;font-size:10.5px;font-weight:650;white-space:nowrap}.copper-group-badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--group-color)}.copper-peer-summary{margin-top:18px}.copper-peer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}.copper-peer-card{border:1px solid #e1e7f0;border-top:4px solid var(--group-color);border-radius:14px;background:linear-gradient(180deg,color-mix(in srgb,var(--group-color) 5%,#fff),#fff 36%);padding:16px;min-width:0}.copper-peer-card h3{margin:0 0 7px;color:#1f2f46;font-size:16px}.copper-peer-card p{margin:9px 0 0;color:#4c5f76;font-size:12px;line-height:1.7}.copper-peer-median{color:#697b91;font-size:10.5px;line-height:1.6;margin-bottom:10px}.copper-company-list{display:flex;flex-wrap:wrap;gap:7px}.copper-company-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid #dbe3ee;border-radius:9px;background:#fff;padding:5px 7px;font-size:11px}.copper-company-chip i{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--company-color)}.copper-company-chip small{color:#7a899c}
+@media(max-width:900px){.val-viz-grid{grid-template-columns:1fr}.val-viz-card.wide{grid-column:auto}}
+@media(max-width:1050px){.copper-peer-grid{grid-template-columns:1fr}}
+</style>
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a> /
+  <strong>估值对比</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ ind.name }} · 估值对比
+      <span class="tier-badge tier-{{ ind.tier }}">tier {{ ind.tier }}</span>
+    </h1>
+    <p class="entity-meta">
+      与公司透视拆开 · 公司透视看业务、估值对比看财务 · 行业内全部公司一张表对比 · 每个数字 cell 级可溯源
+    </p>
+  </div>
+  <div class="entity-header-actions">
+    {% if ind.name in ['锂', '碳酸锂'] %}
+    <a class="btn" href="{{ url_for('lithium_calculator') }}">碳酸锂项目计算器 →</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{{ url_for('industry_companies', industry_id=ind.id) }}">公司透视 →</a>
+    <a class="btn btn-secondary" href="{{ url_for('industry_detail', industry_id=ind.id) }}#tab-Q1">← 返回行业页</a>
+  </div>
+</header>
+
+<!-- Q 维度导航:估值对比 = Q1.6,与公司透视平行;当前页高亮 -->
+<div class="tabs">
+  <a class="tab-btn" href="{{ url_for('industry_detail', industry_id=ind.id) }}#tab-main">主文档</a>
+  {% for q, short, full in q_dimensions %}
+    <a class="tab-btn tab-btn-{{ q|lower }}" href="{{ url_for('industry_detail', industry_id=ind.id) }}#tab-{{ q }}">{{ q }} {{ short }}</a>
+    {% if q == 'Q1' %}
+    <a class="tab-btn tab-btn-companies" href="{{ url_for('industry_companies', industry_id=ind.id) }}">公司透视</a>
+    <span class="tab-btn tab-btn-valuation active" title="估值对比(当前页 · Q1.6)">估值对比</span>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- 覆盖度 + 数据来源声明 -->
+<div class="val-banner">
+  <span>{% if coverage.all_entities is defined %}研究对象 <strong>{{ coverage.all_entities }}</strong> 家 · 进入估值比较 <strong>{{ coverage.total }}</strong> 家{% if coverage.excluded %} · 品牌、私营或历史退出主体 <strong>{{ coverage.excluded }}</strong> 家不参与排名{% endif %}{% else %}行业关联公司 <strong>{{ coverage.total }}</strong> 家{% endif %} · 有 PE/PB <strong>{{ coverage.with_valuation }}</strong>{% if not is_pcb_equipment %} · 六项齐全 <strong>{{ coverage.with_six }}</strong>{% endif %} · 有盈利预测 <strong>{{ coverage.with_forecast }}</strong></span>
+  <span class="val-source-note">本页优先保留研究库已有历史快照，并对空字段只读调用独立财务库的当前数据；精确时点与供应商逐指标展示。现行合同为 <strong>A 股 Wind 主源、Tushare 逐字段补缺</strong>，海外使用 <strong>yfinance</strong>；亏损公司 PE 留空，不用无经济意义的倍数填表。未上市公司仅展示明确披露的一级市场轮次并标注“未审计”。研究库历史快照数字旁 <span class="src-ref-inline">[N]</span> 可点击溯源；独立财务库数据直接显示供应商名称。</span>
+</div>
+
+<!-- 视图切换 -->
+<div class="val-viewtabs">
+  <button type="button" class="val-vt-btn active" data-view="by-metric" role="tab" aria-selected="true" aria-controls="val-view-by-metric">按指标看</button>
+  <button type="button" class="val-vt-btn" data-view="by-company" role="tab" aria-selected="false" aria-controls="val-view-by-company">按公司看</button>
+</div>
+
+<!-- ══════════ 视图1:按指标看 ══════════ -->
+<div class="val-view" id="val-view-by-metric">
+
+  {% if not metric_tables and not forecast_rows and not private_rows %}
+  <div class="empty-state"><p>本行业暂无可用的兼容估值快照；请进入公司详情页查看独立财务库中的当前数据。</p></div>
+  {% endif %}
+
+  {% if metric_tables %}
+  <div class="explainer">
+    {% if compare_profitability %}
+    <span class="ex-row"><b>用途：</b> PE-ROE、PB-ROE{% if is_copper %}和PB-ROA{% endif %}气泡矩阵用于同时观察估值倍数与盈利质量；热图展示同行数值分位。</span>
+    <span class="ex-row"><b>读法：</b> 气泡大小代表人民币市值；虚线为同行中位数。{% if is_copper %}铜专项按产业链分组着色，A股使用深色、港股使用同色系浅色与菱形；{% endif %}高低仅表示数值位置，不构成“越高越好”排序。</span>
+    {% if is_copper and copper_pe_exclusions %}
+    <span class="ex-row"><b>PE不可比：</b>{% for item in copper_pe_exclusions %}<a href="{{ url_for('company_tag', company_id=item.company_id, industry_id=ind.id) }}">{{ item.name }}</a>{{ item.reason }}{% if not loop.last %}；{% endif %}{% endfor %}，因此不进入PE—ROE，但仍进入PB—ROE和PB—ROA。</span>
+    {% endif %}
+    {% else %}
+    <span class="ex-row"><b>用途：</b> 热图只比较直接参与 PCB 设备业务的上市主体及其 PE、PB、PS、EV/EBITDA；集团财务参照和相邻能力公司在下表单独分组。</span>
+    <span class="ex-row"><b>口径：</b> ROE、ROA和利润率来自不同市场、财年、会计准则及数据接口，本页只在单公司卡片展示，不制作跨公司排名或估值—盈利矩阵。</span>
+    {% endif %}
+    <span class="ex-row"><b>数据：</b> 本页为历史兼容横表；当前 A 股数据以 Wind 为主、Tushare 补缺，海外以 yfinance 为主，并在公司详情页按供应商和时点展示。亏损公司 PE 标记不适用；EPS/BPS 仅在同币种、同业务组内排序。</span>
+  </div>
+  {% endif %}
+
+  <div class="val-viz-grid">
+    {% if compare_profitability %}
+    <section class="val-viz-card"><h3>PE / ROE 矩阵</h3><p>估值倍数与净资产收益率同时观察；气泡为市值。</p><div id="valPeRoe" class="val-viz" role="img" aria-label="PE 与 ROE 公司对比散点图"></div></section>
+    <section class="val-viz-card"><h3>PB / ROE 矩阵</h3><p>市净率与净资产收益率同时观察；不把高 PB 自动解释为更优。</p><div id="valPbRoe" class="val-viz" role="img" aria-label="PB 与 ROE 公司对比散点图"></div></section>
+    {% if is_copper %}
+    <section class="val-viz-card wide"><h3>PB / ROA 矩阵</h3><p>用总资产回报率检查高杠杆或小净资产对ROE的放大；产业链分组颜色与上图一致。</p><div id="valPbRoa" class="val-viz" role="img" aria-label="PB 与 ROA 公司对比散点图"></div></section>
+    {% endif %}
+    {% endif %}
+    <section class="val-viz-card wide"><h3>{% if compare_profitability %}同行数值分位热图{% else %}核心 PCB 设备上市公司的估值倍数{% endif %}</h3><p>原值直接写在格内；颜色仅表示同组数值位置，精确时点和来源见下表。</p><div class="val-heatmap-scroll" tabindex="0" role="region" aria-label="估值指标热图，可横向滚动"><div id="valHeatmap" class="val-viz val-heatmap-canvas" role="img" aria-label="估值指标同组分位热图"></div></div></section>
+  </div>
+
+  <div class="val-metric-grid">
+    {% for mt in metric_tables %}
+    <section class="panel val-metric-panel">
+      <h3 class="panel-title">{{ mt.label }} {% if mt.grouped_per_share %}同币种组内排序{% elif mt.grouped_comparison %}同业务组内排序{% else %}数值排序{% endif %} <span class="panel-sub">{% if mt.grouped_per_share %}禁止跨币种比较 · {% elif mt.grouped_comparison %}不同业务组不直接比较 · {% else %}降序仅便于查找 · {% endif %}{{ mt.rows|length }} 家</span><span class="val-formula">{{ mt.formula }}</span></h3>
+      {% if mt.chart %}<div class="rx-plotly">{{ mt.chart|safe }}</div>{% endif %}
+      <div class="cp-table-scroll val-table-scroll" tabindex="0" role="region" aria-label="{{ mt.label }}公司排名表，可横向滚动">
+      <table class="data-table cp-table val-rank-table">
+        <thead><tr><th>{% if mt.grouped_comparison %}组内序号{% else %}序号{% endif %}</th><th>公司</th>{% if mt.grouped_comparison %}<th>可比组</th>{% endif %}<th>{{ mt.label }}</th><th>时点</th><th>溯源</th></tr></thead>
+        <tbody>
+          {% for r in mt.rows %}
+          <tr>
+            <td class="val-rank">{{ r.rank }}</td>
+            <td><a href="{{ url_for('company_tag', company_id=r.company_id, industry_id=ind.id) }}">{{ r.name }}</a>{% if r.ticker %} <span class="cp-ticker">{{ r.ticker }}</span>{% endif %}</td>
+            {% if mt.grouped_comparison %}<td>{% if is_copper and r.group_color %}<span class="copper-group-badge" style="--group-color:{{ r.group_color }}">{{ r.comparison_group }}</span>{% else %}{{ r.comparison_group }}{% endif %}</td>{% endif %}
+            <td class="val-num">{{ r.display }}</td>
+            <td class="val-asof">{{ r.as_of or '—' }}</td>
+            <td>{% if r.source_text %}<span class="val-provider" title="{{ r.source_title or r.source_text }}">{{ r.source_text }}</span>{% else %}{{ src_sup(r.src_id) }}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+
+  {% if forecast_rows %}
+  <section class="panel">
+    <h3 class="panel-title">盈利预测一致预期 <span class="panel-sub">分析师一致预期 · 金额优先按人民币口径展示，保留来源时点</span></h3>
+    <div class="cp-table-scroll val-table-scroll" tabindex="0" role="region" aria-label="盈利预测一致预期表，可横向滚动">
+    <table class="data-table cp-table">
+      <thead><tr><th>公司</th><th>营收 +1y</th><th>营收 +2y</th><th>EPS +1y</th><th>EPS +2y</th><th>预测时点</th><th>溯源</th></tr></thead>
+      <tbody>
+        {% for r in forecast_rows %}
+        <tr>
+          <td><a href="{{ url_for('industry_valuation', industry_id=ind.id) }}#valco-{{ r.company_id }}">{{ r.name }}</a>{% if r.ticker %} <span class="cp-ticker">{{ r.ticker }}</span>{% endif %}</td>
+          <td class="val-num">{{ '%g'|format(r.rev1) ~ r.unit if r.rev1 is not none else '—' }}</td>
+          <td class="val-num">{{ '%g'|format(r.rev2) ~ r.unit if r.rev2 is not none else '—' }}</td>
+          <td class="val-num">{{ '%g'|format(r.eps1) if r.eps1 is not none else '—' }}</td>
+          <td class="val-num">{{ '%g'|format(r.eps2) if r.eps2 is not none else '—' }}</td>
+          <td class="val-asof">{{ r.as_of or '—' }}</td>
+          <td>{% if r.source_text %}<span class="val-provider" title="{{ r.source_title or r.source_text }}">{{ r.source_text }}</span>{% else %}{{ src_sup(r.src_id) }}{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if private_rows %}
+  <section class="panel">
+    <h3 class="panel-title">一级市场估值(未上市)<span class="panel-sub"> 未审计自披露 · 一级市场轮次估值,与二级市场 PE/PB 不可比</span></h3>
+    <div class="cp-table-scroll val-table-scroll" tabindex="0" role="region" aria-label="一级市场估值表，可横向滚动">
+    <table class="data-table cp-table">
+      <thead><tr><th>公司</th><th>估值</th><th>轮次</th><th>时点</th><th>溯源</th></tr></thead>
+      <tbody>
+        {% for r in private_rows %}
+        <tr>
+          <td><a href="{{ url_for('industry_valuation', industry_id=ind.id) }}#valco-{{ r.company_id }}">{{ r.name }}</a></td>
+          <td class="val-num">{{ '%g'|format(r.value) ~ r.unit if r.value is not none else '—' }}</td>
+          <td>{{ r.round or '—' }}</td>
+          <td class="val-asof">{{ r.as_of or '—' }}</td>
+          <td>{{ src_sup(r.src_id) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
+  {% endif %}
+</div>
+
+<!-- ══════════ 视图2:按公司看 ══════════ -->
+<div class="val-view" id="val-view-by-company" style="display:none">
+  <div class="val-card-grid">
+    {% for c in company_cards %}
+    <article class="val-card" id="valco-{{ c.company_id }}">
+      <header class="val-card-head">
+        <a class="val-card-name" href="{{ url_for('company_tag', company_id=c.company_id, industry_id=ind.id) }}">{{ c.name }}</a>
+        {% if c.ticker %}<span class="cp-ticker">{{ c.ticker }}</span>{% endif %}
+        {{ listing_badge(c.listing_status) }}
+      </header>
+      {% if c.comparison_group %}<div class="cp-kv">{% if is_copper and c.group_color %}<span class="copper-group-badge" style="--group-color:{{ c.group_color }}">{{ c.comparison_group }}</span>{% else %}<strong>{{ c.comparison_group }}</strong>{% endif %}{% if c.industry_role %} · {{ c.industry_role }}{% endif %}</div>{% endif %}
+      {% if c.is_unlisted %}
+      <div class="cp-unaudited-banner"> 未上市 · 无公开二级市场估值</div>
+      {% endif %}
+
+      {% if is_pcb_equipment %}
+      <div class="val-card-section-title">市场估值（交易日）{% if c.val_as_of %} <span class="val-asof">@{{ c.val_as_of }}</span>{% endif %} {{ src_sup(c.val_src) }}</div>
+      <table class="cp-mini-table val-kv-table">
+        {% for m in c.valuation_metrics %}
+        <tr class="{{ 'val-core-row' if m.key in core_keys else '' }}"><th>{{ m.label }}{% if m.key in core_keys %}<span class="val-formula">{{ m.formula }}</span>{% endif %}</th><td class="val-num">{{ m.display }}{% if m.as_of and m.as_of != c.val_as_of %}<span class="val-asof"> @{{ m.as_of }}</span>{% endif %}{% if m.source_text %} <span class="val-provider" title="{{ m.source_title or m.source_text }}">{{ m.source_text }}</span>{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+
+      <div class="val-card-section-title">盈利与每股指标（财报期）{% if c.fin_as_of %} <span class="val-asof">@{{ c.fin_as_of }}</span>{% endif %} {{ src_sup(c.fin_src) }}</div>
+      <table class="cp-mini-table val-kv-table">
+        {% for m in c.financial_metrics %}
+        <tr class="{{ 'val-core-row' if m.key in core_keys else '' }}"><th>{{ m.label }}{% if m.key in core_keys %}<span class="val-formula">{{ m.formula }}</span>{% endif %}</th><td class="val-num">{{ m.display }}{% if m.as_of %}<span class="val-asof"> @{{ m.as_of }}</span>{% endif %}{% if m.source_text %} <span class="val-provider" title="{{ m.source_title or m.source_text }}">{{ m.source_text }}</span>{% else %} {{ src_sup(m.src_id) }}{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <div class="val-card-section-title">估值 / 盈利能力{% if c.val_as_of %} <span class="val-asof">@{{ c.val_as_of }}</span>{% endif %} {{ src_sup(c.val_src) }}</div>
+      <table class="cp-mini-table val-kv-table">
+        {% for m in c.metrics %}
+        <tr class="{{ 'val-core-row' if m.key in core_keys else '' }}"><th>{{ m.label }}{% if m.key in core_keys %}<span class="val-formula">{{ m.formula }}</span>{% endif %}</th><td class="val-num">{{ m.display }}{% if m.source_text %} <span class="val-provider" title="{{ m.source_title or m.source_text }}">{{ m.source_text }}</span>{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+      {% endif %}
+      {% if c.display_note %}<div class="cp-kv">{{ c.display_note }}</div>{% endif %}
+
+      {% if c.fc.has %}
+      <div class="val-card-section-title">盈利预测(一致预期){% if c.fc.as_of %} <span class="val-asof">@{{ c.fc.as_of }}</span>{% endif %}{% if c.fc.source_text %} <span class="val-provider" title="{{ c.fc.source_title or c.fc.source_text }}">{{ c.fc.source_text }}</span>{% else %} {{ src_sup(c.fc.src_id) }}{% endif %}</div>
+      <table class="cp-mini-table val-kv-table">
+        <tr><th>营收 +1y</th><td class="val-num">{{ '%g'|format(c.fc.rev1) ~ c.fc.unit if c.fc.rev1 is not none else '—' }}</td></tr>
+        <tr><th>营收 +2y</th><td class="val-num">{{ '%g'|format(c.fc.rev2) ~ c.fc.unit if c.fc.rev2 is not none else '—' }}</td></tr>
+        <tr><th>EPS +1y</th><td class="val-num">{{ '%g'|format(c.fc.eps1) if c.fc.eps1 is not none else '—' }}</td></tr>
+        <tr><th>EPS +2y</th><td class="val-num">{{ '%g'|format(c.fc.eps2) if c.fc.eps2 is not none else '—' }}</td></tr>
+      </table>
+      {% endif %}
+
+      {% if c.private.has %}
+      <div class="val-card-section-title">一级市场估值 {{ src_sup(c.private.src_id) }}</div>
+      <div class="cp-kv">{{ '%g'|format(c.private.value) ~ c.private.unit }} · 轮次 {{ c.private.round or '—' }} · {{ c.private.as_of or '—' }}（未审计）</div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</div>
+
+{% if is_copper and copper_peer_groups %}
+<section class="panel copper-peer-summary">
+  <h2 class="panel-title">铜产业链分组比较 <span class="panel-sub">仅用于铜行业的研究员定制视图</span></h2>
+  <div class="copper-peer-grid">
+    {% for group in copper_peer_groups %}
+    <article class="copper-peer-card" style="--group-color:{{ group.color }}">
+      <h3>{{ group.name }}</h3>
+      <div class="copper-peer-median">
+        组内中位数：
+        PE {{ '%.2f'|format(group.medians.pe_ttm) if group.medians.pe_ttm is not none else '—' }} 倍 ·
+        PB {{ '%.2f'|format(group.medians.pb) if group.medians.pb is not none else '—' }} 倍 ·
+        ROE {{ '%.2f'|format(group.medians.roe) ~ '%' if group.medians.roe is not none else '—' }} ·
+        ROA {{ '%.2f'|format(group.medians.roa) ~ '%' if group.medians.roa is not none else '—' }}
+      </div>
+      <div class="copper-company-list">
+        {% for company in group.companies %}
+        <a class="copper-company-chip" style="--company-color:{{ company.color }}" href="{{ url_for('company_tag', company_id=company.company_id, industry_id=ind.id) }}"><i></i>{{ company.name }} <small>{{ company.market }}</small></a>
+        {% endfor %}
+      </div>
+      <p>{{ group.analysis }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const VAL_FIGS={{ visualizations_json|safe }};
+const VAL_CFG={responsive:true,displaylogo:false,scrollZoom:true,modeBarButtonsToRemove:['select2d','lasso2d']};
+function drawVal(id,fig){const el=document.getElementById(id);if(!el)return;if(!fig||!fig.data){el.innerHTML='<div class="empty-state">当前指标至少需要两家公司有可比数据；精确表仍保留。</div>';return;}Plotly.newPlot(el,fig.data,fig.layout,VAL_CFG);}
+function whenValPlotly(cb){if(window.Plotly){cb();return;}let n=0;const timer=setInterval(()=>{if(window.Plotly||n++>100){clearInterval(timer);if(window.Plotly)cb();}},50);}
+whenValPlotly(()=>{drawVal('valPeRoe',VAL_FIGS.pe_roe);drawVal('valPbRoe',VAL_FIGS.pb_roe);drawVal('valPbRoa',VAL_FIGS.pb_roa);drawVal('valHeatmap',VAL_FIGS.heatmap);});
+const tabs=[...document.querySelectorAll('.val-vt-btn')];
+function setValView(btn){
+  tabs.forEach(b=>{b.classList.remove('active');b.setAttribute('aria-selected','false')});
+  btn.classList.add('active');btn.setAttribute('aria-selected','true');
+  const view=btn.dataset.view;
+  document.getElementById('val-view-by-metric').style.display=(view==='by-metric')?'':'none';
+  document.getElementById('val-view-by-company').style.display=(view==='by-company')?'':'none';
+}
+tabs.forEach((btn,index)=>{
+  btn.addEventListener('click',()=>setValView(btn));
+  btn.addEventListener('keydown',event=>{if(!['ArrowLeft','ArrowRight'].includes(event.key))return;event.preventDefault();const next=tabs[(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];next.focus();setValView(next);});
+});
+</script>
+{% endblock %}

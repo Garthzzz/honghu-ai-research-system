@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}{{ metric }} · 多源对照{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a> /
+  <strong>指标对照:{{ metric }}</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ ind.name }} · {{ metric }}</h1>
+    <p class="entity-meta">
+      时点 <code>{{ as_of }}</code> ·
+      {% if is_forecast %}<span class="forecast-tag">前瞻预测</span>{% else %}<span class="actual-tag">实际数据</span>{% endif %} ·
+      多源对照算法自动评估
+    </p>
+  </div>
+</header>
+
+{% if peer %}
+<section class="panel">
+  <h3 class="panel-title">peer group 统计</h3>
+  <div class="peer-stats">
+    <div class="peer-stat-item">
+      <div class="peer-stat-label">peer_count</div>
+      <div class="peer-stat-num">{{ peer.peer_count }}</div>
+    </div>
+    <div class="peer-stat-item">
+      <div class="peer-stat-label">中位数</div>
+      <div class="peer-stat-num">{{ '%.2f'|format(peer.peer_median) if peer.peer_median is not none else '—' }}</div>
+    </div>
+    <div class="peer-stat-item">
+      <div class="peer-stat-label">均值</div>
+      <div class="peer-stat-num">{{ '%.2f'|format(peer.peer_mean) if peer.peer_mean is not none else '—' }}</div>
+    </div>
+    <div class="peer-stat-item">
+      <div class="peer-stat-label">标准差</div>
+      <div class="peer-stat-num">{{ '%.2f'|format(peer.peer_std) if peer.peer_std is not none else '—' }}</div>
+    </div>
+    <div class="peer-stat-item">
+      <div class="peer-stat-label">min</div>
+      <div class="peer-stat-num">{{ '%.2f'|format(peer.peer_min) if peer.peer_min is not none else '—' }}</div>
+    </div>
+    <div class="peer-stat-item">
+      <div class="peer-stat-label">max</div>
+      <div class="peer-stat-num">{{ '%.2f'|format(peer.peer_max) if peer.peer_max is not none else '—' }}</div>
+    </div>
+  </div>
+  <p class="entity-meta" style="margin-top: 8px;">
+    最后计算时间:{{ peer.computed_at or '—' }}
+  </p>
+</section>
+{% else %}
+<div class="empty-state">未找到 peer_group 记录(可能尚未运行 consensus_compute,或仅 value_text-only)。</div>
+{% endif %}
+
+<section class="panel">
+  <h3 class="panel-title">数据点对照(共 {{ data_points|length }} 条)</h3>
+  {% if data_points %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>source</th>
+        <th>数值</th>
+        <th>偏离中位</th>
+        <th>共识状态</th>
+        <th>倾向</th>
+        <th>原文摘录</th>
+        <th>溯源</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in data_points %}
+      <tr class="{% if d.source_tier == 3 %}row-tier-3{% endif %}">
+        <td>
+          <a href="{{ url_for('source_detail', source_id=d.source_id) }}">#{{ d.source_id }} {{ d.source_title[:40] }}{% if d.source_title|length > 40 %}…{% endif %}</a>
+          {% if d.source_tier %}<span class="tier-badge tier-{{ d.source_tier }}">{{ d.source_tier }}</span>{% endif %}
+        </td>
+        <td class="cell-value">
+          {% if d.value_num is not none %}{{ d.value_num }}{{ d.unit }}{% else %}{{ d.value_text }} {{ d.unit }}{% endif %}
+        </td>
+        <td class="cell-mono">
+          {% if d.deviation_from_median is not none %}
+            {{ '{:+.1%}'.format(d.deviation_from_median) }}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if d.consensus_status == '共识' %}<span class="consensus-pill consensus-共识">共识</span>
+          {% elif d.consensus_status == '主流' %}<span class="consensus-pill consensus-主流">主流</span>
+          {% elif d.consensus_status == '次主流' %}<span class="consensus-pill consensus-次主流">次主流</span>
+          {% elif d.consensus_status == '离群' %}<span class="consensus-pill consensus-离群">离群</span>
+          {% elif d.consensus_status == '孤证' %}<span class="consensus-pill consensus-孤证">孤证</span>
+          {% else %}<span class="consensus-pill consensus-unevaluated">未评估</span>{% endif %}
+        </td>
+        <td>
+          {% if d.sentiment == '看涨' %}<span class="sentiment-dot sentiment-bull">●</span><span class="sentiment-label-bull">看涨</span>
+          {% elif d.sentiment == '看跌' %}<span class="sentiment-dot sentiment-bear">●</span><span class="sentiment-label-bear">看跌</span>
+          {% elif d.sentiment == '中性' %}<span class="sentiment-dot sentiment-neutral">●</span><span class="sentiment-label-neutral">中性</span>
+          {% else %}<span class="sentiment-na">—</span>{% endif %}
+        </td>
+        <td class="cell-excerpt" title="{{ d.source_excerpt }}">{{ d.source_excerpt[:80] }}{% if d.source_excerpt|length > 80 %}…{% endif %}</td>
+        <td>
+          <button class="trace-btn"
+                  data-source-id="{{ d.source_id }}"
+                  data-excerpt="{{ d.source_excerpt|e }}"> 溯源</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">该 peer group 无数据点。</div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">md 引用建议</h3>
+  {% if peer and peer.peer_count >= 3 %}
+  <p>该指标 peer_count = <strong>{{ peer.peer_count }}</strong>,md 可表述为:</p>
+  <blockquote class="md-suggestion">
+    {{ metric }} 在 {{ as_of }} {% if is_forecast %}前瞻预测{% else %}实际{% endif %}维度
+    {{ peer.peer_count }} 源对照,中位数 {{ '%.2f'|format(peer.peer_median) if peer.peer_median is not none else '—' }};
+    {% set outliers = data_points|selectattr('consensus_status', 'equalto', '离群')|list %}
+    {% if outliers %}其中 {{ outliers|length }} 源(包括 source #{{ outliers[0].source_id }})显著偏离中位;{% endif %}
+    {% set consensus = data_points|selectattr('consensus_status', 'in', ['共识', '主流'])|list %}
+    {% if consensus|length >= 3 %}{{ consensus|length }} 源主流共识为本指标 base case。{% endif %}
+  </blockquote>
+  {% elif peer and peer.peer_count == 1 %}
+  <p class="audit-status-short"> 该指标仅 1 个 source 支撑(<strong>孤证</strong>),md 中应显式标注 "孤证 ^src:N"。</p>
+  {% else %}
+  <p class="entity-meta">2 源对照,无法判断离群,需补充更多 source。</p>
+  {% endif %}
+</section>
+
+{% endblock %}

@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}首页 · 行研工具系统{% endblock %}
+
+{% block content %}
+
+<!-- 首页 hero band -->
+<section class="page-hero">
+  <div class="page-hero-eyebrow">买方行业研究系统</div>
+  <h1 class="page-hero-title">📚 行业研究 · 产业链工作台</h1>
+  <p class="page-hero-tagline">多源研报结构化沉淀 · 每个数据点可溯源回原文 · 共识 / 分歧 / 孤证分层呈现</p>
+  <div class="page-hero-stats">
+    <div><b>{{ totals.data_points }}</b><span>数据点(全可溯源)</span></div>
+    <div><b>{{ totals.sources }}</b><span>Source</span></div>
+    <div><b>{{ totals.deep_industries }}</b><span>深度跟踪行业</span></div>
+    <div><b>{{ totals.relations }}</b><span>产业链关系</span></div>
+    <div><b>{{ totals.companies }}</b><span>公司 tag</span></div>
+  </div>
+</section>
+
+<!-- 一级研究板块 → 细分行业；各深度行业展示 Q5 核心结论与入口 -->
+<section class="deep-industries">
+  <div class="deep-industries-head">
+    <h2 class="deep-industries-title">行业研究板块</h2>
+    <span class="deep-industries-sub">先选择一级板块，再进入细分行业与研究结论</span>
+  </div>
+
+  {% if sector_groups %}
+    {% for sector in sector_groups %}
+    <section class="research-sector" style="--sector-accent:{{ sector.accent }}">
+      <header class="research-sector-head">
+        <div>
+          <div class="research-sector-kicker">一级研究板块</div>
+          <h3>{{ sector.name }}</h3>
+          {% if sector.description %}<p>{{ sector.description }}</p>{% endif %}
+        </div>
+        <span class="research-sector-count">{{ sector.deep_cards|length }} 个深度行业</span>
+      </header>
+
+      {% if sector.deep_cards %}
+      <div class="ind-card-grid">
+        {% for c in sector.deep_cards %}
+        <article class="ind-card">
+          <header class="ind-card-head">
+            <div class="ind-card-titleline">
+              <a class="ind-card-name" href="{{ url_for('industry_detail', industry_id=c.id) }}">{{ c.name }}</a>
+              <span class="tier-badge tier-{{ c.tier }}">tier {{ c.tier }}</span>
+            </div>
+            {% if c.last_updated %}<span class="ind-card-date">{{ c.last_updated }}</span>{% endif %}
+          </header>
+
+          {% if c.data_tier_note %}
+          <div class="ind-card-tiernote" title="{{ c.data_tier_note }}">研报二手数据，非一手投研，不作投资决策依据</div>
+          {% endif %}
+
+          {% if c.core_judgment %}
+            <p class="ind-card-judgment">{{ c.core_judgment }}</p>
+          {% elif c.core_dynamic %}
+            <p class="ind-card-judgment">{{ c.core_dynamic }}</p>
+          {% endif %}
+
+          <div class="ind-card-stats">
+            <span><b>{{ c.data_point_count }}</b> 数据点</span>
+            <span><b>{{ c.source_count }}</b> Source</span>
+            <span><b>{{ c.company_count }}</b> 公司</span>
+          </div>
+
+          {% if c.conclusions %}
+          <div class="ind-card-concl-label">Q5 核心结论</div>
+          <ol class="ind-card-concl">
+            {% for cc in c.conclusions %}
+            <li><a href="{{ url_for('industry_detail', industry_id=c.id) }}#tab-Q5">{{ cc }}</a></li>
+            {% endfor %}
+          </ol>
+          {% endif %}
+
+          <footer class="ind-card-entries">
+            <a href="{{ url_for('industry_detail', industry_id=c.id) }}">主文档</a>
+            <a href="{{ url_for('industry_chain', industry_id=c.id) }}">产业链</a>
+            <a href="{{ url_for('industry_detail', industry_id=c.id) }}#tab-Q5">Q5 综述</a>
+          </footer>
+        </article>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if sector.supporting %}
+      <div class="research-sector-supporting" aria-label="{{ sector.name }}基础跟踪行业">
+        <span>基础跟踪</span>
+        {% for ind in sector.supporting %}
+        <a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+    {% endfor %}
+  {% else %}
+  <p class="empty-state">暂无行业研究板块。</p>
+  {% endif %}
+</section>
+
+<!-- 快捷工具(全局入口;产业链/主文档已并入上方行业卡片,此处只放跨行业工具)-->
+<section class="deep-entry">
+  <h3 class="panel-title">🧰 快捷工具</h3>
+  <div class="deep-entry-grid">
+    <a class="deep-entry-card deep-entry-feature" href="{{ url_for('ai_macro_chain') }}">
+      <div class="deep-entry-icon" aria-hidden="true">🔗</div>
+      <div class="deep-entry-title">产业链全景</div>
+      <div class="deep-entry-desc">分别查看 AI 算力与半导体、有色金属与新能源材料的细分行业位置和传导关系</div>
+    </a>
+    <a class="deep-entry-card" href="{{ url_for('data_points_index') }}">
+      <div class="deep-entry-icon" aria-hidden="true">📊</div>
+      <div class="deep-entry-title">数据点全览</div>
+      <div class="deep-entry-desc">CR5 / TAM / 国产化率 / 价格 / 库存 — 全库浏览,可按 tier / 倾向 / 性质筛选</div>
+    </a>
+    <a class="deep-entry-card" href="{{ url_for('sources_index') }}">
+      <div class="deep-entry-icon" aria-hidden="true">📚</div>
+      <div class="deep-entry-title">Source 库</div>
+      <div class="deep-entry-desc">按 tier 与价值分层(深度框架 / 最新数据 / 公司专项 / 主题专项 / 信息流)分组</div>
+    </a>
+    <a class="deep-entry-card" href="{{ url_for('incremental_index') }}">
+      <div class="deep-entry-icon" aria-hidden="true">🆕</div>
+      <div class="deep-entry-title">增量更新</div>
+      <div class="deep-entry-desc">
+        新增 source 扫描、快照历史、待 review 章节
+        {% if totals.pending_review %}<span class="badge-pending">{{ totals.pending_review }} 待 review</span>{% endif %}
+      </div>
+    </a>
+  </div>
+</section>
+
+<!-- 数据总览 -->
+<section class="panel">
+  <h3 class="panel-title">📈 数据总览</h3>
+  <div class="totals-grid">
+    <div class="total-card"><div class="total-num">{{ totals.industries }}</div><div class="total-label">行业(深度{{ totals.deep_industries }})</div></div>
+    <div class="total-card"><div class="total-num">{{ totals.sources }}</div><div class="total-label">Source</div></div>
+    <div class="total-card"><div class="total-num">{{ totals.data_points }}</div><div class="total-label">数据点</div></div>
+    <div class="total-card"><div class="total-num">{{ totals.relations }}</div><div class="total-label">产业链关系</div></div>
+    <div class="total-card"><div class="total-num">{{ totals.themes }}</div><div class="total-label">主题</div></div>
+    <div class="total-card"><div class="total-num">{{ totals.companies }}</div><div class="total-label">公司 tag</div></div>
+    <div class="total-card"><div class="total-num">{{ totals.active_theses }}</div><div class="total-label">跟踪中 thesis</div></div>
+  </div>
+</section>
+
+<!-- 其他覆盖行业(仅记录,多为产业链子环节节点)-->
+{% set other_inds = industries | selectattr('status', 'ne', '深度跟踪') | list %}
+{% if other_inds %}
+<section class="panel">
+  <h3 class="panel-title">🗂️ 其他覆盖行业 <span class="panel-sub">(仅记录 · 产业链子环节)</span></h3>
+  <div class="cp-table-scroll" tabindex="0" aria-label="其他覆盖行业横向滚动">
+  <table class="data-table">
+    <thead>
+      <tr><th>名称</th><th>tier</th><th>状态</th><th>核心动态</th><th>Source</th><th>数据点</th><th>公司</th><th>更新</th></tr>
+    </thead>
+    <tbody>
+      {% for ind in other_inds %}
+      <tr>
+        <td><a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a></td>
+        <td><span class="tier-badge tier-{{ ind.tier }}">{{ ind.tier }}</span></td>
+        <td>{{ ind.status }}</td>
+        <td class="cell-narrative">{{ ind.core_dynamic or '—' }}</td>
+        <td>{{ ind.source_count }}</td>
+        <td>{{ ind.data_point_count }}</td>
+        <td>{{ ind.company_count }}</td>
+        <td>{{ ind.last_updated or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<!-- 跟踪中 thesis -->
+{% if active_theses %}
+<section class="panel">
+  <h3 class="panel-title">🧪 跟踪中 thesis</h3>
+  <div class="cp-table-scroll" tabindex="0" aria-label="跟踪中研究假说横向滚动">
+  <table class="data-table">
+    <thead><tr><th>标题</th><th>行业</th><th>方向</th><th>置信度</th><th>证伪条件</th><th>状态</th></tr></thead>
+    <tbody>
+      {% for th in active_theses %}
+      <tr>
+        <td>{{ th.title }}</td>
+        <td>{% if th.industry_name %}<a href="{{ url_for('industry_detail', industry_id=th.industry_id) }}">{{ th.industry_name }}</a>{% else %}—{% endif %}</td>
+        <td><span class="dir-{{ th.direction }}">{{ t(th.direction) }}</span></td>
+        <td>{{ t(th.confidence) }}</td>
+        <td class="cell-narrative">{{ th.falsification_condition }}</td>
+        <td>{{ t(th.status) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+{% endblock %}

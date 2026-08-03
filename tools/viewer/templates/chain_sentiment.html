@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}产业链情绪图(行业级) · 行研工具系统{% endblock %}
+{% block content %}
+<style>
+.ch-wrap{max-width:1280px}
+.ch-top{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.ch-top input{min-width:260px;padding:8px 14px;border-radius:20px;border:1px solid #d6deea;background:#fff;color:#1f2a44;font-size:13px}
+.ch-top input:focus{outline:none;border-color:#6aa6ff;box-shadow:0 0 0 3px rgba(106,166,255,.14)}
+.ch-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#5b6a85;align-items:center}
+.ch-legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:4px}
+#cy{height:660px;background:radial-gradient(circle at 50% 40%,#fbfdff,#eef3fa 78%);border:1px solid #e3e8f0;border-radius:14px;box-shadow:0 1px 3px rgba(16,32,64,.05)}
+.ch-note{font-size:12.5px;color:#6b7891;line-height:1.7;background:#f5f8fc;border:1px dashed #cdd8e8;border-radius:9px;padding:11px 15px;margin:12px 0}
+.ch-hint{font-size:11.5px;color:#8090a8;margin-left:auto}
+</style>
+<div class="ch-wrap">
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <a href="{{ url_for('dynamic_sentiment') }}">情绪·事件</a> / <strong>产业链情绪图(行业级)</strong></div>
+<header class="entity-header"><div>
+  <h1>🔗 产业链情绪图(行业级)</h1>
+  <p class="entity-meta">{{ n_nodes }} 个行业 / {{ n_edges }} 条 grounded 上下游边(industry_relation)· {{ n_cov }} 个行业有情绪覆盖 · 节点色=成分股聚合情绪方向 · <code>research.industry_relation(只读)</code> + <code>sentiment.db</code></p>
+</div></header>
+
+<div class="ch-top">
+  <input id="chq" type="text" placeholder=" 搜行业名定位(如 光模块 / 存储 / 算力芯片)…" autocomplete="off">
+  <span class="ch-legend"><span><i style="background:#e0584a"></i>偏看涨</span><span><i style="background:#2f8d59"></i>偏看跌</span><span><i style="background:#9fb0c4"></i>无情绪覆盖</span><span>→ 上游→下游有向边</span></span>
+  <span class="ch-hint">hover 高亮上下游 · 点节点进行业详情 · 滚轮缩放</span>
+</div>
+
+<div id="cy"></div>
+
+<div class="ch-note">
+   <b>诚实标注</b>:边为 grounded <code>industry_relation</code>(供应/配套/替代/互补/衍生),无营收权重 → 不用线粗假装强度(虚线=无权重)。节点情绪=该行业<b>已覆盖成分股</b>最新情绪方向分均值(自算非平台原生,看涨/看跌);未覆盖行业灰色不脑补。公司级图见 <a href="{{ url_for('supplychain') }}">供应链图</a>(美股为主)。
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cytoscape@3.30.2/dist/cytoscape.min.js"></script>
+<script>
+(function(){
+  var NODES = {{ cnodes|safe }}, EDGES = {{ cedges|safe }};
+  var cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: NODES.concat(EDGES),
+    minZoom: 0.3, maxZoom: 2.5, wheelSensitivity: 0.3,
+    style: [
+      { selector:'node', style:{
+        'label':'data(label)','color':'#13203a','font-size':'13px','font-weight':600,
+        'text-valign':'center','text-halign':'center','width':'label','height':'label',
+        'padding':'12px','shape':'round-rectangle','background-color':'#ffffff',
+        'border-width':2.5,'border-color':'data(col)','text-max-width':'140px',
+        'box-shadow-blur':6,'box-shadow-color':'rgba(16,32,64,.12)' } },
+      { selector:'edge', style:{
+        'width':2,'curve-style':'bezier','target-arrow-shape':'triangle','arrow-scale':1.1,
+        'line-color':'#aebacb','target-arrow-color':'#aebacb','label':'data(rt)',
+        'font-size':'9px','color':'#9aa6bb','text-rotation':'autorotate','text-background-color':'#fbfdff',
+        'text-background-opacity':0.9,'text-background-padding':'1px' } },
+      { selector:'edge[!weighted]', style:{ 'line-style':'dashed' } },
+      { selector:'.hl', style:{ 'border-width':4,'z-index':50 } },
+      { selector:'edge.hl', style:{ 'line-color':'#2563eb','target-arrow-color':'#2563eb','width':3,'opacity':1 } },
+      { selector:'.dim', style:{ 'opacity':0.18 } }
+    ],
+    layout: { name:'cose', animate:false, padding:40, nodeRepulsion:9000, idealEdgeLength:120, edgeElasticity:120, nestingFactor:1.1, gravity:0.3, randomize:false }
+  });
+  cy.fit(undefined, 45);
+
+  function focus(node){
+    cy.elements().removeClass('hl dim');
+    var nb = node.closedNeighborhood();
+    cy.elements().not(nb).addClass('dim');
+    nb.addClass('hl');
+  }
+  cy.on('mouseover','node', function(e){ focus(e.target); });
+  cy.on('mouseout','node', function(){ cy.elements().removeClass('hl dim'); });
+  cy.on('tap','node', function(e){ window.location.href = '/industry/' + e.target.id(); });
+
+  var q=document.getElementById('chq');
+  q.addEventListener('input', function(){
+    var v=q.value.trim();
+    if(!v){ cy.elements().removeClass('dim hl'); return; }
+    var m=cy.collection();
+    cy.nodes().forEach(function(n){ var hit=n.data('label').indexOf(v)>=0; n.toggleClass('dim', !hit); if(hit) m=m.union(n); });
+    if(m.length>0 && m.length<=5) cy.animate({ fit:{ eles:m, padding:120 } }, { duration:300 });
+  });
+})();
+</script>
+{% endblock %}

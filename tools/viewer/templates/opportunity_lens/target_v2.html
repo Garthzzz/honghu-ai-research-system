@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}{{ target.target_name }}{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head_v2.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page opp-target-page">
+  <div class="opp-titlebar">
+    <div>
+      <p class="opp-eyebrow">投资标的 · {{ target.target_type|opp_label }}</p>
+      <h1>{{ target.target_name }}</h1>
+      <p class="opp-code" translate="no">
+        {% if target.ticker %}{{ target.ticker }}{% endif %}
+        {% if target.market %} · {{ target.market }}{% endif %}
+      </p>
+    </div>
+    <div class="opp-nav">
+      <a href="{{ target.entity_link }}">返回研究实体</a>
+      <a href="{{ target.run_link }}">返回扫描报告</a>
+      {% if target.target_link %}
+      <a href="{{ target.target_link }}"{% if target.target_link.startswith('http') %} target="_blank" rel="noopener noreferrer"{% endif %}>外部/公司页</a>
+      {% endif %}
+    </div>
+  </div>
+
+  <section class="opp-panel">
+    <h2>标的介绍</h2>
+    <div class="opp-markdown">{{ target.target_profile_markdown|opp_markdown }}</div>
+    <div class="opp-kpis opp-target-kpis">
+      <div class="opp-kpi"><span>优先级</span><b>{% if target.target_priority == "P1" %}高优先级{% elif target.target_priority == "P2" %}中优先级{% elif target.target_priority == "P3" %}观察级{% elif target.target_priority %}{{ target.target_priority|opp_label }}{% else %}待分级{% endif %}</b></div>
+      <div class="opp-kpi"><span>质量判断</span><b>{{ target.target_quality_label or "待补" }}</b></div>
+      <div class="opp-kpi"><span>支持状态</span><b>{{ target.support_status|opp_label }}</b></div>
+      <div class="opp-kpi"><span>链接状态</span><b>{{ target.link_status|opp_label }}</b></div>
+    </div>
+  </section>
+
+  <section class="opp-panel">
+    <h2>与研究实体和主问题的关系</h2>
+    <div class="opp-two-col">
+      <article>
+        <h3>与研究实体的关系</h3>
+        <div class="opp-markdown">{{ target.entity_relation_markdown|opp_markdown }}</div>
+      </article>
+      <article>
+        <h3>与本轮研究主题的关系</h3>
+        <div class="opp-markdown">{{ target.parent_research_relation_markdown|opp_markdown }}</div>
+      </article>
+    </div>
+  </section>
+
+  <section class="opp-panel">
+    <h2>深入研究</h2>
+    <div class="opp-markdown">{{ target.target_deep_research_markdown|opp_markdown }}</div>
+  </section>
+
+  <section class="opp-panel">
+    <h2>条件化投资建议</h2>
+    <div class="opp-markdown">{{ target.conditional_investment_recommendation|opp_markdown }}</div>
+    <div class="opp-target-scenarios">
+      <article>
+        <h3>如果判断得到证实</h3>
+        <p>{{ target.confirmed_scenario_action }}</p>
+      </article>
+      <article>
+        <h3>如果判断被证伪</h3>
+        <p>{{ target.falsified_scenario_action }}</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="opp-panel">
+    <h2>关键数据</h2>
+    {% if target.target_data_points %}
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-target-data-table">
+        <thead>
+          <tr>
+            <th>指标</th>
+            <th>期间</th>
+            <th>数值/判断</th>
+            <th>来源</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for dp in target.target_data_points %}
+          <tr>
+            <td>{{ dp.metric_name }}</td>
+            <td>{{ dp.period or dp.as_of_date or "未标明" }}</td>
+            <td>{{ dp.value_display }}</td>
+            <td>
+              <b>{{ dp.source_title or "未标明来源" }}</b><br>
+              <span class="opp-muted">{{ dp.source_publisher or "未标明发布方" }}</span>
+              {% if dp.source_title_zh %}<div class="opp-translation"><b>中文标题</b><span>{{ dp.source_title_zh }}</span></div>{% endif %}
+              {% if dp.freshness_warning %}<div class="opp-stale-warning">{{ dp.freshness_warning }}</div>{% endif %}
+              {% if dp.evidence_ref_uri %}
+              <br><button type="button" data-opp-evidence="{{ dp.evidence_ref_uri }}" title="{{ dp.evidence_ref_uri|opp_evidence_title }}">查看原文</button>
+              {% else %}
+              <br><span class="opp-muted">原文待补充</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">目前还没有可直接展示的标的数据；发布前需要补充关键财务、业务和市场证据。</div>
+    {% endif %}
+    {% if target.financial_data_status %}
+    <p class="opp-entity-note">{{ target.financial_data_status }}</p>
+    {% endif %}
+    {% if target.ab_company_financials %}
+      {% set c = target.ab_company_financials.company %}
+      {% set p = target.ab_company_financials.profile %}
+      {% if p %}
+      <div class="opp-markdown opp-profile-note">
+        <p><b>业务摘要：</b>{{ p.summary or c.brief_intro or "公开资料尚未形成可用摘要。" }}</p>
+        <p><b>产品和客户：</b>{{ p.main_products or "公开资料尚未形成可用拆分。" }}{% if p.main_customers %}；{{ p.main_customers }}{% endif %}</p>
+      </div>
+      {% endif %}
+    {% endif %}
+  </section>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

@@ -1,0 +1,464 @@
+{% extends "base.html" %}
+{% block title %}锂电池业务与估值计算器{% endblock %}
+{% block content %}
+<style>
+.bc{max-width:1500px;margin:0 auto;color:#1d2c3d}.bc *{box-sizing:border-box}.bc-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:8px 0 18px}.bc-kicker{font-size:11px;font-weight:900;letter-spacing:.08em;color:#9d312a}.bc h1{margin:5px 0 7px;font-size:28px}.bc-sub{max-width:920px;color:#607187;line-height:1.7;font-size:13px}.bc-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}.bc-btn,.bc-select,.bc-input{border:1px solid #ccd8e4;border-radius:8px;background:#fff;color:#26384b;padding:7px 10px;font:inherit}.bc-btn{cursor:pointer;font-weight:750}.bc-btn:hover{border-color:#9d312a;color:#8b2823}.bc-btn.primary{background:#9d312a;border-color:#9d312a;color:#fff}.bc-btn.danger{color:#a12822}.bc-select{min-width:230px}.bc-tabs{display:flex;gap:7px;margin:0 0 14px}.bc-tab.on{background:#263e58;color:#fff;border-color:#263e58}.bc-panel{border:1px solid #d9e3ec;border-radius:15px;background:#fff;box-shadow:0 10px 28px rgba(30,54,82,.07);padding:18px;margin-bottom:16px}.bc-panel h2{display:flex;align-items:center;gap:10px;margin:0 0 13px;font-size:18px}.bc-panel h2 span{font-size:11px;color:#6d7e91;font-weight:600}.bc-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.bc-kpi{border:1px solid #e0e7ee;border-radius:11px;padding:12px;background:linear-gradient(145deg,#fff,#f6f9fb)}.bc-kpi b{display:block;font-size:18px;white-space:nowrap}.bc-kpi span{display:block;margin-top:5px;color:#68798c;font-size:11px}.bc-scroll{overflow:auto;border:1px solid #dae3eb;border-radius:10px;scrollbar-gutter:stable}.bc-scroll::before,.bc-scroll::after{content:"";display:block;height:1px}.bc-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1100px;font-size:12px}.bc-table th{position:sticky;top:0;z-index:2;background:#edf3f7;color:#344b62;text-align:left;padding:9px 8px;border-bottom:1px solid #cbd7e1;white-space:nowrap}.bc-table td{padding:7px 8px;border-bottom:1px solid #e7edf2;vertical-align:middle}.bc-table tbody tr:nth-child(even){background:#fafcfd}.bc-table input,.bc-table select{width:100%;min-width:72px;border:1px solid #ced9e3;border-radius:6px;padding:5px 6px;background:#fff;font:inherit}.bc-table .wide{min-width:150px}.bc-table .note{min-width:250px}.bc-table .num{text-align:right;font-variant-numeric:tabular-nums}.bc-chip{display:inline-flex;align-items:center;border-radius:18px;background:#eef3f7;color:#40576d;padding:4px 8px;font-size:11px;white-space:nowrap}.bc-chip.warn{background:#fff2dc;color:#8b5a12}.bc-formulas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.bc-formula{border-left:3px solid #9d312a;background:#f7f9fb;border-radius:8px;padding:10px 12px;color:#475b70;font-size:12px;line-height:1.6}.bc-formula b{color:#26384b}.bc-toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:11px 0}.bc-toolbar .bc-input{min-width:170px}.bc-results{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(320px,.65fr);gap:14px}.bc-chart{height:360px;border:1px solid #e1e8ee;border-radius:11px}.bc-scenario-list{display:grid;gap:7px;margin-top:10px}.bc-scenario-row{display:flex;gap:8px;align-items:center;padding:8px;border:1px solid #dde5ec;border-radius:8px}.bc-scenario-row b{flex:1}.bc-compare{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:9px}.bc-compare-card{border:1px solid #dae3eb;border-radius:11px;padding:12px;background:#fafcfd}.bc-compare-card h3{margin:0 0 7px;font-size:14px}.bc-compare-card div{display:flex;justify-content:space-between;gap:12px;padding:3px 0;color:#53677b;font-size:12px}.bc-note{margin-top:9px;color:#697a8c;font-size:11px;line-height:1.65}.bc-hidden{display:none!important}.bc-source{font-size:11px;color:#6b7c8e}.bc-pill{padding:4px 8px;border-radius:16px;background:#f3e1df;color:#8c302a;font-size:11px;font-weight:800}
+.bc-policy-summary{border:1px solid #ead8c8;background:linear-gradient(135deg,#fffaf5,#f8f4ee);border-radius:11px;padding:12px 14px;margin-bottom:12px;line-height:1.7;font-size:12px}.bc-policy-summary b{color:#8a352c}.bc-policy-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.bc-policy-box{border:1px solid #dce5ec;border-radius:11px;padding:12px;background:#fbfcfd}.bc-policy-box h3{font-size:14px;margin:0 0 9px}.bc-policy-box.full{grid-column:1/-1}.bc-check{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid #ccd8e4;border-radius:8px;background:#fff;font-size:12px;font-weight:700}
+.bc-policy-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);min-width:0}.bc-policy-box,.bc-results>*{min-width:0}
+@media(max-width:1100px){.bc-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.bc-results{grid-template-columns:1fr}.bc-formulas{grid-template-columns:1fr}.bc-policy-grid{grid-template-columns:1fr}.bc-policy-box.full{grid-column:auto}.bc-head{display:block}.bc-actions{justify-content:flex-start;margin-top:12px}}
+@media(max-width:650px){.bc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.bc h1{font-size:23px}.bc-panel{padding:13px}}
+.bc-kpi{min-width:0}
+.bc-kpi b{font-size:clamp(14px,1.2vw,18px);line-height:1.25;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.bc-kpi span{line-height:1.35;overflow-wrap:anywhere}
+.bc-note,.bc-source{overflow-wrap:anywhere;word-break:break-word}
+#segmentTable th:nth-child(3),#segmentTable td:nth-child(3){min-width:205px;width:205px}
+#segmentTable td:nth-child(3) select{min-width:190px;white-space:normal;line-height:1.25}
+.bc-table input[type="number"]{text-align:right;font-variant-numeric:tabular-nums}
+.bc-financial-results{grid-template-columns:1fr}
+.bc-financial-results .bc-chart{width:100%;max-width:960px;height:360px;margin:0 auto}
+#segmentTable th:nth-child(n+5):nth-child(-n+13),
+#financeTable th:nth-child(n+2),
+#chinaPolicyTable th:nth-child(n+2),
+#usPolicyTable th:nth-child(n+2),
+#euPolicyTable th:nth-child(n+2),
+#policyResultTable th:nth-child(n+2),
+#resultTable th:nth-child(n+2){text-align:right}
+</style>
+
+<main class="bc">
+  <header class="bc-head">
+    <div>
+      <div class="bc-kicker">BATTERY OPERATING MODEL</div>
+      <h1>锂电池业务、现金流与估值计算器</h1>
+      <div class="bc-sub">同一组分业务输入联动收入、毛利、归母净利润、经营现金流、资本开支、自由现金流、ROE和估值。研究员修改只保存在当前浏览器，不覆盖AI冻结模型或市场数据。</div>
+    </div>
+    <div class="bc-actions">
+      <a class="bc-btn" href="{{ url_for('tools_index') }}">返回工具选择</a>
+      <a class="bc-btn" href="{{ url_for('battery_industry_comparison') }}">行业比较与情景分析</a>
+      <select id="companySelect" class="bc-select" aria-label="选择公司"></select>
+    </div>
+  </header>
+
+  <div class="bc-tabs">
+    <button type="button" class="bc-btn bc-tab on" data-mode="detailed">详细业务模式</button>
+    <button type="button" class="bc-btn bc-tab" data-mode="simple">简化财务模式</button>
+  </div>
+
+  <section class="bc-panel">
+    <h2>公司模型概览 <span id="modelIdentity"></span></h2>
+    <div class="bc-grid" id="kpiGrid"></div>
+    <div class="bc-note">模型截止 {{ model_as_of }} · 冻结模型 {{ model_sha256 }}。当前市场快照只用于对账，不反向修改AI经营输入。</div>
+  </section>
+
+  <section class="bc-panel detailed-only">
+    <h2>分业务量价与毛利 <span>新增或删除分部后，下游汇总立即重算</span></h2>
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn primary" id="addSegment">新增业务</button>
+      <span class="bc-chip">动力 / 储能 / 消费 / 整车 / 其他</span>
+      <span class="bc-chip warn">规划产能不会自动等于出货量</span>
+    </div>
+    <div class="bc-scroll">
+      <table class="bc-table" id="segmentTable">
+        <thead><tr>
+          <th>启用</th><th>业务名称</th><th>计算类型</th><th>研究标签</th>
+          <th>2026量/收入</th><th>2026 ASP</th><th>2026毛利率</th>
+          <th>2027量/收入</th><th>2027 ASP</th><th>2027毛利率</th>
+          <th>2028量/收入</th><th>2028 ASP</th><th>2028毛利率</th>
+          <th>研究备注</th><th>操作</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="bc-panel">
+    <h2>公司级利润、现金流与资本假设 <span>比例输入均使用百分数</span></h2>
+    <div class="bc-scroll">
+      <table class="bc-table" id="financeTable">
+        <thead><tr><th>年度</th><th>经营费用率</th><th>税前其他收益</th><th>税率</th><th>少数股东损益</th><th>现金转换率</th><th>资本开支</th><th>分红率</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="bc-toolbar">
+      <label>期初归母净资产（亿元） <input id="openingEquity" class="bc-input" type="number" step="0.01"></label>
+      <label>期初总资产（亿元） <input id="openingAssets" class="bc-input" type="number" step="0.01"></label>
+    </div>
+  </section>
+
+  <section class="bc-panel">
+    <h2>政策、关税与本地化情景 <span>与冻结经营基线分开，只有显式输入才影响结果</span></h2>
+    <div class="bc-policy-summary" id="policyProfile"></div>
+    <div class="bc-toolbar">
+      <button type="button" class="bc-btn" id="loadOverseasUpper">用披露海外收入作出口上限诊断</button>
+      <button type="button" class="bc-btn" id="resetPolicyShares">清空公司特定暴露</button>
+      <label class="bc-check"><input id="includePolicyValuation" type="checkbox">估值使用政策调整后利润和净资产</label>
+      <span class="bc-chip warn">海外收入≠美国直供≠退税清单收入</span>
+    </div>
+    <div class="bc-policy-grid">
+      <div class="bc-policy-box full">
+        <h3>中国消费税与出口退税</h3>
+        <div class="bc-scroll">
+          <table class="bc-table" id="chinaPolicyTable">
+            <thead><tr><th>年度</th><th>国内应税收入/总收入</th><th>消费税全年等效率</th><th>税负转嫁率</th><th>上游已税投入抵扣率</th><th>退税清单出口收入/总收入</th><th>退税减少全年等效率</th><th>出口端转嫁率</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="bc-policy-box">
+        <h3>美国关税与45X条件上行</h3>
+        <div class="bc-scroll">
+          <table class="bc-table" id="usPolicyTable">
+            <thead><tr><th>年度</th><th>美国直接出口/总收入</th><th>关税率</th><th>供应商承担率</th><th>合资格本地产量GWh</th><th>45X资格实现率</th><th>利用率</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="bc-note">45X按电芯35美元/kWh＋含电芯模组10美元/kWh计算。PFE、材料援助、有效控制或技术许可不合规时，资格实现率必须为0。</div>
+      </div>
+      <div class="bc-policy-box">
+        <h3>欧洲合规与无息融资</h3>
+        <div class="bc-scroll">
+          <table class="bc-table" id="euPolicyTable">
+            <thead><tr><th>年度</th><th>护照/追溯等增量资本开支</th><th>实际提款无息贷款</th><th>替代融资利率</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="bc-note">单位均为亿元人民币。无息贷款只计算利息节约；未获批、未提款时必须为0，不能当作营业补贴。</div>
+      </div>
+    </div>
+    <div class="bc-scroll" style="margin-top:12px">
+      <table class="bc-table" id="policyResultTable">
+        <thead><tr><th>年度</th><th>消费税现金影响</th><th>出口退税减少</th><th>美国关税承担</th><th>45X条件抵免</th><th>欧洲融资节约</th><th>欧洲增量Capex</th><th>基线归母净利润</th><th>政策调整后归母净利润</th><th>基线FCF</th><th>政策调整后FCF</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="bc-note">消费税和退税影响使用全年等效率。2026年消费税为2%×4/12≈0.67%，退税减少为3个百分点×9/12＝2.25%；表内公司收入比例默认0，避免把集团地域收入误当成应税或退税收入。结果是简化的经济承担情景，不替代纳税申报。</div>
+  </section>
+
+  <section class="bc-panel">
+    <h2>经营、盈利、现金流与股东回报 <span>全部结果来自上方同一计算链</span></h2>
+    <div class="bc-results bc-financial-results">
+      <div class="bc-scroll">
+        <table class="bc-table" id="resultTable">
+          <thead><tr><th>年度</th><th>收入</th><th>毛利</th><th>毛利率</th><th>归母净利润</th><th>经营现金流</th><th>资本开支</th><th>自由现金流</th><th>分红</th><th>期末净资产</th><th>ROE</th><th>ROA</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div id="financialChart" class="bc-chart" role="img" aria-label="收入、净利润与自由现金流趋势"></div>
+    </div>
+  </section>
+
+  <section class="bc-panel">
+    <h2>多方法估值与当前市场对照 <span>参数可调，计算结果自动更新</span></h2>
+    <div class="bc-toolbar">
+      <label>估值年度 <select id="valuationYear" class="bc-select"><option>2026</option><option selected>2027</option><option>2028</option></select></label>
+      <label>目标PE下限 <input id="peLow" class="bc-input" type="number" min="0" step="0.1"></label>
+      <label>目标PE上限 <input id="peHigh" class="bc-input" type="number" min="0" step="0.1"></label>
+      <label>目标PB下限 <input id="pbLow" class="bc-input" type="number" min="0" step="0.01"></label>
+      <label>目标PB上限 <input id="pbHigh" class="bc-input" type="number" min="0" step="0.01"></label>
+    </div>
+    <div class="bc-grid" id="valuationKpis"></div>
+    <div class="bc-formulas" style="margin-top:12px">
+      <div class="bc-formula"><b>正常化市盈率</b><br>目标市值＝估值年度归母净利润×目标PE；亏损或利润基数过低时不作为核心方法。</div>
+      <div class="bc-formula"><b>PB—ROE</b><br>目标市值＝估值年度期末净资产×目标PB；目标PB需要由可持续ROE、股权成本和长期增长共同约束。</div>
+      <div class="bc-formula"><b>市场隐含预期</b><br>隐含PE＝当前市值÷估值年度独立归母净利润。它解释市场在押注什么，不是合理估值结论。</div>
+    </div>
+  </section>
+
+  <section class="bc-panel">
+    <h2>浏览器情景管理 <span>保存、复制、重命名、删除、恢复和并排比较</span></h2>
+    <div class="bc-toolbar">
+      <input id="scenarioName" class="bc-input" maxlength="40" placeholder="研究员情景名称">
+      <button type="button" class="bc-btn primary" id="saveScenario">保存当前情景</button>
+      <button type="button" class="bc-btn" id="cloneScenario">复制选中情景</button>
+      <button type="button" class="bc-btn" id="renameScenario">重命名</button>
+      <button type="button" class="bc-btn danger" id="deleteScenario">删除</button>
+      <button type="button" class="bc-btn" id="resetScenario">恢复AI基准</button>
+      <select id="savedScenarioSelect" class="bc-select"></select>
+    </div>
+    <div class="bc-scenario-list" id="scenarioMessage"></div>
+    <div class="bc-compare" id="scenarioCompare"></div>
+  </section>
+
+  <section class="bc-panel">
+    <h2>核心计算关系与边界</h2>
+    <div class="bc-formulas" id="formulaGrid"></div>
+    <div class="bc-note">Excel只承担历史季度拆分和有效公式的参考。网页模型不依赖固定行号，新增业务会进入汇总；外部链接、#NAME?和跨表损坏公式不会继承。中创新航、瑞浦兰钧使用公司披露和近期研究重新建立模型。孚能科技的2025年8月旧研报不进入当前财务预测对账。</div>
+  </section>
+</main>
+
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script>
+const MODEL={{ battery_model_json|safe }};
+const SELECTED={{ selected_company_key|tojson }};
+const YEARS=[2026,2027,2028];
+const deep=v=>JSON.parse(JSON.stringify(v));
+const num=(v,d=0)=>{const n=Number(v);return Number.isFinite(n)?n:d};
+const clamp01=v=>Math.max(0,Math.min(1,num(v)));
+const fmt=v=>num(v).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=v=>(num(v)*100).toFixed(2)+'%';
+let base=null,state=null,results=[],mode='detailed';
+
+function companyById(id){return MODEL.companies.find(c=>String(c.companyId)===String(id))||MODEL.companies[0];}
+function defaultState(company){
+  const row=deep(company);
+  row.inputs.segments=row.inputs.segments.map((s,i)=>({
+    ...s,id:s.id||('base-'+i),enabled:s.enabled!==false,tag:s.tag||row.modelType
+  }));
+  const pe=row.valuationMethods.find(v=>v.method==='正常化市盈率')||row.valuationMethods.find(v=>v.method==='市销率');
+  const pb=row.valuationMethods.find(v=>v.method==='PB—ROE');
+  row.editValuation={peLow:num(pe?.lowParameter),peHigh:num(pe?.highParameter),pbLow:num(pb?.lowParameter),pbHigh:num(pb?.highParameter),year:2027};
+  row.includePolicyInValuation=false;
+  return row;
+}
+function segmentRevenue(s,y){
+  const k=String(y);
+  if(s.kind==='battery_gwh')return num(s.volume?.[k])*num(s.asp?.[k])*10;
+  if(s.kind==='vehicle_million_units')return num(s.volume?.[k])*num(s.asp?.[k])/100;
+  return num(s.revenue?.[k]);
+}
+function calculate(){
+  let equity=num(state.inputs.openingEquity),policyEquity=num(state.inputs.openingEquity),assets=num(state.inputs.openingAssets);
+  results=YEARS.map((year,index)=>{
+    let revenue=0,grossProfit=0;
+    state.inputs.segments.filter(s=>s.enabled!==false).forEach(s=>{
+      const sr=segmentRevenue(s,year),gm=num(s.grossMargin?.[String(year)]);
+      revenue+=sr;grossProfit+=sr*gm;
+    });
+    const opex=revenue*num(state.inputs.opexRatio[index]);
+    const pretax=grossProfit-opex+num(state.inputs.otherPretax[index]);
+    const ni=pretax*(1-num(state.inputs.taxRate[index]))-num(state.inputs.minority[index]);
+    const ocf=ni*num(state.inputs.cashConversion[index]);
+    const capex=num(state.inputs.capex[index]),fcf=ocf-capex;
+    const dividend=Math.max(0,ni*num(state.inputs.payoutRatio[index]));
+    const priorEquity=equity,priorAssets=assets;
+    equity=priorEquity+ni-dividend;
+    assets=Math.max(priorAssets+capex+Math.max(revenue*.03,0)-Math.max(ocf*.25,0),equity*1.4);
+    const roe=ni/((priorEquity+equity)/2),roa=ni/((priorAssets+assets)/2);
+    const p=state.policyInputs||{};
+    const pv=(key,otherwise=0)=>num((p[key]||[])[index],otherwise);
+    const consumptionTaxHit=revenue*pv('domesticEligibleRevenueShare')*pv('consumptionTaxRate')*(1-pv('taxPassThrough'))*(1-pv('upstreamTaxDeductible'));
+    const exportRebateHit=revenue*pv('exportEligibleRevenueShare')*pv('exportRebateLossRate')*(1-pv('exportPassThrough'));
+    const usTariffHit=revenue*pv('usDirectExportRevenueShare')*pv('usTariffRate')*pv('usSupplierAbsorption');
+    const euComplianceCapex=pv('euComplianceCapex');
+    const euInterestSaving=pv('euInterestFreeLoanRmb100m')*pv('euAlternativeBorrowingRate');
+    const us45xCredit=pv('usLocalEligibleGwh')*(pv('us45xCellUsdPerKwh')+pv('us45xModuleUsdPerKwh'))*num(p.usdCny,7.15)/100*pv('us45xEligibility')*pv('us45xUtilization');
+    const recurringPretaxImpact=consumptionTaxHit+exportRebateHit+usTariffHit-euInterestSaving;
+    const adjustedNetIncome=ni-recurringPretaxImpact*(1-num(state.inputs.taxRate[index]))+us45xCredit;
+    const adjustedFcf=fcf-consumptionTaxHit-exportRebateHit-usTariffHit-euComplianceCapex+euInterestSaving+us45xCredit;
+    const priorPolicyEquity=policyEquity;
+    const adjustedDividend=Math.max(0,adjustedNetIncome*num(state.inputs.payoutRatio[index]));
+    policyEquity=priorPolicyEquity+adjustedNetIncome-adjustedDividend;
+    const policyRoe=adjustedNetIncome/((priorPolicyEquity+policyEquity)/2);
+    return{year,revenue,grossProfit,grossMargin:revenue?grossProfit/revenue:0,netIncome:ni,ocf,capex,fcf,dividend,equity,assets,roe,roa,consumptionTaxHit,exportRebateHit,usTariffHit,us45xCredit,euInterestSaving,euComplianceCapex,adjustedNetIncome,adjustedFcf,policyEquity,policyRoe};
+  });
+  renderOutputs();
+}
+function renderCompany(){
+  document.getElementById('modelIdentity').textContent=state.company+' · '+state.ticker+' · '+state.modelType;
+  const kpis=[
+    ['当前市值',fmt(state.marketCapRmb100m)+'亿元'],['模型类型',state.modelType],
+    ['历史年数',state.history.length+'年'],['业务分部',state.inputs.segments.filter(s=>s.enabled!==false).length+'个'],
+    ['Excel参考',state.workbookReference.available?`${state.workbookReference.selectedSeriesCount||0}组序列已核验`:'新建模型'],['数据时点',state.marketDate]
+  ];
+  document.getElementById('kpiGrid').innerHTML=kpis.map(x=>`<div class="bc-kpi"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('');
+  renderSegments();renderFinance();
+  document.getElementById('openingEquity').value=num(state.inputs.openingEquity).toFixed(2);
+  document.getElementById('openingAssets').value=num(state.inputs.openingAssets).toFixed(2);
+  document.getElementById('includePolicyValuation').checked=state.includePolicyInValuation===true;
+  document.getElementById('valuationYear').value=String(state.editValuation.year);
+  for(const [id,key] of [['peLow','peLow'],['peHigh','peHigh'],['pbLow','pbLow'],['pbHigh','pbHigh']])document.getElementById(id).value=num(state.editValuation[key]).toFixed(2);
+  renderPolicy();calculate();renderSaved();
+}
+function renderSegments(){
+  const body=document.querySelector('#segmentTable tbody');
+  body.innerHTML=state.inputs.segments.map((s,index)=>{
+    const kind=s.kind||'battery_gwh';
+    const yearCells=YEARS.map(y=>{
+      const k=String(y),value=kind==='revenue_rmb_100m'?num(s.revenue?.[k]):num(s.volume?.[k]);
+      const asp=kind==='revenue_rmb_100m'?'':num(s.asp?.[k]);
+      return `<td><input data-seg="${index}" data-field="volume" data-year="${y}" type="number" step="0.01" value="${value}"></td>
+      <td><input data-seg="${index}" data-field="asp" data-year="${y}" type="number" step="0.001" value="${asp}" ${kind==='revenue_rmb_100m'?'disabled':''}></td>
+      <td><input data-seg="${index}" data-field="gm" data-year="${y}" type="number" step="0.1" value="${(num(s.grossMargin?.[k])*100).toFixed(2)}"></td>`;
+    }).join('');
+    return `<tr>
+      <td><input data-seg="${index}" data-field="enabled" type="checkbox" ${s.enabled!==false?'checked':''}></td>
+      <td><input class="wide" data-seg="${index}" data-field="name" value="${s.name||''}"></td>
+      <td><select data-seg="${index}" data-field="kind"><option value="battery_gwh" ${kind==='battery_gwh'?'selected':''}>电池：GWh×元/Wh</option><option value="vehicle_million_units" ${kind==='vehicle_million_units'?'selected':''}>整车：百万辆×元/辆</option><option value="revenue_rmb_100m" ${kind==='revenue_rmb_100m'?'selected':''}>直接收入（亿元）</option></select></td>
+      <td><input class="wide" data-seg="${index}" data-field="tag" value="${s.tag||''}"></td>${yearCells}
+      <td><input class="note" data-seg="${index}" data-field="note" value="${s.note||''}"></td>
+      <td><button type="button" class="bc-btn danger" data-remove="${index}">删除</button></td></tr>`;
+  }).join('');
+  body.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',onSegmentInput));
+  body.querySelectorAll('[data-remove]').forEach(el=>el.addEventListener('click',()=>{state.inputs.segments.splice(Number(el.dataset.remove),1);renderSegments();calculate();}));
+}
+function onSegmentInput(e){
+  const el=e.currentTarget,s=state.inputs.segments[Number(el.dataset.seg)],field=el.dataset.field,year=el.dataset.year;
+  if(field==='enabled')s.enabled=el.checked;
+  else if(field==='name'||field==='tag'||field==='note')s[field]=el.value;
+  else if(field==='kind'){s.kind=el.value;renderSegments();}
+  else if(field==='gm'){s.grossMargin=s.grossMargin||{};s.grossMargin[String(year)]=num(el.value)/100;}
+  else if(field==='volume'){
+    if(s.kind==='revenue_rmb_100m'){s.revenue=s.revenue||{};s.revenue[String(year)]=num(el.value);}
+    else{s.volume=s.volume||{};s.volume[String(year)]=num(el.value);}
+  }else if(field==='asp'){s.asp=s.asp||{};s.asp[String(year)]=num(el.value);}
+  calculate();
+}
+function renderFinance(){
+  document.querySelector('#financeTable tbody').innerHTML=YEARS.map((y,i)=>`<tr><td><b>${y}</b></td>
+  <td><input data-fin="opexRatio" data-index="${i}" type="number" step="0.1" value="${(num(state.inputs.opexRatio[i])*100).toFixed(2)}">%</td>
+  <td><input data-fin="otherPretax" data-index="${i}" type="number" step="0.01" value="${num(state.inputs.otherPretax[i]).toFixed(2)}">亿元</td>
+  <td><input data-fin="taxRate" data-index="${i}" type="number" step="0.1" value="${(num(state.inputs.taxRate[i])*100).toFixed(2)}">%</td>
+  <td><input data-fin="minority" data-index="${i}" type="number" step="0.01" value="${num(state.inputs.minority[i]).toFixed(2)}">亿元</td>
+  <td><input data-fin="cashConversion" data-index="${i}" type="number" step="0.01" value="${num(state.inputs.cashConversion[i]).toFixed(2)}">倍</td>
+  <td><input data-fin="capex" data-index="${i}" type="number" step="0.01" value="${num(state.inputs.capex[i]).toFixed(2)}">亿元</td>
+  <td><input data-fin="payoutRatio" data-index="${i}" type="number" step="0.1" value="${(num(state.inputs.payoutRatio[i])*100).toFixed(2)}">%</td></tr>`).join('');
+  document.querySelectorAll('[data-fin]').forEach(el=>el.addEventListener('input',()=>{
+    const key=el.dataset.fin,i=Number(el.dataset.index);
+    state.inputs[key][i]=num(el.value)*(['opexRatio','taxRate','payoutRatio'].includes(key)?.01:1);calculate();
+  }));
+}
+function policyInput(field,index,value,isPercent=true){
+  const attrs=isPercent?'min="0" max="100" step="0.1"':'step="0.01"';
+  const shown=isPercent?(num(value)*100).toFixed(2):num(value).toFixed(2);
+  return `<input data-policy="${field}" data-index="${index}" data-percent="${isPercent?'1':'0'}" type="number" ${attrs} value="${shown}">${isPercent?'%':''}`;
+}
+function renderPolicy(){
+  const profile=state.policyProfile||{};
+  document.getElementById('policyProfile').innerHTML=`<b>${profile.company||state.company}：${profile.politicalRisk||'需逐项核验'}</b><br>${profile.exposure||'目前没有足够的公司级地域证据。'}<br><span class="bc-source">2025年披露海外收入占比 ${fmt(profile.reportedOverseasRevenuePct)}%，口径：${profile.revenueScope||'未说明'}；来源：${profile.sourceRef||'公司披露'}。该比例只作暴露上限锚，不会自动写入政策模型。</span>`;
+  const p=state.policyInputs;
+  document.querySelector('#chinaPolicyTable tbody').innerHTML=YEARS.map((y,i)=>`<tr><td><b>${y}</b></td>
+    <td>${policyInput('domesticEligibleRevenueShare',i,p.domesticEligibleRevenueShare[i])}</td>
+    <td>${policyInput('consumptionTaxRate',i,p.consumptionTaxRate[i])}</td>
+    <td>${policyInput('taxPassThrough',i,p.taxPassThrough[i])}</td>
+    <td>${policyInput('upstreamTaxDeductible',i,p.upstreamTaxDeductible[i])}</td>
+    <td>${policyInput('exportEligibleRevenueShare',i,p.exportEligibleRevenueShare[i])}</td>
+    <td>${policyInput('exportRebateLossRate',i,p.exportRebateLossRate[i])}</td>
+    <td>${policyInput('exportPassThrough',i,p.exportPassThrough[i])}</td></tr>`).join('');
+  document.querySelector('#usPolicyTable tbody').innerHTML=YEARS.map((y,i)=>`<tr><td><b>${y}</b></td>
+    <td>${policyInput('usDirectExportRevenueShare',i,p.usDirectExportRevenueShare[i])}</td>
+    <td>${policyInput('usTariffRate',i,p.usTariffRate[i])}</td>
+    <td>${policyInput('usSupplierAbsorption',i,p.usSupplierAbsorption[i])}</td>
+    <td>${policyInput('usLocalEligibleGwh',i,p.usLocalEligibleGwh[i],false)}</td>
+    <td>${policyInput('us45xEligibility',i,p.us45xEligibility[i])}</td>
+    <td>${policyInput('us45xUtilization',i,p.us45xUtilization[i])}</td></tr>`).join('');
+  document.querySelector('#euPolicyTable tbody').innerHTML=YEARS.map((y,i)=>`<tr><td><b>${y}</b></td>
+    <td>${policyInput('euComplianceCapex',i,p.euComplianceCapex[i],false)}亿元</td>
+    <td>${policyInput('euInterestFreeLoanRmb100m',i,p.euInterestFreeLoanRmb100m[i],false)}亿元</td>
+    <td>${policyInput('euAlternativeBorrowingRate',i,p.euAlternativeBorrowingRate[i])}</td></tr>`).join('');
+  document.querySelectorAll('[data-policy]').forEach(el=>el.addEventListener('input',()=>{
+    const key=el.dataset.policy,i=Number(el.dataset.index);
+    state.policyInputs[key][i]=el.dataset.percent==='1'?clamp01(num(el.value)/100):num(el.value);
+    calculate();
+  }));
+}
+function renderOutputs(){
+  document.querySelector('#resultTable tbody').innerHTML=results.map(r=>`<tr><td><b>${r.year}</b></td><td class="num">${fmt(r.revenue)}</td><td class="num">${fmt(r.grossProfit)}</td><td class="num">${pct(r.grossMargin)}</td><td class="num">${fmt(r.netIncome)}</td><td class="num">${fmt(r.ocf)}</td><td class="num">${fmt(r.capex)}</td><td class="num">${fmt(r.fcf)}</td><td class="num">${fmt(r.dividend)}</td><td class="num">${fmt(r.equity)}</td><td class="num">${pct(r.roe)}</td><td class="num">${pct(r.roa)}</td></tr>`).join('');
+  document.querySelector('#policyResultTable tbody').innerHTML=results.map(r=>`<tr><td><b>${r.year}</b></td><td class="num" data-policy-output="consumptionTaxHit:${r.year}">${fmt(r.consumptionTaxHit)}</td><td class="num" data-policy-output="exportRebateHit:${r.year}">${fmt(r.exportRebateHit)}</td><td class="num" data-policy-output="usTariffHit:${r.year}">${fmt(r.usTariffHit)}</td><td class="num" data-policy-output="us45xCredit:${r.year}">${fmt(r.us45xCredit)}</td><td class="num" data-policy-output="euInterestSaving:${r.year}">${fmt(r.euInterestSaving)}</td><td class="num" data-policy-output="euComplianceCapex:${r.year}">${fmt(r.euComplianceCapex)}</td><td class="num" data-policy-output="netIncome:${r.year}">${fmt(r.netIncome)}</td><td class="num" data-policy-output="adjustedNetIncome:${r.year}"><b>${fmt(r.adjustedNetIncome)}</b></td><td class="num" data-policy-output="fcf:${r.year}">${fmt(r.fcf)}</td><td class="num" data-policy-output="adjustedFcf:${r.year}"><b>${fmt(r.adjustedFcf)}</b></td></tr>`).join('');
+  const financialChart=document.getElementById('financialChart'),periodCount=Math.max(1,results.length),seriesCount=5;
+  const preferredWidth=Math.min(960,Math.max(680,500+periodCount*75));
+  const preferredHeight=Math.min(420,Math.max(340,300+periodCount*10+Math.max(0,seriesCount-4)*8));
+  financialChart.style.maxWidth=`${preferredWidth}px`;
+  financialChart.style.height=`${preferredHeight}px`;
+  financialChart.dataset.periodCount=String(periodCount);
+  financialChart.dataset.seriesCount=String(seriesCount);
+  financialChart.dataset.preferredWidth=String(preferredWidth);
+  financialChart.dataset.preferredHeight=String(preferredHeight);
+  const fig={data:[
+    {x:YEARS,y:results.map(r=>r.revenue),type:'bar',name:'收入',marker:{color:'#446b8e'}},
+    {x:YEARS,y:results.map(r=>r.netIncome),type:'scatter',mode:'lines+markers',name:'归母净利润',yaxis:'y2',line:{color:'#a3372f',width:3}},
+    {x:YEARS,y:results.map(r=>r.adjustedNetIncome),type:'scatter',mode:'lines+markers',name:'政策调整后净利润',yaxis:'y2',line:{color:'#d17c37',width:2,dash:'dot'}},
+    {x:YEARS,y:results.map(r=>r.fcf),type:'scatter',mode:'lines+markers',name:'自由现金流',yaxis:'y2',line:{color:'#2f8a68',width:3}},
+    {x:YEARS,y:results.map(r=>r.adjustedFcf),type:'scatter',mode:'lines+markers',name:'政策调整后FCF',yaxis:'y2',line:{color:'#6c56a5',width:2,dash:'dot'}}
+  ],layout:{margin:{l:62,r:68,t:88,b:48},paper_bgcolor:'#fff',plot_bgcolor:'#fff',hovermode:'x unified',legend:{orientation:'h',x:0,xanchor:'left',y:1.16,yanchor:'bottom',font:{size:11}},xaxis:{title:'年度',dtick:1,automargin:true},yaxis:{title:'收入（亿元）',gridcolor:'#e8eef3',automargin:true},yaxis2:{title:'利润/现金流（亿元）',overlaying:'y',side:'right',zeroline:true,zerolinecolor:'#9caaba',automargin:true}}};
+  Plotly.react(financialChart,fig.data,fig.layout,{responsive:true,displaylogo:false,modeBarButtonsToRemove:['lasso2d','select2d']});
+  renderValuation();
+}
+function renderValuation(){
+  state.editValuation.year=Number(document.getElementById('valuationYear').value);
+  for(const [id,key] of [['peLow','peLow'],['peHigh','peHigh'],['pbLow','pbLow'],['pbHigh','pbHigh']])state.editValuation[key]=num(document.getElementById(id).value);
+  const r=results.find(x=>x.year===state.editValuation.year)||results[1];
+  const policyOn=state.includePolicyInValuation===true;
+  const valuationNetIncome=policyOn?r.adjustedNetIncome:r.netIncome;
+  const valuationEquity=policyOn?r.policyEquity:r.equity;
+  const peFloor=Math.min(state.editValuation.peLow,state.editValuation.peHigh),peCeiling=Math.max(state.editValuation.peLow,state.editValuation.peHigh);
+  const pbFloor=Math.min(state.editValuation.pbLow,state.editValuation.pbHigh),pbCeiling=Math.max(state.editValuation.pbLow,state.editValuation.pbHigh);
+  const peLow=valuationNetIncome>0?valuationNetIncome*peFloor:null,peHigh=valuationNetIncome>0?valuationNetIncome*peCeiling:null;
+  const pbLow=valuationEquity*pbFloor,pbHigh=valuationEquity*pbCeiling;
+  const implied=valuationNetIncome>0?state.marketCapRmb100m/valuationNetIncome:null;
+  const cards=[
+    [(policyOn?'政策调整后':'基线')+'正常化PE目标市值',peLow===null?'扭亏期不适用':fmt(peLow)+'—'+fmt(peHigh)+'亿元'],
+    [(policyOn?'政策调整后':'基线')+'PB—ROE目标市值',fmt(pbLow)+'—'+fmt(pbHigh)+'亿元'],
+    ['当前市值',fmt(state.marketCapRmb100m)+'亿元'],
+    ['当前市值隐含PE',implied===null?'亏损期不适用':fmt(implied)+'倍'],
+    ['PE中值相对当前',peLow===null?'—':(((peLow+peHigh)/2/state.marketCapRmb100m-1)*100).toFixed(2)+'%'],
+    ['PB中值相对当前',(((pbLow+pbHigh)/2/state.marketCapRmb100m-1)*100).toFixed(2)+'%']
+  ];
+  document.getElementById('valuationKpis').innerHTML=cards.map((x,i)=>`<div class="bc-kpi" data-valuation-card="${i}"><b>${x[1]}</b><span>${x[0]}</span></div>`).join('');
+}
+function storageKey(){return 'industry-demo:battery-calculator:'+state.companyId;}
+function saved(){try{const v=JSON.parse(localStorage.getItem(storageKey())||'[]');return Array.isArray(v)?v:[]}catch(_){return[]}}
+function writeSaved(rows){localStorage.setItem(storageKey(),JSON.stringify(rows));renderSaved();}
+function snapshot(name){return{name,createdAt:new Date().toISOString(),state:deep(state),summary:deep(results)};}
+function renderSaved(){
+  const rows=saved(),sel=document.getElementById('savedScenarioSelect');
+  sel.innerHTML='<option value="">选择已保存情景</option>'+rows.map((r,i)=>`<option value="${i}">${r.name}</option>`).join('');
+  document.getElementById('scenarioMessage').innerHTML=`<div class="bc-source">已保存 ${rows.length} 个研究员情景。AI基准与市场数据均不可被覆盖。</div>`;
+  const compare=[{name:'AI基准情景',summary:base.forecast.map(r=>({year:r.year,revenue:r.revenue,netIncome:r.netIncome,fcf:r.freeCashFlow}))},...rows.slice(-3)];
+  document.getElementById('scenarioCompare').innerHTML=compare.map(row=>{
+    const last=(row.summary||[]).find(r=>Number(r.year)===2027)||row.summary?.[1]||{};
+    return `<div class="bc-compare-card"><h3>${row.name}</h3><div><span>2027收入</span><b>${fmt(last.revenue)}亿元</b></div><div><span>2027归母净利润</span><b>${fmt(last.netIncome)}亿元</b></div><div><span>2027自由现金流</span><b>${fmt(last.fcf??last.freeCashFlow)}亿元</b></div></div>`;
+  }).join('');
+}
+function selectCompany(id){
+  base=companyById(id);state=defaultState(base);renderCompany();
+  history.replaceState(null,'',location.pathname+'?company_id='+state.companyId);
+}
+document.getElementById('companySelect').innerHTML=MODEL.companies.map(c=>`<option value="${c.companyId}">${c.company} · ${c.ticker}</option>`).join('');
+document.getElementById('companySelect').value=String(companyById(SELECTED).companyId);
+document.getElementById('companySelect').addEventListener('change',e=>selectCompany(e.target.value));
+document.getElementById('addSegment').addEventListener('click',()=>{
+  const id='custom-'+Date.now(),volume={},asp={},grossMargin={},revenue={};
+  YEARS.forEach(y=>{volume[String(y)]=0;asp[String(y)]=.5;grossMargin[String(y)]=.15;revenue[String(y)]=0;});
+  state.inputs.segments.push({id,enabled:true,name:'新增业务',kind:'battery_gwh',tag:'研究员新增',volume,asp,grossMargin,revenue,note:'请补充来源与口径'});renderSegments();calculate();
+});
+document.getElementById('openingEquity').addEventListener('input',e=>{state.inputs.openingEquity=num(e.target.value);calculate();});
+document.getElementById('openingAssets').addEventListener('input',e=>{state.inputs.openingAssets=num(e.target.value);calculate();});
+document.getElementById('loadOverseasUpper').addEventListener('click',()=>{
+  const upper=clamp01(num(state.policyProfile?.reportedOverseasRevenuePct)/100);
+  state.policyInputs.exportEligibleRevenueShare=YEARS.map(()=>upper);
+  renderPolicy();calculate();
+});
+document.getElementById('resetPolicyShares').addEventListener('click',()=>{
+  for(const key of ['domesticEligibleRevenueShare','exportEligibleRevenueShare','usDirectExportRevenueShare','euComplianceCapex','euInterestFreeLoanRmb100m','usLocalEligibleGwh','us45xEligibility','us45xUtilization'])state.policyInputs[key]=YEARS.map(()=>0);
+  state.includePolicyInValuation=false;document.getElementById('includePolicyValuation').checked=false;
+  renderPolicy();calculate();
+});
+document.getElementById('includePolicyValuation').addEventListener('change',e=>{state.includePolicyInValuation=e.target.checked;renderValuation();});
+['valuationYear','peLow','peHigh','pbLow','pbHigh'].forEach(id=>document.getElementById(id).addEventListener('input',renderValuation));
+document.querySelectorAll('.bc-tab').forEach(button=>button.addEventListener('click',()=>{
+  mode=button.dataset.mode;document.querySelectorAll('.bc-tab').forEach(x=>x.classList.toggle('on',x===button));
+  document.querySelectorAll('.detailed-only').forEach(x=>x.classList.toggle('bc-hidden',mode==='simple'));
+}));
+document.getElementById('saveScenario').addEventListener('click',()=>{
+  const name=document.getElementById('scenarioName').value.trim();if(!name)return;
+  const rows=saved().filter(x=>x.name!==name);rows.push(snapshot(name));writeSaved(rows);
+});
+document.getElementById('cloneScenario').addEventListener('click',()=>{
+  const raw=document.getElementById('savedScenarioSelect').value;if(raw==='')return;const i=Number(raw),rows=saved();if(!Number.isInteger(i)||!rows[i])return;
+  const copy=deep(rows[i]);copy.name=copy.name+'（复制）';copy.createdAt=new Date().toISOString();rows.push(copy);writeSaved(rows);
+});
+document.getElementById('renameScenario').addEventListener('click',()=>{
+  const raw=document.getElementById('savedScenarioSelect').value;if(raw==='')return;const i=Number(raw),name=document.getElementById('scenarioName').value.trim(),rows=saved();if(!Number.isInteger(i)||!rows[i]||!name)return;
+  rows[i].name=name;writeSaved(rows);
+});
+document.getElementById('deleteScenario').addEventListener('click',()=>{
+  const raw=document.getElementById('savedScenarioSelect').value;if(raw==='')return;const i=Number(raw),rows=saved();if(!Number.isInteger(i)||!rows[i])return;rows.splice(i,1);writeSaved(rows);
+});
+document.getElementById('savedScenarioSelect').addEventListener('change',e=>{
+  if(e.target.value==='')return;const i=Number(e.target.value),rows=saved();if(Number.isInteger(i)&&rows[i]){const fresh=defaultState(base),loaded=deep(rows[i].state);state={...fresh,...loaded,policyProfile:fresh.policyProfile,policyInputs:loaded.policyInputs||fresh.policyInputs};renderCompany();}
+});
+document.getElementById('resetScenario').addEventListener('click',()=>{state=defaultState(base);renderCompany();});
+document.getElementById('formulaGrid').innerHTML=Object.entries(MODEL.formulaContract).map(([k,v])=>`<div class="bc-formula"><b>${k}</b><br>${v}</div>`).join('');
+selectCompany(SELECTED);
+</script>
+{% endblock %}

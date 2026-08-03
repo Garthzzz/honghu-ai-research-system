@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}抽取审计 · 行研工具系统{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / <strong>抽取审计</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>Source 抽取达标审计</h1>
+    <p class="entity-meta">
+      按当前研究工作流的来源抽取门槛，每份 source 依 value_layer 检查最小 dp_count / ka_count。
+      本页随时打开都能看到当前所有 source 的达标状态。
+    </p>
+  </div>
+</header>
+
+<section class="panel">
+  <h3 class="panel-title">总览</h3>
+  <div class="audit-summary">
+    <div class="audit-card audit-card-zero">
+      <div class="audit-num">{{ totals.zero }}</div>
+      <div class="audit-label">零数据 source</div>
+      <div class="audit-desc">完全没抽,最紧急</div>
+    </div>
+    <div class="audit-card audit-card-short">
+      <div class="audit-num">{{ totals.short }}</div>
+      <div class="audit-label">不达标 source</div>
+      <div class="audit-desc">dp 或 ka 低于阈值</div>
+    </div>
+    <div class="audit-card audit-card-ok">
+      <div class="audit-num">{{ totals.ok }}</div>
+      <div class="audit-label">达标 source</div>
+      <div class="audit-desc">{% if totals.total %}占 {{ (totals.ok * 100 / totals.total)|round(0) }}%{% endif %}</div>
+    </div>
+    <div class="audit-card audit-card-total">
+      <div class="audit-num">{{ totals.total }}</div>
+      <div class="audit-label">source 总数</div>
+      <div class="audit-desc">全库</div>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">extraction_method 分布(GOLD 第四次修订)</h3>
+  <p class="entity-meta" style="margin: 0 14px 14px;">每条数据点必须标注抽取方法。template_estimate 占比高的行业,多源对照可信度受限。</p>
+  <div class="audit-summary">
+    <div class="audit-card" style="background:#dcfce7;border:1px solid #86efac;">
+      <div class="audit-num">{{ em_overall.pdf_direct }}</div>
+      <div class="audit-label">原文 pdf_direct</div>
+      <div class="audit-desc">PDF 实读抽出</div>
+    </div>
+    <div class="audit-card" style="background:#dbeafe;border:1px solid #93c5fd;">
+      <div class="audit-num">{{ em_overall.web_fetch }}</div>
+      <div class="audit-label">网搜 web_fetch</div>
+      <div class="audit-desc">Claude 自主 lit review</div>
+    </div>
+    <div class="audit-card" style="background:#ffedd5;border:1.5px solid #fdba74;">
+      <div class="audit-num">{{ em_overall.template_estimate }}</div>
+      <div class="audit-label"> 模板估 template_estimate</div>
+      <div class="audit-desc">从其他 source 推断,降级</div>
+    </div>
+    <div class="audit-card" style="background:#ede9fe;border:1px solid #c4b5fd;">
+      <div class="audit-num">{{ em_overall.inferred }}</div>
+      <div class="audit-label">推算 inferred</div>
+      <div class="audit-desc">已有数据计算</div>
+    </div>
+    <div class="audit-card" style="background:#f1f5f9;border:1px solid #cbd5e1;">
+      <div class="audit-num">{{ em_overall.unknown }}</div>
+      <div class="audit-label">未标 unknown</div>
+      <div class="audit-desc">历史回溯</div>
+    </div>
+  </div>
+
+  <h4 style="margin:18px 14px 8px;color:#475569;">按 industry 分布</h4>
+  <table class="data-table">
+    <thead><tr><th>industry</th><th>tier</th><th>status</th><th>原文</th><th>网搜</th><th> 模板估</th><th>推算</th><th>未标</th><th>合计</th></tr></thead>
+    <tbody>
+      {% for r in em_by_industry %}
+      <tr {% if r.tier == 3 %}style="background:#fef2f2;"{% endif %}>
+        <td><a href="{{ url_for('industry_detail', industry_id=r.id) }}">{{ r.name }}</a></td>
+        <td><span class="tier-badge tier-{{ r.tier }}">tier {{ r.tier }}</span></td>
+        <td>{{ r.status }}</td>
+        <td>{{ r.n_pdf }}</td>
+        <td>{{ r.n_web }}</td>
+        <td {% if r.n_tmpl > 0 %}style="color:#9a3412;font-weight:600;"{% endif %}>{{ r.n_tmpl }}</td>
+        <td>{{ r.n_inf }}</td>
+        <td>{{ r.n_unk }}</td>
+        <td><strong>{{ r.n_total }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================================================
+      第五道工程防线(Phase3):网搜溯源完整性 + 时效性管理
+     ============================================================ -->
+<section class="panel panel-d5">
+  <h3 class="panel-title">🛡️ 第五道防线 · 网搜溯源完整性 + 时效性管理 <span class="panel-sub">Phase3 公司透视架构</span></h3>
+
+  <!-- 模块 1:网搜源可信度分布 -->
+  <h4 style="margin:8px 14px;color:#475569;">① 信息源可信度分布(白/灰/黑三层名单)</h4>
+  <div class="audit-summary">
+    <div class="audit-card" style="background:#dcfce7;border:1px solid #86efac;">
+      <div class="audit-num">{{ cred_dist.whitelisted }}</div>
+      <div class="audit-label">白名单 whitelisted</div>
+      <div class="audit-desc">{% if cred_total %}{{ (cred_dist.whitelisted * 100 / cred_total)|round(0) }}%{% endif %} · 默认信任</div>
+    </div>
+    <div class="audit-card" style="background:#fef9c3;border:1px solid #fde047;">
+      <div class="audit-num">{{ cred_dist.unverified }}</div>
+      <div class="audit-label">灰名单 unverified</div>
+      <div class="audit-desc">需自查 · 不可独证</div>
+    </div>
+    <div class="audit-card" style="background:#fee2e2;border:1px solid #fca5a5;">
+      <div class="audit-num">{{ cred_dist.blacklisted }}</div>
+      <div class="audit-label">黑名单 blacklisted</div>
+      <div class="audit-desc">禁用 · 不应入库</div>
+    </div>
+  </div>
+
+  <!-- 模块 2:数据新鲜度仪表盘 -->
+  <h4 style="margin:18px 14px 8px;color:#475569;">② 数据新鲜度仪表盘(基准 = last_verified_at 或 created_at)</h4>
+  <p class="entity-meta" style="margin:0 14px 10px;">常规字段:&lt;30天 / &lt;6月 / &lt;1年 / &gt;1年。存量数据点 last_verified_at 留 NULL,回退 created_at 作基准。</p>
+  <table class="data-table">
+    <thead><tr><th>industry</th><th>tier</th><th> 最新</th><th> 较新</th><th> 偏旧</th><th> 过期</th><th>未知</th><th>合计</th></tr></thead>
+    <tbody>
+      {% for r in fresh_dash %}
+      <tr {% if r.tier == 3 %}style="background:#fef2f2;"{% endif %}>
+        <td><a href="{{ url_for('industry_detail', industry_id=r.id) }}">{{ r.name }}</a></td>
+        <td><span class="tier-badge tier-{{ r.tier }}">tier {{ r.tier }}</span></td>
+        <td>{{ r.green }}</td>
+        <td>{{ r.yellow }}</td>
+        <td {% if r.orange > 0 %}style="color:#9a3412;font-weight:600;"{% endif %}>{{ r.orange }}</td>
+        <td {% if r.red > 0 %}style="color:#b91c1c;font-weight:600;"{% endif %}>{{ r.red }}</td>
+        <td>{{ r.gray }}</td>
+        <td><strong>{{ r.total }}</strong></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- 模块 3:灰名单待 review -->
+  <h4 style="margin:18px 14px 8px;color:#475569;">③ 灰名单待 user 决策({{ gray_queue|length }} 条)</h4>
+  {% if gray_queue %}
+  <table class="data-table">
+    <thead><tr><th>domain</th><th>sample</th><th>用于</th><th>CC 判断</th><th>建议</th><th>遇到时间</th></tr></thead>
+    <tbody>
+      {% for g in gray_queue %}
+      <tr>
+        <td class="cell-mono">{{ g.domain }}</td>
+        <td>{% if g.sample_url %}<a href="{{ g.sample_url }}" target="_blank" rel="noopener">{{ g.sample_url[:40] }}…</a>{% else %}—{% endif %}</td>
+        <td>{{ g.used_for_field or '—' }}</td>
+        <td class="cell-narrative">{{ g.cc_judgment or '—' }}</td>
+        <td>{{ g.suggested_action or '—' }}</td>
+        <td>{{ g.encountered_at }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty-state">暂无灰名单待决策(阶段 2 网搜遇到白黑名单外的源时,自动上报至此)。</p>
+  {% endif %}
+</section>
+
+{% for status_key, status_title, status_class in [
+    ('zero',  ' 零数据 source(完全没抽)',    'audit-row-zero'),
+    ('short', ' 不达标 source(dp/ka 不足)', 'audit-row-short'),
+    ('ok',    ' 达标 source',                  'audit-row-ok'),
+] %}
+{% set rows = grouped[status_key] %}
+{% if rows %}
+<section class="panel">
+  <h3 class="panel-title">{{ status_title }} <span class="audit-group-count">{{ rows|length }} 份</span></h3>
+  <table class="data-table audit-table">
+    <thead>
+      <tr>
+        <th>source</th>
+        <th>类型</th>
+        <th>价值层</th>
+        <th>tier</th>
+        <th>publish</th>
+        <th>publisher</th>
+        <th>dp_count / min</th>
+        <th>ka_count / min</th>
+        <th>状态</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr class="{{ status_class }}">
+        <td class="col-wrap">
+          <a href="{{ url_for('source_detail', source_id=r.id) }}">#{{ r.id }} {{ r.title[:50] }}{% if r.title|length > 50 %}…{% endif %}</a>
+        </td>
+        <td>{{ t(r.source_type) }}</td>
+        <td><span class="value-layer-tag value-layer-{{ r.value_layer }}">{{ r.value_layer }}</span></td>
+        <td><span class="tier-badge tier-{{ r.quality_tier }}">{{ r.quality_tier }}</span></td>
+        <td>{{ r.publish_date or '—' }}</td>
+        <td>{{ r.publisher or '—' }}</td>
+        <td class="cell-mono">
+          <strong>{{ r.dp_count }}</strong> / {{ r.dp_min }}
+          {% if r.dp_count < r.dp_min %}<span class="audit-gap">缺 {{ r.dp_min - r.dp_count }}</span>{% endif %}
+        </td>
+        <td class="cell-mono">
+          <strong>{{ r.ka_count_approx }}</strong> / {{ r.ka_min }}
+          {% if r.ka_count_approx < r.ka_min %}<span class="audit-gap">缺 {{ r.ka_min - r.ka_count_approx }}</span>{% endif %}
+        </td>
+        <td>
+          {% if r.status == 'zero' %}<span class="audit-status-zero">零数据</span>
+          {% elif r.status == 'short' %}<span class="audit-status-short">不达标</span>
+          {% else %}<span class="audit-status-ok">达标</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endfor %}
+
+<section class="panel">
+  <h3 class="panel-title">最小产出量阈值表</h3>
+  <table class="data-table">
+    <thead><tr><th>value_layer</th><th>dp_min</th><th>ka_min</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr><td>深度框架</td><td>12</td><td>5</td><td>行业 framework 应提供大量结构性数据点</td></tr>
+      <tr><td>双层</td><td>15</td><td>8</td><td>同时含深度和最新,产出量应最大</td></tr>
+      <tr><td>最新数据</td><td>8</td><td>3</td><td>周/月/季度数据为主</td></tr>
+      <tr><td>主题专项</td><td>8</td><td>5</td><td>单一技术路线/政策主题</td></tr>
+      <tr><td>公司专项</td><td>10</td><td>5</td><td>单家公司深度</td></tr>
+      <tr><td>信息流</td><td>3</td><td>2</td><td>即使周报扫一遍至少有几个</td></tr>
+    </tbody>
+  </table>
+</section>
+
+{% endblock %}

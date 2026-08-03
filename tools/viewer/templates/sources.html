@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Source 库 · 行研工具系统{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / <strong>Source 库</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>Source 库</h1>
+    <p class="entity-meta">全库 <code>source</code> 记录,按 quality_tier 分组。tier 1=一手数据,tier 2=头部卖方深度/三方数据/Claude 综合,tier 3=卖方周报/媒体/自媒体。共 {{ total }} 份。</p>
+  </div>
+</header>
+
+{% if total == 0 %}
+<div class="empty-state">
+  尚无 source。阶段 2 SCIENTIST 角色读 <code>papers/光模块/</code> 后批量入库。
+</div>
+{% else %}
+
+<div class="cf-toolbar">
+  <input type="text" class="cf-search" data-cf-search="src" placeholder=" 搜索 title / publisher / 作者…">
+  <span class="cf-hint">列头 <span class="cf-funnel-demo">⏷</span> 多选筛选(类型 / 价值层 / publisher)· <span class="cf-funnel-demo">↕</span> 排序(日期 / 实体数 / 数据点)</span>
+  <a class="btn btn-secondary cf-clearall" href="#" data-cf-clearall="src">清空所有筛选</a>
+  <span class="filter-stat">共 {{ total }} 份</span>
+</div>
+<div class="cf-chipbar" data-cf-chips="src" style="display:none;"></div>
+
+{% for tier in [1, 2, 3] %}
+  {% set rows = grouped[tier] %}
+  <div class="source-group-header">
+    <span class="tier-badge tier-{{ tier }}">tier {{ tier }}</span>
+    <span>{% if tier == 1 %}一手数据(公告 / 业绩说明会 / 招股书 / 协会数据){% elif tier == 2 %}头部卖方深度 / 三方数据 / Claude 综合(默认 tier=2 锁定){% else %}卖方周报 / 财经媒体 / 自媒体(谨慎引用){% endif %}</span>
+    <span class="source-group-count">{{ rows|length }} 份</span>
+  </div>
+  {% if rows %}
+  <section class="panel" style="padding-top:0;padding-bottom:8px;">
+    <table class="data-table colfilter" data-cf-group="src">
+      <thead>
+        <tr>
+          <th>title</th>
+          <th data-cf-filter="stype">类型</th>
+          <th data-cf-filter="vlayer">价值层</th>
+          <th data-cf-filter="pub">publisher</th>
+          <th>作者</th>
+          <th data-cf-sort="date">日期</th>
+          <th data-cf-sort="num" data-cf-sortfield="ent">关联实体</th>
+          <th data-cf-sort="num" data-cf-sortfield="dp">数据点</th>
+          <th>flag</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in rows %}
+        <tr class="{% if s.quality_tier == 3 %}row-tier-3{% endif %}"
+            data-cf-stype="{{ t(s.source_type) }}"
+            data-cf-vlayer="{{ s.value_layer or '信息流' }}"
+            data-cf-pub="{{ s.publisher or '—' }}"
+            data-cf-text="{{ ((s.title or '') ~ ' ' ~ (s.publisher or '') ~ ' ' ~ (s.author or ''))|lower }}"
+            data-cf-sortkey-date="{{ s.publish_date or '' }}"
+            data-cf-sortkey-ent="{{ s.entity_count }}"
+            data-cf-sortkey-dp="{{ s.data_point_count }}">
+          <td><a href="{{ url_for('source_detail', source_id=s.id) }}">{{ s.title }}</a></td>
+          <td><span class="trace-pill">{{ t(s.source_type) }}</span></td>
+          <td><span class="value-layer-tag value-layer-{{ s.value_layer or '信息流' }}">{{ s.value_layer or '信息流' }}</span></td>
+          <td>{{ s.publisher or '—' }}</td>
+          <td>{{ s.author or '—' }}</td>
+          <td>{{ s.publish_date or '—' }}</td>
+          <td>{{ s.entity_count }}</td>
+          <td>{{ s.data_point_count }}</td>
+          <td>
+            {% if s.source_type == 'claude_lit_review' %}<span class="ai-synth-tag"> AI 综合</span>{% endif %}
+            {% if s.is_forward_looking %}<span class="forecast-tag">前瞻(降级)</span>{% endif %}
+            {% if s.file_path %}<a href="{{ url_for('serve_pdf', source_id=s.id) }}" target="_blank" style="font-size:11px;">PDF</a>{% endif %}
+            {% set url_val = s.source_url or s.url %}
+            {% if url_val %}<a href="{{ url_val }}" target="_blank" rel="noopener" style="font-size:11px;">URL</a>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% else %}
+  <div class="empty-state" style="margin:0 0 12px;padding:12px;">本 tier 暂无 source。</div>
+  {% endif %}
+{% endfor %}
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='colfilter.js') }}"></script>
+{% endblock %}

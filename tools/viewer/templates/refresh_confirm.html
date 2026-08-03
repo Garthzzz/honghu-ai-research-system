@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}扫描新增 source · {{ ind.name }}{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a> /
+  <strong>扫描新增 source</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ ind.name }} · 增量扫描</h1>
+    <p class="entity-meta">
+      扫描 <code>{{ papers_subdir or 'papers/' + ind.name }}</code> 下未入库 source 文件。本路由仅扫描 + 列差异,实际抽 claim 仍需 SCIENTIST session 跑。
+    </p>
+  </div>
+  <div class="entity-header-actions">
+    <a class="btn btn-secondary" href="{{ url_for('industry_detail', industry_id=ind.id) }}">← 返回</a>
+  </div>
+</header>
+
+<section class="panel">
+  <h3 class="panel-title">上次快照</h3>
+  {% if last_snap %}
+    <p><strong>{{ last_snap.snapshot_date }}</strong> · source 数 {{ last_snap.source_count }} · 数据点 {{ last_snap.data_point_count }}</p>
+    {% if last_snap.note %}<p class="cell-narrative">{{ last_snap.note }}</p>{% endif %}
+  {% else %}
+    <p class="empty-state">本行业尚无快照。</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">检测到的新文件(papers/ 内但 db 未入库)</h3>
+  {% if new_files %}
+  <ul class="key-args-list">
+    {% for f in new_files %}<li><code>{{ f }}</code></li>{% endfor %}
+  </ul>
+  {% else %}
+    <p class="empty-state">未检测到新文件。所有 papers/ 内文件已入库。</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">papers/ 现状(已入库 + 新增)</h3>
+  {% if paper_files %}
+  <details>
+    <summary>共 {{ paper_files|length }} 个文件 · 点击展开</summary>
+    <ul class="key-args-list" style="margin-top: 8px;">
+      {% for f in paper_files %}<li><code>{{ f }}</code></li>{% endfor %}
+    </ul>
+  </details>
+  {% else %}
+    <p class="empty-state">papers/{{ ind.name }}/ 目录为空或不存在。</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">触发增量扫描脚本</h3>
+  <p class="entity-meta" style="margin-bottom: 12px;">
+    点击下方按钮触发 <code>tools/pipeline/incremental_update.py --industry {{ ind.id }} --dry-run</code>。
+    Dry-run 只列差异,不写 db。实际抽取需 SCIENTIST session 接力。
+  </p>
+  <form method="post" action="{{ url_for('refresh_industry', industry_id=ind.id) }}">
+    <button type="submit" class="btn">运行 dry-run 扫描</button>
+  </form>
+</section>
+
+{% endblock %}

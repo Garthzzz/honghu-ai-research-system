@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}行业新闻流 · 行研工具系统{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <strong>行业新闻流</strong></div>
+
+<header class="entity-header">
+  <div>
+    <h1>📰 行业新闻流</h1>
+    <p class="entity-meta">白名单 + Google News 源 · 共 {{ totals.total }} 条(显示 {{ totals.shown }})· ⚡ 突发 {{ totals.breaking }} · 🌐 海外英文 · ⚠️ 灰源</p>
+  </div>
+</header>
+
+<!-- P2.1 筛选:板块(5 色)+ importance(单选,query-string 可分享)-->
+<div class="filter-bar">
+  <a class="fchip {{ 'active' if not f_inds and not f_imps else '' }}" href="{{ url_for('dynamic_news') }}">全部</a>
+  {% for b in boards %}<a class="fchip tag-industry {{ industry_color_class(b.name) }} {{ 'fchip-on' if b.id in f_inds else '' }}" href="{{ url_for('dynamic_news', industry=b.id) }}">#{{ b.name }}</a>{% endfor %}
+  <span class="fsep">·</span>
+  {% for imp,lab in [(1,'L1核心'),(2,'L2重要'),(3,'L3关注')] %}<a class="fchip ev-imp-badge-{{ imp }} {{ 'fchip-on' if imp in f_imps else '' }}" href="{{ url_for('dynamic_news', importance=imp) }}">{{ lab }}</a>{% endfor %}
+</div>
+
+{% if news %}
+<div class="nf-list no-katex">
+  {% for n in news %}
+  <article class="nf-item {% if n.is_breaking %}nf-breaking{% endif %}">
+    <div class="nf-head">
+      {% if n.is_breaking %}<span class="nf-break-badge">⚡ 突发</span>{% endif %}
+      {% if n.src_lang == 'en' %}<span class="nf-intl" title="海外英文新闻">EN</span>{% endif %}
+      {% if n.is_gray %}<span class="nf-gray">⚠️ 灰源</span>{% endif %}
+      <span class="nf-pub">{{ n.source_publisher }}</span>
+      <span class="nf-time">{{ n.when }}</span>
+      {% if n.keyword_cluster %}<span class="nf-cluster">{{ n.keyword_cluster }}</span>{% endif %}
+      {% if n.related_hyps %}{% for rh in n.related_hyps %}<a class="news-hyp-badge" href="{{ url_for('hypothesis_detail', hid=rh.id) }}" title="命中假说监控关键词:{{ rh.title }}(仅提示,需人工判断)">🔔 关联假说</a>{% endfor %}{% endif %}
+    </div>
+    <a class="nf-title" href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a>
+    {% if n.title_zh %}<div class="tr-body">{{ n.title_zh }} <span class="tr-note">(AI翻译·以原文为准)</span></div>{% elif n.src_lang == 'en' %}<div class="tr-pending">🌐 待翻译</div>{% endif %}
+    {% if n.ai_summary %}<p class="nf-summary nf-ai"><span class="ai-badge" title="DeepSeek 综合摘要(AI 生成,quality_tier≤2,数字经原文粗筛,以原文为准)">AI摘要</span> {{ n.ai_summary[:240] }}</p>{% elif n.summary %}<p class="nf-summary">{{ n.summary[:200] }}</p>{% endif %}
+    <div class="nf-tags">
+      {% for i in n.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}
+      {% for c in n.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}
+      {% if not n.ai_tagged_by %}<span class="nf-untagged">未标注</span>{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state"><p>暂无新闻。由 scheduler news_source(RSS)抓取;无 RSS 的源见 cache/STAGE3C_PENDING.md。</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}{{ e.title }} · 事件{% endblock %}
+{% macro src_sup(sid) %}{% if sid %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endif %}{% endmacro %}
+
+{% block content %}
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <a href="{{ url_for('events_index') }}">事件日历</a> / <strong>{{ e.title }}</strong></div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ e.title }}</h1>
+    <p class="entity-meta">
+      <span class="ev-type ev-type-{{ e.event_type }}">{{ e.event_type }}</span>
+      <span class="ev-imp-badge ev-imp-badge-{{ e.importance }}">{{ e.importance_label }}</span>
+      · {{ e.scheduled_date }} 周{{ e.weekday }} · 状态 {{ e.status }}
+      {% if e.official_url %} · <a href="{{ e.official_url }}" target="_blank" rel="noopener">官方 ↗</a>{% endif %}
+    </p>
+    <p class="entity-meta">
+      {% for c in e.companies %}<span class="ev-chip">{{ c.name }}{% if c.ticker %} {{ c.ticker }}{% endif %}</span>{% endfor %}
+      {% for i in e.industries %}<a class="ev-chip ev-chip-ind" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% endfor %}
+    </p>
+    {% if e.description %}<p class="ev-desc">{{ e.description }}</p>{% endif %}
+  </div>
+</header>
+
+<!-- AI AI 前瞻 -->
+<section class="panel">
+  <h3 class="panel-title">AI AI 事件前瞻
+    {% if e.ai_preview_generated_at %}<span class="it-gen">@{{ e.ai_preview_generated_at[:10] }} · 基于 {{ e.preview_src_ids|length }} 源</span>{% endif %}
+  </h3>
+  {% if e.preview_html %}
+    <div class="it-consensus-view md-body">{{ e.preview_html|safe }}</div>
+  {% else %}
+    <div class="it-consensus-view it-pending"> AI 前瞻待生成(Stage 3-E)</div>
+  {% endif %}
+</section>
+
+<!-- 关联材料 -->
+<section class="panel">
+  <h3 class="panel-title">关联材料 <span class="panel-sub">关联新闻(news_item)/ 关联推文(voice_post)— FK 反查防 dangling</span></h3>
+  <div class="ev-block-title"> 关联新闻({{ rel_news|length }})</div>
+  {% if rel_news %}<ul class="ev-rel">{% for n in rel_news %}<li><a href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }}</a> <small>{{ n.source_publisher }} · {{ n.publish_date }}</small></li>{% endfor %}</ul>
+  {% else %}<p class="ev-na">暂无关联新闻(3-C 抓取 + 3-E 标注后填充)</p>{% endif %}
+  <div class="ev-block-title"> 关联推文({{ rel_voice|length }})</div>
+  {% if rel_voice %}<ul class="ev-rel">{% for v in rel_voice %}<li>{{ v.leader_name }}({{ v.platform }}):{{ (v.content_text or '')[:80] }} {% if v.post_url %}<a href="{{ v.post_url }}" target="_blank" rel="noopener">↗</a>{% endif %}</li>{% endfor %}</ul>
+  {% else %}<p class="ev-na">暂无关联推文(3-D 抓取 + 3-E 标注后填充)</p>{% endif %}
+</section>
+
+<!-- 研究员双视角(CC 不预填)-->
+<section class="panel">
+  <h3 class="panel-title">🧪 研究员视角(选填)</h3>
+  <div class="an-thesis" data-event-id="{{ e.id }}">
+    <label>研究员前瞻<textarea class="ev-f" data-field="analyst_preview" rows="3" placeholder="你对该事件的前瞻判断…">{{ e.analyst_preview or '' }}</textarea></label>
+    <button class="btn ev-save" data-field="analyst_preview">保存前瞻</button>
+    <span class="ev-status" data-for="analyst_preview"></span>
+    <label style="margin-top:10px;">研究员事后点评<textarea class="ev-f" data-field="analyst_recap" rows="3" placeholder="事件发生后的复盘…">{{ e.analyst_recap or '' }}</textarea></label>
+    <button class="btn ev-save" data-field="analyst_recap">保存点评</button>
+    <span class="ev-status" data-for="analyst_recap"></span>
+  </div>
+</section>
+
+<div class="ev-disclaimer"> 本前瞻仅汇总公开信息,不构成任何买卖建议、不提供目标价、不下多空结论。</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.ev-save').forEach(btn => btn.addEventListener('click', async () => {
+  const wrap = btn.closest('.an-thesis'), eid = wrap.dataset.eventId, field = btn.dataset.field;
+  const ta = wrap.querySelector('.ev-f[data-field="'+field+'"]');
+  const st = wrap.querySelector('.ev-status[data-for="'+field+'"]');
+  st.textContent = '保存中…';
+  try {
+    const r = await (await fetch('/api/event/'+eid+'/analyst', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({field, content: ta.value})
+    })).json();
+    st.textContent = r.ok ? ' 已保存' : ('失败:'+(r.error||''));
+  } catch(e){ st.textContent='网络错误'; }
+}));
+</script>
+{% endblock %}

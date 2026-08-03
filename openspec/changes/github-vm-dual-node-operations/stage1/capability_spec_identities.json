@@ -1,0 +1,39 @@
+{
+  "schema_version": "honghu.capability_spec_identity.v1",
+  "captured_at": "2026-08-03T21:12:55+08:00",
+  "phase": "stage1-safe-git-bootstrap",
+  "specs": [
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/application-release-deployment/spec.md",
+      "sha256": "285e2f950885c3ac94e33a80f1bf02edc43da9b343eceab5831991dfb0259168"
+    },
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/artifact-and-secret-boundaries/spec.md",
+      "sha256": "adeb0ac5d8cfe41b47ade53721652257f6057beca2040ac6a25f4c6d21146223"
+    },
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/backup-recovery-security/spec.md",
+      "sha256": "9b86309c1411af06e20273770043fbef33fc75c65ead999d506284e55223b2a2"
+    },
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/central-postgresql-data-platform/spec.md",
+      "sha256": "db150baf8ce2df3b817f2487f46c5862ab363e20ceed13737cc3df0d3cc9f96a"
+    },
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/research-publication-governance/spec.md",
+      "sha256": "6a4857aa5b700ff143b28c9553b390287489f29d6c788a53f33a549cd84cac0a"
+    },
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/user-content-governance/spec.md",
+      "sha256": "58f70bbc72ee29a184cc6a8d948b648dd063fe89f861e35810a5d9f07d4e3301"
+    },
+    {
+      "path": "openspec/changes/github-vm-dual-node-operations/specs/vm-automation-operations/spec.md",
+      "sha256": "0a36adc0a7fa0f973c7753848374e881b35cd40280f8f10d04553b3585345ebf"
+    }
+  ],
+  "stage1_architecture_diff": [
+    "central-postgresql-data-platform: clarified writer-operation audit granularity only"
+  ],
+  "note": "No Stage-2 or PostgreSQL implementation was performed. Hashes bind the reviewed Stage-1 bootstrap contract."
+}

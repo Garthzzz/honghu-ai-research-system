@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}研究员观点 · 投资假说{% endblock %}
+{% block content %}
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <strong>研究员观点</strong></div>
+
+<header class="entity-header">
+  <div>
+    <h1>🧪 研究员观点 · 投资假说</h1>
+    <p class="entity-meta">{{ totals.total }} 条假说 · {{ totals.researchers }} 位研究员{% if totals.drafts %} · {{ totals.drafts }} 草稿{% endif %} · 以人为标签 · 每条含证伪条件 + 双向交易预案 · 不构成买卖建议</p>
+  </div>
+  <div class="entity-header-actions">
+    <a class="btn" href="{{ url_for('hypothesis_new') }}">+ 新建假说</a>
+  </div>
+</header>
+
+<!-- 筛选:研究员 / 板块 / 状态 / 方向 -->
+<div class="filter-bar">
+  <span class="dp-filter-label">研究员</span>
+  <a class="fchip {{ 'active' if not f_researcher else '' }}" href="{{ url_for('hypotheses_index') }}">全部</a>
+  {% for r in researchers %}<a class="fchip {{ 'fchip-on' if f_researcher==r.id|string else '' }}" href="{{ url_for('hypotheses_index', researcher=r.id) }}">{{ r.display_name or r.name }}</a>{% endfor %}
+</div>
+<div class="filter-bar">
+  <span class="dp-filter-label">板块</span>
+  {% for b in boards %}<a class="fchip tag-industry {{ industry_color_class(b.name) }} {{ 'fchip-on' if b.id in f_inds else '' }}" href="{{ url_for('hypotheses_index', industry=b.id) }}">#{{ b.name }}</a>{% endfor %}
+  <span class="fsep">·</span>
+  <span class="dp-filter-label">方向</span>
+  {% for dv in ['bullish','bearish','neutral','contrarian'] %}<a class="fchip hyp-dir-{{ dv }} {{ 'fchip-on' if f_dir==dv else '' }}" href="{{ url_for('hypotheses_index', direction=dv) }}">{{ hl(dv) }}</a>{% endfor %}
+  <span class="fsep">·</span>
+  <span class="dp-filter-label">状态</span>
+  {% for sv in ['active','partially_falsified','falsified','confirmed','withdrawn'] %}<a class="fchip hyp-st-{{ sv }} {{ 'fchip-on' if f_status==sv else '' }}" href="{{ url_for('hypotheses_index', status=sv) }}">{{ hl(sv) }}</a>{% endfor %}
+</div>
+
+{% if hyps %}
+<div class="hyp-grid">
+  {% for h in hyps %}
+  {% set primary = (h.trades | selectattr('trade_scenario','equalto','primary') | list | first) %}
+  {% set reverse = (h.trades | selectattr('trade_scenario','equalto','falsification_reverse') | list | first) %}
+  <article class="hyp-card hyp-st-border-{{ h.status }}">
+    <div class="hyp-card-head">
+      <a class="hyp-card-title" href="{{ url_for('hypothesis_detail', hid=h.id) }}">{{ h.title }}</a>
+      <div class="hyp-card-badges">
+        <span class="hyp-dir hyp-dir-{{ h.thesis_type }}">{{ hl(h.thesis_type) }}</span>
+        {% if h.conviction_level %}<span class="hyp-conv">信心 L{{ h.conviction_level }}</span>{% endif %}
+        <span class="hyp-st hyp-st-{{ h.status }}">{{ hl(h.status) }}</span>
+        {% if h.is_draft %}<span class="hyp-draft">草稿</span>{% endif %}
+      </div>
+    </div>
+    <div class="hyp-card-meta">
+      研究员:<a href="{{ url_for('researcher_profile', rid=h.researcher_id) }}">{{ h.researcher_name }}</a>
+      · {{ (h.last_updated_at or h.created_at or '')[:10] }}
+      {% if h.horizon_months %}· 持有 {{ h.horizon_months }}{% endif %}
+    </div>
+    <div class="hyp-card-tags">
+      {% for i in h.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}
+      {% for c in h.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}
+    </div>
+    {% if h.hypothesis_text %}<p class="hyp-card-text">{{ h.hypothesis_text[:160] }}{% if h.hypothesis_text|length > 160 %}…{% endif %}</p>{% endif %}
+
+    {% set ss = h.signal_summary %}
+    <div class="hyp-card-signals">
+       监控信号 {{ ss.total }} 个
+      {% if ss.total %}({{ ss.triggered }} 触发 / {{ ss.partially_triggered }} 部分 / {{ ss.not_triggered }} 未){% endif %}
+    </div>
+
+    <div class="hyp-card-trades">
+      {% if primary %}<div class="hyp-trade-line"> 当前:<span class="hyp-dir hyp-dir-tt-{{ primary.direction }}">{{ hl(primary.direction) }}</span> {{ primary.target_description[:48] }}</div>{% endif %}
+      {% if reverse %}<div class="hyp-trade-line hyp-trade-reverse"> 证伪后:<span class="hyp-dir hyp-dir-tt-{{ reverse.direction }}">{{ hl(reverse.direction) }}</span> {{ reverse.target_description[:48] }}</div>{% endif %}
+    </div>
+    <div class="hyp-card-foot"><a href="{{ url_for('hypothesis_detail', hid=h.id) }}">详情 →</a></div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>暂无假说 —— 等待研究员录入。</p>
+  <p style="margin-top:8px;"><a class="btn" href="{{ url_for('hypothesis_new') }}">+ 新建第一条假说</a></p>
+  <p style="margin-top:8px; font-size:12px;">系统只搭骨架,假说内容由研究员本人填写(含证伪条件 + 证伪后反向交易)。</p>
+</div>
+{% endif %}
+{% endblock %}

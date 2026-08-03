@@ -1,0 +1,284 @@
+/* ============================================================
+   ? v4 参考设计体系(参照 D:\industry_demo\1)— 在 styles.css 之后加载,末层权威覆盖
+   左侧图标轨 + 行业侧栏壳 · 祖母绿 teal 品牌 · 语义色阶
+   · KPI 彩色顶边卡 · What/Read/Logic 解释框 · mono 涨跌 pill
+   ============================================================ */
+
+/* ── 1. token:重定义 --lx-* 为 teal/slate + 新增语义 ── */
+:root {
+  /* 中性 slate */
+  --lx-bg:#f6f8fa; --lx-surface:#ffffff; --surface-2:#f8fafc;
+  --lx-border:#e6e9ee; --lx-border-2:#eef1f5; --border-strong:#d6dbe2;
+  --lx-text:#0f172a; --lx-text-2:#475569; --lx-text-3:#8a94a6;
+  --muted:#64748b; --faint:#94a3b8;
+  /* 品牌 teal */
+  --brand:#0d9488; --brand-strong:#0f766e; --brand-50:#f0fdfa; --brand-100:#ccfbf1; --brand-200:#99f6e4;
+  --lx-accent:#0d9488; --lx-accent-d:#0f766e;
+  /* 语义色(严格双向一致) */
+  --up:#16a34a; --up-bg:#dcfce7; --up-text:#15803d;
+  --down:#dc2626; --down-bg:#fee2e2; --down-text:#b91c1c;
+  --warn:#f59e0b; --warn-bg:#fef3c7; --warn-text:#92400e;
+  --orange:#f97316; --info:#2563eb; --info-bg:#dbeafe; --cyan:#0891b2;
+  --violet:#7c3aed; --violet-bg:#ede9fe; --purple:#a855f7;
+  /* 形 */
+  --lx-radius:9px; --radius-lg:13px; --radius-sm:6px;
+  --shadow-color:215 25% 27%;
+  --el-1:0 1px 2px hsl(var(--shadow-color)/.06);
+  --el-2:0 2px 4px hsl(var(--shadow-color)/.05), 0 4px 12px hsl(var(--shadow-color)/.06);
+  --el-3:0 4px 8px hsl(var(--shadow-color)/.06), 0 12px 28px hsl(var(--shadow-color)/.10);
+  --lx-shadow:var(--el-1);
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  /* 壳尺寸 */
+  --rail-w:64px; --sidebar-w:236px;
+}
+
+html, body { background:var(--lx-bg); color:var(--lx-text-2); font-variant-numeric:tabular-nums; }
+a { color:var(--brand-strong); }
+h1,h2,h3,h4 { color:var(--lx-text); letter-spacing:-.011em; }
+.tnum, .data-table td, .stat-num, .total-num, .tkr, .kpi-num, .briefing-num { font-variant-numeric:tabular-nums; }
+::selection { background:var(--brand-100); color:var(--brand-strong); }
+
+/* 细滚动条 */
+* { scrollbar-width:thin; scrollbar-color:#cbd3dd transparent; }
+*::-webkit-scrollbar { width:10px; height:10px; }
+*::-webkit-scrollbar-thumb { background:#cbd3dd; border-radius:6px; border:2px solid transparent; background-clip:content-box; }
+*::-webkit-scrollbar-thumb:hover { background:#aeb8c6; background-clip:content-box; }
+
+/* ── 2. App 壳 ── */
+.app-shell { display:flex; align-items:stretch; min-height:100vh; }
+.rail {
+  flex:0 0 var(--rail-w); width:var(--rail-w);
+  position:sticky; top:0; height:100vh; z-index:90;
+  background:#0c1320; color:#e2e8f0;
+  display:flex; flex-direction:column; align-items:center;
+  padding:12px 0 16px; gap:6px;
+  border-right:1px solid #1e293b;
+}
+.rail-brand {
+  width:38px; height:38px; border-radius:10px; margin-bottom:10px;
+  display:grid; place-items:center; color:#fff;
+  background:linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
+  box-shadow:0 2px 8px rgba(13,148,136,.35);
+}
+.rail-brand svg { width:20px; height:20px; }
+.rail-items { display:flex; flex-direction:column; gap:4px; width:100%; align-items:center; }
+.rail-div { width:26px; height:1px; background:#243043; margin:7px 0; flex:0 0 auto; }
+.rail-item {
+  position:relative; width:42px; height:42px; border-radius:10px;
+  display:grid; place-items:center; color:#94a3b8;
+  transition:background .15s var(--ease-out), color .15s var(--ease-out);
+}
+.rail-item svg { width:20px; height:20px; }
+.rail-item:hover { background:#1a2436; color:#f1f5f9; text-decoration:none; }
+.rail-item.active { color:#fff; background:rgba(13,148,136,.22); }
+.rail-item.active::before { content:""; position:absolute; left:-12px; top:50%; transform:translateY(-50%); width:3px; height:20px; border-radius:0 3px 3px 0; background:var(--brand-200); }
+/* 轨 tooltip */
+.rail-item[data-tip]:hover::after {
+  content:attr(data-tip); position:absolute; left:50px; top:50%; transform:translateY(-50%);
+  background:#0f172a; color:#fff; padding:5px 9px; border-radius:7px; font-size:12px; font-weight:500;
+  white-space:nowrap; box-shadow:var(--el-2); z-index:120; pointer-events:none;
+  border:1px solid #1e293b;
+}
+
+.sidebar {
+  flex:0 0 var(--sidebar-w); width:var(--sidebar-w);
+  position:sticky; top:0; height:100vh; overflow-y:auto; z-index:80;
+  background:var(--lx-surface); border-right:1px solid var(--lx-border);
+  padding:16px 12px 24px; display:flex; flex-direction:column; gap:10px;
+}
+.app-shell.sidebar-collapsed .sidebar { display:none; }
+.sb-head { display:flex; align-items:center; justify-content:space-between; padding:2px 4px 0; }
+.sb-title { font-size:13px; font-weight:700; color:var(--lx-text); letter-spacing:.02em; }
+.sb-collapse { width:26px; height:26px; border-radius:7px; border:none; background:transparent; color:var(--lx-text-3); display:grid; place-items:center; }
+.sb-collapse svg { width:16px; height:16px; }
+.sb-collapse:hover { background:var(--lx-border-2); color:var(--lx-text); }
+.sb-search { position:relative; display:flex; align-items:center; }
+.sb-search svg { position:absolute; left:9px; width:14px; height:14px; color:var(--lx-text-3); pointer-events:none; }
+.sb-search input { width:100%; padding:7px 10px 7px 28px; border:1px solid var(--lx-border); border-radius:8px; font-size:12.5px; color:var(--lx-text); background:var(--surface-2); font-family:inherit; }
+.sb-search input:focus { outline:none; border-color:var(--brand); background:#fff; box-shadow:0 0 0 3px rgba(13,148,136,.12); }
+.sb-section-label { font-size:10.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--lx-text-3); padding:4px 6px 0; }
+.sb-list { display:flex; flex-direction:column; gap:1px; }
+.sb-ind { display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px; color:var(--lx-text-2); font-size:13px; line-height:1.3; }
+.sb-ind:hover { background:var(--lx-border-2); color:var(--lx-text); text-decoration:none; }
+.sb-ind.active { background:var(--brand-50); color:var(--brand-strong); font-weight:600; box-shadow:inset 2px 0 0 var(--brand); }
+.sb-ind.dim { color:var(--lx-text-3); }
+.sb-ind-name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sb-ind-n { font-size:10.5px; font-family:"JetBrains Mono",monospace; color:var(--lx-text-3); background:var(--surface-2); padding:1px 6px; border-radius:6px; }
+.tier-dot { width:7px; height:7px; border-radius:50%; flex:0 0 7px; }
+.tier-dot.tier-1 { background:var(--brand); }
+.tier-dot.tier-2 { background:var(--warn); }
+.tier-dot.tier-3 { background:var(--faint); }
+.sb-other { margin-top:2px; }
+.sb-other > summary { font-size:11px; color:var(--lx-text-3); cursor:pointer; padding:5px 6px; border-radius:7px; list-style:none; }
+.sb-other > summary::-webkit-details-marker { display:none; }
+.sb-other > summary:hover { background:var(--lx-border-2); color:var(--lx-text-2); }
+.sb-quick { margin-top:auto; display:flex; flex-direction:column; gap:1px; padding-top:10px; border-top:1px solid var(--lx-border-2); }
+.sb-quick a { font-size:12px; color:var(--lx-text-3); padding:5px 8px; border-radius:7px; }
+.sb-quick a:hover { background:var(--lx-border-2); color:var(--brand-strong); text-decoration:none; }
+.sb-quick a.active { background:var(--brand-50); color:var(--brand-strong); font-weight:650; }
+
+.app-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; }
+.app-main .container { max-width:1480px; margin:0 auto; padding:26px 32px; width:100%; }
+.app-main .footer { margin-top:auto; padding:18px 32px; border-top:1px solid var(--lx-border); color:var(--lx-text-3); font-size:12px; display:flex; gap:10px; align-items:center; background:transparent; }
+.footer-sep { color:var(--lx-border); }
+
+@media (max-width:1080px){
+  :root { --sidebar-w:200px; }
+  .app-main .container { padding:20px; }
+}
+@media (max-width:820px){
+  .sidebar { display:none; }
+}
+
+/* ── 3. 组件重皮 ── */
+.btn { background:var(--brand); color:#fff; border-radius:8px; padding:7px 13px; font-weight:500; box-shadow:none; transition:background .14s var(--ease-out), box-shadow .14s var(--ease-out), transform .1s; }
+.btn:hover { background:var(--brand-strong); box-shadow:var(--el-1); text-decoration:none; }
+.btn:active { transform:translateY(.5px); }
+.btn-secondary { background:var(--lx-surface); border:1px solid var(--lx-border); color:var(--lx-text-2); }
+.btn-secondary:hover { background:var(--surface-2); border-color:var(--border-strong); color:var(--lx-text); box-shadow:var(--el-1); }
+.panel, .card { background:var(--lx-surface); border:1px solid var(--lx-border); border-radius:var(--lx-radius); box-shadow:var(--el-1); }
+.panel-title { color:var(--lx-text); font-weight:650; border-bottom:1px solid var(--lx-border-2); }
+.entity-header { border:1px solid var(--lx-border); box-shadow:var(--el-1); border-radius:var(--lx-radius); }
+.core-dynamic { border-left-color:var(--brand); color:var(--lx-text-2); }
+
+/* tab → teal 下划线 */
+.tabs { border-bottom:1px solid var(--lx-border); }
+.tab-btn { color:var(--lx-text-3); font-weight:500; border-bottom-width:2px; }
+.tab-btn:hover { color:var(--lx-text); }
+.tab-btn.active { color:var(--lx-text); border-bottom-color:var(--brand); font-weight:650; }
+/* 估值对比 / 公司透视 tab:去掉旧靛蓝底色 pill,统一为 teal 下划线(与其余 tab 一致) */
+.tab-btn-valuation, .tab-btn-companies { background:transparent !important; color:var(--lx-text-3) !important; border-radius:0; padding:8px 16px; }
+.tab-btn-valuation:hover, .tab-btn-companies:hover { background:transparent !important; color:var(--lx-text) !important; }
+.tab-btn-valuation.active, .tab-btn-companies.active { background:transparent !important; color:var(--lx-text) !important; border-bottom-color:var(--brand); font-weight:650; }
+.tab-btn-q6 { color:var(--violet); }
+/* 估值视图切换按钮(按指标/按公司)→ teal,与全站一致(原靛蓝)*/
+.val-vt-btn.active { background:var(--brand) !important; border-color:var(--brand) !important; color:#fff !important; }
+.val-vt-btn { border-radius:8px; }
+
+/* 表格 */
+.data-table th { background:transparent; color:var(--lx-text-3); font-size:11px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; border-bottom:1px solid var(--lx-border); padding:9px 10px; }
+.data-table td { border-bottom:1px solid var(--lx-border-2); }
+.data-table tr:hover { background:var(--surface-2); }
+
+/* tier / status 徽章统一 */
+.tier-badge { border-radius:6px; font-size:10.5px; letter-spacing:.02em; }
+.tier-badge.tier-1 { background:var(--brand-100); color:var(--brand-strong); }
+.tier-badge.tier-2 { background:var(--warn-bg); color:var(--warn-text); }
+.tier-badge.tier-3 { background:var(--lx-border-2); color:var(--muted); }
+.status-badge { border-radius:6px; font-weight:500; }
+
+/* 链接焦点可见 */
+a:focus-visible, button:focus-visible, input:focus-visible, .btn:focus-visible { outline:2px solid var(--brand); outline-offset:2px; border-radius:6px; }
+
+/* ── 4. 新组件:KPI 彩色顶边 stat 卡 ── */
+.stat-row { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; margin:16px 0; }
+.stat-card { position:relative; background:var(--lx-surface); border:1px solid var(--lx-border); border-radius:var(--lx-radius); padding:16px 18px; box-shadow:var(--el-1); overflow:hidden; transition:box-shadow .15s var(--ease-out), transform .15s var(--ease-out); }
+.stat-card::before { content:""; position:absolute; left:0; top:0; right:0; height:3px; background:var(--faint); }
+.stat-card:hover { box-shadow:var(--el-2); transform:translateY(-1px); }
+.stat-card.up::before { background:var(--up); } .stat-card.down::before { background:var(--down); }
+.stat-card.warn::before { background:var(--warn); } .stat-card.info::before { background:var(--info); }
+.stat-card.cyan::before { background:var(--cyan); } .stat-card.violet::before { background:var(--violet); }
+.stat-card.brand::before { background:var(--brand); }
+.stat-label { font-size:12px; color:var(--lx-text-3); font-weight:500; margin-bottom:6px; }
+.stat-num { font-size:30px; font-weight:700; line-height:1.05; color:var(--lx-text); letter-spacing:-.02em; }
+.stat-card.up .stat-num { color:var(--up-text); } .stat-card.down .stat-num { color:var(--down-text); }
+.stat-card.warn .stat-num { color:var(--warn-text); } .stat-card.info .stat-num { color:var(--info); }
+.stat-card.cyan .stat-num { color:var(--cyan); } .stat-card.violet .stat-num { color:var(--violet); }
+.stat-card.brand .stat-num { color:var(--brand-strong); }
+.stat-sub { font-size:11.5px; color:var(--lx-text-3); margin-top:6px; }
+.stat-delta { font-size:12px; font-weight:600; font-family:"JetBrains Mono",monospace; }
+.stat-delta.up { color:var(--up); } .stat-delta.down { color:var(--down); }
+
+/* ── 5. 结论带 bottom-line ── */
+.bottom-line { display:flex; gap:14px; align-items:flex-start; padding:16px 20px; background:linear-gradient(180deg,var(--brand-50),#fff); border:1px solid var(--brand-100); border-left:4px solid var(--brand); border-radius:var(--lx-radius); margin-bottom:16px; }
+.bottom-line-icon { flex:0 0 auto; color:var(--brand); margin-top:1px; }
+.bottom-line-main { font-size:16px; font-weight:650; color:var(--lx-text); line-height:1.5; }
+.bottom-line-sub { font-size:13px; color:var(--lx-text-2); margin-top:3px; }
+
+/* ── 6. What/Read/Logic 解释框 ── */
+.explainer { background:#f0f7ff; border:1px solid #dbeafe; border-left:3px solid var(--info); border-radius:8px; padding:11px 14px; margin:10px 0 14px; font-size:12.5px; line-height:1.65; color:var(--lx-text-2); }
+.explainer b, .explainer strong { color:var(--info); font-weight:650; }
+.explainer .ex-row { display:block; }
+
+/* ── 7. 图表卡 ── */
+.chart-card { background:var(--lx-surface); border:1px solid var(--lx-border); border-radius:var(--lx-radius); padding:16px 18px; box-shadow:var(--el-1); margin-bottom:16px; }
+.chart-card-title { font-size:14px; font-weight:650; color:var(--lx-text); margin-bottom:4px; }
+.chart-card-note { font-size:12px; color:var(--lx-text-3); margin-bottom:10px; }
+.chart-card-src { font-size:11px; color:var(--lx-text-3); text-align:right; margin-top:8px; font-family:"JetBrains Mono",monospace; }
+
+/* ── 8. mono 代码涨跌 pill ── */
+.tkr { display:inline-flex; align-items:center; gap:5px; font-family:"JetBrains Mono",monospace; font-size:11.5px; background:var(--surface-2); border:1px solid var(--lx-border); border-radius:6px; padding:2px 7px; color:var(--lx-text-2); }
+.tkr .tkr-chg { font-weight:600; }
+.tkr .tkr-chg.up { color:var(--up); } .tkr .tkr-chg.down { color:var(--down); } .tkr .tkr-chg.flat { color:var(--lx-text-3); }
+
+/* ── 9. 方向 / 动能 徽章 ── */
+.dir-badge { display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; padding:2px 9px; border-radius:6px; }
+.dir-badge.bull { background:var(--up-bg); color:var(--up-text); }
+.dir-badge.bear { background:var(--down-bg); color:var(--down-text); }
+.dir-badge.contra { background:var(--violet-bg); color:var(--violet); }
+.dir-badge.neutral { background:var(--lx-border-2); color:var(--muted); }
+.mom { font-size:11px; font-weight:600; }
+.mom.heating { color:var(--down); } .mom.cooling { color:var(--info); }
+
+/* ── 10. 生命周期阶段卡 ── */
+.stage-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:14px 0; }
+.stage-card { position:relative; background:var(--lx-surface); border:1px solid var(--lx-border); border-radius:var(--lx-radius); padding:14px 16px; box-shadow:var(--el-1); overflow:hidden; }
+.stage-card::before { content:""; position:absolute; inset:0 0 auto 0; height:3px; background:var(--faint); }
+.stage-card-name { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--lx-text-3); }
+.stage-card-num { font-size:26px; font-weight:700; color:var(--lx-text); margin:4px 0 3px; }
+.stage-card-desc { font-size:11.5px; color:var(--lx-text-3); line-height:1.5; }
+
+/* ── 11. 投资者简报摘要卡 ── */
+.briefing { background:var(--lx-surface); border:1px solid var(--lx-border); border-radius:var(--lx-radius); box-shadow:var(--el-1); padding:18px 22px; margin-bottom:16px; }
+.briefing-title { font-size:14px; font-weight:700; color:var(--lx-text); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.briefing ul { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:9px; }
+.briefing li { font-size:13px; color:var(--lx-text-2); line-height:1.65; padding-left:16px; position:relative; }
+.briefing li::before { content:""; position:absolute; left:2px; top:9px; width:5px; height:5px; border-radius:50%; background:var(--brand); }
+.briefing li b { color:var(--lx-text); font-weight:650; }
+
+/* ── 12. 减少动效偏好 ── */
+@media (prefers-reduced-motion:reduce){
+  * { transition:none !important; animation:none !important; scroll-behavior:auto !important; }
+}
+
+/* ── 13. Layer-3 旗舰精修:hero 改 teal · tab 单行 · dh 和谐 ── */
+/* tab 单行横向滚动(主区变窄不再换行) */
+.tabs { flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; scrollbar-width:none; }
+.tabs::-webkit-scrollbar { display:none; }
+.tab-btn { white-space:nowrap; flex:0 0 auto; }
+
+/* page-hero 改 teal 调,与品牌统一 */
+.page-hero {
+  background:
+    radial-gradient(1200px 240px at 12% -40%, rgba(13,148,136,.30), transparent 60%),
+    linear-gradient(135deg, #0b1f24 0%, #0f2e30 55%, #0c3b39 100%);
+  box-shadow:0 10px 30px rgba(8,30,30,.20);
+}
+.page-hero-eyebrow { color:var(--brand-200); background:rgba(13,148,136,.18); border-color:rgba(13,148,136,.34); }
+.page-hero-stats b { color:#fff; }
+.page-hero-stats span { color:#8fb7b2; }
+
+/* dh 面板用统一卡片 token,研究入口卡改 teal */
+.dh-panel { border-color:var(--lx-border); border-radius:var(--lx-radius); box-shadow:var(--el-1); }
+.dh-research-card { background:linear-gradient(135deg,#0f2e30,#134e4a); }
+.dh-research-card a.btn { background:#fff; color:var(--brand-strong); font-weight:600; }
+.dh-research-card a.btn:hover { background:var(--brand-100); }
+
+/* totals 卡片质感 */
+.total-card { border-radius:var(--lx-radius); box-shadow:var(--el-1); transition:box-shadow .15s var(--ease-out), transform .15s var(--ease-out); }
+.total-card:hover { box-shadow:var(--el-2); transform:translateY(-1px); }
+
+/* breadcrumb / entity 杂项 */
+.breadcrumb a:hover { color:var(--brand-strong); }
+.entity-header-actions { flex-wrap:wrap; }
+
+/* ── 14. 研究世界:Plotly 图容器 + 图表卡 ── */
+.rx-plotly { width:100%; margin:4px 0 12px; }
+.rx-plotly .plotly, .rx-plotly .js-plotly-plot { width:100% !important; }
+.panel-sub { font-size:11.5px; font-weight:500; color:var(--lx-text-3); margin-left:6px; }
+.chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; }
+.chart-card .rx-plotly { margin:0; }
+.net-legend { display:inline-flex; align-items:center; gap:5px; margin-right:12px; font-size:12px; color:var(--lx-text-2); }
+.net-dot { width:9px; height:9px; border-radius:50%; display:inline-block; }
+/* 研究世界 page-hero 内的统计强调数仍为浅色 hero(v4 已设),此处仅保证 plotly 文本不被全局 a 颜色影响 */
+.rx-plotly text { fill:inherit; }

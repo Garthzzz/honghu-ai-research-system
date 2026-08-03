@@ -1,0 +1,11 @@
+<div class="opp-nav">
+  <a href="/opportunity-lens">扫描列表</a>
+  <a href="{{ url_for('opportunity_lens.opportunity_request_generator') }}">Request 生成器</a>
+  {% if run %}
+  <a href="/opportunity-lens/run/{{ run.id }}">总览</a>
+  <a href="/opportunity-lens/run/{{ run.id }}/entities">机会实体</a>
+  <a href="/opportunity-lens/run/{{ run.id }}/audit">审计</a>
+  <a href="/opportunity-lens/run/{{ run.id }}/supplement">补证</a>
+  <a href="/opportunity-lens/run/{{ run.id }}/export">导出</a>
+  {% endif %}
+</div>

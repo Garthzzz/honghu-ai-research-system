@@ -1,0 +1,347 @@
+contract_version: research.workflow.v2
+manifest_version: research.execution_manifest.v1
+brief_version: research.brief.v1
+cache_version: research.content_cache.v1
+
+authority:
+  order:
+    - latest_user_request
+    - live_code_db_frontend
+    - research_workflow_contract
+    - current_context_snapshot
+    - historical_design_and_logs
+
+common:
+  financial_database:
+    path: data/financial.db
+    schema_version: financial.schema.v1
+    research_company_link: research_company_id
+    structured_financials_are_research_data_points: false
+    fact_types: [actual, market, consensus, guidance, internal_estimate, implied]
+    opportunity_profile_export_schema: company_financial_profile_export.v1
+    opportunity_profile_importer: tools.financial.opportunity_profile_export
+    opportunity_company_sync_policy: best_effort_when_evidence_sufficient
+    opportunity_company_sync_outputs: [independent_fy1_fy3, applicable_valuation_methods, reverse_market_expectations]
+  modeling_skills:
+    company_financial_modeling:
+      path: skills/研究层/company-financial-modeling/SKILL.md
+      contract_strength: hard_reproducible
+      required_outputs: [independent_fy1_fy3_freeze, financial_input_output_ledger, external_reconciliation, company_profile_export_when_sufficient]
+    company_valuation_modeling:
+      path: skills/研究层/company-valuation-modeling/SKILL.md
+      contract_strength: hard_reproducible
+      required_outputs: [valuation_method_gate, valuation_ledger, reverse_valuation, external_reconciliation, company_profile_export_when_sufficient]
+    industry_supply_demand_modeling:
+      path: skills/研究层/industry-supply-demand-modeling/SKILL.md
+      contract_strength: open_evidence_driven
+      required_outputs: [search_channel_isolation, formula_input_result, external_reconciliation]
+    probability_scenario_modeling:
+      path: skills/研究层/probability-scenario-modeling/SKILL.md
+      contract_strength: open_evidence_driven
+      required_outputs: [event_definition, evidence_precision_boundary, event_to_financial_bridge]
+  search_channels:
+    allowed: [report, web]
+    merge_stage: analysis_only
+    report_hit_may_suppress_web: false
+    require_source_channel_before_ingest: true
+    second_round_requires_gap_trigger: true
+    report_providers:
+      - provider_id: datayes_playwright
+        display_name: 萝卜投研
+        transport: authenticated_browser_ui
+        base_url: https://r.datayes.com/
+        credential_policy: windows_credential_manager_keyring
+        profile_location: tools/dynamic/secrets/datayes_profile_v2
+        search_field: title_only
+        company_max_age_days: 183
+        industry_max_age_days: 366
+        industry_min_pages: 20
+        domestic_recommended_target: 2
+        foreign_sell_side_target: 2
+        allow_domestic_title_search_fallback: true
+        fallback_satisfies_platform_recommendation_quota: false
+        quota_shortfall_must_be_recorded: true
+        aggregator_is_not_independent_publisher: true
+        download_root: papers/<industry>
+    default_budget_per_axis:
+      report: 4
+      web: 6
+  canonical_fields:
+    research_question: research_question
+    material_choice: available_materials_choice
+    material_type: intake_material_type
+    materials_delivery: materials_delivery_note
+    evidence_policy: evidence_policy
+    entity_research_mode: entity_research_mode
+    source_independence: independence_key
+  market_data:
+    allowed_providers: [api_wind, api_tushare, api_yfinance]
+    disabled_providers: [akshare]
+    a_share:
+      primary_provider: api_wind
+      primary_transport: internal_http_proxy
+      supplemental_provider: api_tushare
+      merge_policy: fill_missing_only_with_field_level_provenance
+      wind_request_policy:
+        require_explicit_user_permission_for_large_request: true
+        unapproved_max_securities_per_request: 10
+        unapproved_max_fields_per_request: 20
+        unapproved_max_estimated_observations_per_request: 5000
+        unapproved_max_securities_per_task_day: 50
+        unapproved_max_estimated_observations_per_task_day: 50000
+        forbid_chunking_to_evade_limits: true
+    non_a_share:
+      primary_provider: api_yfinance
+  evidence:
+    require_original_excerpt: true
+    require_source_locator: true
+    require_period_or_as_of: true
+    require_unit: true
+    ai_summary_is_primary_source: false
+    language_neutral_source_rating: true
+    forbid_language_based_downweighting: true
+    translated_display_requirement_does_not_reduce_weight: true
+    same_series_observations_count_as_one_research_fact: true
+    count_factor_evidence_by: independence_key
+    unknown_independence_is_independent: false
+  open_search:
+    scale_effort_by: [novelty, freshness, uncertainty, decision_materiality]
+    user_links_and_papers_are_seed_not_search_ceiling: true
+    require_multilingual_search_when_material: true
+    allow_weak_sources_for_discovery: true
+    weak_sources_may_support_core_conclusion: false
+    material_claim_verification_actions:
+      - trace_earliest_visible_origin
+      - verify_subject_product_date_and_quantity
+      - seek_independent_cross_chain_corroboration
+      - search_denials_conflicts_and_alternative_explanations
+    repeated_reposts_count_as_independent: false
+    unresolved_material_leads:
+      preserve_in_research: true
+      allowed_roles: [weak_signal, reference, supplement_priority, uncertainty_boundary]
+      forbidden_roles: [core_scoring, probability_fact_update, financial_model_fact_input]
+      require_plain_language_disclosure: true
+    run_statistics:
+      - weak_lead_count
+      - traced_to_original_source_count
+      - common_origin_duplicate_count
+      - unresolved_material_lead_count
+  review:
+    verdicts: [GREEN, YELLOW, RED]
+    max_targeted_repair_rounds: 3
+    canonical_review_stages:
+      - evidence
+      - calculation
+      - science
+      - financial
+      - writing
+      - browser
+      - evidence_escalation
+      - final
+    deterministic_gates:
+      - contract
+      - evidence_integrity
+      - provenance
+      - duplication
+      - scope_and_units
+    artifact_triggers:
+      calculations: calculation
+      scoring: science
+      company_financials: financial
+      public_markdown: writing
+      public_ui: browser
+    final_review:
+      required_for_publication: true
+      profile: integrated_science_and_investment_review
+      checks:
+        - source_independence_and_reproducibility
+        - counter_evidence_and_uncertainty
+        - conclusion_boundary
+        - marginal_information_and_decision_use
+        - confirm_falsify_actions
+        - presentation_readability
+        - human_readable_question_evidence_method_conclusion_flow
+        - table_information_value_and_non_duplication
+        - public_machine_field_exclusion
+        - probability_formula_plain_language_translation
+        - financial_estimate_method_result_interpretation
+        - table_rightmost_column_visual_visibility
+  publication_blockers:
+    - deterministic_gate_red
+    - unresolved_review_red
+    - missing_final_green
+    - open_p0
+    - fabricated_or_untraceable_claim
+    - unresolved_contract_violation
+
+tracks:
+  a:
+    label: A 轨纯研报行业研究
+    input: papers_folder
+    brief_rule: default_coverage
+    public_artifacts:
+      - industry_main
+      - q0_history
+      - q1_competition
+      - q2_market_space
+      - q3_company_moat
+      - q4_industry_economics
+      - q5_synthesis
+      - q6_supplement
+      - company_profile
+      - valuation
+      - industry_chain
+    default_coverage:
+      - definition_scope_and_value_chain
+      - history_and_regime_changes
+      - competition_share_and_localization
+      - market_size_drivers_and_scenarios
+      - company_moats_and_disconfirming_evidence
+      - industry_economics_policy_and_technology_routes
+      - current_judgment_risks_and_monitoring
+    fallback_minimum_characters:
+      industry_main: 12000
+      q0_history: 7000
+      q1_competition: 9000
+      q2_market_space: 12000
+      q3_company_moat: 12000
+      q4_industry_economics: 9000
+      q5_synthesis: 12000
+      q6_supplement: 3000
+      company_profile: 6000
+    reference_package_floor_ratio: 0.70
+    relational_series_storage: observation_rows_grouped_as_one_research_fact
+  b:
+    label: B 轨 prompt 驱动行业研究
+    inherits: a
+    input: prompt_plus_papers_and_independent_search
+    brief_rule: union_prompt_and_default_coverage
+    prompt_requirements_may_not_be_dropped: true
+    require_independent_search: true
+    company_report_default_role: supporting_not_decisive
+  c:
+    label: C 轨 Opportunity Lens
+    input: opportunity_lens_intake
+    active_foundation_contracts:
+      intake_and_search: opportunity_lens/C轨研究启动与开放探索输出标准_V0.9.1.md
+      scoring_and_trace: opportunity_lens/C轨供需失衡评分流程与可解释计算体系_V0.8.1.md
+      database_and_state: opportunity_lens/C轨独立DB与开放研究深度补充修订说明_V1.0.md
+      viewer_and_output: opportunity_lens/C轨输出模板与前端可视化标准_V1.1.md
+      module_contract: opportunity_lens/MODULE_CONTEXT.md
+      human_readability: opportunity_lens/HUMAN_READABILITY_STANDARD.md
+    pack_schema_version: opportunity_lens.run_pack.v2
+    legacy_pack_schema_version: opportunity_lens.run_pack.legacy
+    min_parallel_data_points: 100
+    series_storage: one_data_point_with_observations_array
+    factor_evidence_groups:
+      normal: 3
+      important: 5
+    theory_research:
+      min_research_ledger_rows: 8
+      scoring_allowed: false
+      targets_allowed: false
+      early_signal_allowed: false
+    market_linked:
+      scoring_allowed: true
+      target_required: true
+      target_data_points_required: true
+    fallback_minimum_characters:
+      report_section: 800
+      entity_section: 1200
+    deep_research_minimum_characters:
+      report_section: 800
+      entity_section: 1200
+    loader_default: stage
+    publish_requires_review_records:
+      - evidence
+      - science
+      - writing
+      - final
+    adaptive_publish_reviews:
+      public_ui: [browser]
+      market_linked: [calculation]
+      security_target: [financial]
+    display_contract:
+      same_product_runs_share_existing_viewer_shell: true
+      content_rules_may_change_information_architecture: false
+      structural_change_requires_explicit_user_authorization: true
+      display_title_required: true
+      display_title_preferred_max_characters: 24
+      preserve_full_research_question_in: [research_pack, intake_contract]
+      report_body_must_cover_full_requirement_matrix: true
+      architecture_source: active_foundation_contracts_not_prior_run_artifacts
+      schema_specific_templates_may_adapt_data_shape_only: true
+      stable_page_routes:
+        - /opportunity-lens
+        - /opportunity-lens/request-generator
+        - /opportunity-lens/run/<run_id>
+        - /opportunity-lens/run/<run_id>/entities
+        - /opportunity-lens/entity/<entity_id>
+        - /opportunity-lens/target/<target_id>
+        - /opportunity-lens/factor/<factor_score_id>
+        - /opportunity-lens/metric-slot/<slot_id>
+        - /opportunity-lens/run/<run_id>/audit
+        - /opportunity-lens/run/<run_id>/supplement
+        - /opportunity-lens/run/<run_id>/export
+      forbid_detail_page_redirect_to_run_overview: true
+      run_reading_order:
+        - compact_identity_status_and_kpis
+        - full_width_research_report
+        - research_entities
+        - factor_heatmap_and_structured_visuals
+        - long_series_visuals_when_material
+      long_series_desktop_max_columns: 2
+    producer_reviewer_loop:
+      source_and_data: evidence
+      model_score_probability_and_formula: [calculation, science]
+      company_financials: financial
+      public_report: writing
+      public_viewer: browser
+      integrated_final_review_once_after_targeted_closure: true
+    public_output_contract:
+      section_flow: [question, evidence_and_data, method_if_needed, analysis_and_conclusion]
+      forbid_deferred_research_escape_hatch: true
+      table_information_value_required: true
+      merge_redundant_tables: true
+      sensitivity_may_be_quantified_prose_when_clearer: true
+      forbid_main_report_entity_body_duplication: true
+      forbid_machine_source_identifier_columns: true
+      forbid_generic_unknown_label: true
+      forbid_internal_audit_fields: true
+      forbid_unexplained_model_codes: true
+      require_formula_translation: true
+      require_core_complex_formula_in_method_section: true
+      require_core_complex_formula_display_block: true
+      forbid_unnecessary_simple_formula_display: true
+      company_investment_research_order: [operating_and_commercial_evidence, financial_and_valuation_validation, ranking_and_portfolio]
+      require_ranked_company_causal_research: true
+      require_portfolio_company_weight_bridge: true
+      require_dense_multicategory_series_table_when_clearer: true
+      require_financial_method_result_analysis: true
+      require_listed_company_profile_financial_sync_when_sufficient: true
+      require_rightmost_column_visual_audit: true
+      require_per_table_right_edge_screenshot: true
+      require_all_unique_evidence_drawers_browser_audit: true
+      require_human_source_level_and_date_display: true
+      require_comparison_table_when_modeled_financial_results_are_clearer_in_table: true
+    writing_review_checks:
+      - no_machine_or_audit_language_in_public_body
+      - no_low_information_or_redundant_tables
+      - evidence_gaps_are_described_precisely
+      - probability_and_formula_terms_are_explained
+      - core_complex_model_formula_is_shown_when_language_alone_is_ambiguous
+      - simple_formulas_and_low_information_tables_are_not_added_mechanically
+      - dense_multicategory_multiperiod_data_uses_one_high_information_table_when_clearer
+      - financial_results_have_method_and_interpretation
+      - concise_display_title_with_full_question_preserved
+      - modeled_financial_results_use_table_when_table_improves_comparison
+    browser_review_checks:
+      - no_page_level_horizontal_overflow
+      - every_table_checked_at_left_and_right_scroll_extremes
+      - rightmost_header_and_cells_are_fully_visible
+      - long_text_does_not_overlap_or_clip
+      - every_factor_card_label_is_fully_visible_and_not_squeezed_by_badges
+      - desktop_and_mobile_screenshots_reviewed
+      - every_table_has_right_edge_screenshot_and_hash
+      - every_unique_evidence_button_is_keyboard_opened
+      - evidence_api_drawer_content_and_overflow_are_checked

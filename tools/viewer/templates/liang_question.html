@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ q }} · {{ q_title }} · 横向对比{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / 核心研究维度 / <strong>{{ q }} {{ q_title }}</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ q }} · {{ q_title }}</h1>
+    <p class="entity-meta">跨行业横向对比页 — 覆盖所有深度跟踪行业的 {{ q }} 切片</p>
+  </div>
+</header>
+
+{% if docs %}
+<div class="liang-horizontal-grid">
+  {% for item in docs %}
+  <article class="liang-col {% if item.doc.meta and item.doc.meta.get('ai_synthesized') %}ai-synth-frame{% endif %}">
+    <div class="liang-col-header">
+      <h2><a href="{{ url_for('industry_detail', industry_id=item.industry.id) }}">{{ item.industry.name }}</a></h2>
+      <div class="liang-col-meta">
+        <span class="tier-badge tier-{{ item.industry.tier }}">tier {{ item.industry.tier }}</span>
+        {% if item.doc.meta and item.doc.meta.get('ai_synthesized') %}
+          <span class="ai-synth-tag"> AI 综合</span>
+        {% endif %}
+        {% if item.doc.meta and item.doc.meta.get('last_updated') %}
+          <span class="meta-date">更新 {{ item.doc.meta.last_updated }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if item.has_md and item.doc.exists %}
+      {% if item.doc.meta.get('core_dynamic') %}
+        <blockquote class="core-judgment">{{ item.doc.meta.core_dynamic }}</blockquote>
+      {% endif %}
+      <div class="md-body liang-md liang-md-{{ q|lower }}">
+        {{ item.doc.html|safe }}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        本行业尚无 {{ q }} 独立 md。<br>
+        阶段 2 由 SCIENTIST 角色按 <code>templates/liang_{{ q|lower }}.md.template</code> 填写。
+      </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  尚无深度跟踪行业。本 PoC 阶段 2 将注入光模块行业。
+</div>
+{% endif %}
+
+{% endblock %}

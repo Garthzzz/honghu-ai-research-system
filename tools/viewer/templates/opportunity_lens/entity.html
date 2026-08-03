@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}{{ entity.display_name or entity.canonical_name }}{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page opp-entity-page">
+  <div class="opp-titlebar">
+    <div>
+      <p class="opp-eyebrow">{{ entity.entity_type|opp_label }} · {{ (entity.entity_research_mode or "market_linked")|opp_label }} · 规范实体 {{ entity.id }}</p>
+      <h1>{{ entity.display_name or entity.canonical_name }}</h1>
+    </div>
+  </div>
+  {% if entity.maturation %}
+    {% set run = {"id": entity.maturation[0].run_id} %}
+  {% else %}
+    {% set run = none %}
+  {% endif %}
+  {% include "opportunity_lens/_nav.html" %}
+
+  <section class="opp-panel opp-entity-intro">
+    <h2>{% if entity.entity_research_mode == "theory_research" %}研究主题介绍、证据链与研究结论{% else %}研究实体介绍、证据链与投资结论{% endif %}</h2>
+    {% if entity.sections %}
+      {% for section in entity.sections %}
+      <article class="opp-section">
+        {% set section_title = (section.section_title or "")|trim %}
+        {% set normalized_section_title = section_title|replace("，", "、")|replace(",", "、") %}
+        {% if normalized_section_title not in ["研究实体介绍", "研究实体介绍、证据链与投资结论"] %}
+        <h3>{{ section.section_title }}</h3>
+        {% endif %}
+        <div class="opp-markdown">{{ section.body_markdown|opp_markdown }}</div>
+        {% if section.evidence_ref_uri_list %}
+        <div class="opp-evidence-list" aria-label="实体研究证据">
+          {% for ref in section.evidence_ref_uri_list %}
+          <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </article>
+      {% endfor %}
+    {% else %}
+      <div class="opp-entity-brief-grid">
+        <article>
+          <h3>研究对象</h3>
+          <p>{{ entity.entity_research_brief.research_object }}</p>
+        </article>
+        <article>
+          <h3>证据和数据</h3>
+          <p>{{ entity.entity_research_brief.evidence_summary }}</p>
+        </article>
+        <article>
+          <h3>分析</h3>
+          <p>{{ entity.entity_research_brief.analysis_summary }}</p>
+        </article>
+        <article>
+          <h3>总结</h3>
+          <p>{{ entity.entity_research_brief.conclusion }}</p>
+        </article>
+      </div>
+    {% endif %}
+	  </section>
+
+  {% if entity.entity_research_mode == "theory_research" and entity.research_profile %}
+<section class="opp-panel opp-research-only-panel">
+    <h2>深度研究与文献综述</h2>
+    <div class="opp-entity-brief-grid">
+      <article>
+        <h3>研究问题</h3>
+        <p>{{ entity.research_profile.research_question }}</p>
+      </article>
+      <article>
+        <h3>研究范围</h3>
+        <p>{{ entity.research_profile.research_scope or "未单独标注范围，以本轮 intake 和来源集合为准。" }}</p>
+      </article>
+      <article>
+        <h3>方法</h3>
+        <p>{{ entity.research_profile.methodology_note or "按来源分层、口径拆分、反方约束和证据一致性做研究综述。" }}</p>
+      </article>
+      <article>
+        <h3>状态</h3>
+        <p>{{ entity.research_profile.research_depth_status|opp_label }}</p>
+      </article>
+    </div>
+    <article class="opp-section">
+      <h3>文献综述和资料整理</h3>
+      <div class="opp-markdown">{{ entity.research_profile.literature_review_markdown|opp_markdown }}</div>
+    </article>
+    {% if entity.research_profile.data_collection_markdown %}
+    <article class="opp-section">
+      <h3>数据收集和口径</h3>
+      <div class="opp-markdown">{{ entity.research_profile.data_collection_markdown|opp_markdown }}</div>
+    </article>
+    {% endif %}
+    <article class="opp-section">
+      <h3>分析</h3>
+      <div class="opp-markdown">{{ entity.research_profile.analysis_markdown|opp_markdown }}</div>
+    </article>
+    <article class="opp-section">
+      <h3>问题回答</h3>
+      <div class="opp-markdown">{{ entity.research_profile.answer_markdown|opp_markdown }}</div>
+    </article>
+    <article class="opp-section">
+      <h3>总结</h3>
+      <div class="opp-markdown">{{ entity.research_profile.conclusion_markdown|opp_markdown }}</div>
+    </article>
+    {% if entity.research_profile.limitations_markdown %}
+    <article class="opp-section">
+      <h3>限制和待补</h3>
+      <div class="opp-markdown">{{ entity.research_profile.limitations_markdown|opp_markdown }}</div>
+    </article>
+    {% endif %}
+    {% if entity.research_profile.evidence_ref_uri_list %}
+    <div class="opp-evidence-list">
+      {% for ref in entity.research_profile.evidence_ref_uri_list %}
+      <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if entity.entity_research_mode != "theory_research" %}
+  <section class="opp-panel">
+    <h2>相关标的与投资研究建议</h2>
+    <p class="opp-entity-note">这里展示条件化投资建议：证实时采取什么研究和交易响应，证伪时如何降级、回避或转入补证；具体触发条件以表内监控指标和证据为准。</p>
+    {% if entity.investment_targets %}
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-target-table">
+        <thead>
+          <tr>
+            <th>标的</th>
+            <th>类型</th>
+            <th>优先级/状态</th>
+            <th>标的质量</th>
+            <th>暴露逻辑</th>
+            <th>同实体内比较</th>
+            <th>证实后动作</th>
+            <th>证伪后动作</th>
+            <th>投资研究建议</th>
+            <th>主要风险</th>
+            <th>链接</th>
+            <th>证据</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for target in entity.investment_targets %}
+          <tr>
+            <td>
+              <a class="opp-target-main-link" href="{{ target.target_detail_link }}"><b>{{ target.target_name }}</b></a>
+              {% if target.ticker %}<br><span class="opp-code" translate="no">{{ target.ticker }}</span>{% endif %}
+              {% if target.market %}<br><span class="opp-muted">{{ target.market }}</span>{% endif %}
+            </td>
+            <td>
+              <span class="opp-target-tag opp-target-type-tag">{{ target.target_type|opp_label }}</span>
+            </td>
+            <td>
+              <div class="opp-target-tag-stack">
+                {% set priority_key = (target.target_priority or "none")|lower|replace("_", "-") %}
+                <span class="opp-target-tag opp-priority-tag opp-priority-{{ priority_key }}">{{ target.target_priority|opp_label if target.target_priority else "未分级" }}</span>
+                {% set support_key = (target.support_status or "unknown")|lower|replace("_", "-") %}
+                <span class="opp-target-tag opp-support-tag opp-support-{{ support_key }}">{{ target.support_status|opp_label }}</span>
+              </div>
+            </td>
+            <td>
+              {% set quality_key = (target.target_quality_label or "missing")|lower|replace("_", "-") %}
+              <span class="opp-target-tag opp-quality-tag opp-quality-{{ quality_key }}">{{ target.target_quality_label|opp_label if target.target_quality_label else "待补质量判断" }}</span>
+            </td>
+            <td>{{ target.exposure_rationale }}</td>
+            <td>{{ target.relative_preference or "待补同实体内比较" }}</td>
+            <td>{{ target.confirmed_scenario_action or "待补证实场景动作" }}</td>
+            <td>{{ target.falsified_scenario_action or "待补证伪场景动作" }}</td>
+            <td>
+              <b>研究动作：</b>{{ target.research_action }}<br>
+              <b>建议框架：</b>{{ target.investment_view }}
+            </td>
+            <td>{{ target.risk_note }}</td>
+            <td>
+              <div class="opp-target-links">
+              <a class="opp-evidence-link" href="{{ target.target_detail_link }}">标的研究页</a>
+              {% if target.target_link %}
+                <a class="opp-evidence-link" href="{{ target.target_link }}"{% if target.target_link.startswith('http') %} target="_blank" rel="noopener noreferrer"{% endif %}>外部/公司页</a>
+              {% else %}
+                {% set link_key = (target.link_status or "missing")|lower|replace("_", "-") %}
+                <span class="opp-target-tag opp-link-status opp-link-status-{{ link_key }}">{{ target.link_status|opp_label }}</span>
+              {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="opp-target-evidence-cell">
+              {% if target.evidence_ref_uri %}
+              <button type="button" data-opp-evidence="{{ target.evidence_ref_uri }}" title="{{ target.evidence_ref_uri|opp_evidence_title }}">{{ target.evidence_ref_uri|opp_evidence_label }}</button>
+              {% else %}
+              <span class="opp-muted">待补证据</span>
+              {% endif %}
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">该实体尚未绑定具体标的。根据当前标准，进入发布状态前必须至少补充一个公司、证券、ETF、期货合约、价差或观察篮子的研究入口；如果确实没有可交易标的，也必须写明“不适用”的事实依据。</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="opp-panel">
+    <h2>证据和数据点</h2>
+    <div class="opp-entity-evidence-grid opp-entity-data-grid">
+      <div>
+        <h3>关键数据点</h3>
+        {% if entity.display_data_points %}
+        <p class="opp-muted">默认展示最能解释该实体的核心数据点 {{ entity.display_data_points|length }} 条；完整 {{ entity.data_point_total_count or entity.data_points|length }} 条数据点仍保留在 API 和证据库中，不在页面逐行铺开。</p>
+        <div class="opp-wide-scroll">
+          <table class="opp-table opp-data-table opp-key-data-table">
+            <thead><tr><th>指标</th><th>期间</th><th>数值</th><th>观测</th><th>引用的原文</th><th>来源</th><th>证据</th></tr></thead>
+            <tbody>
+            {% for dp in entity.display_data_points %}
+            <tr>
+              <td>{{ dp.metric }}</td>
+              <td>{{ dp.period or dp.as_of_date }}</td>
+              <td>{{ dp.value_display }}</td>
+              <td>{% if dp.observation_count and dp.observation_count > 1 %}{{ dp.observation_count }} 个{% else %}单点{% endif %}</td>
+              <td>
+                <blockquote>{{ dp.source_excerpt_display or dp.source_excerpt }}</blockquote>
+                {% if dp.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ dp.source_excerpt_zh }}</span></div>{% endif %}
+              </td>
+              <td>
+                {{ dp.source_title or "未关联来源标题" }}
+                {% if dp.source_title_zh %}<div class="opp-translation"><b>中文标题</b><span>{{ dp.source_title_zh }}</span></div>{% endif %}
+                <br><span class="opp-muted">{{ dp.source_publisher or "未知发布方" }} · {{ dp.source_publish_date or "未知时间" }}</span>
+                {% if dp.freshness_warning %}<div class="opp-stale-warning">{{ dp.freshness_warning }}</div>{% endif %}
+              </td>
+              <td><button type="button" data-opp-evidence="{{ dp.evidence_ref_uri }}" title="{{ dp.evidence_ref_uri|opp_evidence_title }}">{{ dp.evidence_ref_uri|opp_evidence_label }}</button></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="opp-empty">暂无实体级数据点。</div>
+	        {% endif %}
+        {% if entity.research_data_points %}
+        <h3>研究指标、计算底稿与证据索引</h3>
+        <p class="opp-muted">以下内容是正文结论的指标底稿和证据索引；指标定义、计算原因、逻辑介绍和问题回答必须在正文中完整展开，不能只放在表格里。</p>
+        <div class="opp-wide-scroll">
+          <table class="opp-table opp-data-table opp-research-data-table">
+            <thead><tr><th>指标/计算项</th><th>类别</th><th>期间</th><th>指标结果/事实</th><th>引用原文</th><th>计算原因和使用方式</th><th>来源</th><th>证据</th></tr></thead>
+            <tbody>
+            {% for dp in entity.research_data_points %}
+            <tr>
+              <td>{{ dp.data_point_title }}<br><span class="opp-muted">{{ dp.metric }}</span></td>
+              <td>{{ dp.research_category|opp_label }}</td>
+              <td>{{ dp.period or dp.as_of_date }}</td>
+              <td>{{ dp.value_display }}</td>
+              <td>
+                <blockquote>{{ dp.source_excerpt_display or dp.source_excerpt }}</blockquote>
+                {% if dp.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ dp.source_excerpt_zh }}</span></div>{% endif %}
+              </td>
+              <td>
+                <b>解读：</b>{{ dp.interpretation }}<br>
+                <b>用途：</b>{{ dp.research_use }}
+                {% if dp.limitations %}<br><b>限制：</b>{{ dp.limitations }}{% endif %}
+              </td>
+              <td>{{ dp.source_title or "未关联来源标题" }}<br><span class="opp-muted">{{ dp.source_publisher or "未知发布方" }} · {{ dp.source_publish_date or "未知时间" }}</span></td>
+              <td><button type="button" data-opp-evidence="{{ dp.evidence_ref_uri }}" title="{{ dp.evidence_ref_uri|opp_evidence_title }}">{{ dp.evidence_ref_uri|opp_evidence_label }}</button></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% if entity.visuals %}
+        <div class="opp-entity-visuals">
+          <h3>长期序列可视化</h3>
+          <div class="opp-visual-stack">
+            {% for visual in entity.visuals %}
+            {% include "opportunity_lens/_visual_block.html" %}
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      <div>
+        <h3>证据 claim</h3>
+        {% if entity.claims %}
+        <div class="opp-claim-list">
+          {% for claim in entity.claims %}
+          <article class="opp-claim-card">
+            <h4>{{ claim.claim_type|opp_label }}</h4>
+            <p>{{ claim.claim_text }}</p>
+            {% if claim.source_excerpt %}<blockquote>{{ claim.source_excerpt_display or claim.source_excerpt }}</blockquote>{% endif %}
+            {% if claim.source_excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ claim.source_excerpt_zh }}</span></div>{% endif %}
+            <div class="opp-muted">{{ claim.source_title or "未关联来源标题" }} · {{ claim.source_publish_date or "未知时间" }}</div>
+            {% if claim.source_title_zh %}<div class="opp-translation"><b>中文标题</b><span>{{ claim.source_title_zh }}</span></div>{% endif %}
+            {% if claim.freshness_warning %}<div class="opp-stale-warning">{{ claim.freshness_warning }}</div>{% endif %}
+            {% if claim.evidence_ref_uri %}<button type="button" data-opp-evidence="{{ claim.evidence_ref_uri }}" title="{{ claim.evidence_ref_uri|opp_evidence_title }}">{{ claim.evidence_ref_uri|opp_evidence_label }}</button>{% endif %}
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="opp-empty">暂无实体级 claim。</div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if entity.entity_research_mode != "theory_research" %}
+  <section class="opp-panel">
+    <h2>评分</h2>
+    {% if entity.score %}
+    {% if entity.score.score_status == "complete" %}
+    <div class="opp-score">{{ "%.1f"|format(entity.score.score_point or 0) }} <span>{{ entity.score.score_grade }}</span></div>
+    {% else %}
+    <div class="opp-score">未评级</div>
+    {% endif %}
+    <p>{{ entity.score.score_status|opp_label }} · {{ entity.score.rating_status|opp_label }} · {{ entity.score.score_quality_label|opp_label }}</p>
+    {% if entity.score.early_signal %}
+    <div class="opp-policy-card">
+      <b>机会线索 overlay</b>
+      <span>线索评分 {{ "%.1f"|format(entity.score.early_signal.early_signal_score or 0) }}，验证优先级 {{ "%.1f"|format(entity.score.early_signal.research_priority_score or 0) }}。核心分是否被 overlay 改变：{{ "否" if entity.score.early_signal.core_score_changed_by_overlay == 0 else "是" }}。</span>
+    </div>
+    {% endif %}
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-factor-table">
+        <thead><tr><th>因子</th><th>公式/含义</th><th>调整后分数</th><th>覆盖度</th><th>置信度</th></tr></thead>
+        <tbody>
+        {% for f in entity.score.factor_scores %}
+        <tr>
+          <td><a href="/opportunity-lens/factor/{{ f.id }}">{{ f.factor_label }}</a><br><span class="opp-code" translate="no">{{ f.factor_code }}</span></td>
+          <td>{{ f.factor_description }}<br><span class="opp-muted">{{ f.factor_formula }}</span></td>
+          <td>{{ "%.1f"|format(f.score_adjusted or 0) }}</td>
+          <td>{{ "%.0f"|format((f.coverage or 0)*100) }}%</td>
+          <td>{{ "%.0f"|format((f.confidence or 0)*100) }}%</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">实体存在，但尚未评分。</div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <section class="opp-panel">
+    <h2>来源与审计</h2>
+    <div class="opp-entity-evidence-grid">
+      <div>
+        <h3>关联来源</h3>
+        {% for source in entity.sources %}
+        <div class="opp-source-card">
+          <button type="button" class="opp-source" data-opp-evidence="opp://source/{{ source.id }}" title="{{ source.title }} · {{ source.publisher or '发布方未披露' }} · {{ source.publish_date or '日期未披露' }}">{{ source.source_tier }} · {{ source.title }}</button>
+          {% if source.title_zh %}<div class="opp-translation"><b>中文标题</b><span>{{ source.title_zh }}</span></div>{% endif %}
+          {% if source.excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ source.excerpt_zh }}</span></div>{% endif %}
+          {% if source.freshness_warning %}<div class="opp-stale-warning">{{ source.freshness_warning }}</div>{% endif %}
+        </div>
+        {% else %}
+        <div class="opp-empty">暂无关联来源证据。</div>
+        {% endfor %}
+      </div>
+      <div>
+        <h3>审计问题</h3>
+        {% for issue in entity.audit_issues %}
+        <div class="opp-audit {{ issue.audit_severity }}"><b>{{ issue.audit_severity|opp_label }}</b> {{ issue.issue_title }}</div>
+        {% else %}
+        <div class="opp-empty">暂无审计问题。</div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

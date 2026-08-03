@@ -1,0 +1,665 @@
+{% extends "base.html" %}
+{% block title %}{{ ind.name }} · 行业详情{% endblock %}
+{% block head_extra %}<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / 行业 / <strong>{{ ind.name }}</strong>
+</div>
+
+{% if main_doc.meta.get('data_tier_note') %}
+<div class="tier-note-banner">
+   <strong>数据可信度声明</strong>:{{ main_doc.meta.get('data_tier_note') }}
+</div>
+{% endif %}
+
+{% if em_total > 0 %}
+<div class="data-quality-banner {% if ind.tier == 3 %}banner-tier-3{% endif %}">
+  <strong>本行业数据点抽取方法分布</strong>
+  <div class="dq-counts">
+    <span class="dq-count"><span class="em-pill em-pill-pdf_direct em-inline">原文</span> <strong>{{ em_breakdown.pdf_direct }}</strong> ({{ em_pct.pdf_direct }}%)</span>
+    <span class="dq-count"><span class="em-pill em-pill-web_fetch em-inline">网搜</span> <strong>{{ em_breakdown.web_fetch }}</strong> ({{ em_pct.web_fetch }}%)</span>
+    <span class="dq-count"><span class="em-pill em-pill-template_estimate em-inline"> 模板估</span> <strong>{{ em_breakdown.template_estimate }}</strong> ({{ em_pct.template_estimate }}%)</span>
+    <span class="dq-count"><span class="em-pill em-pill-inferred em-inline">推算</span> <strong>{{ em_breakdown.inferred }}</strong> ({{ em_pct.inferred }}%)</span>
+    <span class="dq-count"><span class="em-pill em-pill-unknown em-inline">未标</span> <strong>{{ em_breakdown.unknown }}</strong> ({{ em_pct.unknown }}%)</span>
+  </div>
+  {% if em_pct.template_estimate > 30 %}
+  <div class="banner-warning">
+     本行业 template_estimate 占比 {{ em_pct.template_estimate }}%,多源对照可信度受限,推荐仅参考 <a href="{{ url_for('data_points_index', em='pdf_direct') }}">原文标签</a> 数据
+  </div>
+  {% endif %}
+  {% if ind.tier == 3 %}
+  <div class="banner-warning">
+     本行业 tier=3 仅记录,数据真实性低,不作为投决依据;demo 主路径不展示
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<header class="entity-header">
+  <div>
+    <h1>{{ ind.name }}
+      <span class="tier-badge tier-{{ ind.tier }}">tier {{ ind.tier }}</span>
+      <span class="status-badge status-{{ ind.status }}">{{ ind.status }}</span>
+    </h1>
+    {% if ind.core_dynamic %}
+      <p class="core-dynamic">{{ ind.core_dynamic }}</p>
+    {% endif %}
+    <p class="entity-meta">
+      最后更新:{{ ind.last_updated or '—' }} · 数据点:{{ data_points|length }} · 上游 {{ upstream|length }} · 下游 {{ downstream|length }} · 公司 {{ companies|length }} · Source {{ sources|length }}
+    </p>
+  </div>
+  <div class="entity-header-actions">
+    <a class="btn" href="{{ url_for('industry_companies', industry_id=ind.id) }}">公司透视 →</a>
+    <a class="btn" href="{{ url_for('industry_valuation', industry_id=ind.id) }}">估值对比 →</a>
+    {% if ind.name in ['锂', '碳酸锂'] %}
+    <a class="btn" href="{{ url_for('lithium_calculator') }}">碳酸锂项目计算器 →</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{{ url_for('industry_chain', industry_id=ind.id) }}">查看产业链全景</a>
+    <a class="btn btn-secondary" href="{{ url_for('refresh_industry', industry_id=ind.id) }}">扫描新增 source</a>
+  </div>
+</header>
+
+<!-- 增量状态条(任务 6c) -->
+<div class="update-status-bar">
+  <span class="usb-item"><span class="usb-label">上次完整 review</span>{{ update_status.last_full_review or '—' }}</span>
+  <span class="usb-sep">·</span>
+  <span class="usb-item"><span class="usb-label">上次增量</span>{{ update_status.last_incremental or '—' }}</span>
+  <span class="usb-sep">·</span>
+  <span class="usb-item">
+    <span class="usb-label">待 review 章节</span>
+    {% if update_status.pending_sections > 0 %}
+      <span class="badge-pending">{{ update_status.pending_sections }}</span>
+    {% else %}
+      0
+    {% endif %}
+  </span>
+</div>
+
+{% if main_doc.meta and main_doc.meta.get('ai_synthesized') %}
+<div class="ai-synth-banner">
+   <strong>AI 综合产出</strong> · 默认 tier=2 不可提升 · 引用前请 verify · 视觉边框警示
+</div>
+{% endif %}
+
+<!-- Tab 切换:主文档 + 行业声明维度 + 结构化数据 -->
+<div class="tabs">
+  {% set q_icons = {'Q0':'','Q1':'️','Q2':'','Q3':'','Q4':'','Q5':'','Q6':'','Q7':''} %}
+  <button class="tab-btn active" data-tab="main">📄 主文档</button>
+  {% for q, short, full in q_dimensions %}
+    <button class="tab-btn tab-btn-{{ q|lower }} {% if short == '综述' %}tab-btn-q5-highlight{% endif %}" data-tab="{{ q }}">{{ q_icons.get(q,'') }} {{ q }} {{ short }}</button>
+    {% if q == 'Q1' %}
+    <a class="tab-btn tab-btn-companies" href="{{ url_for('industry_companies', industry_id=ind.id) }}" title="公司透视(Q1.5):全球/中国玩家份额·估值·财务·研发"> 公司透视 →</a>
+    <a class="tab-btn tab-btn-valuation" href="{{ url_for('industry_valuation', industry_id=ind.id) }}" title="估值对比(Q1.6):PE/PB/ROE/盈利预测,按指标/按公司"> 估值对比 →</a>
+    {% endif %}
+  {% endfor %}
+  {% if not has_static_q6 %}
+  <button class="tab-btn tab-btn-q6" data-tab="Q6"> Q6 补充</button>
+  {% endif %}
+  <button class="tab-btn" data-tab="data"> 结构化数据</button>
+</div>
+
+<div class="tab-panel active" id="tab-main">
+  {% if main_doc.exists %}
+    <article class="md-body {% if main_doc.meta.get('ai_synthesized') %}ai-synth-frame{% endif %}">
+      {{ main_doc.html|safe }}
+    </article>
+  {% else %}
+    <div class="empty-state">
+      尚无主文档。预期路径:<code>docs/industries/{{ ind.name }}.md</code><br>
+      阶段 2 将由 SCIENTIST 角色填充(模板见 <code>templates/industry.md.template</code>)。
+    </div>
+  {% endif %}
+</div>
+
+{% for q, short, full in q_dimensions %}
+<div class="tab-panel" id="tab-{{ q }}">
+  {% set doc = q_docs[q] %}
+  {% if doc.exists %}
+    {% if doc.meta.get('ai_synthesized') %}
+      <div class="ai-synth-banner"> AI 综合产出 · tier=2</div>
+    {% endif %}
+    <article class="md-body q-md q-md-{{ q|lower }} {% if doc.meta.get('ai_synthesized') %}ai-synth-frame{% endif %}">
+      {{ doc.html|safe }}
+    </article>
+  {% else %}
+    <div class="empty-state">
+      尚无 {{ q }} {{ full }} 独立 md。预期路径:<code>docs/industries/{{ ind.name }}_{{ q }}_{{ short }}.md</code><br>
+      {% if q in ['Q1', 'Q2', 'Q3'] %}
+        模板:<code>templates/liang_{{ q|lower }}.md.template</code>
+      {% elif q == 'Q5' %}
+        Q5 综述是面向决策者的最终摘要，优先级最高。
+      {% else %}
+        阶段 2 修订 session 待产出。
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% if not has_static_q6 %}
+<div class="tab-panel" id="tab-Q6">
+  <div class="q6-toolbar">
+    <span class="q6-title">Q6 用户补充栏</span>
+    <span class="q6-hint">支持 Markdown(标题/列表/表格/公式/^src 引用),保存后长期保留</span>
+    <button class="btn btn-secondary" id="q6-edit-btn"> 编辑</button>
+    <button class="btn" id="q6-save-btn" style="display:none;">保存</button>
+    <button class="btn btn-secondary" id="q6-cancel-btn" style="display:none;">取消</button>
+    <span class="q6-status" id="q6-status"></span>
+  </div>
+  <article class="md-body q-md q-md-q6" id="q6-view">
+    {% if q6_doc.exists and q6_doc.html %}
+      {{ q6_doc.html|safe }}
+    {% else %}
+      <div class="empty-state">尚无 Q6 补充内容。点击「 编辑」开始输入 Markdown,保存后长期保留。</div>
+    {% endif %}
+  </article>
+  <textarea id="q6-editor" class="q6-editor" style="display:none;">{{ q6_doc.raw or '' }}</textarea>
+</div>
+{% endif %}
+
+<div class="tab-panel" id="tab-data">
+  <h3>数据点(共 {{ data_points|length }} 条)</h3>
+  {% if ind_charts %}
+  <div class="chart-grid" style="margin:6px 0 18px;">
+    {% if ind_charts.metrics %}
+    <section class="chart-card">
+      <div class="chart-card-title">数据点最多的指标 <span class="panel-sub">Top 10</span></div>
+      <div class="chart-card-note">本行业结构化跟踪最密集的指标(条=数据点条数)。</div>
+      <div class="rx-plotly">{{ ind_charts.metrics|safe }}</div>
+    </section>
+    {% endif %}
+    {% if ind_charts.em %}
+    <section class="chart-card">
+      <div class="chart-card-title">数据来源构成 <span class="panel-sub">抽取方式</span></div>
+      <div class="chart-card-note">原文精读(绿)= 实读 PDF;模板估(橙)自动降级。占比越偏绿,数据越硬。</div>
+      <div class="rx-plotly">{{ ind_charts.em|safe }}</div>
+    </section>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if data_points %}
+  <div class="dp-filter-wrap">
+    <div class="dp-filter-group" data-dim="consensus">
+      <span class="dp-filter-label">共识</span>
+      {% for c in ['共识','主流','次主流','孤证','离群'] %}
+        <button class="dp-pill" data-dim="consensus" data-val="{{ c }}">{{ c }} <span class="dp-pill-n"></span></button>
+      {% endfor %}
+    </div>
+    <div class="dp-filter-group" data-dim="forecast">
+      <span class="dp-filter-label">性质</span>
+      {% for f in ['实际','前瞻'] %}
+        <button class="dp-pill" data-dim="forecast" data-val="{{ f }}">{{ f }} <span class="dp-pill-n"></span></button>
+      {% endfor %}
+    </div>
+    <div class="dp-filter-group" data-dim="sentiment">
+      <span class="dp-filter-label">倾向</span>
+      {% for s in ['看涨','看跌','中性','不适用'] %}
+        <button class="dp-pill" data-dim="sentiment" data-val="{{ s }}">{{ s }} <span class="dp-pill-n"></span></button>
+      {% endfor %}
+    </div>
+    <div class="dp-filter-group" data-dim="em">
+      <span class="dp-filter-label">抽取</span>
+      {% for e, label in [('pdf_direct','原文'),('web_fetch','网搜'),('template_estimate','模板估'),('inferred','推算'),('unknown','未标')] %}
+        <button class="dp-pill dp-pill-em-{{ e }}" data-dim="em" data-val="{{ e }}">{{ label }} <span class="dp-pill-n"></span></button>
+      {% endfor %}
+    </div>
+    <button class="dp-pill dp-pill-reset" id="dp-filter-reset">重置</button>
+    <span class="dp-filter-stat" id="dp-filter-stat"></span>
+  </div>
+  <table class="data-table data-points-table">
+    <colgroup>
+      <col style="width: 18%">  <!-- 指标(可点击进 metric_detail) -->
+      <col style="width: 8%">   <!-- 时点 -->
+      <col style="width: 11%">  <!-- 数值 -->
+      <col style="width: 10%">  <!-- 共识 -->
+      <col style="width: 7%">   <!-- 性质 -->
+      <col style="width: 8%">   <!-- 倾向 -->
+      <col style="width: 19%">  <!-- source -->
+      <col style="width: 13%">  <!-- 原文摘录 -->
+      <col style="width: 6%">   <!-- 溯源 -->
+    </colgroup>
+    <thead>
+      <tr>
+        <th>指标</th>
+        <th>时点</th>
+        <th>数值</th>
+        <th>共识</th>
+        <th>性质</th>
+        <th>倾向</th>
+        <th>source</th>
+        <th>摘录</th>
+        <th>溯源</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in data_points %}
+      <tr class="dp-row {% if d.source_tier == 3 %}row-tier-3{% endif %} {% if d.is_forecast %}row-forecast{% endif %}"
+          data-consensus="{{ d.consensus_status or 'unevaluated' }}"
+          data-forecast="{{ '前瞻' if d.is_forecast else '实际' }}"
+          data-sentiment="{{ d.sentiment or '不适用' }}"
+          data-em="{{ d.extraction_method or 'unknown' }}">
+        <td>
+          {% if d.value_num is not none and (d.as_of_date or d.period) %}
+            <a href="{{ url_for('metric_detail', industry_id=ind.id, metric=d.metric, as_of=(d.as_of_date or d.period), is_forecast=d.is_forecast) }}">{{ d.metric }}</a>
+          {% else %}
+            {{ d.metric }}
+          {% endif %}
+        </td>
+        <td>
+          <div class="cell-period">{{ d.period }}</div>
+          {% if d.as_of_date and d.as_of_date != d.period %}<div class="cell-as-of">@{{ d.as_of_date }}</div>{% endif %}
+        </td>
+        <td class="cell-value">
+          {% if d.value_num is not none %}{{ d.value_num }}{{ d.unit }}
+          {% else %}{{ d.value_text }}{% if d.unit %} {{ d.unit }}{% endif %}{% endif %}
+        </td>
+        <td>
+          {% if d.consensus_status == '共识' %}<span class="consensus-pill consensus-共识" title="±0.5σ 内">共识</span>
+          {% elif d.consensus_status == '主流' %}<span class="consensus-pill consensus-主流" title="±1σ 内">主流</span>
+          {% elif d.consensus_status == '次主流' %}<span class="consensus-pill consensus-次主流" title="±2σ 内或 peer&lt;5">次主流</span>
+          {% elif d.consensus_status == '离群' %}<span class="consensus-pill consensus-离群" title="偏离中位 {{ '{:+.0%}'.format(d.deviation_from_median) if d.deviation_from_median is not none else 'n/a' }}">离群</span>
+          {% elif d.consensus_status == '孤证' %}<span class="consensus-pill consensus-孤证" title="仅 1 个 source 支撑">孤证</span>
+          {% else %}<span class="consensus-pill consensus-unevaluated" title="未评估(value_text-only 或未跑算法)">—</span>{% endif %}
+        </td>
+        <td>
+          {% if d.is_forecast %}<span class="forecast-tag tag-forecast">前瞻</span>
+          {% else %}<span class="actual-tag tag-actual">实际</span>{% endif %}
+        </td>
+        <td>
+          {% if d.sentiment == '看涨' %}<span class="sentiment-dot sentiment-bull">●</span><span class="sentiment-label-bull">看涨</span>
+          {% elif d.sentiment == '看跌' %}<span class="sentiment-dot sentiment-bear">●</span><span class="sentiment-label-bear">看跌</span>
+          {% elif d.sentiment == '中性' %}<span class="sentiment-dot sentiment-neutral">●</span><span class="sentiment-label-neutral">中性</span>
+          {% else %}<span class="sentiment-na">—</span>{% endif %}
+        </td>
+        <td>
+          <a href="{{ url_for('source_detail', source_id=d.source_id) }}">{{ (d.source_title or '')[:30] }}{% if (d.source_title or '')|length > 30 %}…{% endif %}</a>
+          <span class="tier-badge tier-{{ d.source_tier }}">{{ d.source_tier }}</span>
+        </td>
+        <td class="cell-excerpt" title="{{ d.source_excerpt }}">{{ d.source_excerpt[:40] }}{% if d.source_excerpt|length > 40 %}…{% endif %}</td>
+        <td>
+          <button class="trace-btn" data-source-id="{{ d.source_id }}" data-excerpt="{{ d.source_excerpt|e }}">溯源</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无数据点。</p>{% endif %}
+
+  <h3>上游</h3>
+  {% if upstream %}
+  <table class="data-table">
+    <thead><tr><th>上游行业</th><th>关系</th><th>占成本</th><th>议价</th><th>note</th></tr></thead>
+    <tbody>
+      {% for u in upstream %}
+      <tr>
+        <td><a href="{{ url_for('industry_detail', industry_id=u.upstream_id) }}">{{ u.upstream_name }}</a></td>
+        <td>{{ u.relation_type }}</td>
+        <td>{{ '%.2f'|format(u.cost_share*100) if u.cost_share is not none else '—' }}{% if u.cost_share is not none %}%{% endif %}</td>
+        <td><span class="bp-{{ u.bargaining_power or 'na' }}">{{ t(u.bargaining_power) or '—' }}</span></td>
+        <td class="cell-narrative">{{ u.note or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无上游关系。</p>{% endif %}
+
+  <h3>下游</h3>
+  {% if downstream %}
+  <table class="data-table">
+    <thead><tr><th>下游行业</th><th>关系</th><th>占需求</th><th>议价</th><th>note</th></tr></thead>
+    <tbody>
+      {% for d in downstream %}
+      <tr>
+        <td><a href="{{ url_for('industry_detail', industry_id=d.downstream_id) }}">{{ d.downstream_name }}</a></td>
+        <td>{{ d.relation_type }}</td>
+        <td>{{ '%.2f'|format(d.demand_share*100) if d.demand_share is not none else '—' }}{% if d.demand_share is not none %}%{% endif %}</td>
+        <td><span class="bp-{{ d.bargaining_power or 'na' }}">{{ t(d.bargaining_power) or '—' }}</span></td>
+        <td class="cell-narrative">{{ d.note or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无下游关系。</p>{% endif %}
+
+  <h3>公司 tag</h3>
+  {% if companies %}
+  <table class="data-table">
+    <thead><tr><th>公司</th><th>ticker</th><th>角色</th><th>营收占比</th></tr></thead>
+    <tbody>
+      {% for c in companies %}
+      <tr>
+        <td><a href="{{ url_for('company_tag', company_id=c.id) }}">{{ c.name }}</a></td>
+        <td>{{ c.ticker or '—' }}</td>
+        <td>{{ c.role or '—' }}</td>
+        <td>{{ '%.0f'|format(c.revenue_share*100) if c.revenue_share is not none else '—' }}{% if c.revenue_share is not none %}%{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无关联公司。</p>{% endif %}
+
+  <h3>Source</h3>
+  {% if sources %}
+  <table class="data-table">
+    <thead><tr><th>title</th><th>类型</th><th>价值层</th><th>tier</th><th>publisher</th><th>日期</th></tr></thead>
+    <tbody>
+      {% for s in sources %}
+      <tr>
+        <td><a href="{{ url_for('source_detail', source_id=s.id) }}">{{ s.title }}</a></td>
+        <td>{{ t(s.source_type) }}</td>
+        <td><span class="value-layer-tag value-layer-{{ s.value_layer or '信息流' }}">{{ s.value_layer or '信息流' }}</span></td>
+        <td><span class="tier-badge tier-{{ s.quality_tier }}">{{ s.quality_tier }}</span></td>
+        <td>{{ s.publisher or '—' }}</td>
+        <td>{{ s.publish_date or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无 source。</p>{% endif %}
+
+  {% if theses %}
+  <h3>Thesis</h3>
+  <table class="data-table">
+    <thead><tr><th>title</th><th>方向</th><th>置信度</th><th>状态</th><th>证伪条件</th></tr></thead>
+    <tbody>
+      {% for th in theses %}
+      <tr>
+        <td>{{ th.title }}</td>
+        <td><span class="dir-{{ th.direction }}">{{ t(th.direction) }}</span></td>
+        <td>{{ t(th.confidence) }}</td>
+        <td>{{ t(th.status) }}</td>
+        <td class="cell-narrative">{{ th.falsification_condition }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+
+<!-- ══ 行业研究观点(2c-G 任务 3B/4/5:研究员价值产出)══ -->
+<section class="panel it-panel" id="industry-thesis" data-industry-id="{{ ind.id }}">
+  <h3 class="panel-title">行业研究观点
+    <span class="panel-sub">AI 总结一致预期(溯源)+ 研究员反共识 / 超预期(选填,这是研究员的核心价值产出)</span>
+    {% if not (ind_thesis and ind_thesis.contrarian_thesis and ind_thesis.contrarian_thesis|trim) %}
+    <span class="it-todo" title="行业层级研究员尚未填写反共识/超预期判断"> 行业反共识未填!</span>
+    {% endif %}
+  </h3>
+
+  <!-- AI 综合分析(散文式一致预期)-->
+  <div class="it-consensus">
+    <div class="it-block-title">
+      {% if ind_thesis and ind_thesis.consensus_overridden_by_human %} 研究员版本{% else %}AI AI 综合分析{% endif %}
+      {% if ind_thesis and ind_thesis.consensus_narrative %}<span class="it-gen">基于 {{ ind_thesis.consensus_source_ids_list|length }} 条研报 · @{{ ind_thesis.consensus_generated_at[:10] if ind_thesis.consensus_generated_at else '' }}</span>{% endif %}
+      <button type="button" class="btn btn-secondary it-edit-consensus-btn"> 研究员覆盖</button>
+      <button type="button" class="btn btn-secondary it-regen-btn" title="重新生成 AI 版本(会覆盖人工版,需确认)"> 重新生成</button>
+    </div>
+    {% if consensus_html %}
+    <div class="it-consensus-view md-body">{{ consensus_html|safe }}</div>
+    {% else %}
+    <div class="it-consensus-view it-pending"> AI 综合分析 pending(本轮由 CC session 生成 / 或等 Claude API token 后由脚本补充)· 可点"研究员覆盖"手填</div>
+    {% endif %}
+    <textarea class="it-consensus-edit" rows="8" style="display:none">{{ ind_thesis.consensus_narrative if ind_thesis and ind_thesis.consensus_narrative else '' }}</textarea>
+  </div>
+
+  <!-- 研究员反共识 -->
+  <div class="it-thesis-form">
+    <div class="it-block-title">研究员反共识 / 超预期(选填)</div>
+    <label>反共识 / 超预期判断
+      <textarea class="it-f" data-f="contrarian_thesis" rows="3" placeholder="一致预期(上方)的盲点 / 你认为市场错在哪 / 超预期点…">{{ ind_thesis.contrarian_thesis if ind_thesis else '' }}</textarea></label>
+    <label>监控指标(证实/证伪信号)
+      <textarea class="it-f" data-f="monitoring_signals" rows="3" placeholder="出现什么数据 = 判断成立 / 推翻(证实与证伪写一起)…">{{ ind_thesis.monitoring_signals if ind_thesis else '' }}</textarea></label>
+    <label class="it-conv">信心度(1-5)
+      <select class="it-f" data-f="conviction_level">
+        {% set cl = ind_thesis.conviction_level if ind_thesis else None %}
+        <option value="">—</option>
+        {% for n in [1,2,3,4,5] %}<option value="{{ n }}" {% if cl == n %}selected{% endif %}>{{ n }}</option>{% endfor %}
+      </select>
+    </label>
+    <button class="btn it-save-btn">保存行业观点</button>
+    <span class="it-status"></span>
+  </div>
+</section>
+
+<!-- 联动:研究员观点(以人为标签 —— 同一行业看不同研究员的不同判断)-->
+<section class="panel hyp-industry-sec">
+  <h3 class="panel-title">🧪 研究员观点
+    <span class="panel-sub">{% if industry_hyps %}{{ industry_hyps|length }} 条假说 · {{ industry_hyp_researchers }} 位研究员{% else %}本行业暂无{% endif %}</span>
+  </h3>
+  {% if industry_hyps %}
+    {% for h in industry_hyps %}
+    <div class="hyp-industry-row">
+      <a href="{{ url_for('researcher_profile', rid=h.researcher_id) }}">{{ h.researcher_name or h.researcher_raw }}</a>
+      <span class="hyp-dir hyp-dir-{{ h.thesis_type }}">{{ hl(h.thesis_type) }}</span>
+      <a href="{{ url_for('hypothesis_detail', hid=h.id) }}">{{ h.title }}</a>
+      <span class="hyp-st hyp-st-{{ h.status }}">{{ hl(h.status) }}</span>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p class="hyp-empty">本行业暂无研究员假说。<a href="{{ url_for('hypothesis_new') }}">+ 新建假说</a>(以人为标签,可在此横向看不同研究员对本行业的不同判断)。</p>
+  {% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function enhanceMarkdownTables(root = document) {
+  root.querySelectorAll('.md-body table').forEach((table, index) => {
+    if (!table.hasAttribute('tabindex')) table.tabIndex = 0;
+    if (!table.hasAttribute('role')) table.setAttribute('role', 'region');
+    const firstHeader = table.querySelector('thead th:first-child');
+    if (firstHeader && /^(公司|主体|企业|标的)/.test(firstHeader.textContent.trim())) {
+      table.classList.add('entity-first-column');
+    }
+    if (!table.hasAttribute('aria-label')) {
+      table.setAttribute('aria-label', '研究表格 ' + (index + 1) + '，可横向滚动');
+    }
+  });
+}
+enhanceMarkdownTables();
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// 支持 URL hash 跳到指定 Tab(例首页 hero "详读 Q5 综述" 链接 #tab-Q5)
+(function() {
+  const hash = window.location.hash;
+  if (hash && hash.startsWith('#tab-')) {
+    const tabKey = hash.slice(5);
+    const btn = document.querySelector('.tab-btn[data-tab="' + tabKey + '"]');
+    if (btn) btn.click();
+  }
+})();
+
+// 改动2:主文档内 Q-md 链接(渲染层重写为 .q-tab-link)点击切到对应 Q tab
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a.q-tab-link');
+  if (!link) return;
+  e.preventDefault();
+  const target = link.dataset.tabTarget;
+  const btn = document.querySelector('.tab-btn[data-tab="' + target + '"]');
+  if (btn) { btn.click(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+});
+
+// 改动1:数据点表多维 toggle 筛选(纯前端,维度间 AND,维度内 OR)
+(function() {
+  const rows = Array.from(document.querySelectorAll('tr.dp-row'));
+  if (!rows.length) return;
+  const pills = Array.from(document.querySelectorAll('.dp-pill[data-dim]'));
+  const statEl = document.getElementById('dp-filter-stat');
+  // 激活的筛选条件:{dim: Set(vals)}
+  const active = { consensus: new Set(), forecast: new Set(), sentiment: new Set(), em: new Set() };
+
+  function rowMatches(row) {
+    for (const dim of Object.keys(active)) {
+      const sel = active[dim];
+      if (sel.size === 0) continue; // 该维度未筛选 → 全通过
+      const v = row.dataset[dim];
+      if (!sel.has(v)) return false; // AND across dims
+    }
+    return true;
+  }
+  function apply() {
+    let shown = 0;
+    rows.forEach(r => {
+      const ok = rowMatches(r);
+      r.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    if (statEl) statEl.textContent = '显示 ' + shown + ' / ' + rows.length + ' 条';
+  }
+  function updateCounts() {
+    // 每个 pill 显示在「其他维度当前筛选下」该值的行数
+    pills.forEach(p => {
+      const dim = p.dataset.dim, val = p.dataset.val;
+      let n = 0;
+      rows.forEach(r => {
+        // 临时:忽略本维度,看其他维度是否匹配 + 本行该维度值==val
+        let ok = true;
+        for (const d of Object.keys(active)) {
+          if (d === dim) continue;
+          if (active[d].size === 0) continue;
+          if (!active[d].has(r.dataset[d])) { ok = false; break; }
+        }
+        if (ok && r.dataset[dim] === val) n++;
+      });
+      const nEl = p.querySelector('.dp-pill-n');
+      if (nEl) nEl.textContent = '(' + n + ')';
+    });
+  }
+  pills.forEach(p => {
+    p.addEventListener('click', () => {
+      const dim = p.dataset.dim, val = p.dataset.val;
+      if (active[dim].has(val)) { active[dim].delete(val); p.classList.remove('dp-pill-active'); }
+      else { active[dim].add(val); p.classList.add('dp-pill-active'); }
+      apply(); updateCounts();
+    });
+  });
+  const resetBtn = document.getElementById('dp-filter-reset');
+  if (resetBtn) resetBtn.addEventListener('click', () => {
+    Object.keys(active).forEach(d => active[d].clear());
+    pills.forEach(p => p.classList.remove('dp-pill-active'));
+    apply(); updateCounts();
+  });
+  apply(); updateCounts();
+})();
+
+// 改动4:Q6 用户可编辑补充栏(查看/编辑模式 + POST 保存)
+(function() {
+  const editBtn = document.getElementById('q6-edit-btn');
+  const saveBtn = document.getElementById('q6-save-btn');
+  const cancelBtn = document.getElementById('q6-cancel-btn');
+  const view = document.getElementById('q6-view');
+  const editor = document.getElementById('q6-editor');
+  const statusEl = document.getElementById('q6-status');
+  if (!editBtn || !view || !editor) return;
+  const industryId = {{ ind.id }};
+
+  function toEdit() {
+    view.style.display = 'none';
+    editor.style.display = 'block';
+    editBtn.style.display = 'none';
+    saveBtn.style.display = '';
+    cancelBtn.style.display = '';
+    statusEl.textContent = '';
+    editor.focus();
+  }
+  function toView() {
+    editor.style.display = 'none';
+    view.style.display = '';
+    editBtn.style.display = '';
+    saveBtn.style.display = 'none';
+    cancelBtn.style.display = 'none';
+  }
+  editBtn.addEventListener('click', toEdit);
+  cancelBtn.addEventListener('click', toView);
+  saveBtn.addEventListener('click', async () => {
+    saveBtn.disabled = true;
+    statusEl.textContent = '保存中…';
+    try {
+      const fd = new FormData();
+      fd.append('content', editor.value);
+      const resp = await fetch('/industry/' + industryId + '/q6/save', { method: 'POST', body: fd });
+      const data = await resp.json();
+      if (data.ok) {
+        // 用后端渲染结果刷新视图(渲染管线已转义,防 XSS)
+        view.innerHTML = data.html || '<div class="empty-state">(空)</div>';
+        enhanceMarkdownTables(view);
+        editor.value = data.raw || editor.value;
+        statusEl.textContent = '已保存 ';
+        toView();
+        // 重新触发 KaTeX / src-ref(若有全局 render 钩子)
+        if (window.renderMathInElement) {
+          try { window.renderMathInElement(view); } catch(e){}
+        }
+      } else {
+        statusEl.textContent = '保存失败:' + (data.error || '未知错误');
+      }
+    } catch (e) {
+      statusEl.textContent = '网络错误:' + e.message;
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+})();
+
+// ── 行业研究观点(2c-G 任务 3B/4/5)──────────────────
+(function(){
+  const sec = document.getElementById('industry-thesis');
+  if (!sec) return;
+  const iid = sec.dataset.industryId;
+  const viewEl = sec.querySelector('.it-consensus-view');
+  const editEl = sec.querySelector('.it-consensus-edit');
+  const editBtn = sec.querySelector('.it-edit-consensus-btn');
+  let editConsensus = false;
+  function srcify(s){
+    const d=document.createElement('div'); d.textContent=s==null?'':s; let h=d.innerHTML;
+    h=h.replace(/\^src:(\d+)/g,'<sup class="src-ref" data-source-id="$1" tabindex="0" role="button" title="点击溯源 source #$1">[$1]</sup>');
+    h=h.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+    h=h.replace(/^&gt; (.*)$/gm,'<span class="an-quote">$1</span>');
+    h=h.replace(/^- (.*)$/gm,'• $1').replace(/\n/g,'<br>');
+    return h;
+  }
+  editBtn.addEventListener('click', () => {
+    editConsensus = true; editEl.style.display=''; viewEl.style.display='none'; editBtn.textContent='(编辑中)';
+  });
+  const regenBtn = sec.querySelector('.it-regen-btn');
+  if (regenBtn) regenBtn.addEventListener('click', async () => {
+    if (!confirm('重新生成 AI 版本会覆盖当前内容(含人工版)。继续?')) return;
+    const st = sec.querySelector('.it-status'); st.textContent='请求中…';
+    try {
+      const r = await (await fetch('/api/industry_thesis/' + iid + '/regenerate', {method:'POST'})).json();
+      st.textContent = r.message || (r.ok ? '已重新生成' : '失败');
+    } catch(e){ st.textContent='网络错误'; }
+  });
+  sec.querySelector('.it-save-btn').addEventListener('click', async () => {
+    const st = sec.querySelector('.it-status'); st.textContent='保存中…';
+    const body = {};
+    sec.querySelectorAll('.it-f').forEach(f => body[f.dataset.f] = f.value);
+    if (editConsensus) { body.edit_consensus = 1; body.consensus_narrative = editEl.value; }
+    try {
+      const r = await (await fetch('/api/industry_thesis/' + iid, {
+        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      })).json();
+      st.textContent = r.ok ? ' 已保存' : ('失败:'+(r.error||''));
+      if (r.ok) {
+        const todo = sec.querySelector('.it-todo');
+        if (todo && (body.contrarian_thesis||'').trim()) todo.remove();
+        if (editConsensus) {
+          viewEl.style.display=''; editEl.style.display='none'; editConsensus=false; editBtn.textContent=' 编辑覆盖';
+          viewEl.classList.remove('an-empty'); viewEl.innerHTML = srcify(editEl.value);
+        }
+      }
+    } catch(e){ st.textContent='网络错误'; }
+  });
+})();
+</script>
+{% endblock %}

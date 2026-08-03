@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}机会透镜{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head_v2.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar">
+    <div>
+      <p class="opp-eyebrow">C 轨机会扫描工作台</p>
+      <h1>机会透镜</h1>
+      <p class="opp-title-note">从研究请求进入机会扫描；已完成任务可打开查看总览、实体、审计、补证和导出。</p>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('opportunity_lens.opportunity_request_generator') }}">Request 生成器</a>
+  </div>
+  {% include "opportunity_lens/_nav.html" %}
+  <div class="opp-panel">
+    <div class="opp-panel-heading">
+      <div>
+        <h2>扫描列表</h2>
+        <p>来源覆盖显示“全部来源 / 独立证据源”。独立证据源按原始发布方和证据链去重，用于判断证据是否真的多元，避免同一报告、同一新闻转载被误认为多个证据组。</p>
+      </div>
+      <a href="{{ url_for('opportunity_lens.opportunity_request_generator') }}">新建 Request</a>
+    </div>
+    {% if runs %}
+    <div class="opp-wide-scroll" tabindex="0" role="region" aria-label="机会透镜研究列表，可横向查看">
+    <table class="opp-table opp-run-list-table">
+      <thead><tr><th>ID</th><th>研究问题</th><th>证据策略</th><th>资料类型</th><th>状态</th><th>来源覆盖</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for run in runs %}
+      <tr>
+        <td class="mono">{{ run.id }}</td>
+        <td>
+          <a class="opp-run-question" href="/opportunity-lens/run/{{ run.id }}">{{ run.display_title or run.research_question }}</a>
+          <span class="opp-muted">{{ "正式发布" if run.run_readiness_status == "published" else run.run_readiness_status|opp_label }}</span>
+        </td>
+        <td><span class="opp-policy-badge opp-policy-{{ run.evidence_policy|default('none', true) }}">{{ run.evidence_policy|opp_label }}</span></td>
+        <td>{{ run.intake_material_type|default("none", true)|opp_label }}</td>
+        <td><span class="opp-status-badge opp-status-{{ run.run_status|default('unknown', true) }}">{{ run.run_status|opp_label }}</span></td>
+        <td>
+          <span class="opp-source-summary">
+            <b>全部来源</b><span>{{ run.source_count or 0 }}</span>
+            <b>独立证据源</b><span>{{ run.independent_source_count or 0 }}</span>
+          </span>
+        </td>
+        <td><a href="/opportunity-lens/run/{{ run.id }}">打开</a></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">还没有机会透镜扫描。</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

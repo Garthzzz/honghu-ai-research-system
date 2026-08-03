@@ -1,0 +1,300 @@
+# Stage 3 动态情报模块 — 配置(可复用核心:新行业/新 leader 只改这里 + db,不改代码)
+# v2 review 修订已内置:R3(importance 整数)/R5(scheduler 用最新时刻)/R6(Apify 可选)
+# 信源链路重构 v3(2026-06-09)已内置:runtime/quiet_hours/deepseek/topic_gate/tag_validation
+
+# ── 运行时(迁移友好:时区/频率全走这里)──────────────────────────────────────
+runtime:
+  timezone: Asia/Shanghai
+  tick_frequency_min: 15
+
+# ── 静默窗口：工作日 [20:00,次日08:00) + 周六日全天；闸在 scheduler.tick 顶部──
+quiet_hours:
+  start: "20:00"
+  end:   "08:00"
+  # 覆盖 schedule.region_windows 的 us 峰窗 21:00–08:00(静默优先,夜间一律不跑/不处理/不调 API)
+
+# ── DeepSeek(OpenAI 兼容;key 走 secrets 文件 / 环境变量,绝不入本文件)──────────
+deepseek:
+  enabled: true
+  base_url: "https://api.deepseek.com"
+  model: "deepseek-chat"
+  api_key_file: tools/dynamic/secrets/deepseek_api_key.txt   # 读取顺序①(相对项目根,gitignore)
+  api_key_env:  DEEPSEEK_API_KEY               # 读取顺序②(环境变量)
+  # llm_client 顺序:先 file、后 env,都没有 → disabled 返回 None,不编造
+  context_cache: true            # D5:B2 复用 B1 已发正文走缓存,消双倍输入
+  max_tokens: 800
+  timeout_sec: 40
+  max_retries: 2
+
+# ── topic 收严双闸 ───────────────────────────────────────────────────────────
+topic_gate:
+  prefilter: keyword             # 漏斗 A:关键词预过滤(高召回,无 token)
+  require_ai_relevant: true      # 漏斗 B1:is_relevant=false 丢弃
+  min_importance: 3              # 极性 1=最重要 → 保留 importance≤3(丢 4/5);看分布再收紧
+  dropped_ledger: dynamic_seen   # 被杀条目记账本(D6)
+  # KOL relevance 闸只对"高噪声"账号生效:列在此处的 handle 走完整漏斗(A→B1 丢弃),
+  # 其余意见领袖只做富化(tag/翻译/摘要),绝不因相关性被丢(全部 is_ai_relevant=1)。
+  # 新闻不受此项影响,始终走完整漏斗。
+  voice_filter_handles: [elonmusk]
+
+# ── tag grounded 闭集校验(D4:LLM 提议、grounded 裁决)──────────────────────────
+tag_validation:
+  closed_set: [db_company, industries_final]   # 闭集 = company 全表 ∪ industries_final
+  drop_out_of_set: true
+
+# ── 平台抓取参数 ─────────────────────────────────────────────────────────────
+platforms:
+  xueqiu:
+    fetcher: XueqiuFetcher
+    mode: api                     # ?? 舆情快搜 API-first(智慧星光);cookie/HTTP 兜底(保持原功能)
+    api:                          # KuaiSearchClient 配置(契约见 docs/yuqing-api-info.txt)
+      subject_id: ""              # 专题id(""=全部监测;拿到「专题列表」端点后可精确指定降本)
+      media_types: []             # 雪球无独立媒体枚举 → 全媒体拉取,按作者 uid 客户端硬过滤
+      window_hours: 3             # 小窗(tick 1h):QPS 1/60s 无法翻页,降重叠计费 + 提高本人帖落单页概率
+      cache_ttl_sec: 900          # 同 tick 多领袖共用一次拉取(降 QPS/计费)
+      min_interval_sec: 65        # 与窗口抓取共享原子令牌；合同60s上限外留5s边界余量
+      limit: 180                  # 单页上限 180
+    min_interval_sec: 8           # 单平台请求间隔(反爬,老路径)
+    needs_cookie: true            # cookie 兜底(Stage 3-D 前;API 不可用时用)
+    priority_urls:                # 优先级链(healthcheck 验证)
+      - "https://xueqiu.com/v4/statuses/user_timeline.json?user_id={handle}&page=1"
+    fallback: [api, requests_html, playwright, manual]
+  weibo:
+    fetcher: WeiboFetcher
+    mode: api                     # 仅抓下方三位 KOL；不进入散户情绪，不登录/请求微博网页
+    api:
+      subject_id: ""
+      media_types: [4]            # 舆情 API 的微博媒体类型
+      account_type: "3"          # 重点账号池；返回后仍按作者 UID 精确匹配
+      sites: ["新浪微博"]
+      window_hours: 24
+      cache_ttl_sec: 900          # 三位作者共享同一次 API 响应
+      min_interval_sec: 65
+      limit: 180
+  twitter:                        # db platform='twitter',前端显示 X
+    fetcher: XFetcher
+    min_interval_sec: 5
+    needs_cookie: false
+    mode: playwright              # ?? playwright(正式路线) | api(占位,本次不实现)
+    storage_state_file: secrets/x_storage_state.json   # playwright 登录态(暂无→撞登录墙 auth_expired)
+    # 抓取顺序(用户指定):先 Nitter RSS(多实例)→ 全失败则 playwright 直连 x.com → auth_expired
+    nitter_instances:
+      - "https://nitter.net/{handle}/rss"
+      - "https://nitter.poast.org/{handle}/rss"
+      - "https://nitter.privacydev.net/{handle}/rss"
+      - "https://nitter.tiekoetter.com/{handle}/rss"
+      - "https://nitter.1d4.us/{handle}/rss"
+      - "https://nitter.kavin.rocks/{handle}/rss"
+    x_max_attempts: 2             # 铁律:每源有限次尝试,失败即 auth_expired 继续(防 IP 风控)
+    apify_optional: true
+    apify_token_env: APIFY_TOKEN
+    fallback: [nitter, playwright, manual]
+
+# ── 时区智能调度(本机北京时间判断;us 账号"美东日间"≈北京 21:00-08:00,跨午夜 OR)──
+schedule:
+  # 所有意见领袖统一按北京时间工作时段抓取；17:00 这一档允许启动，17:00 后静默。
+  voice_window: {start: "09:00", end: "17:00", frequency_minutes: 60}
+  region_windows:
+    cn: {peak_start: "09:00", peak_end: "23:00", peak_min: 60, off_min: 60}
+    us: {peak_start: "21:00", peak_end: "08:00", peak_min: 60, off_min: 60}   # 跨午夜 → in_peak 用 OR
+    global: {peak_start: "08:00", peak_end: "23:00", peak_min: 60, off_min: 60}
+  news_min: 60                    # ?? 新闻 1h(180→60)
+  event_calendar_min: 1440        # 事件日历每日 1 次
+  stale_lock_minutes: 30          # is_running 僵死自动重置阈值(修订3)
+
+# ── 突发检测:中英双语簇(修订5,覆盖英文白名单源)────────────────────────────
+breaking:
+  window_hours: 6
+  min_sources: 2                  # 同簇 ≥2 白名单源 → is_breaking
+  clusters:
+    supply_disruption: [断供, 停产, 缺货, 停供, supply disruption, shortage, halt production, cut off]
+    price_hike:        [涨价, 提价, 涨幅, price hike, price increase, surge, jump]
+    acquisition:       [收购, 并购, 入股, acquire, acquisition, merger, stake, buyout]
+    export_control:    [出口管制, 制裁, 实体清单, 禁运, export control, sanction, entity list, ban, restriction]
+    yield_issue:       [良率, 流片, 事故, 缺陷, 召回, yield, tape-out, defect, recall]
+    capacity:          [扩产, 产能, 投产, capacity, fab, ramp, expansion]
+
+# ── 白名单新闻源(Stage 3-A 播种 source 行;feed 解析在 3-C)──────────────────
+news_publishers:
+  # ?? 信源链路重构 v3:精选 3 源 active(财联社/Reuters/SemiAnalysis);其余 active:false 软停用(不删,保留溯源)。
+  # language 字段:zh→跳翻译只做中文摘要;en→产 title_zh+content_text_zh(D1 条件翻译)。
+  - {name: 财联社电报,   type: 财经媒体, credibility: whitelisted, home: "https://www.cls.cn/telegraph", rss: null, fetch_method: cls_api,    language: zh, active: true}
+  - {name: Reuters,       type: 财经媒体, credibility: whitelisted, home: "https://www.reuters.com/technology/", rss: null, fetch_method: gnews_site, language: en, active: true}
+  - {name: SemiAnalysis,  type: 三方数据, credibility: whitelisted, home: "https://semianalysis.com/", rss: "https://semianalysis.com/feed/", language: en, active: true}
+  # ── 以下软停用(active:false,新链路不遍历;历史 news_item 溯源不受影响)──
+  - {name: TrendForce,    type: 三方数据, credibility: whitelisted, home: "https://www.trendforce.com/news/", rss: "https://www.trendforce.com/news/feed", language: en, active: false}
+  - {name: IDC,           type: 三方数据, credibility: whitelisted, home: "https://www.idc.com/", rss: null, language: en, active: false}
+  - {name: Cloudflare,    type: 三方数据, credibility: whitelisted, home: "https://blog.cloudflare.com/", rss: "https://blog.cloudflare.com/rss/", language: en, active: false}
+  - {name: LightCounting, type: 三方数据, credibility: whitelisted, home: "https://www.lightcounting.com/", rss: null, language: en, active: false}
+  - {name: Bloomberg,     type: 财经媒体, credibility: whitelisted, home: "https://www.bloomberg.com/technology", rss: null, language: en, active: false}
+  - {name: 36kr,          type: 财经媒体, credibility: whitelisted, home: "https://36kr.com/", rss: "https://36kr.com/feed", language: zh, active: false}
+  - {name: wallstreetcn,  type: 财经媒体, credibility: whitelisted, home: "https://wallstreetcn.com/", rss: "https://dedicated.wallstreetcn.com/rss.xml", language: zh, active: false}
+
+# ── 财报事件 importance 覆盖(B1:默认 2;龙头标 1。按 db company.name)────────────
+earnings_importance_override:    # ?? key 必须精确匹配 db company.name
+  三星: 1
+  SK海力士: 1
+  美光: 1
+  中际旭创: 1
+  新易盛: 1
+
+# ── 硬编码大会(R3:importance 用整数 1/2/3,与 db 一致;年度更新,非代码)──────
+conferences:
+  - {title: "NVIDIA GTC 2026",      date: "2026-03-17", type: 大会, importance: 1, industries: [1, 8], url: "https://www.nvidia.com/gtc/"}
+  - {title: "OFC 2026",             date: "2026-03-29", type: 大会, importance: 1, industries: [1],    url: "https://www.ofcconference.org/"}
+  - {title: "Computex 2026",        date: "2026-05-19", type: 大会, importance: 2, industries: [1, 7, 8]}
+  - {title: "WWDC 2026",            date: "2026-06-08", type: 大会, importance: 3, industries: [8]}
+  - {title: "ISSCC 2026",           date: "2026-02-22", type: 大会, importance: 2, industries: [7]}
+  - {title: "Hot Chips 2026",       date: "2026-08-23", type: 大会, importance: 2, industries: [1, 7, 8]}
+
+# ── 终极 tag 池 v2(板块级,10 个;tagger/classifier 唯一来源)── STAGE3G_TAG_FINAL v2 ──
+#   db_id:已在 db industry 表的填 id;新板块填 null(CC 不自动迁移,候选落 G3_vocab_queue 等 user)
+#   公司 tag 走 company_id(db company.name 匹配),不在此池。
+industries_final:   # ?? STAGE3H P1:db_id 已全部生效(migration 007,10 板块)
+  - {name: 光模块,       db_id: 1,  color: optical,  aliases: [光模块, 光通信, 光芯片, 光器件, 光收发, CPO, 硅光]}
+  - {name: 交换机,       db_id: 6,  color: network,  aliases: [交换机, 数通交换机, InfiniBand, 以太网交换机, 数据中心交换机, 数通]}
+  - {name: 存储,         db_id: 7,  color: silicon,  aliases: [存储, 内存, DRAM, NAND, SSD, HBM, 闪存, 存储芯片, 存储模组]}
+  - {name: 大模型,       db_id: 8,  color: software, aliases: [大模型, LLM, 生成式, AGI, 多模态, AI 模型, 推理模型, MoE]}
+  - {name: 芯片,         db_id: 9,  color: silicon,  aliases: [芯片, AI 芯片, GPU, ASIC, NPU, 加速卡, 算力芯片]}
+  - {name: 半导体,       db_id: 10, color: silicon,  aliases: [半导体, 晶圆, 晶圆代工, foundry, 先进封装, 封装测试, 光刻, EUV, 半导体设备, 制造工艺]}
+  - {name: 云计算与算力运营, db_id: 11, color: infra, aliases: [云服务器厂商, 云服务器, 云计算, GPU云, 算力运营, 训练服务, 推理服务, Hyperscaler, 云厂商, 算力租赁]}
+  - {name: 液冷散热,     db_id: 12, color: infra,    aliases: [液冷, 散热, 浸没式, 冷板, 数据中心散热]}
+  - {name: 电力,         db_id: 13, color: infra,    aliases: [电力, AI 电源, 电源, UPS, 数据中心供电, 800V]}
+  - {name: AI应用,       db_id: 14, color: software, aliases: [AI 应用, AI 软件, AI Agent, 智能体, 智能体应用, AI SaaS, AI 工具, AI 编程, AI 助手, 应用层 AI]}
+
+# ── A3 AI 相关性关键词 v2(~48 词;板块 + 主要 aliases;0 公司/模型/产品/技术节点)──────
+#   "Agent" 通用词 → classifier 加 AI 上下文判断(travel/sales agent 不命中,见 relevance_classifier)
+ai_supply_chain_keywords:
+  [人工智能, ai, 大模型, llm, 生成式, agi,
+   ai 应用, ai agent, agent, 智能体, ai saas, ai 软件, 智能体应用,
+   芯片, ai 芯片, gpu, asic, 加速卡, 算力芯片,
+   半导体, 晶圆, 晶圆代工, foundry, 先进封装, 光刻, 半导体设备,
+   存储, 内存, dram, nand, hbm, ssd,
+   光模块, 光通信, 光芯片, 光器件, cpo, 硅光,
+   交换机, 数通, infiniband,
+   云服务器, 云计算, gpu云, 算力运营, 数据中心, idc, hyperscaler, 服务器,
+   液冷, 散热, 浸没式,
+   电力, ai 电源, 电源, ups]
+# ?? subtopic_keywords 取消(再次确认);机器人/自动驾驶/端侧AI 暂不作 tag(等 user)
+
+# ── tag UI 5 色分组 v2(software 含大模型+AI应用)── STAGE3G_TAG_FINAL v2 ──────────
+industry_color_groups:
+  software: [大模型, AI应用]
+  silicon:  [芯片, 半导体, 存储]
+  optical:  [光模块]
+  network:  [交换机]
+  infra:    [云计算与算力运营, 液冷散热, 电力]
+
+# ── 行研库一级板块：仅负责 Viewer 信息架构，不创建空的 industry 记录 ──────────
+# 细分行业仍使用 research.db 中的规范 industry_id；未列入的行业进入“其他研究”。
+research_sectors:
+  AI算力与半导体产业链:
+    accent: "#2563eb"
+    description: "从模型与云端需求，到服务器、互连、PCB、芯片、存储、半导体制造与设备材料。"
+    industries:
+      [大模型, AI应用, 云计算与算力运营, AI服务器, 通信, 电力, 液冷,
+       光模块, 存储, 算力芯片, PCB制造, 高多层PCB板, HDI板,
+       先进封装, 半导体材料, 半导体硅片, 半导体设备, 半导体量测,
+       测试机, PCB专用设备, 智能终端与物理AI]
+  有色金属与新能源材料:
+    accent: "#b45309"
+    description: "从资源、项目和国家权益，到冶炼/加工、电池产品供需、成本曲线与公司现金。"
+    industries: [铜, 锂, 碳酸锂, 锂电池]
+
+# ── AI 产业链全景五条价值链 ──────────────────────────────────────────────
+# 这里只决定 /industry-chain 的信息组织和节点顺序，不扩大动态情报 tag 闭集。
+# 二级节点必须先由正式研究建立行业身份和公司承接，再加入本清单，避免空壳。
+ai_chain_directions:
+  - name: 算力生成
+    color: "#2563eb"
+    description: "从制造设备、计算与内存芯片，到服务器和机架系统交付。"
+    industries: [半导体设备, 算力芯片, 存储, 内存与高速互连芯片, AI服务器, 机架级系统集成]
+  - name: 数据搬运
+    color: "#0d9488"
+    description: "交换、光互连、铜互连和板级材料共同决定集群带宽。"
+    industries: [通信, 光模块, 高速铜互连, PCB制造, 高多层PCB板, 低损耗覆铜板与电子材料]
+  - name: 物理承载
+    color: "#7c3aed"
+    description: "数据中心建设、运营和热管理决定算力能否按期上线。"
+    industries: [数据中心建设与运营, 液冷]
+  - name: 能源供给
+    color: "#d97706"
+    description: "机房供电与电网能源共同约束投产、密度和运营成本。"
+    industries: [数据中心供电, 电力]
+  - name: 软件变现
+    color: "#db2777"
+    description: "云和模型只有通过收费、留存与现金流才能转化为应用价值。"
+    industries: [云计算与算力运营, 大模型, AI应用, 办公与文档智能, 金融知识与决策, 教育医疗与公共服务, 企业管理与工业流程, 网络安全与IT运营, 创意内容与营销, 代码开发与软件工程, 智能客服与服务运营, 企业搜索与知识库, 法律与专业服务, 电商运营与消费者助手, 智能终端与物理AI, 机器人与工业智能]
+
+# ── 意见领袖名单(信源链路重构 v3:X×7 + 微博×3;扩展只在此加行 + 重跑 seed_3a)──
+opinion_leaders:
+  # X(twitter,region us,handle = @handle);本机无 storage_state → 预期 Nitter 全失败后 playwright 撞登录墙 auth_expired
+  - {name: Serenity,      platform: twitter, handle: "aleabitoreddit", region: us, url: "https://x.com/aleabitoreddit", verified_kol: false, bio: ""}
+  - {name: Elon Musk,     platform: twitter, handle: "elonmusk",       region: us, url: "https://x.com/elonmusk",       verified_kol: false, bio: ""}
+  - {name: Rohan Paul,    platform: twitter, handle: "rohanpaul_ai",   region: us, url: "https://x.com/rohanpaul_ai",   verified_kol: false, bio: ""}
+  - {name: Paulo,         platform: twitter, handle: "paurooteri",     region: us, url: "https://x.com/paurooteri",     verified_kol: false, bio: ""}
+  - {name: Hedgie,        platform: twitter, handle: "HedgieMarkets",  region: us, url: "https://x.com/HedgieMarkets",  verified_kol: false, bio: ""}
+  - {name: Dylan Patel,   platform: twitter, handle: "dylan522p",      region: us, url: "https://x.com/dylan522p",      verified_kol: true,  bio: "SemiAnalysis 创始人/CEO,半导体供应链分析师"}
+  - {name: Gavin Baker,   platform: twitter, handle: "GavinSBaker",    region: us, url: "https://x.com/GavinSBaker",    verified_kol: true,  bio: "Atreides Management CIO"}
+  # ── 新增 X 意见领袖(2026-06,沿用现有 playwright 抓取,要求同前)──
+  - {name: AIStockSavvy,  platform: twitter, handle: "AIStockSavvy",   region: us, url: "https://x.com/AIStockSavvy",   verified_kol: false, bio: ""}
+  - {name: jukan05,       platform: twitter, handle: "jukan05",        region: us, url: "https://x.com/jukan05",        verified_kol: false, bio: ""}
+  - {name: The Information, platform: twitter, handle: "theinformation", region: us, url: "https://x.com/theinformation", verified_kol: false, bio: ""}
+  - {name: Ed Zitron,     platform: twitter, handle: "edzitron",       region: us, url: "https://x.com/edzitron",       verified_kol: false, bio: ""}
+  - {name: rdd147,        platform: twitter, handle: "rdd147",         region: us, url: "https://x.com/rdd147",         verified_kol: false, bio: ""}
+  # 微博 KOL：舆情 API 重点账号池抓取后按 UID 精确匹配；不进入散户情绪。
+  - {name: 顾文军,        platform: weibo,   handle: "1728935725",     region: cn, frequency_minutes: 60, url: "https://weibo.com/u/1728935725", verified_kol: false, bio: ""}
+  - {name: 王一平,        platform: weibo,   handle: "3330457880",     region: cn, frequency_minutes: 60, url: "https://weibo.com/u/3330457880", verified_kol: false, bio: ""}
+  - {name: 大才子,        platform: weibo,   handle: "1673580867",     region: cn, frequency_minutes: 60, url: "https://weibo.com/u/1673580867", verified_kol: false, bio: ""}
+
+# ══ 散户情绪市场窗口 V2（公司页；新闻不进入 V2 聚合）══════════════════
+sentiment_layers:
+  # canonical 边界在 senti3.py；这里仅声明运维节奏。周末不请求、不入新 feed。
+  schedule:
+    timezone: Asia/Shanghai
+    weekdays: [monday, tuesday, wednesday, thursday, friday]
+    windows:
+      preopen: {run_at: "10:00", segments: ["prior_session 16:00-24:00", "session 00:00-09:30"]}
+      morning: {run_at: "14:00", segments: ["session 09:30-13:00"]}
+      afternoon: {run_at: "17:00", segments: ["session 13:00-16:00"]}
+    auto_backfill_start: "2026-07-15" # V2 live 切换点；此前 pending 是历史映射兼容行，不自动外抓
+    backfill_max_days: 7              # 每次 tick 只审计最近 N 个自然日的已到期 live 窗口
+    backfill_max_windows_per_tick: 3  # 当前窗口优先；每次再按时间顺序有限回补最多 3 个已到期缺口
+  # ── 限流(M-FETCH 令牌桶,绝不超频)──
+  rate_limit:
+    infos_interval_sec: 65            # 合同上限1次/60s；留5秒边界余量，降低供应商429且不提高QPS
+    max_pages_per_window: 30          # 单个进程内页块上限；满页后复用同一 snapshot+精确 offset 续抓
+    max_continuation_chunks_per_segment: 8 # 单片段最多 8 个安全页块（最多 240 页），仍超限则显式 partial
+    rate_limit_retries: 8             # 429 原页长等待重试，覆盖供应商分钟/短时段双重限额
+    rate_limit_backoff_sec: 60        # 无 Retry-After 时 60/120/240 秒指数退避
+    resume_overlap_seconds: 180       # 仅升级前无 checkpoint 的历史 partial 用 3 分钟重叠建立首个检查点
+  # ── 分层抽样(替换"每桶前N条"有偏抽样;热帖优先+保底随机)── 2026-06-15 ──
+  #    按 (platform, company, bucket) 独立抽:≤max 全打;>max 取 Top(按 heat 降序)+ 真随机保底。
+  sampling:
+    max_per_bucket: 50               # 桶内该源帖数上限(超则抽样)
+    top_by_heat: 40                  # 热帖优先:按 heat_value 降序取前 N
+    random_floor: 10                 # 保底真随机条数(seed=hash(bucket+platform) 可复现,绝不退化"取后N条")
+    reply_heat_weight: 3             # guba 热度 heat=read + reply*该权重(评论比浏览更费力 → 更高权重)
+    coverage_low: 0.5                # coverage<该值 → 标"抽样估计"(低覆盖)
+  # ── 散户层来源权重(微博已退出散户抓取和计算)──
+  retail:
+    weights: {xueqiu: 1.0, eastmoney: 1.0, ths: 1.0, guba: 1.0}
+    significance_min: 10              # valid_count>10 才出分
+  # ── 新闻层(星瀚 sites,与散户独立)──
+  news:
+    sites: ["新浪新闻", "网易新闻", "凤凰网", "今日头条"]
+    weixin_media_type: "6"
+  # ── 股吧(自爬 Playwright,DeepSeek 三分类)──
+  guba:
+    pages_per_stock: 128        # 每页50帖,按原帖时间翻到窗口起点即停;覆盖极活跃股约6400帖,仍未越界则明确 truncated
+    score_max_per_run: 0        # V2 默认完整公平评分；0=不做全局截断
+  # ── 按行业专题 id 映射(??缺=待配置,不造数;厂商给 subject_id 后填入)──
+  #    key=research.db industry.id;value=星瀚专题id。空串/缺省 → 该行业走全局池探测(id="")
+  industry_subjects: {}
+  global_probe_subject: ""           # 全局探测专题(""=全部监测池);厂商未配行业专题时的兜底
+  # ── 已发现的活跃平台专题（仅用于公司/原始 feed 归因，不再生产关键词情绪）──
+  platform_subjects:
+    - {id: "a58a7da97e1243c68ad1c3ec1fa13ab9", platform: xueqiu,    name: "雪球"}
+    - {id: "ff605f0fac2f46f7aad7d9ed49477a5f", platform: eastmoney, name: "东财股吧"}
+    - {id: "510b0191e12549589f1a205fd79da4e9", platform: ths,       name: "同花顺"}
+  fetch_since: "2026-06-22T00:00"    # 全集情绪起始(本次重构数据起点)

@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ th.name }} · 主题{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / 主题 / <strong>{{ th.name }}</strong>
+</div>
+
+{% if doc.meta and doc.meta.get('ai_synthesized') %}
+<div class="ai-synth-banner"> AI 综合产出 · tier=2 不可提升</div>
+{% endif %}
+
+<header class="entity-header">
+  <div>
+    <h1>{{ th.name }} <span class="theme-cat">{{ th.category or '' }}</span></h1>
+    <p class="entity-meta">状态:{{ th.status }} · id:<code>{{ th.id }}</code></p>
+    {% if th.summary %}<p class="core-dynamic">{{ th.summary }}</p>{% endif %}
+  </div>
+</header>
+
+<section class="panel">
+  <h3 class="panel-title">关联行业</h3>
+  {% if industries %}
+  <table class="data-table">
+    <thead><tr><th>行业</th><th>影响方向</th><th>note</th></tr></thead>
+    <tbody>
+      {% for i in industries %}
+      <tr>
+        <td><a href="{{ url_for('industry_detail', industry_id=i.industry_id) }}">{{ i.industry_name }}</a></td>
+        <td>{{ i.impact or '—' }}</td>
+        <td>{{ i.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无关联行业。</p>{% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">关联公司</h3>
+  {% if companies %}
+  <table class="data-table">
+    <thead><tr><th>公司</th><th>影响</th><th>note</th></tr></thead>
+    <tbody>
+      {% for c in companies %}
+      <tr>
+        <td><a href="{{ url_for('company_tag', company_id=c.company_id) }}">{{ c.company_name }}</a></td>
+        <td>{{ c.impact or '—' }}</td>
+        <td>{{ c.note or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="empty-state">尚无关联公司。</p>{% endif %}
+</section>
+
+{% if doc.exists %}
+<section class="panel">
+  <h3 class="panel-title">主题分析 md</h3>
+  <article class="md-body {% if doc.meta.get('ai_synthesized') %}ai-synth-frame{% endif %}">
+    {{ doc.html|safe }}
+  </article>
+</section>
+{% else %}
+<section class="panel">
+  <div class="empty-state">尚无主题分析 md。预期路径:<code>docs/themes/{{ th.name }}.md</code></div>
+</section>
+{% endif %}
+
+{% endblock %}

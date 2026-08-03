@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}机会透镜导出{% endblock %}
+{% block head_extra %}{% if g.opp_viewer_v2 %}{% include "opportunity_lens/_head_v2.html" %}{% else %}{% include "opportunity_lens/_head.html" %}{% endif %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar"><div><p class="opp-eyebrow">扫描 {{ run.id }}</p><h1>导出状态</h1></div></div>
+  {% if g.opp_viewer_v2 %}{% include "opportunity_lens/_nav_v2.html" %}{% else %}{% include "opportunity_lens/_nav.html" %}{% endif %}
+  <div class="opp-panel">
+    {% if export_status.job %}
+    <div class="opp-kpis">
+      <div class="opp-kpi"><span>任务</span><b>{{ export_status.job.id }}</b></div>
+      <div class="opp-kpi"><span>状态</span><b>{{ export_status.job.export_status|opp_label }}</b></div>
+      <div class="opp-kpi"><span>类型</span><b>{{ export_status.job.export_type|opp_label }}</b></div>
+    </div>
+    {% set manifest = export_status.job.manifest or {} %}
+    {% set intake = manifest.get('intake_summary', {}) %}
+    {% set early = manifest.get('early_signal_summary', {}) %}
+    <h2>导出结果与复现口径</h2>
+    <div class="opp-wide-scroll">
+      <table class="opp-table">
+        <thead><tr><th>项目</th><th>结果</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>导出状态</td><td>{{ manifest.export_status|default(export_status.job.export_status)|opp_label }}</td><td>{{ manifest.error_message or export_status.job.error_message or "任务尚未返回错误说明" }}</td></tr>
+          <tr><td>研究问题</td><td colspan="2">{{ intake.get('research_question') or run.research_question }}</td></tr>
+          <tr><td>证据策略</td><td>{{ intake.get('evidence_policy')|opp_label }}</td><td>入口合同 {{ manifest.intake_contract_version or "未记录" }}</td></tr>
+          <tr><td>HTML 快照</td><td>{{ "已生成" if manifest.html_snapshot_path else "未生成" }}</td><td>页面不展示内部磁盘路径；内部 manifest 保留定位和 hash。</td></tr>
+          <tr><td>PDF 文件</td><td>{{ "已生成" if manifest.pdf_path else "未生成" }}</td><td>{{ "可供下载" if manifest.pdf_path else "真实 PDF renderer 尚未接入" }}</td></tr>
+          <tr><td>机会线索汇总</td><td>{{ early.get('count', 0) }} 条</td><td>只用于研究优先级，不改变核心评分。</td></tr>
+          <tr><td>核心评分是否被线索改变</td><td>{{ "是" if early.get('core_score_changed_by_overlay') else "否" }}</td><td>正常应为“否”。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">尚未请求导出。GET 状态查询不会创建任何产物。</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

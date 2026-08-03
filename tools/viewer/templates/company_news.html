@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ co.name }} · 全部公司新闻{% endblock %}
+{% block content %}
+<style>
+.cn{max-width:940px;margin:0 auto}
+.cn-tl{border-left:2px solid #e0e6f0;margin-left:6px;padding-left:16px}
+.cn-item{position:relative;padding:10px 0;border-bottom:1px solid #eef1f6}
+.cn-item::before{content:'';position:absolute;left:-22px;top:15px;width:9px;height:9px;border-radius:50%;background:#0070C0}
+.cn-item.s-pos::before{background:#d23a30}.cn-item.s-neg::before{background:#138a5e}
+.cn-h{font-size:14.5px;font-weight:500;color:#1f2a44}
+.cn-h a{color:inherit;text-decoration:none}.cn-h a:hover{color:#0070C0}
+.cn-m{font-size:12px;color:#6b7891;display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:3px}
+.cn-sum{font-size:12.5px;color:#33415c;margin-top:4px;background:#f3f7fc;border-radius:6px;padding:6px 10px}
+.cn-bdg{font-size:11px;padding:1px 8px;border-radius:12px;border:1px solid}
+.cn-bdg.pos{color:#d23a30;border-color:#f3b6b1;background:#fdeceb}
+.cn-bdg.neg{color:#138a5e;border-color:#a8dcc6;background:#e8f7f0}
+.cn-bdg.neu{color:#6b7891;border-color:#d6deea;background:#f2f5f9}
+.cn-bdg.mat{color:#5a4eaa;border-color:#ccc6ee;background:#f0eefb}
+</style>
+<div class="cn">
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / 公司 / <a href="{{ url_for('company_tag', company_id=co.id) }}">{{ co.name }}</a> / <strong>全部新闻</strong></div>
+<header class="entity-header"><div>
+  <h1>{{ co.name }} · 全部公司情报新闻 <span style="font-size:13px;color:#8090a8;font-weight:400">{{ co.ticker }}</span></h1>
+  <p class="entity-meta">cninfo 公告/新闻 · DeepSeek 正负面研判 + 简评（tier≤2，AI 自算）· 共 {{ news|length }} 条 · 工作日 10:30 自动抓取，周末静默</p>
+</div></header>
+{% if news %}
+<div class="cn-tl">
+  {% for e in news %}
+  <div class="cn-item {{ 's-pos' if e.sentiment=='正面' else 's-neg' if e.sentiment=='负面' else '' }}">
+    <div class="cn-h">{% if e.url %}<a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.title }} ↗</a>{% else %}{{ e.title }}{% endif %}</div>
+    <div class="cn-m">
+      <span>{{ (e.published_at or '')[:10] }}</span>
+      {% if e.source %}<span>{{ e.source }}</span>{% endif %}
+      {% if e.materiality %}<span class="cn-bdg mat">重要性 {{ e.materiality }}</span>{% endif %}
+      {% if e.sentiment %}<span class="cn-bdg {{ 'pos' if e.sentiment=='正面' else 'neg' if e.sentiment=='负面' else 'neu' }}">{{ e.sentiment }}</span>{% endif %}
+    </div>
+    {% if e.summary_ai %}<div class="cn-sum">AI {{ e.summary_ai }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}<p class="empty-state">暂无公司新闻。</p>{% endif %}
+</div>
+{% endblock %}

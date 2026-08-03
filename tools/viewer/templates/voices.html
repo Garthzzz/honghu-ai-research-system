@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}意见领袖观点流 · 行研工具系统{% endblock %}
+{% macro src_sup(sid) %}{% if sid %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endif %}{% endmacro %}
+{% block content %}
+<div class="vc-wrap no-katex">
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <strong>意见领袖观点流</strong></div>
+
+<header class="entity-header">
+  <div>
+    <h1>🗣️ 意见领袖观点流</h1>
+    <p class="entity-meta">{{ totals.total }} 条 · 已标注 {{ totals.tagged }} · 🏅 认证机构 KOL · 观点≠数据(tier 3)· 原文可点</p>
+  </div>
+</header>
+
+{# 个人页头:选中单个领袖时显示"他是谁 + 擅长什么" #}
+{% if lead_profile %}
+<section class="vc-profile">
+  <div class="vc-profile-av">{{ (lead_profile.name or '·')[:1] }}</div>
+  <div class="vc-profile-main">
+    <div class="vc-profile-top">
+      <h2>{{ lead_profile.name }}</h2>
+      <span class="vc-plat">{{ '雪球' if lead_profile.platform=='xueqiu' else '微博' if lead_profile.platform=='weibo' else 'X' }} · {{ lead_profile.region }}</span>
+      {% if lead_profile.is_featured %}<span class="vc-featured">⭐ 精选</span>{% endif %}
+      {% if lead_profile.profile_url %}<a class="vc-link" href="{{ lead_profile.profile_url }}" target="_blank" rel="noopener">主页 ↗</a>{% endif %}
+    </div>
+    {% if lead_profile.bio %}<div class="vc-profile-bio">{{ lead_profile.bio }}</div>{% endif %}
+    <div class="vc-profile-tags">{% for t in lead_profile.expertise_list %}<span class="tag-industry {{ industry_color_class(t) }}">{{ t }}</span>{% endfor %}</div>
+    <div class="vc-profile-foot">推文 {{ lead_profile.n }} · <a href="{{ url_for('dynamic_voices') }}">← 返回全部领袖</a></div>
+  </div>
+</section>
+{% endif %}
+
+<!-- P3:精选意见领袖索引(只摆 featured 少数;展开看全部,其余经下拉/筛选找)-->
+<div class="vc-cards-head">
+  <span class="vc-cards-lbl">{% if show_all_leaders %}全部领袖 · {{ leader_counts.active }} 位{% else %}精选领袖 · {{ leader_counts.featured }}/{{ leader_counts.active }}{% endif %}</span>
+  {% if show_all_leaders %}
+    <a class="vc-toggle" href="{{ url_for('dynamic_voices') }}">收起 ▴</a>
+  {% else %}
+    <a class="vc-toggle" href="{{ url_for('dynamic_voices', all_leaders=1) }}">展开全部 {{ leader_counts.active }} 位 ▾</a>
+  {% endif %}
+</div>
+<div class="vc-leader-cards">
+  {% for L in leaders %}
+  <a class="vc-lcard {{ 'vc-lcard-on' if f_leader == L.id|string else '' }}" href="{{ url_for('dynamic_voices', leader=L.id) }}">
+    <div class="vc-lcard-head">{% if L.verified_kol %}<span class="vc-verified" title="已标记认证">🏅 认证</span>{% endif %} <strong>{{ L.name }}</strong> <span class="vc-plat">{{ '雪球' if L.platform=='xueqiu' else '微博' if L.platform=='weibo' else 'X' }}·{{ L.region }}</span>{% if L.is_featured %}<span class="vc-featured-dot" title="精选">⭐ 精选</span>{% endif %}</div>
+    {% if L.bio %}<div class="vc-lcard-bio">{{ L.bio }}</div>{% endif %}
+    <div class="vc-lcard-tags">{% for t in L.expertise_list %}<span class="tag-industry {{ industry_color_class(t) }}">{{ t }}</span>{% endfor %}</div>
+    <div class="vc-lcard-foot">推文 {{ L.n }}{% if L.fetch_status == 'paused' %} · <span class="vc-paused">⚠️ 暂无数据(WAF/需cookie)</span>{% endif %}</div>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- P2.2 筛选:领袖跳转 / 板块 / post_type(query-string)-->
+<div class="filter-bar">
+  <a class="fchip {{ 'active' if not f_leader and not f_inds and not f_ptype else '' }}" href="{{ url_for('dynamic_voices') }}">全部</a>
+  {% for b in boards %}<a class="fchip tag-industry {{ industry_color_class(b.name) }} {{ 'fchip-on' if b.id in f_inds else '' }}" href="{{ url_for('dynamic_voices', industry=b.id) }}">#{{ b.name }}</a>{% endfor %}
+  <span class="fsep">·</span>
+  {% for pt in ['观点','数据','转发','提问'] %}<a class="fchip {{ 'fchip-on' if f_ptype==pt else '' }}" href="{{ url_for('dynamic_voices', post_type=pt) }}">{{ pt }}</a>{% endfor %}
+  <span class="fsep">·</span>
+  <select class="vc-leader-select" onchange="if(this.value){location.href=this.value}" aria-label="跳到领袖">
+    <option value="">跳到领袖…</option>
+    {% for L in all_leaders %}<option value="{{ url_for('dynamic_voices', leader=L.id) }}" {{ 'selected' if f_leader==L.id|string else '' }}>{{ '⭐ ' if L.is_featured else '' }}{{ L.name }}</option>{% endfor %}
+  </select>
+</div>
+
+{% if voices %}
+<div class="vc-feed">
+  {% for v in voices %}
+  <article class="vc-post">
+    <div class="vc-head">
+      <span class="vc-name">{{ v.leader_name }}</span>
+      {% if v.verified_kol %}<span class="vc-kol">🏅 认证KOL</span>{% endif %}
+      <span class="vc-plat">{{ '雪球' if v.platform=='xueqiu' else '微博' if v.platform=='weibo' else 'X' }}</span>
+      <span class="vc-time">{{ (v.posted_at or '')[:16] }}</span>
+      {% if v.post_type %}<span class="vc-ptype">{{ v.post_type }}</span>{% endif %}
+      {{ src_sup(v.leader_source_id) }}
+    </div>
+    <div class="vc-body">{{ v.content_text or '(无文本)' }}</div>
+    {% if v.content_text_zh %}<details class="vc-tr"><summary class="tr-toggle">显示中译 ▼</summary><div class="tr-body">{{ v.content_text_zh }} <span class="tr-note">(AI翻译,如有误请参考原文)</span></div></details>{% endif %}
+    {% if v.ai_summary %}<div class="vc-summary">AI {{ v.ai_summary }}</div>{% endif %}
+    <div class="vc-foot">
+      {% for i in v.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}
+      {% for c in v.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}
+      {% if not v.ai_tagged_by %}<span class="nf-untagged">未标注</span>{% endif %}
+      {% if v.post_url %}<a class="vc-link" href="{{ v.post_url }}" target="_blank" rel="noopener">原文 ↗</a>{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <p>暂无意见领袖数据。X 经登录态/ Nitter 抓取;雪球/微博需 cookie(见 cache/dynamic_alerts/)。</p>
+</div>
+{% endif %}
+</div>{# /vc-wrap #}
+{% endblock %}

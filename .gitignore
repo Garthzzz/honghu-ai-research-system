@@ -1,0 +1,69 @@
+# Live structured data and database sidecars
+/data/
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+*.dump
+
+# Backup, broadcast and runtime state
+/backup/
+/broadcast_packages/
+/cache/
+/workpapers/
+/reviews/
+*.log
+*.pid
+*.tmp
+
+# Papers, evidence and user/research content are managed outside application Git
+/papers/
+/funda/
+/docs/industries/
+/opportunity_lens/intake_requests/
+/opportunity_lens/research_outputs/
+
+# Historical or personal working context
+/archive/
+/sample/
+/PROGRESS_LOG.md
+/PENDING_USER_REVIEW.md
+/codex_context/CURRENT_TASK_CHECKPOINT.md
+/codex_context/HANDOFF_REVIEW.md
+/codex_context/LIVE_STATE.md
+/codex_context/COMPONENT_REVIEW_LOG.md
+
+# Credentials, browser profiles and local login state
+/tools/dynamic/secrets/
+**/*credential*
+**/*credentials*
+**/*storage_state*
+**/*cookie*.json
+
+# Generated Viewer assets and checkpoints
+/tools/viewer/static/generated/
+/tools/viewer/templates/_ckpt/
+/tools/viewer/static/_ckpt/
+**/*.bak
+
+# Python/test/IDE/OS state
+**/__pycache__/
+/.pytest_cache/
+*.py[cod]
+*.pyd
+/.venv*/
+/venv/
+/.coverage
+/htmlcov/
+/.mypy_cache/
+/.ruff_cache/
+/.vscode/
+/.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Local bootstrap audit output (policy and reviewed summaries remain tracked)
+/cache/git_bootstrap/

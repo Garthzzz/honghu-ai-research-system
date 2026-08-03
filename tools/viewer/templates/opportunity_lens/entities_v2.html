@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}研究对象 · {{ run.display_title or run.research_question }}{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head_v2.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar"><div><p class="opp-eyebrow">{{ run.display_title or "机会透镜研究报告" }}</p><h1>研究对象</h1></div></div>
+  {% include "opportunity_lens/_nav_v2.html" %}
+  <div class="opp-panel">
+    <div class="opp-panel-heading"><div><h2>公司、风险对象与专题</h2><p>主报告给出整体结论，这里进入各对象只出现一次的详细分析、证据和数据。</p></div></div>
+    <div class="opp-wide-scroll">
+      {% include "opportunity_lens/_entity_table_v2.html" %}
+    </div>
+  </div>
+</section>
+{% endblock %}

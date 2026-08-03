@@ -1,0 +1,4159 @@
+{
+  "schema_version": "lithium_external_reconciliation.v1",
+  "as_of_date": "2026-07-27",
+  "model_path": "cache/lithium_research/models/lithium_company_independent_models_v1.json",
+  "model_sha256": "sha256:03db10b467efe6ba77b2f0847201100cff7daedc4552f8ac8826cf322269c604",
+  "snapshot_path": "cache/lithium_research/lithium_financial_snapshot.json",
+  "snapshot_sha256": "sha256:5379140d41b88df9efa69f50baa6bdfa66b8c828baf1559dfdd0de3a482f009c",
+  "freeze_verification": [
+    {
+      "company": "赣锋锂业",
+      "input_sha256": "sha256:daddbc0564ee20635011380e59855c8d4832e938ee6ae35ddea7fb68cc467704",
+      "output_sha256": "sha256:eb39440feebfa83a6f894d7434d12dac62fda407ad59b1af520a1fda7eff5330"
+    },
+    {
+      "company": "融捷股份",
+      "input_sha256": "sha256:b3db68bada0f1ae655f96a08e5410df47da6130d049834363a138e4425c37284",
+      "output_sha256": "sha256:7c16f3e7a04987b864e3c9a196b70f1b2fd86bccd9ee93454fead56db303e489"
+    },
+    {
+      "company": "盛新锂能",
+      "input_sha256": "sha256:d52abb2f71dd345c55b1439cc6279e08310e00eb9aa4131f13d51f7c6aae9afe",
+      "output_sha256": "sha256:b83a10f8ef54ae86242c6c49949df3fecde54d80e15182205a9f5819b3a20cd0"
+    },
+    {
+      "company": "盐湖股份",
+      "input_sha256": "sha256:283cd577975c84d04fbf9b5f0e5a75bd586de135deae4d79ea055c5f916f898d",
+      "output_sha256": "sha256:3fa99d219f1233a3cee02ede3e4000b559301df50912d71733269a58799bad72"
+    },
+    {
+      "company": "大中矿业",
+      "input_sha256": "sha256:035b29c94e8525a0a5b224abed92c4360510ec3b44dd5096ca32d63a6ac59e27",
+      "output_sha256": "sha256:6530d8ca2bd79ad2751024b826f5231a50b47f173abffa5b14114560c854f7b9"
+    },
+    {
+      "company": "雅化集团",
+      "input_sha256": "sha256:e03b49331d14546f9de55d9f14b89b19d08144d2954349fa118f1a2147da09a1",
+      "output_sha256": "sha256:fdb980820fe822a45e42e996cffb5e830a92c4e4d12c311954e84edf66500495"
+    },
+    {
+      "company": "天华新能",
+      "input_sha256": "sha256:76ad1265c57b0edf12b37f24aafe2acb936db3fccc90d0146c20c0312166df1b",
+      "output_sha256": "sha256:35d164483783bb79a3772e61176487e34608a870890bd03c7637b5b43c413b76"
+    },
+    {
+      "company": "天齐锂业",
+      "input_sha256": "sha256:63660603d0080f11dfa60ea35ec05407c2058d719d48c8de7acb9b41cb003671",
+      "output_sha256": "sha256:a68b47cad22a9c7262824e50f93fd77bd18b44321104f193bb163d0c33a5a56c"
+    },
+    {
+      "company": "永杉锂业",
+      "input_sha256": "sha256:c19c5d17ec51c35badaff22d2fcaa4f44480dff8fc4f5ba20678ef564ec5b987",
+      "output_sha256": "sha256:a5e07876c0bdcb17619267f9fd9971ed151f73a1093abcd9d6a5265553d05d9c"
+    },
+    {
+      "company": "中矿资源",
+      "input_sha256": "sha256:f7c3ec1ba65fef31f52978a70fe102e08425684d09c24abfa9ef6b6ebabecbc8",
+      "output_sha256": "sha256:c17bb07995266a3430932c6b5cf8711f8d6feb1cc3be477ff409e6127f8e3ebf"
+    },
+    {
+      "company": "藏格矿业",
+      "input_sha256": "sha256:17dae942293fb4d85aedce7d4d828436351b8254cc871c5043b1f873a8a58edf",
+      "output_sha256": "sha256:cb6944577a25e306c2cdca4921fda59c2ec112d36d093c23656b8c285d4cac54"
+    },
+    {
+      "company": "西藏城投",
+      "input_sha256": "sha256:4157b7439016e1aed3809f8ee324a7cd025697b3a993f9d64f218528615b388e",
+      "output_sha256": "sha256:c59cf76e6391bebd1e7a23bf34070b265504cb2bb90c2b92946053fda94665f0"
+    },
+    {
+      "company": "永兴材料",
+      "input_sha256": "sha256:8321f893e944bee3837821db6a8446a62137eca3be85d915401a493a473dda8f",
+      "output_sha256": "sha256:b716717ef8a8b1a6ec7a2f7265321cee3199c017d42b843e04b51fea825eb634"
+    }
+  ],
+  "companies": [
+    {
+      "company": "赣锋锂业",
+      "research_company_id": 640,
+      "ticker": "002460.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002460_SZ_input.json",
+        "input_sha256": "sha256:daddbc0564ee20635011380e59855c8d4832e938ee6ae35ddea7fb68cc467704",
+        "output_path": "cache/lithium_research/models/company_freezes/002460_SZ_output.json",
+        "output_sha256": "sha256:eb39440feebfa83a6f894d7434d12dac62fda407ad59b1af520a1fda7eff5330",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 38.0,
+            "net_income_rmb_bn": 6.0765,
+            "roe_pct": 11.38
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 44.103181818,
+            "net_income_rmb_bn": 6.948909091000001,
+            "eps_cny": 3.3139,
+            "roe_pct": 13.9764
+          },
+          "recent_broker_median": {
+            "institution_count": 13,
+            "institutions": [
+              "UBS",
+              "东吴证券",
+              "中信证券",
+              "中原证券",
+              "中金",
+              "华安证券",
+              "华泰证券",
+              "华源证券",
+              "华鑫证券",
+              "国信证券",
+              "国泰海通",
+              "国联民生证券",
+              "申万宏源证券"
+            ],
+            "report_date_start": "20260318",
+            "report_date_end": "20260715",
+            "revenue_rmb_bn_median": 46.701499999999996,
+            "net_income_rmb_bn_median": 6.777,
+            "eps_cny_median": 3.23,
+            "report_count": 13,
+            "constituents": [
+              {
+                "institution": "UBS",
+                "report_date": "20260714",
+                "revenue_rmb_bn": 70.137,
+                "net_income_rmb_bn": 14.298,
+                "eps_cny": 6.82
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260715",
+                "revenue_rmb_bn": 42.799,
+                "net_income_rmb_bn": 9.334,
+                "eps_cny": 4.45
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260506",
+                "revenue_rmb_bn": 55.82,
+                "net_income_rmb_bn": 9.011,
+                "eps_cny": 4.3
+              },
+              {
+                "institution": "中原证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 40.599,
+                "net_income_rmb_bn": 6.217,
+                "eps_cny": 2.97
+              },
+              {
+                "institution": "中金",
+                "report_date": "20260403",
+                "revenue_rmb_bn": 41.507,
+                "net_income_rmb_bn": 4.825,
+                "eps_cny": 2.3
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260426",
+                "revenue_rmb_bn": 49.58,
+                "net_income_rmb_bn": 8.473,
+                "eps_cny": 4.04
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260402",
+                "revenue_rmb_bn": 50.143,
+                "net_income_rmb_bn": 6.465,
+                "eps_cny": 3.08
+              },
+              {
+                "institution": "华源证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 43.823,
+                "net_income_rmb_bn": 7.201,
+                "eps_cny": 3.43
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 52.381,
+                "net_income_rmb_bn": 6.443,
+                "eps_cny": 3.07
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 42.149,
+                "net_income_rmb_bn": 6.777,
+                "eps_cny": 3.23
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 38.014,
+                "net_income_rmb_bn": 6.639,
+                "eps_cny": 3.17
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 51.127,
+                "net_income_rmb_bn": 8.787,
+                "eps_cny": 4.19
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260318",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 5.7659096100000005,
+                "eps_cny": 2.75
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -13.83841611062422,
+            "net_income": -12.554619431270385,
+            "roe": -18.577029850319104
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -18.632163849126893,
+            "net_income": -10.336432049579457
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 46.0,
+            "net_income_rmb_bn": 7.3464,
+            "roe_pct": 12.78
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 51.541272727,
+            "net_income_rmb_bn": 8.384636364,
+            "eps_cny": 3.9986,
+            "roe_pct": 14.7209
+          },
+          "recent_broker_median": {
+            "institution_count": 13,
+            "institutions": [
+              "UBS",
+              "东吴证券",
+              "中信证券",
+              "中原证券",
+              "中金",
+              "华安证券",
+              "华泰证券",
+              "华源证券",
+              "华鑫证券",
+              "国信证券",
+              "国泰海通",
+              "国联民生证券",
+              "申万宏源证券"
+            ],
+            "report_date_start": "20260318",
+            "report_date_end": "20260715",
+            "revenue_rmb_bn_median": 57.558,
+            "net_income_rmb_bn_median": 8.644,
+            "eps_cny_median": 4.12,
+            "report_count": 13,
+            "constituents": [
+              {
+                "institution": "UBS",
+                "report_date": "20260714",
+                "revenue_rmb_bn": 74.119,
+                "net_income_rmb_bn": 18.519,
+                "eps_cny": 8.83
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260715",
+                "revenue_rmb_bn": 48.764,
+                "net_income_rmb_bn": 11.222,
+                "eps_cny": 5.35
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260506",
+                "revenue_rmb_bn": 64.942,
+                "net_income_rmb_bn": 10.274,
+                "eps_cny": 4.9
+              },
+              {
+                "institution": "中原证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 48.532,
+                "net_income_rmb_bn": 7.45,
+                "eps_cny": 3.55
+              },
+              {
+                "institution": "中金",
+                "report_date": "20260403",
+                "revenue_rmb_bn": 43.743,
+                "net_income_rmb_bn": 5.854,
+                "eps_cny": 2.79
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260426",
+                "revenue_rmb_bn": 68.596,
+                "net_income_rmb_bn": 12.798,
+                "eps_cny": 6.1
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260402",
+                "revenue_rmb_bn": 60.611,
+                "net_income_rmb_bn": 7.557,
+                "eps_cny": 3.6
+              },
+              {
+                "institution": "华源证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 56.647,
+                "net_income_rmb_bn": 9.529,
+                "eps_cny": 4.54
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 58.469,
+                "net_income_rmb_bn": 7.313,
+                "eps_cny": 3.49
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 48.169,
+                "net_income_rmb_bn": 7.905,
+                "eps_cny": 3.77
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 41.013,
+                "net_income_rmb_bn": 8.644,
+                "eps_cny": 4.12
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 63.58,
+                "net_income_rmb_bn": 11.68,
+                "eps_cny": 5.57
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260318",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 5.7659096100000005,
+                "eps_cny": 2.75
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -10.751136776056347,
+            "net_income": -12.382604551077947,
+            "roe": -13.184655829466951
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -20.08061433684284,
+            "net_income": -15.01156871818603
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 54.0,
+            "net_income_rmb_bn": 8.081,
+            "roe_pct": 12.73
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 61.567,
+            "net_income_rmb_bn": 10.250555556,
+            "eps_cny": 4.8883,
+            "roe_pct": 15.5644
+          },
+          "recent_broker_median": {
+            "institution_count": 11,
+            "institutions": [
+              "UBS",
+              "东吴证券",
+              "中信证券",
+              "中原证券",
+              "华安证券",
+              "华泰证券",
+              "华源证券",
+              "华鑫证券",
+              "国信证券",
+              "国泰海通",
+              "国联民生证券"
+            ],
+            "report_date_start": "20260401",
+            "report_date_end": "20260715",
+            "revenue_rmb_bn_median": 68.472,
+            "net_income_rmb_bn_median": 10.531,
+            "eps_cny_median": 5.02,
+            "report_count": 11,
+            "constituents": [
+              {
+                "institution": "UBS",
+                "report_date": "20260714",
+                "revenue_rmb_bn": 73.848,
+                "net_income_rmb_bn": 18.028,
+                "eps_cny": 8.6
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260715",
+                "revenue_rmb_bn": 53.265,
+                "net_income_rmb_bn": 12.641,
+                "eps_cny": 6.03
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260506",
+                "revenue_rmb_bn": 79.806,
+                "net_income_rmb_bn": 12.65,
+                "eps_cny": 6.03
+              },
+              {
+                "institution": "中原证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 56.388,
+                "net_income_rmb_bn": 8.621,
+                "eps_cny": 4.11
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260426",
+                "revenue_rmb_bn": 68.472,
+                "net_income_rmb_bn": 12.267,
+                "eps_cny": 5.85
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260402",
+                "revenue_rmb_bn": 70.347,
+                "net_income_rmb_bn": 8.701,
+                "eps_cny": 4.15
+              },
+              {
+                "institution": "华源证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 70.824,
+                "net_income_rmb_bn": 10.531,
+                "eps_cny": 5.02
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 62.956,
+                "net_income_rmb_bn": 7.68,
+                "eps_cny": 3.66
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 55.232,
+                "net_income_rmb_bn": 8.715,
+                "eps_cny": 4.16
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 38.642,
+                "net_income_rmb_bn": 6.513,
+                "eps_cny": 3.11
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 69.113,
+                "net_income_rmb_bn": 15.772,
+                "eps_cny": 7.52
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -12.290675199376288,
+            "net_income": -21.165248499434608,
+            "roe": -18.210788722983207
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -21.13564668769715,
+            "net_income": -23.264647231981773
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 49.03,
+        "market_cap_rmb_bn": 102.801,
+        "pe_ttm": 27.0096206665,
+        "pe_forward_supplier": 13.2568778992,
+        "pb": 2.2278220654,
+        "roe_ttm_pct": 8.1924,
+        "roa_ttm_pct": 4.3563,
+        "independent_implied_pe_fy1": 16.917798074549495,
+        "independent_implied_pe_fy2": 13.993384514864424,
+        "market_vs_independent_range_pct": {
+          "vs_low": 16.607304900181497,
+          "vs_high": -12.539561000510469
+        }
+      },
+      "difference_summary": "FY1独立利润低于Wind一致预期12.6%；市场预测更可能采用更高锂价、更快爬坡或更强非锂利润，本研究不因对账而改写冻结输入。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "融捷股份",
+      "research_company_id": 641,
+      "ticker": "002192.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002192_SZ_input.json",
+        "input_sha256": "sha256:b3db68bada0f1ae655f96a08e5410df47da6130d049834363a138e4425c37284",
+        "output_path": "cache/lithium_research/models/company_freezes/002192_SZ_output.json",
+        "output_sha256": "sha256:7c16f3e7a04987b864e3c9a196b70f1b2fd86bccd9ee93454fead56db303e489",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 1.5,
+            "net_income_rmb_bn": 1.3459,
+            "roe_pct": 33.27
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 1.8,
+            "net_income_rmb_bn": 1.3879,
+            "roe_pct": 27.76
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 2.4,
+            "net_income_rmb_bn": 1.741,
+            "roe_pct": 27.86
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 61.41,
+        "market_cap_rmb_bn": 15.944999999999999,
+        "pe_ttm": 29.7099514008,
+        "pe_forward_supplier": null,
+        "pb": 4.1765136719000004,
+        "roe_ttm_pct": 13.8504,
+        "roa_ttm_pct": 12.4455,
+        "independent_implied_pe_fy1": 11.847091165762684,
+        "independent_implied_pe_fy2": 11.488579868866633,
+        "market_vs_independent_range_pct": {
+          "vs_low": 14.877521613832844,
+          "vs_high": -17.93618116314978
+        }
+      },
+      "difference_summary": "Wind没有形成可用FY1一致预期；本研究保留独立模型，不用缺失值反推市场共识。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "盛新锂能",
+      "research_company_id": 642,
+      "ticker": "002240.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002240_SZ_input.json",
+        "input_sha256": "sha256:d52abb2f71dd345c55b1439cc6279e08310e00eb9aa4131f13d51f7c6aae9afe",
+        "output_path": "cache/lithium_research/models/company_freezes/002240_SZ_output.json",
+        "output_sha256": "sha256:b83a10f8ef54ae86242c6c49949df3fecde54d80e15182205a9f5819b3a20cd0",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 12.0,
+            "net_income_rmb_bn": 1.8515,
+            "roe_pct": 15.05
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 13.4658,
+            "net_income_rmb_bn": 1.922906,
+            "eps_cny": 2.1009,
+            "roe_pct": 15.33
+          },
+          "recent_broker_median": {
+            "institution_count": 7,
+            "institutions": [
+              "Morgan Stanley",
+              "东吴证券",
+              "兴业证券",
+              "华鑫证券",
+              "国信证券",
+              "国泰海通",
+              "申万宏源证券"
+            ],
+            "report_date_start": "20260316",
+            "report_date_end": "20260714",
+            "revenue_rmb_bn_median": 14.2986,
+            "net_income_rmb_bn_median": 2.046,
+            "eps_cny_median": 1.97,
+            "report_count": 7,
+            "constituents": [
+              {
+                "institution": "Morgan Stanley",
+                "report_date": "20260709",
+                "revenue_rmb_bn": 14.2986,
+                "net_income_rmb_bn": 2.173,
+                "eps_cny": 1.97
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260714",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 2.2,
+                "eps_cny": 2.404
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260510",
+                "revenue_rmb_bn": 11.824,
+                "net_income_rmb_bn": 2.046,
+                "eps_cny": 2.24
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260425",
+                "revenue_rmb_bn": 17.0,
+                "net_income_rmb_bn": 2.133,
+                "eps_cny": 2.33
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 15.0,
+                "net_income_rmb_bn": 1.585,
+                "eps_cny": 1.73
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 8.456,
+                "net_income_rmb_bn": 1.608,
+                "eps_cny": 1.76
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260316",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 0.35696461,
+                "eps_cny": 0.39
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -10.885354007931202,
+            "net_income": -3.7134420507294763,
+            "roe": -1.82648401826484
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -16.0756997188536,
+            "net_income": -9.506353861192562
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 14.5,
+            "net_income_rmb_bn": 2.4943,
+            "roe_pct": 17.82
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 15.0012,
+            "net_income_rmb_bn": 2.48695,
+            "eps_cny": 2.7171000000000003,
+            "roe_pct": 16.442
+          },
+          "recent_broker_median": {
+            "institution_count": 7,
+            "institutions": [
+              "Morgan Stanley",
+              "东吴证券",
+              "兴业证券",
+              "华鑫证券",
+              "国信证券",
+              "国泰海通",
+              "申万宏源证券"
+            ],
+            "report_date_start": "20260316",
+            "report_date_end": "20260714",
+            "revenue_rmb_bn_median": 13.6517,
+            "net_income_rmb_bn_median": 2.228,
+            "eps_cny_median": 2.34,
+            "report_count": 7,
+            "constituents": [
+              {
+                "institution": "Morgan Stanley",
+                "report_date": "20260709",
+                "revenue_rmb_bn": 13.6517,
+                "net_income_rmb_bn": 2.228,
+                "eps_cny": 2.02
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260714",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 3.0,
+                "eps_cny": 3.278
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260510",
+                "revenue_rmb_bn": 13.169,
+                "net_income_rmb_bn": 2.297,
+                "eps_cny": 2.51
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260425",
+                "revenue_rmb_bn": 18.7,
+                "net_income_rmb_bn": 3.05,
+                "eps_cny": 3.33
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 16.426,
+                "net_income_rmb_bn": 2.141,
+                "eps_cny": 2.34
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 10.511,
+                "net_income_rmb_bn": 1.943,
+                "eps_cny": 2.12
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260316",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 0.64070571,
+                "eps_cny": 0.7
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -3.3410660480494903,
+            "net_income": 0.2955427330666005,
+            "roe": 8.380975550419656
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": 6.213878125068684,
+            "net_income": 11.952423698384184
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 16.5,
+            "net_income_rmb_bn": 2.8653,
+            "roe_pct": 17.63
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 15.4106,
+            "net_income_rmb_bn": 2.932618,
+            "eps_cny": 3.204,
+            "roe_pct": 16.342
+          },
+          "recent_broker_median": {
+            "institution_count": 6,
+            "institutions": [
+              "Morgan Stanley",
+              "东吴证券",
+              "兴业证券",
+              "华鑫证券",
+              "国信证券",
+              "国泰海通"
+            ],
+            "report_date_start": "20260331",
+            "report_date_end": "20260714",
+            "revenue_rmb_bn_median": 13.428,
+            "net_income_rmb_bn_median": 2.9485,
+            "eps_cny_median": 3.225,
+            "report_count": 6,
+            "constituents": [
+              {
+                "institution": "Morgan Stanley",
+                "report_date": "20260709",
+                "revenue_rmb_bn": 13.2114,
+                "net_income_rmb_bn": 2.484,
+                "eps_cny": 2.25
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260714",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 3.6,
+                "eps_cny": 3.933
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260510",
+                "revenue_rmb_bn": 13.428,
+                "net_income_rmb_bn": 3.201,
+                "eps_cny": 3.5
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260425",
+                "revenue_rmb_bn": 20.4,
+                "net_income_rmb_bn": 3.246,
+                "eps_cny": 3.55
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 17.754,
+                "net_income_rmb_bn": 2.696,
+                "eps_cny": 2.95
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 9.293,
+                "net_income_rmb_bn": 1.878,
+                "eps_cny": 2.05
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": 7.0691601884417254,
+            "net_income": -2.295491605111888,
+            "roe": 7.881532248194834
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": 22.877569258266295,
+            "net_income": -2.8217737832796352
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 28.46,
+        "market_cap_rmb_bn": 26.049,
+        "pe_ttm": -96.7270431519,
+        "pe_forward_supplier": 11.6306400299,
+        "pb": 2.4269583225,
+        "roe_ttm_pct": -2.5091,
+        "roa_ttm_pct": 0.1272,
+        "independent_implied_pe_fy1": 14.069133135295706,
+        "independent_implied_pe_fy2": 10.443410977027623,
+        "market_vs_independent_range_pct": {
+          "vs_low": 4.446672012830777,
+          "vs_high": -25.403780068728533
+        }
+      },
+      "difference_summary": "FY1独立利润与Wind一致预期相差-3.7%，整体接近；更重要的分歧在锂价路径、自给率和现金转换。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "盐湖股份",
+      "research_company_id": 643,
+      "ticker": "000792.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/000792_SZ_input.json",
+        "input_sha256": "sha256:283cd577975c84d04fbf9b5f0e5a75bd586de135deae4d79ea055c5f916f898d",
+        "output_path": "cache/lithium_research/models/company_freezes/000792_SZ_output.json",
+        "output_sha256": "sha256:3fa99d219f1233a3cee02ede3e4000b559301df50912d71733269a58799bad72",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 23.0,
+            "net_income_rmb_bn": 10.6457,
+            "roe_pct": 20.69
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 26.091806,
+            "net_income_rmb_bn": 11.302661333000001,
+            "eps_cny": 2.1359,
+            "roe_pct": 20.6067
+          },
+          "recent_broker_median": {
+            "institution_count": 16,
+            "institutions": [
+              "UBS",
+              "中信建投",
+              "中原证券",
+              "中金",
+              "华创证券",
+              "华鑫证券",
+              "国信证券",
+              "国海证券",
+              "国盛证券",
+              "国联民生证券",
+              "天风证券",
+              "开源证券",
+              "方正证券",
+              "浙商证券",
+              "申万宏源证券",
+              "长城证券"
+            ],
+            "report_date_start": "20260331",
+            "report_date_end": "20260518",
+            "revenue_rmb_bn_median": 25.909,
+            "net_income_rmb_bn_median": 11.317,
+            "eps_cny_median": 2.1399999999999997,
+            "report_count": 16,
+            "constituents": [
+              {
+                "institution": "UBS",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 35.09,
+                "net_income_rmb_bn": 15.743,
+                "eps_cny": 2.98
+              },
+              {
+                "institution": "中信建投",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 25.26264,
+                "net_income_rmb_bn": 11.0618,
+                "eps_cny": 2.09
+              },
+              {
+                "institution": "中原证券",
+                "report_date": "20260409",
+                "revenue_rmb_bn": 24.288,
+                "net_income_rmb_bn": 11.045,
+                "eps_cny": 2.09
+              },
+              {
+                "institution": "中金",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 26.327,
+                "net_income_rmb_bn": 11.171,
+                "eps_cny": 2.11
+              },
+              {
+                "institution": "华创证券",
+                "report_date": "20260410",
+                "revenue_rmb_bn": 27.781,
+                "net_income_rmb_bn": 11.463,
+                "eps_cny": 2.17
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 22.032,
+                "net_income_rmb_bn": 8.549,
+                "eps_cny": 1.62
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 25.271,
+                "net_income_rmb_bn": 9.715,
+                "eps_cny": 1.84
+              },
+              {
+                "institution": "国海证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 22.768,
+                "net_income_rmb_bn": 11.108,
+                "eps_cny": 2.1
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260517",
+                "revenue_rmb_bn": 29.024,
+                "net_income_rmb_bn": 12.52,
+                "eps_cny": 2.37
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 27.145,
+                "net_income_rmb_bn": 12.925,
+                "eps_cny": 2.44
+              },
+              {
+                "institution": "天风证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 30.18345,
+                "net_income_rmb_bn": 12.33112,
+                "eps_cny": 2.33
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260518",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 10.98,
+                "eps_cny": 2.075
+              },
+              {
+                "institution": "方正证券",
+                "report_date": "20260406",
+                "revenue_rmb_bn": 23.426,
+                "net_income_rmb_bn": 10.408,
+                "eps_cny": 1.97
+              },
+              {
+                "institution": "浙商证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 29.765,
+                "net_income_rmb_bn": 12.146,
+                "eps_cny": 2.3
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260415",
+                "revenue_rmb_bn": 25.909,
+                "net_income_rmb_bn": 12.041,
+                "eps_cny": 2.28
+              },
+              {
+                "institution": "长城证券",
+                "report_date": "20260515",
+                "revenue_rmb_bn": 24.353,
+                "net_income_rmb_bn": 12.081,
+                "eps_cny": 2.28
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -11.849720176518241,
+            "net_income": -5.812448180517393,
+            "roe": 0.40423745674951217
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -11.227758693890156,
+            "net_income": -5.931784041707166
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 26.0,
+            "net_income_rmb_bn": 11.5051,
+            "roe_pct": 19.18
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 28.460412,
+            "net_income_rmb_bn": 12.563550667,
+            "eps_cny": 2.3742,
+            "roe_pct": 18.9007
+          },
+          "recent_broker_median": {
+            "institution_count": 16,
+            "institutions": [
+              "UBS",
+              "中信建投",
+              "中原证券",
+              "中金",
+              "华创证券",
+              "华鑫证券",
+              "国信证券",
+              "国海证券",
+              "国盛证券",
+              "国联民生证券",
+              "天风证券",
+              "开源证券",
+              "方正证券",
+              "浙商证券",
+              "申万宏源证券",
+              "长城证券"
+            ],
+            "report_date_start": "20260331",
+            "report_date_end": "20260518",
+            "revenue_rmb_bn_median": 28.33732,
+            "net_income_rmb_bn_median": 12.8185,
+            "eps_cny_median": 2.4245,
+            "report_count": 16,
+            "constituents": [
+              {
+                "institution": "UBS",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 47.28,
+                "net_income_rmb_bn": 23.439,
+                "eps_cny": 4.43
+              },
+              {
+                "institution": "中信建投",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 28.33732,
+                "net_income_rmb_bn": 12.38489,
+                "eps_cny": 2.34
+              },
+              {
+                "institution": "中原证券",
+                "report_date": "20260409",
+                "revenue_rmb_bn": 27.372,
+                "net_income_rmb_bn": 12.887,
+                "eps_cny": 2.44
+              },
+              {
+                "institution": "中金",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 27.928,
+                "net_income_rmb_bn": 12.419,
+                "eps_cny": 2.35
+              },
+              {
+                "institution": "华创证券",
+                "report_date": "20260410",
+                "revenue_rmb_bn": 30.313,
+                "net_income_rmb_bn": 12.59,
+                "eps_cny": 2.38
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 24.871,
+                "net_income_rmb_bn": 10.164,
+                "eps_cny": 1.92
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 26.51,
+                "net_income_rmb_bn": 10.392,
+                "eps_cny": 1.96
+              },
+              {
+                "institution": "国海证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 25.782,
+                "net_income_rmb_bn": 12.675,
+                "eps_cny": 2.4
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260517",
+                "revenue_rmb_bn": 30.845,
+                "net_income_rmb_bn": 13.438,
+                "eps_cny": 2.54
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 28.792,
+                "net_income_rmb_bn": 13.944,
+                "eps_cny": 2.64
+              },
+              {
+                "institution": "天风证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 31.70186,
+                "net_income_rmb_bn": 13.00337,
+                "eps_cny": 2.46
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260518",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 12.75,
+                "eps_cny": 2.409
+              },
+              {
+                "institution": "方正证券",
+                "report_date": "20260406",
+                "revenue_rmb_bn": 23.946,
+                "net_income_rmb_bn": 10.533,
+                "eps_cny": 1.99
+              },
+              {
+                "institution": "浙商证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 31.785,
+                "net_income_rmb_bn": 13.114,
+                "eps_cny": 2.48
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260415",
+                "revenue_rmb_bn": 29.132,
+                "net_income_rmb_bn": 14.087,
+                "eps_cny": 2.66
+              },
+              {
+                "institution": "长城证券",
+                "report_date": "20260515",
+                "revenue_rmb_bn": 28.319,
+                "net_income_rmb_bn": 14.073,
+                "eps_cny": 2.66
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -8.645032967196686,
+            "net_income": -8.424773338799628,
+            "roe": 1.4777230472945435
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -8.248204135041703,
+            "net_income": -10.246128642196817
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 28.0,
+            "net_income_rmb_bn": 11.1954,
+            "roe_pct": 15.99
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 30.821538571,
+            "net_income_rmb_bn": 13.719098571,
+            "eps_cny": 2.5925000000000002,
+            "roe_pct": 17.31
+          },
+          "recent_broker_median": {
+            "institution_count": 15,
+            "institutions": [
+              "UBS",
+              "中信建投",
+              "中原证券",
+              "华创证券",
+              "华鑫证券",
+              "国信证券",
+              "国海证券",
+              "国盛证券",
+              "国联民生证券",
+              "天风证券",
+              "开源证券",
+              "方正证券",
+              "浙商证券",
+              "申万宏源证券",
+              "长城证券"
+            ],
+            "report_date_start": "20260401",
+            "report_date_end": "20260518",
+            "revenue_rmb_bn_median": 31.59511,
+            "net_income_rmb_bn_median": 13.93,
+            "eps_cny_median": 2.63,
+            "report_count": 15,
+            "constituents": [
+              {
+                "institution": "UBS",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 46.883,
+                "net_income_rmb_bn": 23.217,
+                "eps_cny": 4.39
+              },
+              {
+                "institution": "中信建投",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 31.83432,
+                "net_income_rmb_bn": 13.88693,
+                "eps_cny": 2.62
+              },
+              {
+                "institution": "中原证券",
+                "report_date": "20260409",
+                "revenue_rmb_bn": 29.398,
+                "net_income_rmb_bn": 14.127,
+                "eps_cny": 2.67
+              },
+              {
+                "institution": "华创证券",
+                "report_date": "20260410",
+                "revenue_rmb_bn": 32.521,
+                "net_income_rmb_bn": 13.442,
+                "eps_cny": 2.54
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 28.72,
+                "net_income_rmb_bn": 11.831,
+                "eps_cny": 2.24
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 27.749,
+                "net_income_rmb_bn": 11.068,
+                "eps_cny": 2.09
+              },
+              {
+                "institution": "国海证券",
+                "report_date": "20260401",
+                "revenue_rmb_bn": 28.56,
+                "net_income_rmb_bn": 13.524,
+                "eps_cny": 2.56
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260517",
+                "revenue_rmb_bn": 31.685,
+                "net_income_rmb_bn": 13.93,
+                "eps_cny": 2.63
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 29.371,
+                "net_income_rmb_bn": 14.259,
+                "eps_cny": 2.69
+              },
+              {
+                "institution": "天风证券",
+                "report_date": "20260407",
+                "revenue_rmb_bn": 31.50522,
+                "net_income_rmb_bn": 12.65845,
+                "eps_cny": 2.39
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260518",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 14.74,
+                "eps_cny": 2.786
+              },
+              {
+                "institution": "方正证券",
+                "report_date": "20260406",
+                "revenue_rmb_bn": 25.354,
+                "net_income_rmb_bn": 11.355,
+                "eps_cny": 2.15
+              },
+              {
+                "institution": "浙商证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 35.25,
+                "net_income_rmb_bn": 14.937,
+                "eps_cny": 2.82
+              },
+              {
+                "institution": "申万宏源证券",
+                "report_date": "20260415",
+                "revenue_rmb_bn": 32.641,
+                "net_income_rmb_bn": 16.369,
+                "eps_cny": 3.09
+              },
+              {
+                "institution": "长城证券",
+                "report_date": "20260515",
+                "revenue_rmb_bn": 31.791,
+                "net_income_rmb_bn": 15.941,
+                "eps_cny": 3.01
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -9.154437778958858,
+            "net_income": -18.395513072081126,
+            "roe": -7.625649913344878
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -11.37869119620093,
+            "net_income": -19.63101220387653
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 26.85,
+        "market_cap_rmb_bn": 142.079,
+        "pe_ttm": 13.7172117233,
+        "pe_forward_supplier": 11.8295497894,
+        "pb": 3.1788547039,
+        "roe_ttm_pct": 23.1742,
+        "roa_ttm_pct": 16.6693,
+        "independent_implied_pe_fy1": 13.346139755957806,
+        "independent_implied_pe_fy2": 12.349219041990073,
+        "market_vs_independent_range_pct": {
+          "vs_low": 12.262168141592934,
+          "vs_high": -11.790525858322464
+        }
+      },
+      "difference_summary": "FY1独立利润与Wind一致预期相差-5.8%，整体接近；更重要的分歧在锂价路径、自给率和现金转换。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "大中矿业",
+      "research_company_id": 644,
+      "ticker": "001203.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/001203_SZ_input.json",
+        "input_sha256": "sha256:035b29c94e8525a0a5b224abed92c4360510ec3b44dd5096ca32d63a6ac59e27",
+        "output_path": "cache/lithium_research/models/company_freezes/001203_SZ_output.json",
+        "output_sha256": "sha256:6530d8ca2bd79ad2751024b826f5231a50b47f173abffa5b14114560c854f7b9",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 6.0,
+            "net_income_rmb_bn": 1.0269,
+            "roe_pct": 12.98
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 6.3858725,
+            "net_income_rmb_bn": 1.63656625,
+            "eps_cny": 1.0675,
+            "roe_pct": 19.2538
+          },
+          "recent_broker_median": {
+            "institution_count": 8,
+            "institutions": [
+              "东吴证券",
+              "东方证券",
+              "中信建投",
+              "中邮证券",
+              "华源证券",
+              "国泰海通",
+              "国联民生证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260430",
+            "report_date_end": "20260625",
+            "revenue_rmb_bn_median": 6.6375,
+            "net_income_rmb_bn_median": 1.726,
+            "eps_cny_median": 1.125,
+            "report_count": 8,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260617",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 1.8,
+                "eps_cny": 1.174
+              },
+              {
+                "institution": "东方证券",
+                "report_date": "20260609",
+                "revenue_rmb_bn": 5.6943,
+                "net_income_rmb_bn": 1.124,
+                "eps_cny": 0.73
+              },
+              {
+                "institution": "中信建投",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 6.12098,
+                "net_income_rmb_bn": 1.88115,
+                "eps_cny": 1.23
+              },
+              {
+                "institution": "中邮证券",
+                "report_date": "20260430",
+                "revenue_rmb_bn": 7.281,
+                "net_income_rmb_bn": 1.61338,
+                "eps_cny": 1.05
+              },
+              {
+                "institution": "华源证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 7.55,
+                "net_income_rmb_bn": 2.144,
+                "eps_cny": 1.4
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 6.823,
+                "net_income_rmb_bn": 1.775,
+                "eps_cny": 1.16
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260614",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 1.3491107800000002,
+                "eps_cny": 0.88
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260625",
+                "revenue_rmb_bn": 6.452,
+                "net_income_rmb_bn": 1.677,
+                "eps_cny": 1.09
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -6.042596371913156,
+            "net_income": -37.25276932724233,
+            "roe": -32.58473651954419
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -9.6045197740113,
+            "net_income": -40.504055619930476
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 9.0,
+            "net_income_rmb_bn": 2.4289,
+            "roe_pct": 26.26
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 9.9577725,
+            "net_income_rmb_bn": 3.25295,
+            "eps_cny": 2.1218,
+            "roe_pct": 29.6563
+          },
+          "recent_broker_median": {
+            "institution_count": 8,
+            "institutions": [
+              "东吴证券",
+              "东方证券",
+              "中信建投",
+              "中邮证券",
+              "华源证券",
+              "国泰海通",
+              "国联民生证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260430",
+            "report_date_end": "20260625",
+            "revenue_rmb_bn_median": 10.528590000000001,
+            "net_income_rmb_bn_median": 3.72691,
+            "eps_cny_median": 2.4299999999999997,
+            "report_count": 8,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260617",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 3.6,
+                "eps_cny": 2.348
+              },
+              {
+                "institution": "东方证券",
+                "report_date": "20260609",
+                "revenue_rmb_bn": 12.0273,
+                "net_income_rmb_bn": 3.429,
+                "eps_cny": 2.24
+              },
+              {
+                "institution": "中信建投",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 10.59018,
+                "net_income_rmb_bn": 3.94278,
+                "eps_cny": 2.57
+              },
+              {
+                "institution": "中邮证券",
+                "report_date": "20260430",
+                "revenue_rmb_bn": 10.196,
+                "net_income_rmb_bn": 3.74482,
+                "eps_cny": 2.44
+              },
+              {
+                "institution": "华源证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 12.831,
+                "net_income_rmb_bn": 4.09,
+                "eps_cny": 2.67
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 7.892,
+                "net_income_rmb_bn": 2.082,
+                "eps_cny": 1.36
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260614",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 3.81737028,
+                "eps_cny": 2.49
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260625",
+                "revenue_rmb_bn": 10.467,
+                "net_income_rmb_bn": 3.709,
+                "eps_cny": 2.42
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -9.618340848819361,
+            "net_income": -25.33239059930217,
+            "roe": -11.452204084798169
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -14.518468284927055,
+            "net_income": -34.82804790027127
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 12.0,
+            "net_income_rmb_bn": 3.8129,
+            "roe_pct": 32.45
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 13.45656,
+            "net_income_rmb_bn": 4.80082125,
+            "eps_cny": 3.1315,
+            "roe_pct": 32.9125
+          },
+          "recent_broker_median": {
+            "institution_count": 8,
+            "institutions": [
+              "东吴证券",
+              "东方证券",
+              "中信建投",
+              "中邮证券",
+              "华源证券",
+              "国泰海通",
+              "国联民生证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260430",
+            "report_date_end": "20260625",
+            "revenue_rmb_bn_median": 15.359739999999999,
+            "net_income_rmb_bn_median": 5.61947,
+            "eps_cny_median": 3.664,
+            "report_count": 8,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260617",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 5.5,
+                "eps_cny": 3.588
+              },
+              {
+                "institution": "东方证券",
+                "report_date": "20260609",
+                "revenue_rmb_bn": 18.4435,
+                "net_income_rmb_bn": 5.393,
+                "eps_cny": 3.52
+              },
+              {
+                "institution": "中信建投",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 14.57248,
+                "net_income_rmb_bn": 5.76763,
+                "eps_cny": 3.76
+              },
+              {
+                "institution": "中邮证券",
+                "report_date": "20260430",
+                "revenue_rmb_bn": 12.891,
+                "net_income_rmb_bn": 5.73894,
+                "eps_cny": 3.74
+              },
+              {
+                "institution": "华源证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 16.216,
+                "net_income_rmb_bn": 5.422,
+                "eps_cny": 3.54
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 8.052,
+                "net_income_rmb_bn": 1.976,
+                "eps_cny": 1.29
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260614",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 6.6842307,
+                "eps_cny": 4.36
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260625",
+                "revenue_rmb_bn": 16.147,
+                "net_income_rmb_bn": 6.536,
+                "eps_cny": 4.26
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -10.824163084770543,
+            "net_income": -20.578171911732813,
+            "roe": -1.4052411697683231
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -21.873677549229342,
+            "net_income": -32.14840545460693
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 26.31,
+        "market_cap_rmb_bn": 40.335,
+        "pe_ttm": 60.3066558838,
+        "pe_forward_supplier": 15.8528251648,
+        "pb": 5.7330121994,
+        "roe_ttm_pct": 8.9405,
+        "roa_ttm_pct": 5.6636,
+        "independent_implied_pe_fy1": 39.278410750803396,
+        "independent_implied_pe_fy2": 16.6062826794022,
+        "market_vs_independent_range_pct": {
+          "vs_low": 84.51509606587375,
+          "vs_high": 27.723242558581383
+        }
+      },
+      "difference_summary": "FY1独立利润低于Wind一致预期37.3%；市场预测更可能采用更高锂价、更快爬坡或更强非锂利润，本研究不因对账而改写冻结输入。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "雅化集团",
+      "research_company_id": 645,
+      "ticker": "002497.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002497_SZ_input.json",
+        "input_sha256": "sha256:e03b49331d14546f9de55d9f14b89b19d08144d2954349fa118f1a2147da09a1",
+        "output_path": "cache/lithium_research/models/company_freezes/002497_SZ_output.json",
+        "output_sha256": "sha256:fdb980820fe822a45e42e996cffb5e830a92c4e4d12c311954e84edf66500495",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 15.0,
+            "net_income_rmb_bn": 2.3423,
+            "roe_pct": 19.93
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 16.7915,
+            "net_income_rmb_bn": 2.6555,
+            "eps_cny": 2.3033,
+            "roe_pct": 20.125
+          },
+          "recent_broker_median": {
+            "institution_count": 4,
+            "institutions": [
+              "东北证券",
+              "东吴证券",
+              "国信证券",
+              "开源证券"
+            ],
+            "report_date_start": "20260429",
+            "report_date_end": "20260707",
+            "revenue_rmb_bn_median": 16.935000000000002,
+            "net_income_rmb_bn_median": 2.6375,
+            "eps_cny_median": 2.29,
+            "report_count": 4,
+            "constituents": [
+              {
+                "institution": "东北证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 17.132,
+                "net_income_rmb_bn": 2.706,
+                "eps_cny": 2.35
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260707",
+                "revenue_rmb_bn": 17.052,
+                "net_income_rmb_bn": 3.03165,
+                "eps_cny": 2.63
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260430",
+                "revenue_rmb_bn": 16.164,
+                "net_income_rmb_bn": 2.315,
+                "eps_cny": 2.01
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 16.818,
+                "net_income_rmb_bn": 2.569,
+                "eps_cny": 2.23
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -10.669088526933269,
+            "net_income": -11.794389003954064,
+            "roe": -0.9689440993788878
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -11.426040744021272,
+            "net_income": -11.192417061611382
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 18.0,
+            "net_income_rmb_bn": 2.6724,
+            "roe_pct": 19.8
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 20.498,
+            "net_income_rmb_bn": 3.158,
+            "eps_cny": 2.7392000000000003,
+            "roe_pct": 19.8525
+          },
+          "recent_broker_median": {
+            "institution_count": 4,
+            "institutions": [
+              "东北证券",
+              "东吴证券",
+              "国信证券",
+              "开源证券"
+            ],
+            "report_date_start": "20260429",
+            "report_date_end": "20260707",
+            "revenue_rmb_bn_median": 20.192999999999998,
+            "net_income_rmb_bn_median": 3.2085,
+            "eps_cny_median": 2.785,
+            "report_count": 4,
+            "constituents": [
+              {
+                "institution": "东北证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 20.794,
+                "net_income_rmb_bn": 3.395,
+                "eps_cny": 2.95
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260707",
+                "revenue_rmb_bn": 22.215,
+                "net_income_rmb_bn": 3.57528,
+                "eps_cny": 3.1
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260430",
+                "revenue_rmb_bn": 19.391,
+                "net_income_rmb_bn": 2.64,
+                "eps_cny": 2.29
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 19.592,
+                "net_income_rmb_bn": 3.022,
+                "eps_cny": 2.62
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -12.18655478583277,
+            "net_income": -15.376820772640908,
+            "roe": -0.26445032111823696
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -10.86019907888871,
+            "net_income": -16.70874240299205
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 21.0,
+            "net_income_rmb_bn": 2.879,
+            "roe_pct": 18.28
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 23.23825,
+            "net_income_rmb_bn": 3.4965,
+            "eps_cny": 3.0328,
+            "roe_pct": 18.27
+          },
+          "recent_broker_median": {
+            "institution_count": 4,
+            "institutions": [
+              "东北证券",
+              "东吴证券",
+              "国信证券",
+              "开源证券"
+            ],
+            "report_date_start": "20260429",
+            "report_date_end": "20260707",
+            "revenue_rmb_bn_median": 23.0075,
+            "net_income_rmb_bn_median": 3.5305,
+            "eps_cny_median": 3.065,
+            "report_count": 4,
+            "constituents": [
+              {
+                "institution": "东北证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 23.311,
+                "net_income_rmb_bn": 3.648,
+                "eps_cny": 3.17
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260707",
+                "revenue_rmb_bn": 24.782,
+                "net_income_rmb_bn": 3.92263,
+                "eps_cny": 3.4
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260430",
+                "revenue_rmb_bn": 22.704,
+                "net_income_rmb_bn": 3.002,
+                "eps_cny": 2.6
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 22.156,
+                "net_income_rmb_bn": 3.413,
+                "eps_cny": 2.96
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -9.631749378718279,
+            "net_income": -17.660517660517662,
+            "roe": 0.05473453749316182
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -8.725415625339561,
+            "net_income": -18.45347684463957
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 16.93,
+        "market_cap_rmb_bn": 19.512999999999998,
+        "pe_ttm": 21.9557418823,
+        "pe_forward_supplier": 6.644112587,
+        "pb": 1.779687047,
+        "roe_ttm_pct": 8.0554,
+        "roa_ttm_pct": 7.3378,
+        "independent_implied_pe_fy1": 8.330700593433804,
+        "independent_implied_pe_fy2": 7.301676395749138,
+        "market_vs_independent_range_pct": {
+          "vs_low": -26.972305389221564,
+          "vs_high": -47.84014969259557
+        }
+      },
+      "difference_summary": "FY1独立利润与Wind一致预期相差-11.8%，整体接近；更重要的分歧在锂价路径、自给率和现金转换。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "天华新能",
+      "research_company_id": 646,
+      "ticker": "300390.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/300390_SZ_input.json",
+        "input_sha256": "sha256:76ad1265c57b0edf12b37f24aafe2acb936db3fccc90d0146c20c0312166df1b",
+        "output_path": "cache/lithium_research/models/company_freezes/300390_SZ_output.json",
+        "output_sha256": "sha256:35d164483783bb79a3772e61176487e34608a870890bd03c7637b5b43c413b76",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 18.0,
+            "net_income_rmb_bn": 3.7794,
+            "roe_pct": 22.46
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 19.556,
+            "net_income_rmb_bn": 4.760666667,
+            "eps_cny": 5.7294,
+            "roe_pct": 30.66
+          },
+          "recent_broker_median": {
+            "institution_count": 3,
+            "institutions": [
+              "华源证券",
+              "国盛证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260414",
+            "report_date_end": "20260705",
+            "revenue_rmb_bn_median": 19.08,
+            "net_income_rmb_bn_median": 4.733,
+            "eps_cny_median": 5.7,
+            "report_count": 3,
+            "constituents": [
+              {
+                "institution": "华源证券",
+                "report_date": "20260606",
+                "revenue_rmb_bn": 21.621,
+                "net_income_rmb_bn": 4.733,
+                "eps_cny": 5.7
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 17.967,
+                "net_income_rmb_bn": 4.127,
+                "eps_cny": 4.97
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260705",
+                "revenue_rmb_bn": 19.08,
+                "net_income_rmb_bn": 5.422,
+                "eps_cny": 6.53
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -7.956637349151164,
+            "net_income": -20.611959114927046,
+            "roe": -26.74494455316373
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -5.660377358490553,
+            "net_income": -20.14789773927741
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 23.0,
+            "net_income_rmb_bn": 5.3164,
+            "roe_pct": 26.58
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 24.393,
+            "net_income_rmb_bn": 6.234666666999999,
+            "eps_cny": 7.5034,
+            "roe_pct": 29.2633
+          },
+          "recent_broker_median": {
+            "institution_count": 3,
+            "institutions": [
+              "华源证券",
+              "国盛证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260414",
+            "report_date_end": "20260705",
+            "revenue_rmb_bn_median": 24.898,
+            "net_income_rmb_bn_median": 5.315,
+            "eps_cny_median": 6.4,
+            "report_count": 3,
+            "constituents": [
+              {
+                "institution": "华源证券",
+                "report_date": "20260606",
+                "revenue_rmb_bn": 24.898,
+                "net_income_rmb_bn": 5.315,
+                "eps_cny": 6.4
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 22.581,
+                "net_income_rmb_bn": 5.014,
+                "eps_cny": 6.04
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260705",
+                "revenue_rmb_bn": 25.7,
+                "net_income_rmb_bn": 8.375,
+                "eps_cny": 10.08
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -5.710654696019358,
+            "net_income": -14.728400346731796,
+            "roe": -9.16950583153644
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -7.623102257209413,
+            "net_income": 0.026340545625580525
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 27.0,
+            "net_income_rmb_bn": 6.2924,
+            "roe_pct": 25.68
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 28.303666667,
+            "net_income_rmb_bn": 7.17,
+            "eps_cny": 8.629,
+            "roe_pct": 26.2367
+          },
+          "recent_broker_median": {
+            "institution_count": 3,
+            "institutions": [
+              "华源证券",
+              "国盛证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260414",
+            "report_date_end": "20260705",
+            "revenue_rmb_bn_median": 28.361,
+            "net_income_rmb_bn_median": 6.46,
+            "eps_cny_median": 7.78,
+            "report_count": 3,
+            "constituents": [
+              {
+                "institution": "华源证券",
+                "report_date": "20260606",
+                "revenue_rmb_bn": 28.361,
+                "net_income_rmb_bn": 6.46,
+                "eps_cny": 7.78
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 26.43,
+                "net_income_rmb_bn": 5.992,
+                "eps_cny": 7.21
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260705",
+                "revenue_rmb_bn": 30.12,
+                "net_income_rmb_bn": 9.058,
+                "eps_cny": 10.9
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -4.605999223839019,
+            "net_income": -12.239888423988843,
+            "roe": -2.1218369688261074
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -4.798843482246751,
+            "net_income": -2.5944272445820427
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 56.7,
+        "market_cap_rmb_bn": 47.104,
+        "pe_ttm": 34.4365386963,
+        "pe_forward_supplier": 8.4302787781,
+        "pb": 3.8167290688,
+        "roe_ttm_pct": 11.0834,
+        "roa_ttm_pct": 7.032,
+        "independent_implied_pe_fy1": 12.463353971529873,
+        "independent_implied_pe_fy2": 8.860130915657212,
+        "market_vs_independent_range_pct": {
+          "vs_low": -11.392024078254327,
+          "vs_high": -40.93542319749216
+        }
+      },
+      "difference_summary": "FY1独立利润低于Wind一致预期20.6%；市场预测更可能采用更高锂价、更快爬坡或更强非锂利润，本研究不因对账而改写冻结输入。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "天齐锂业",
+      "research_company_id": 647,
+      "ticker": "002466.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002466_SZ_input.json",
+        "input_sha256": "sha256:63660603d0080f11dfa60ea35ec05407c2058d719d48c8de7acb9b41cb003671",
+        "output_path": "cache/lithium_research/models/company_freezes/002466_SZ_output.json",
+        "output_sha256": "sha256:a68b47cad22a9c7262824e50f93fd77bd18b44321104f193bb163d0c33a5a56c",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 22.0,
+            "net_income_rmb_bn": 4.5516,
+            "roe_pct": 8.28
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 24.553387777999998,
+            "net_income_rmb_bn": 6.669648889,
+            "eps_cny": 3.8931,
+            "roe_pct": 13.0017
+          },
+          "recent_broker_median": {
+            "institution_count": 14,
+            "institutions": [
+              "BERNSTEIN RESEARCH",
+              "Morgan Stanley",
+              "UBS",
+              "东吴证券",
+              "东方财富证券",
+              "东莞证券",
+              "中信证券",
+              "中邮证券",
+              "光大证券",
+              "华安证券",
+              "华泰证券",
+              "国信证券",
+              "国泰海通",
+              "平安证券"
+            ],
+            "report_date_start": "20260209",
+            "report_date_end": "20260715",
+            "revenue_rmb_bn_median": 24.264499999999998,
+            "net_income_rmb_bn_median": 6.571,
+            "eps_cny_median": 3.9,
+            "report_count": 14,
+            "constituents": [
+              {
+                "institution": "BERNSTEIN RESEARCH",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 23.976,
+                "net_income_rmb_bn": 5.578,
+                "eps_cny": 3.29
+              },
+              {
+                "institution": "Morgan Stanley",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 27.617,
+                "net_income_rmb_bn": 5.67,
+                "eps_cny": null
+              },
+              {
+                "institution": "UBS",
+                "report_date": "20260715",
+                "revenue_rmb_bn": 38.018,
+                "net_income_rmb_bn": 13.261,
+                "eps_cny": 7.74
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260510",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 8.387744300000001,
+                "eps_cny": 4.9
+              },
+              {
+                "institution": "东方财富证券",
+                "report_date": "20260702",
+                "revenue_rmb_bn": 24.92619,
+                "net_income_rmb_bn": 6.83802,
+                "eps_cny": 3.99
+              },
+              {
+                "institution": "东莞证券",
+                "report_date": "20260522",
+                "revenue_rmb_bn": 23.17349,
+                "net_income_rmb_bn": 6.46384,
+                "eps_cny": 3.77
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 25.203,
+                "net_income_rmb_bn": 7.064,
+                "eps_cny": 4.14
+              },
+              {
+                "institution": "中邮证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 28.343,
+                "net_income_rmb_bn": 7.58277,
+                "eps_cny": 4.44
+              },
+              {
+                "institution": "光大证券",
+                "report_date": "20260329",
+                "revenue_rmb_bn": 19.686,
+                "net_income_rmb_bn": 5.169,
+                "eps_cny": 3.03
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260629",
+                "revenue_rmb_bn": 24.553,
+                "net_income_rmb_bn": 6.67,
+                "eps_cny": 3.9
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 21.39,
+                "net_income_rmb_bn": 7.388,
+                "eps_cny": 4.33
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 20.792,
+                "net_income_rmb_bn": 6.472,
+                "eps_cny": 3.79
+              },
+              {
+                "institution": "国泰海通",
+                "report_date": "20260209",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 1.14883649,
+                "eps_cny": 0.7
+              },
+              {
+                "institution": "平安证券",
+                "report_date": "20260329",
+                "revenue_rmb_bn": 19.783,
+                "net_income_rmb_bn": 2.464,
+                "eps_cny": 1.44
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -10.399329824000292,
+            "net_income": -31.756527581132776,
+            "roe": -36.31602021274142
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -9.332564033876645,
+            "net_income": -30.732004261147473
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 25.0,
+            "net_income_rmb_bn": 5.0998,
+            "roe_pct": 8.36
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 28.089643333,
+            "net_income_rmb_bn": 8.249011111,
+            "eps_cny": 4.8149,
+            "roe_pct": 12.7667
+          },
+          "recent_broker_median": {
+            "institution_count": 13,
+            "institutions": [
+              "BERNSTEIN RESEARCH",
+              "Morgan Stanley",
+              "UBS",
+              "东吴证券",
+              "东方财富证券",
+              "东莞证券",
+              "中信证券",
+              "中邮证券",
+              "光大证券",
+              "华安证券",
+              "华泰证券",
+              "国信证券",
+              "平安证券"
+            ],
+            "report_date_start": "20260329",
+            "report_date_end": "20260715",
+            "revenue_rmb_bn_median": 27.61972,
+            "net_income_rmb_bn_median": 8.201,
+            "eps_cny_median": 4.805,
+            "report_count": 13,
+            "constituents": [
+              {
+                "institution": "BERNSTEIN RESEARCH",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 30.015,
+                "net_income_rmb_bn": 10.53,
+                "eps_cny": 6.18
+              },
+              {
+                "institution": "Morgan Stanley",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 26.278,
+                "net_income_rmb_bn": 5.982,
+                "eps_cny": null
+              },
+              {
+                "institution": "UBS",
+                "report_date": "20260715",
+                "revenue_rmb_bn": 42.158,
+                "net_income_rmb_bn": 13.729,
+                "eps_cny": 8.014
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260428",
+                "revenue_rmb_bn": 29.165,
+                "net_income_rmb_bn": 9.17826,
+                "eps_cny": 5.38
+              },
+              {
+                "institution": "东方财富证券",
+                "report_date": "20260702",
+                "revenue_rmb_bn": 27.61972,
+                "net_income_rmb_bn": 8.14474,
+                "eps_cny": 4.75
+              },
+              {
+                "institution": "东莞证券",
+                "report_date": "20260522",
+                "revenue_rmb_bn": 26.56779,
+                "net_income_rmb_bn": 7.5451,
+                "eps_cny": 4.4
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 29.092,
+                "net_income_rmb_bn": 8.201,
+                "eps_cny": 4.81
+              },
+              {
+                "institution": "中邮证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 31.437,
+                "net_income_rmb_bn": 8.57656,
+                "eps_cny": 5.03
+              },
+              {
+                "institution": "光大证券",
+                "report_date": "20260329",
+                "revenue_rmb_bn": 22.069,
+                "net_income_rmb_bn": 5.397,
+                "eps_cny": 3.16
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260629",
+                "revenue_rmb_bn": 28.09,
+                "net_income_rmb_bn": 8.249,
+                "eps_cny": 4.8
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 26.906,
+                "net_income_rmb_bn": 9.077,
+                "eps_cny": 5.32
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 23.238,
+                "net_income_rmb_bn": 7.249,
+                "eps_cny": 4.25
+              },
+              {
+                "institution": "平安证券",
+                "report_date": "20260329",
+                "revenue_rmb_bn": 21.446,
+                "net_income_rmb_bn": 2.711,
+                "eps_cny": 1.59
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -10.999225929544842,
+            "net_income": -38.17683196959874,
+            "roe": -34.5171422528923
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -9.484962193679014,
+            "net_income": -37.81490062187538
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 27.0,
+            "net_income_rmb_bn": 5.1712,
+            "roe_pct": 7.66
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 29.6008875,
+            "net_income_rmb_bn": 8.56678625,
+            "eps_cny": 5.0004,
+            "roe_pct": 12.908
+          },
+          "recent_broker_median": {
+            "institution_count": 13,
+            "institutions": [
+              "BERNSTEIN RESEARCH",
+              "Morgan Stanley",
+              "UBS",
+              "东吴证券",
+              "东方财富证券",
+              "东莞证券",
+              "中信证券",
+              "中邮证券",
+              "光大证券",
+              "华安证券",
+              "华泰证券",
+              "国信证券",
+              "平安证券"
+            ],
+            "report_date_start": "20260329",
+            "report_date_end": "20260715",
+            "revenue_rmb_bn_median": 28.471,
+            "net_income_rmb_bn_median": 9.04685,
+            "eps_cny_median": 5.3225,
+            "report_count": 13,
+            "constituents": [
+              {
+                "institution": "BERNSTEIN RESEARCH",
+                "report_date": "20260330",
+                "revenue_rmb_bn": 26.968,
+                "net_income_rmb_bn": 10.168,
+                "eps_cny": 5.97
+              },
+              {
+                "institution": "Morgan Stanley",
+                "report_date": "20260427",
+                "revenue_rmb_bn": 25.69,
+                "net_income_rmb_bn": 6.401,
+                "eps_cny": null
+              },
+              {
+                "institution": "UBS",
+                "report_date": "20260715",
+                "revenue_rmb_bn": 41.135,
+                "net_income_rmb_bn": 12.474,
+                "eps_cny": 7.281
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260428",
+                "revenue_rmb_bn": 28.471,
+                "net_income_rmb_bn": 9.65115,
+                "eps_cny": 5.66
+              },
+              {
+                "institution": "东方财富证券",
+                "report_date": "20260702",
+                "revenue_rmb_bn": 29.35057,
+                "net_income_rmb_bn": 9.04685,
+                "eps_cny": 5.28
+              },
+              {
+                "institution": "东莞证券",
+                "report_date": "20260522",
+                "revenue_rmb_bn": 29.3111,
+                "net_income_rmb_bn": 8.26929,
+                "eps_cny": 4.83
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260508",
+                "revenue_rmb_bn": 33.857,
+                "net_income_rmb_bn": 9.442,
+                "eps_cny": 5.53
+              },
+              {
+                "institution": "中邮证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 33.008,
+                "net_income_rmb_bn": 9.13991,
+                "eps_cny": 5.36
+              },
+              {
+                "institution": "光大证券",
+                "report_date": "20260329",
+                "revenue_rmb_bn": 23.051,
+                "net_income_rmb_bn": 5.708,
+                "eps_cny": 3.35
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260423",
+                "revenue_rmb_bn": 28.002,
+                "net_income_rmb_bn": 9.017,
+                "eps_cny": 5.285
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 33.626,
+                "net_income_rmb_bn": 11.232,
+                "eps_cny": 6.58
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260331",
+                "revenue_rmb_bn": 25.684,
+                "net_income_rmb_bn": 8.026,
+                "eps_cny": 4.7
+              },
+              {
+                "institution": "平安证券",
+                "report_date": "20260329",
+                "revenue_rmb_bn": 22.521,
+                "net_income_rmb_bn": 2.913,
+                "eps_cny": 1.71
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -8.786518647456088,
+            "net_income": -39.63664028619834,
+            "roe": -40.65695692593741
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -5.16666081275684,
+            "net_income": -42.83977295964894
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 43.88,
+        "market_cap_rmb_bn": 75.176,
+        "pe_ttm": 33.6451530457,
+        "pe_forward_supplier": 9.9482564926,
+        "pb": 1.6218537092,
+        "roe_ttm_pct": 4.8161000000000005,
+        "roa_ttm_pct": 8.8341,
+        "independent_implied_pe_fy1": 16.51638984093506,
+        "independent_implied_pe_fy2": 14.740970234126829,
+        "market_vs_independent_range_pct": {
+          "vs_low": 34.003565062388596,
+          "vs_high": -1.730718954248367
+        }
+      },
+      "difference_summary": "FY1独立利润低于Wind一致预期31.8%；市场预测更可能采用更高锂价、更快爬坡或更强非锂利润，本研究不因对账而改写冻结输入。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "永杉锂业",
+      "research_company_id": 648,
+      "ticker": "603399.SH",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/603399_SH_input.json",
+        "input_sha256": "sha256:c19c5d17ec51c35badaff22d2fcaa4f44480dff8fc4f5ba20678ef564ec5b987",
+        "output_path": "cache/lithium_research/models/company_freezes/603399_SH_output.json",
+        "output_sha256": "sha256:a5e07876c0bdcb17619267f9fd9971ed151f73a1093abcd9d6a5265553d05d9c",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 8.0,
+            "net_income_rmb_bn": 0.0116,
+            "roe_pct": 0.77
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 10.0,
+            "net_income_rmb_bn": 0.1396,
+            "roe_pct": 7.98
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 11.0,
+            "net_income_rmb_bn": 0.1987,
+            "roe_pct": 8.28
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 13.55,
+        "market_cap_rmb_bn": 6.942,
+        "pe_ttm": -40.5125579834,
+        "pe_forward_supplier": null,
+        "pb": 4.2864575386,
+        "roe_ttm_pct": -10.5806,
+        "roa_ttm_pct": -2.4427,
+        "independent_implied_pe_fy1": 598.4482758620691,
+        "independent_implied_pe_fy2": 49.72779369627507,
+        "market_vs_independent_range_pct": {
+          "vs_low": 519.8214285714286,
+          "vs_high": 313.2142857142857
+        }
+      },
+      "difference_summary": "Wind没有形成可用FY1一致预期；本研究保留独立模型，不用缺失值反推市场共识。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "中矿资源",
+      "research_company_id": 649,
+      "ticker": "002738.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002738_SZ_input.json",
+        "input_sha256": "sha256:f7c3ec1ba65fef31f52978a70fe102e08425684d09c24abfa9ef6b6ebabecbc8",
+        "output_path": "cache/lithium_research/models/company_freezes/002738_SZ_output.json",
+        "output_sha256": "sha256:c17bb07995266a3430932c6b5cf8711f8d6feb1cc3be477ff409e6127f8e3ebf",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 10.0,
+            "net_income_rmb_bn": 3.4647,
+            "roe_pct": 25.68
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 10.795801333000002,
+            "net_income_rmb_bn": 2.8535906670000006,
+            "eps_cny": 3.9551,
+            "roe_pct": 20.4864
+          },
+          "recent_broker_median": {
+            "institution_count": 15,
+            "institutions": [
+              "东兴证券",
+              "东吴证券",
+              "中金",
+              "兴业证券",
+              "华安证券",
+              "华鑫证券",
+              "国信证券",
+              "国盛证券",
+              "国联民生证券",
+              "天风证券",
+              "平安证券",
+              "开源证券",
+              "甬兴证券",
+              "联储证券",
+              "西部证券"
+            ],
+            "report_date_start": "20260310",
+            "report_date_end": "20260726",
+            "revenue_rmb_bn_median": 11.069,
+            "net_income_rmb_bn_median": 2.974,
+            "eps_cny_median": 4.12,
+            "report_count": 15,
+            "constituents": [
+              {
+                "institution": "东兴证券",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 11.17279,
+                "net_income_rmb_bn": 2.94515,
+                "eps_cny": 4.08
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260713",
+                "revenue_rmb_bn": 11.171,
+                "net_income_rmb_bn": 2.77751,
+                "eps_cny": 3.85
+              },
+              {
+                "institution": "中金",
+                "report_date": "20260413",
+                "revenue_rmb_bn": 10.819,
+                "net_income_rmb_bn": 2.217,
+                "eps_cny": 3.07
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260524",
+                "revenue_rmb_bn": 11.29,
+                "net_income_rmb_bn": 3.178,
+                "eps_cny": 4.41
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 9.472,
+                "net_income_rmb_bn": 2.786,
+                "eps_cny": 3.86
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 12.168,
+                "net_income_rmb_bn": 3.007,
+                "eps_cny": 4.17
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260410",
+                "revenue_rmb_bn": 9.862,
+                "net_income_rmb_bn": 3.149,
+                "eps_cny": 4.36
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 12.678,
+                "net_income_rmb_bn": 2.974,
+                "eps_cny": 4.12
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 8.331,
+                "net_income_rmb_bn": 3.41,
+                "eps_cny": 4.73
+              },
+              {
+                "institution": "天风证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 12.865,
+                "net_income_rmb_bn": 3.32001,
+                "eps_cny": 4.6
+              },
+              {
+                "institution": "平安证券",
+                "report_date": "20260422",
+                "revenue_rmb_bn": 11.069,
+                "net_income_rmb_bn": 2.874,
+                "eps_cny": 3.98
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260726",
+                "revenue_rmb_bn": 12.49077,
+                "net_income_rmb_bn": 2.997,
+                "eps_cny": 4.15
+              },
+              {
+                "institution": "甬兴证券",
+                "report_date": "20260310",
+                "revenue_rmb_bn": 10.876,
+                "net_income_rmb_bn": 1.426,
+                "eps_cny": 1.98
+              },
+              {
+                "institution": "联储证券",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 9.221,
+                "net_income_rmb_bn": 2.36,
+                "eps_cny": 3.27
+              },
+              {
+                "institution": "西部证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 9.959,
+                "net_income_rmb_bn": 3.075,
+                "eps_cny": 4.26
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -7.37139660552516,
+            "net_income": 21.415451769838544,
+            "roe": 25.35145267104031
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -9.65760231276539,
+            "net_income": 16.499663752521855
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 13.5,
+            "net_income_rmb_bn": 3.5449,
+            "roe_pct": 22.16
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 15.6279,
+            "net_income_rmb_bn": 4.359373333,
+            "eps_cny": 6.0422,
+            "roe_pct": 26.5314
+          },
+          "recent_broker_median": {
+            "institution_count": 15,
+            "institutions": [
+              "东兴证券",
+              "东吴证券",
+              "中金",
+              "兴业证券",
+              "华安证券",
+              "华鑫证券",
+              "国信证券",
+              "国盛证券",
+              "国联民生证券",
+              "天风证券",
+              "平安证券",
+              "开源证券",
+              "甬兴证券",
+              "联储证券",
+              "西部证券"
+            ],
+            "report_date_start": "20260310",
+            "report_date_end": "20260726",
+            "revenue_rmb_bn_median": 15.46016,
+            "net_income_rmb_bn_median": 4.311,
+            "eps_cny_median": 5.98,
+            "report_count": 15,
+            "constituents": [
+              {
+                "institution": "东兴证券",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 15.46016,
+                "net_income_rmb_bn": 4.53855,
+                "eps_cny": 6.29
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260713",
+                "revenue_rmb_bn": 15.015,
+                "net_income_rmb_bn": 3.87975,
+                "eps_cny": 5.38
+              },
+              {
+                "institution": "中金",
+                "report_date": "20260413",
+                "revenue_rmb_bn": 14.425,
+                "net_income_rmb_bn": 3.326,
+                "eps_cny": 4.61
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260524",
+                "revenue_rmb_bn": 15.076,
+                "net_income_rmb_bn": 4.311,
+                "eps_cny": 5.98
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 11.049,
+                "net_income_rmb_bn": 4.068,
+                "eps_cny": 5.64
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 15.868,
+                "net_income_rmb_bn": 3.662,
+                "eps_cny": 5.08
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260410",
+                "revenue_rmb_bn": 14.75,
+                "net_income_rmb_bn": 4.668,
+                "eps_cny": 6.47
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 17.222,
+                "net_income_rmb_bn": 4.803,
+                "eps_cny": 6.66
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 15.661,
+                "net_income_rmb_bn": 6.56,
+                "eps_cny": 9.09
+              },
+              {
+                "institution": "天风证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 16.61831,
+                "net_income_rmb_bn": 4.06006,
+                "eps_cny": 5.63
+              },
+              {
+                "institution": "平安证券",
+                "report_date": "20260422",
+                "revenue_rmb_bn": 14.964,
+                "net_income_rmb_bn": 4.314,
+                "eps_cny": 5.98
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260726",
+                "revenue_rmb_bn": 15.47134,
+                "net_income_rmb_bn": 4.378,
+                "eps_cny": 6.07
+              },
+              {
+                "institution": "甬兴证券",
+                "report_date": "20260310",
+                "revenue_rmb_bn": 16.122,
+                "net_income_rmb_bn": 2.186,
+                "eps_cny": 3.03
+              },
+              {
+                "institution": "联储证券",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 15.969,
+                "net_income_rmb_bn": 4.173,
+                "eps_cny": 5.78
+              },
+              {
+                "institution": "西部证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 13.629,
+                "net_income_rmb_bn": 4.708,
+                "eps_cny": 6.52
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -13.616032864300387,
+            "net_income": -18.68326639598682,
+            "roe": -16.476326164469278
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -12.678782108335229,
+            "net_income": -17.770818835536993
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 16.0,
+            "net_income_rmb_bn": 3.4973,
+            "roe_pct": 18.17
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 18.323553077,
+            "net_income_rmb_bn": 5.493027692,
+            "eps_cny": 7.6134,
+            "roe_pct": 28.0458
+          },
+          "recent_broker_median": {
+            "institution_count": 13,
+            "institutions": [
+              "东兴证券",
+              "东吴证券",
+              "兴业证券",
+              "华安证券",
+              "华鑫证券",
+              "国信证券",
+              "国盛证券",
+              "国联民生证券",
+              "天风证券",
+              "平安证券",
+              "开源证券",
+              "联储证券",
+              "西部证券"
+            ],
+            "report_date_start": "20260410",
+            "report_date_end": "20260726",
+            "revenue_rmb_bn_median": 17.865,
+            "net_income_rmb_bn_median": 5.3,
+            "eps_cny_median": 7.35,
+            "report_count": 13,
+            "constituents": [
+              {
+                "institution": "东兴证券",
+                "report_date": "20260414",
+                "revenue_rmb_bn": 17.6901,
+                "net_income_rmb_bn": 5.43441,
+                "eps_cny": 7.53
+              },
+              {
+                "institution": "东吴证券",
+                "report_date": "20260713",
+                "revenue_rmb_bn": 16.693,
+                "net_income_rmb_bn": 4.70111,
+                "eps_cny": 6.52
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260524",
+                "revenue_rmb_bn": 18.262,
+                "net_income_rmb_bn": 5.229,
+                "eps_cny": 7.25
+              },
+              {
+                "institution": "华安证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 11.563,
+                "net_income_rmb_bn": 4.379,
+                "eps_cny": 6.07
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 18.218,
+                "net_income_rmb_bn": 3.917,
+                "eps_cny": 5.43
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260410",
+                "revenue_rmb_bn": 17.302,
+                "net_income_rmb_bn": 5.488,
+                "eps_cny": 7.61
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 18.177,
+                "net_income_rmb_bn": 5.138,
+                "eps_cny": 7.12
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260412",
+                "revenue_rmb_bn": 18.792,
+                "net_income_rmb_bn": 8.032,
+                "eps_cny": 11.13
+              },
+              {
+                "institution": "天风证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 19.80323,
+                "net_income_rmb_bn": 5.12217,
+                "eps_cny": 7.1
+              },
+              {
+                "institution": "平安证券",
+                "report_date": "20260422",
+                "revenue_rmb_bn": 17.865,
+                "net_income_rmb_bn": 5.3,
+                "eps_cny": 7.35
+              },
+              {
+                "institution": "开源证券",
+                "report_date": "20260726",
+                "revenue_rmb_bn": 17.68961,
+                "net_income_rmb_bn": 5.727,
+                "eps_cny": 7.94
+              },
+              {
+                "institution": "联储证券",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 20.457,
+                "net_income_rmb_bn": 5.599,
+                "eps_cny": 7.76
+              },
+              {
+                "institution": "西部证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 16.954,
+                "net_income_rmb_bn": 5.854,
+                "eps_cny": 8.11
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -12.680690623897384,
+            "net_income": -36.332015855419066,
+            "roe": -35.21311568933672
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -10.439406661069118,
+            "net_income": -34.01320754716981
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 48.36,
+        "market_cap_rmb_bn": 34.891000000000005,
+        "pe_ttm": 42.010017395,
+        "pe_forward_supplier": 9.4318523407,
+        "pb": 2.814645052,
+        "roe_ttm_pct": 6.5105,
+        "roa_ttm_pct": 6.6186,
+        "independent_implied_pe_fy1": 10.070424567783649,
+        "independent_implied_pe_fy2": 9.842590764196453,
+        "market_vs_independent_range_pct": {
+          "vs_low": -10.512952038984347,
+          "vs_high": -34.378408877186374
+        }
+      },
+      "difference_summary": "FY1独立利润高于Wind一致预期21.4%；需要重点验证产量爬坡、自给率和单位成本，任何一项落后都会收窄差异。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "藏格矿业",
+      "research_company_id": 650,
+      "ticker": "000408.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/000408_SZ_input.json",
+        "input_sha256": "sha256:17dae942293fb4d85aedce7d4d828436351b8254cc871c5043b1f873a8a58edf",
+        "output_path": "cache/lithium_research/models/company_freezes/000408_SZ_output.json",
+        "output_sha256": "sha256:cb6944577a25e306c2cdca4921fda59c2ec112d36d093c23656b8c285d4cac54",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 5.0,
+            "net_income_rmb_bn": 6.7933,
+            "roe_pct": 37.52
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 5.3527,
+            "net_income_rmb_bn": 7.7447,
+            "eps_cny": 4.9363,
+            "roe_pct": 39.413
+          },
+          "recent_broker_median": {
+            "institution_count": 11,
+            "institutions": [
+              "东吴证券",
+              "光大证券",
+              "兴业证券",
+              "华创证券",
+              "华鑫证券",
+              "国盛证券",
+              "国联民生证券",
+              "太平洋证券",
+              "西部证券",
+              "银河证券",
+              "长城证券"
+            ],
+            "report_date_start": "20260315",
+            "report_date_end": "20260707",
+            "revenue_rmb_bn_median": 4.896000000000001,
+            "net_income_rmb_bn_median": 7.456,
+            "eps_cny_median": 4.75,
+            "report_count": 11,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260707",
+                "revenue_rmb_bn": 4.437,
+                "net_income_rmb_bn": 8.04,
+                "eps_cny": 5.12
+              },
+              {
+                "institution": "光大证券",
+                "report_date": "20260315",
+                "revenue_rmb_bn": 4.759,
+                "net_income_rmb_bn": 7.235,
+                "eps_cny": 4.61
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260509",
+                "revenue_rmb_bn": 7.16,
+                "net_income_rmb_bn": 7.456,
+                "eps_cny": 4.75
+              },
+              {
+                "institution": "华创证券",
+                "report_date": "20260326",
+                "revenue_rmb_bn": 4.304,
+                "net_income_rmb_bn": 7.444,
+                "eps_cny": 4.74
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260511",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 4.91480658,
+                "eps_cny": 3.13
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 6.605,
+                "net_income_rmb_bn": 8.793,
+                "eps_cny": 5.6
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 7.19,
+                "net_income_rmb_bn": 8.026,
+                "eps_cny": 5.11
+              },
+              {
+                "institution": "太平洋证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 4.689,
+                "net_income_rmb_bn": 7.087,
+                "eps_cny": 4.51
+              },
+              {
+                "institution": "西部证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 5.236,
+                "net_income_rmb_bn": 8.406,
+                "eps_cny": 5.35
+              },
+              {
+                "institution": "银河证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 4.114,
+                "net_income_rmb_bn": 7.789,
+                "eps_cny": 4.96
+              },
+              {
+                "institution": "长城证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 5.033,
+                "net_income_rmb_bn": 7.171,
+                "eps_cny": 4.57
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -6.5891979748538,
+            "net_income": -12.284530065722354,
+            "roe": -4.80298378707531
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": 2.12418300653594,
+            "net_income": -8.88814377682403
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 6.5,
+            "net_income_rmb_bn": 8.803,
+            "roe_pct": 39.12
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 6.8393,
+            "net_income_rmb_bn": 9.7488,
+            "eps_cny": 6.2137,
+            "roe_pct": 40.385
+          },
+          "recent_broker_median": {
+            "institution_count": 11,
+            "institutions": [
+              "东吴证券",
+              "光大证券",
+              "兴业证券",
+              "华创证券",
+              "华鑫证券",
+              "国盛证券",
+              "国联民生证券",
+              "太平洋证券",
+              "西部证券",
+              "银河证券",
+              "长城证券"
+            ],
+            "report_date_start": "20260315",
+            "report_date_end": "20260707",
+            "revenue_rmb_bn_median": 6.4205,
+            "net_income_rmb_bn_median": 9.532,
+            "eps_cny_median": 6.07,
+            "report_count": 11,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260707",
+                "revenue_rmb_bn": 4.295,
+                "net_income_rmb_bn": 9.55,
+                "eps_cny": 6.09
+              },
+              {
+                "institution": "光大证券",
+                "report_date": "20260315",
+                "revenue_rmb_bn": 5.068,
+                "net_income_rmb_bn": 8.51,
+                "eps_cny": 5.42
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260509",
+                "revenue_rmb_bn": 9.597,
+                "net_income_rmb_bn": 10.126,
+                "eps_cny": 6.45
+              },
+              {
+                "institution": "华创证券",
+                "report_date": "20260326",
+                "revenue_rmb_bn": 4.446,
+                "net_income_rmb_bn": 9.007,
+                "eps_cny": 5.74
+              },
+              {
+                "institution": "华鑫证券",
+                "report_date": "20260511",
+                "revenue_rmb_bn": null,
+                "net_income_rmb_bn": 6.26520072,
+                "eps_cny": 3.99
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 7.191,
+                "net_income_rmb_bn": 9.751,
+                "eps_cny": 6.21
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 13.252,
+                "net_income_rmb_bn": 12.282,
+                "eps_cny": 7.82
+              },
+              {
+                "institution": "太平洋证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 5.717,
+                "net_income_rmb_bn": 8.778,
+                "eps_cny": 5.59
+              },
+              {
+                "institution": "西部证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 7.367,
+                "net_income_rmb_bn": 11.002,
+                "eps_cny": 7.01
+              },
+              {
+                "institution": "银河证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 4.336,
+                "net_income_rmb_bn": 9.532,
+                "eps_cny": 6.07
+              },
+              {
+                "institution": "长城证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 7.124,
+                "net_income_rmb_bn": 8.95,
+                "eps_cny": 5.7
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -4.961034023949818,
+            "net_income": -9.701706876743788,
+            "roe": -3.1323511204655263
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": 1.2382213223269378,
+            "net_income": -7.647922786403683
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 8.0,
+            "net_income_rmb_bn": 9.3358,
+            "roe_pct": 33.34
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 8.6824,
+            "net_income_rmb_bn": 11.3433,
+            "eps_cny": 7.23,
+            "roe_pct": 40.151
+          },
+          "recent_broker_median": {
+            "institution_count": 10,
+            "institutions": [
+              "东吴证券",
+              "光大证券",
+              "兴业证券",
+              "华创证券",
+              "国盛证券",
+              "国联民生证券",
+              "太平洋证券",
+              "西部证券",
+              "银河证券",
+              "长城证券"
+            ],
+            "report_date_start": "20260315",
+            "report_date_end": "20260707",
+            "revenue_rmb_bn_median": 8.038,
+            "net_income_rmb_bn_median": 11.120000000000001,
+            "eps_cny_median": 7.08,
+            "report_count": 10,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260707",
+                "revenue_rmb_bn": 4.238,
+                "net_income_rmb_bn": 10.013,
+                "eps_cny": 6.38
+              },
+              {
+                "institution": "光大证券",
+                "report_date": "20260315",
+                "revenue_rmb_bn": 5.477,
+                "net_income_rmb_bn": 10.017,
+                "eps_cny": 6.38
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260509",
+                "revenue_rmb_bn": 11.632,
+                "net_income_rmb_bn": 11.428,
+                "eps_cny": 7.28
+              },
+              {
+                "institution": "华创证券",
+                "report_date": "20260326",
+                "revenue_rmb_bn": 4.873,
+                "net_income_rmb_bn": 10.022,
+                "eps_cny": 6.38
+              },
+              {
+                "institution": "国盛证券",
+                "report_date": "20260421",
+                "revenue_rmb_bn": 8.824,
+                "net_income_rmb_bn": 11.894,
+                "eps_cny": 7.57
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 20.129,
+                "net_income_rmb_bn": 14.498,
+                "eps_cny": 9.23
+              },
+              {
+                "institution": "太平洋证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 7.252,
+                "net_income_rmb_bn": 9.884,
+                "eps_cny": 6.29
+              },
+              {
+                "institution": "西部证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 10.908,
+                "net_income_rmb_bn": 13.437,
+                "eps_cny": 8.56
+              },
+              {
+                "institution": "银河证券",
+                "report_date": "20260419",
+                "revenue_rmb_bn": 4.504,
+                "net_income_rmb_bn": 11.423,
+                "eps_cny": 7.27
+              },
+              {
+                "institution": "长城证券",
+                "report_date": "20260408",
+                "revenue_rmb_bn": 8.987,
+                "net_income_rmb_bn": 10.817,
+                "eps_cny": 6.89
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -7.859577996867218,
+            "net_income": -17.697671753369814,
+            "roe": -16.96346292744888
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -0.47275441652152583,
+            "net_income": -16.044964028776974
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 77.27,
+        "market_cap_rmb_bn": 121.22999999999999,
+        "pe_ttm": 25.9102687836,
+        "pe_forward_supplier": 13.6670503616,
+        "pb": 7.9266090393,
+        "roe_ttm_pct": 26.5186,
+        "roa_ttm_pct": 25.8717,
+        "independent_implied_pe_fy1": 17.84552426655675,
+        "independent_implied_pe_fy2": 13.771441554015674,
+        "market_vs_independent_range_pct": {
+          "vs_low": 14.757667550170384,
+          "vs_high": -13.929712460063904
+        }
+      },
+      "difference_summary": "FY1独立利润低于Wind一致预期12.3%；市场预测更可能采用更高锂价、更快爬坡或更强非锂利润，本研究不因对账而改写冻结输入。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "西藏城投",
+      "research_company_id": 651,
+      "ticker": "600773.SH",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/600773_SH_input.json",
+        "input_sha256": "sha256:4157b7439016e1aed3809f8ee324a7cd025697b3a993f9d64f218528615b388e",
+        "output_path": "cache/lithium_research/models/company_freezes/600773_SH_output.json",
+        "output_sha256": "sha256:c59cf76e6391bebd1e7a23bf34070b265504cb2bb90c2b92946053fda94665f0",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 0.8,
+            "net_income_rmb_bn": -0.3,
+            "roe_pct": -7.96
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 1.0,
+            "net_income_rmb_bn": -0.15,
+            "roe_pct": -4.23
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 1.2,
+            "net_income_rmb_bn": -0.05,
+            "roe_pct": -1.43
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": null,
+            "net_income_rmb_bn": null,
+            "eps_cny": null,
+            "roe_pct": null
+          },
+          "recent_broker_median": {
+            "institution_count": 0,
+            "institutions": [],
+            "report_date_start": null,
+            "report_date_end": null,
+            "revenue_rmb_bn_median": null,
+            "net_income_rmb_bn_median": null,
+            "eps_cny_median": null,
+            "report_count": 0,
+            "constituents": []
+          },
+          "difference_vs_wind_pct": {
+            "revenue": null,
+            "net_income": null,
+            "roe": null
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": null,
+            "net_income": null
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 10.01,
+        "market_cap_rmb_bn": 9.525,
+        "pe_ttm": -16.6711368561,
+        "pe_forward_supplier": null,
+        "pb": 2.2469580173,
+        "roe_ttm_pct": -13.4781,
+        "roa_ttm_pct": -5.1539,
+        "independent_implied_pe_fy1": null,
+        "independent_implied_pe_fy2": null,
+        "market_vs_independent_range_pct": {
+          "vs_low": null,
+          "vs_high": null
+        }
+      },
+      "difference_summary": "Wind没有形成可用FY1一致预期；本研究保留独立模型，不用缺失值反推市场共识。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    },
+    {
+      "company": "永兴材料",
+      "research_company_id": 652,
+      "ticker": "002756.SZ",
+      "freeze": {
+        "input_path": "cache/lithium_research/models/company_freezes/002756_SZ_input.json",
+        "input_sha256": "sha256:8321f893e944bee3837821db6a8446a62137eca3be85d915401a493a473dda8f",
+        "output_path": "cache/lithium_research/models/company_freezes/002756_SZ_output.json",
+        "output_sha256": "sha256:b716717ef8a8b1a6ec7a2f7265321cee3199c017d42b843e04b51fea825eb634",
+        "frozen_before_external_reconciliation": true
+      },
+      "yearly_reconciliation": [
+        {
+          "year": 2026,
+          "independent": {
+            "revenue_rmb_bn": 9.0,
+            "net_income_rmb_bn": 1.9066,
+            "roe_pct": 14.2
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 9.638565714,
+            "net_income_rmb_bn": 2.230151429,
+            "eps_cny": 4.1368,
+            "roe_pct": 15.33
+          },
+          "recent_broker_median": {
+            "institution_count": 7,
+            "institutions": [
+              "东吴证券",
+              "中信证券",
+              "兴业证券",
+              "华泰证券",
+              "国信证券",
+              "国联民生证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260429",
+            "report_date_end": "20260714",
+            "revenue_rmb_bn_median": 9.454,
+            "net_income_rmb_bn_median": 2.068,
+            "eps_cny_median": 3.84,
+            "report_count": 7,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260714",
+                "revenue_rmb_bn": 9.24,
+                "net_income_rmb_bn": 2.0145,
+                "eps_cny": 3.74
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 9.065,
+                "net_income_rmb_bn": 2.068,
+                "eps_cny": 3.84
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260511",
+                "revenue_rmb_bn": 9.619,
+                "net_income_rmb_bn": 2.131,
+                "eps_cny": 3.95
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 9.454,
+                "net_income_rmb_bn": 2.002,
+                "eps_cny": 3.71
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 9.344,
+                "net_income_rmb_bn": 2.002,
+                "eps_cny": 3.71
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 9.747,
+                "net_income_rmb_bn": 2.723,
+                "eps_cny": 5.05
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260610",
+                "revenue_rmb_bn": 10.603,
+                "net_income_rmb_bn": 2.591,
+                "eps_cny": 4.81
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -6.625111380134962,
+            "net_income": -14.508047516086409,
+            "roe": -7.371167645140253
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -4.802200126930412,
+            "net_income": -7.804642166344289
+          }
+        },
+        {
+          "year": 2027,
+          "independent": {
+            "revenue_rmb_bn": 10.5,
+            "net_income_rmb_bn": 2.4735,
+            "roe_pct": 16.49
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 10.660551429,
+            "net_income_rmb_bn": 2.71758,
+            "eps_cny": 5.0409,
+            "roe_pct": 16.4043
+          },
+          "recent_broker_median": {
+            "institution_count": 7,
+            "institutions": [
+              "东吴证券",
+              "中信证券",
+              "兴业证券",
+              "华泰证券",
+              "国信证券",
+              "国联民生证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260429",
+            "report_date_end": "20260714",
+            "revenue_rmb_bn_median": 10.671,
+            "net_income_rmb_bn_median": 2.57014,
+            "eps_cny_median": 4.77,
+            "report_count": 7,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260714",
+                "revenue_rmb_bn": 10.816,
+                "net_income_rmb_bn": 2.57014,
+                "eps_cny": 4.77
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 9.784,
+                "net_income_rmb_bn": 2.317,
+                "eps_cny": 4.3
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260511",
+                "revenue_rmb_bn": 10.283,
+                "net_income_rmb_bn": 2.408,
+                "eps_cny": 4.47
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 10.562,
+                "net_income_rmb_bn": 2.48,
+                "eps_cny": 4.6
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 10.671,
+                "net_income_rmb_bn": 2.63,
+                "eps_cny": 4.88
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 11.446,
+                "net_income_rmb_bn": 3.788,
+                "eps_cny": 7.03
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260610",
+                "revenue_rmb_bn": 11.381,
+                "net_income_rmb_bn": 2.986,
+                "eps_cny": 5.54
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -1.5060330609470207,
+            "net_income": -8.981520323228754,
+            "roe": 0.5224239985857304
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -1.6024739949395461,
+            "net_income": -3.760106453344947
+          }
+        },
+        {
+          "year": 2028,
+          "independent": {
+            "revenue_rmb_bn": 12.0,
+            "net_income_rmb_bn": 3.0325,
+            "roe_pct": 17.33
+          },
+          "wind_consensus": {
+            "revenue_rmb_bn": 12.617921429,
+            "net_income_rmb_bn": 3.664731429,
+            "eps_cny": 6.7979,
+            "roe_pct": 19.1414
+          },
+          "recent_broker_median": {
+            "institution_count": 7,
+            "institutions": [
+              "东吴证券",
+              "中信证券",
+              "兴业证券",
+              "华泰证券",
+              "国信证券",
+              "国联民生证券",
+              "长江证券"
+            ],
+            "report_date_start": "20260429",
+            "report_date_end": "20260714",
+            "revenue_rmb_bn_median": 12.662,
+            "net_income_rmb_bn_median": 3.402,
+            "eps_cny_median": 6.31,
+            "report_count": 7,
+            "constituents": [
+              {
+                "institution": "东吴证券",
+                "report_date": "20260714",
+                "revenue_rmb_bn": 12.783,
+                "net_income_rmb_bn": 3.11936,
+                "eps_cny": 5.79
+              },
+              {
+                "institution": "中信证券",
+                "report_date": "20260507",
+                "revenue_rmb_bn": 11.926,
+                "net_income_rmb_bn": 3.297,
+                "eps_cny": 6.12
+              },
+              {
+                "institution": "兴业证券",
+                "report_date": "20260511",
+                "revenue_rmb_bn": 11.611,
+                "net_income_rmb_bn": 3.171,
+                "eps_cny": 5.88
+              },
+              {
+                "institution": "华泰证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 12.446,
+                "net_income_rmb_bn": 3.402,
+                "eps_cny": 6.31
+              },
+              {
+                "institution": "国信证券",
+                "report_date": "20260429",
+                "revenue_rmb_bn": 12.662,
+                "net_income_rmb_bn": 3.572,
+                "eps_cny": 6.63
+              },
+              {
+                "institution": "国联民生证券",
+                "report_date": "20260504",
+                "revenue_rmb_bn": 13.198,
+                "net_income_rmb_bn": 4.778,
+                "eps_cny": 8.86
+              },
+              {
+                "institution": "长江证券",
+                "report_date": "20260610",
+                "revenue_rmb_bn": 13.695,
+                "net_income_rmb_bn": 4.072,
+                "eps_cny": 7.55
+              }
+            ]
+          },
+          "difference_vs_wind_pct": {
+            "revenue": -4.8971729018681405,
+            "net_income": -17.251780689765795,
+            "roe": -9.463257650955537
+          },
+          "difference_vs_recent_broker_median_pct": {
+            "revenue": -5.228241983888804,
+            "net_income": -10.861258083480308
+          }
+        }
+      ],
+      "market_reconciliation": {
+        "trade_date": "2026-07-24",
+        "price_cny": 44.9,
+        "market_cap_rmb_bn": 24.206,
+        "pe_ttm": 25.2382011414,
+        "pe_forward_supplier": 9.6671772003,
+        "pb": 1.8646484613,
+        "roe_ttm_pct": 7.2695,
+        "roa_ttm_pct": 6.984,
+        "independent_implied_pe_fy1": 12.69589845798804,
+        "independent_implied_pe_fy2": 9.786133009904992,
+        "market_vs_independent_range_pct": {
+          "vs_low": 8.742138364779862,
+          "vs_high": -24.732587064676615
+        }
+      },
+      "difference_summary": "FY1独立利润低于Wind一致预期14.5%；市场预测更可能采用更高锂价、更快爬坡或更强非锂利润，本研究不因对账而改写冻结输入。",
+      "reconciliation_policy": "Wind为结构化一致预期主对账；Tushare逐机构预测仅使用最近两个滚动季度内各机构最新报告，并保留机构、发布日期和预测年度，不把多份同机构报告重复计权。英文机构与中文机构同级。"
+    }
+  ]
+}

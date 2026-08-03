@@ -1,0 +1,5308 @@
+{
+  "schemaVersion": "battery_calculator.model.v1",
+  "asOfDate": "2026-07-28",
+  "researchRunRef": "lithium_battery_b_20260728",
+  "title": "锂电池业务、盈利、现金流与估值计算器",
+  "formulaContract": {
+    "batteryRevenue": "电池分部收入（亿元）＝出货量（GWh）×ASP（元/Wh）×10",
+    "vehicleRevenue": "整车分部收入（亿元）＝销量（百万辆）×单车收入（元）÷100",
+    "otherRevenue": "其他分部收入直接采用亿元人民币输入",
+    "grossProfit": "分部毛利＝分部收入×分部毛利率",
+    "netIncome": "归母净利润＝（毛利－经营费用＋税前其他收益）×（1－税率）－少数股东损益",
+    "operatingCashFlow": "经营现金流＝归母净利润×现金转换率",
+    "freeCashFlow": "自由现金流＝经营现金流－资本开支",
+    "bookValue": "期末归母净资产＝期初归母净资产＋归母净利润－分红",
+    "roe": "ROE＝归母净利润÷平均归母净资产",
+    "peValue": "正常化市盈率估值＝指定年度归母净利润×目标市盈率",
+    "pbValue": "PB估值＝指定年度期末归母净资产×目标PB",
+    "consumptionTax": "消费税现金影响＝收入×国内应税收入比例×全年等效税率×（1－转嫁率）×（1－已税投入抵扣率）",
+    "exportRebate": "出口退税减少＝收入×符合清单的出口收入比例×全年等效退税减少率×（1－转嫁率）",
+    "usTariff": "美国关税经济影响＝收入×美国直接出口比例×关税率×供应商承担比例",
+    "us45x": "45X抵免（亿元）＝合资格GWh×（电芯＋模组抵免美元/kWh）×美元兑人民币÷100×资格实现率×利用率",
+    "euFinancing": "欧盟无息贷款年度融资节约＝实际提款金额×替代市场融资利率"
+  },
+  "industryContext": {
+    "globalEvBatteryJanMay2026": {
+      "metric": "全球动力电池装机量",
+      "period": "2026年1—5月",
+      "totalGwh": 469.2,
+      "cr3Pct": 63.3,
+      "cr5Pct": 73.0,
+      "leaders": [
+        {
+          "company": "宁德时代",
+          "sharePct": 40.2
+        },
+        {
+          "company": "比亚迪",
+          "sharePct": 14.4
+        },
+        {
+          "company": "LG新能源",
+          "sharePct": 8.7
+        },
+        {
+          "company": "中创新航",
+          "sharePct": 5.1
+        },
+        {
+          "company": "国轩高科",
+          "sharePct": 4.6
+        }
+      ],
+      "source": "SNE Research 2026年1—5月全球动力电池装机统计"
+    },
+    "chinaEvBatteryH12026": {
+      "metric": "中国动力电池装车量",
+      "period": "2026年上半年",
+      "totalGwh": 335.6,
+      "cr3Pct": 69.37,
+      "cr5Pct": 80.56,
+      "leaders": [
+        {
+          "company": "宁德时代",
+          "sharePct": 46.04
+        },
+        {
+          "company": "比亚迪",
+          "sharePct": 17.14
+        },
+        {
+          "company": "国轩高科",
+          "sharePct": 6.19
+        },
+        {
+          "company": "中创新航",
+          "sharePct": 6.18
+        },
+        {
+          "company": "亿纬锂能",
+          "sharePct": 5.01
+        }
+      ],
+      "source": "中国汽车动力电池产业创新联盟 2026年上半年装车数据"
+    },
+    "globalEssQ12026": {
+      "metric": "全球储能电芯出货量",
+      "period": "2026年一季度",
+      "totalGwh": 205.52,
+      "cr5Pct": 58.9,
+      "cr10Pct": 85.2,
+      "source": "InfoLink Consulting 2026年一季度储能电芯出货统计"
+    },
+    "boundary": "动力采用装机/装车口径，储能采用电芯出货口径；三组集中度不能混成同一排行榜。"
+  },
+  "companies": [
+    {
+      "company": "宁德时代",
+      "companyId": 254,
+      "ticker": "300750.SZ",
+      "modelType": "动力＋储能＋材料",
+      "marketCapRmb100m": 18083.74,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 1303.557964,
+          "netIncome": 159.313179,
+          "ocf": 429.080087,
+          "capex": 437.677708,
+          "grossMarginPct": 26.2835,
+          "netMarginPct": 13.7015,
+          "roePct": 21.4245,
+          "roaPct": 8.0661,
+          "sourceRef": "wind:annual:300750.SZ:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 3285.939875,
+          "netIncome": 307.291635,
+          "ocf": 612.088433,
+          "capex": 482.152681,
+          "grossMarginPct": 20.2512,
+          "netMarginPct": 10.1819,
+          "roePct": 24.6826,
+          "roaPct": 7.6639,
+          "sourceRef": "wind:annual:300750.SZ:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 4009.170449,
+          "netIncome": 441.212483,
+          "ocf": 928.261244,
+          "capex": 336.248965,
+          "grossMarginPct": 22.9091,
+          "netMarginPct": 11.663499999999999,
+          "roePct": 24.3636,
+          "roaPct": 7.4407,
+          "sourceRef": "wind:annual:300750.SZ:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 3620.12554,
+          "netIncome": 507.44682,
+          "ocf": 969.90345,
+          "capex": 311.79943,
+          "grossMarginPct": 24.4449,
+          "netMarginPct": 14.9185,
+          "roePct": 22.8252,
+          "roaPct": 7.6549,
+          "sourceRef": "wind:annual:300750.SZ:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 4237.01834,
+          "netIncome": 722.01282,
+          "ocf": 1332.19982,
+          "capex": 423.44558,
+          "grossMarginPct": 26.2728,
+          "netMarginPct": 18.1227,
+          "roePct": 24.7249,
+          "roaPct": 9.2724,
+          "sourceRef": "wind:annual:300750.SZ:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "动力电池系统",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 570,
+              "2027": 690,
+              "2028": 800
+            },
+            "asp": {
+              "2026": 0.72,
+              "2027": 0.69,
+              "2028": 0.67
+            },
+            "grossMargin": {
+              "2026": 0.255,
+              "2027": 0.255,
+              "2028": 0.25
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "2026年以半年报收入、全球装机份额和产能利用率约束；后两年同时计入ASP下降和欧洲产能爬坡。"
+          },
+          {
+            "name": "储能电池系统",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 220,
+              "2027": 290,
+              "2028": 360
+            },
+            "asp": {
+              "2026": 0.58,
+              "2027": 0.55,
+              "2028": 0.53
+            },
+            "grossMargin": {
+              "2026": 0.25,
+              "2027": 0.245,
+              "2028": 0.24
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "以2026年储能需求上修、500Ah+渗透和海外系统项目为基础，未把全部行业增长归给公司。"
+          },
+          {
+            "name": "电池材料、回收及其他",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 500,
+              "2027": 540,
+              "2028": 580
+            },
+            "grossMargin": {
+              "2026": 0.3,
+              "2027": 0.3,
+              "2028": 0.29
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "与公司半年报业务口径对账，不与动力和储能出货重复。"
+          }
+        ],
+        "opexRatio": [
+          0.075,
+          0.074,
+          0.073
+        ],
+        "otherPretax": [
+          80,
+          75,
+          80
+        ],
+        "taxRate": [
+          0.12,
+          0.12,
+          0.12
+        ],
+        "minority": [
+          10,
+          11,
+          12
+        ],
+        "cashConversion": [
+          1.45,
+          1.4,
+          1.35
+        ],
+        "capex": [
+          520,
+          560,
+          590
+        ],
+        "payoutRatio": [
+          0.55,
+          0.5,
+          0.48
+        ],
+        "openingEquity": 3793.5364144380737,
+        "openingAssets": 9748.27544
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "动力电池系统",
+              "kind": "battery_gwh",
+              "revenue": 4104.0,
+              "grossMargin": 0.255,
+              "grossProfit": 1046.52,
+              "volume": 570,
+              "asp": 0.72,
+              "note": "2026年以半年报收入、全球装机份额和产能利用率约束；后两年同时计入ASP下降和欧洲产能爬坡。"
+            },
+            {
+              "name": "储能电池系统",
+              "kind": "battery_gwh",
+              "revenue": 1276.0,
+              "grossMargin": 0.25,
+              "grossProfit": 319.0,
+              "volume": 220,
+              "asp": 0.58,
+              "note": "以2026年储能需求上修、500Ah+渗透和海外系统项目为基础，未把全部行业增长归给公司。"
+            },
+            {
+              "name": "电池材料、回收及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 500.0,
+              "grossMargin": 0.3,
+              "grossProfit": 150.0,
+              "volume": null,
+              "asp": null,
+              "note": "与公司半年报业务口径对账，不与动力和储能出货重复。"
+            }
+          ],
+          "revenue": 5880.0,
+          "grossProfit": 1515.52,
+          "grossMargin": 0.25774149659863943,
+          "operatingExpenses": 441.0,
+          "otherPretax": 80.0,
+          "pretaxProfit": 1154.52,
+          "taxRate": 0.12,
+          "minorityInterest": 10.0,
+          "netIncome": 1005.9775999999999,
+          "ocf": 1458.66752,
+          "capex": 520.0,
+          "freeCashFlow": 938.66752,
+          "dividends": 553.28768,
+          "endingEquity": 4246.2263344380735,
+          "endingAssets": 10080.008559999998,
+          "roe": 0.2502505686851574,
+          "roa": 0.1014689521291908,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "动力电池系统",
+              "kind": "battery_gwh",
+              "revenue": 4761.0,
+              "grossMargin": 0.255,
+              "grossProfit": 1214.055,
+              "volume": 690,
+              "asp": 0.69,
+              "note": "2026年以半年报收入、全球装机份额和产能利用率约束；后两年同时计入ASP下降和欧洲产能爬坡。"
+            },
+            {
+              "name": "储能电池系统",
+              "kind": "battery_gwh",
+              "revenue": 1595.0,
+              "grossMargin": 0.245,
+              "grossProfit": 390.775,
+              "volume": 290,
+              "asp": 0.55,
+              "note": "以2026年储能需求上修、500Ah+渗透和海外系统项目为基础，未把全部行业增长归给公司。"
+            },
+            {
+              "name": "电池材料、回收及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 540.0,
+              "grossMargin": 0.3,
+              "grossProfit": 162.0,
+              "volume": null,
+              "asp": null,
+              "note": "与公司半年报业务口径对账，不与动力和储能出货重复。"
+            }
+          ],
+          "revenue": 6896.0,
+          "grossProfit": 1766.83,
+          "grossMargin": 0.2562108468677494,
+          "operatingExpenses": 510.304,
+          "otherPretax": 75.0,
+          "pretaxProfit": 1331.5259999999998,
+          "taxRate": 0.12,
+          "minorityInterest": 11.0,
+          "netIncome": 1160.7428799999998,
+          "ocf": 1625.0400319999997,
+          "capex": 560.0,
+          "freeCashFlow": 1065.0400319999997,
+          "dividends": 580.3714399999999,
+          "endingEquity": 4826.597774438073,
+          "endingAssets": 10440.628551999998,
+          "roe": 0.25587245295859296,
+          "roa": 0.11312932182999562,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "动力电池系统",
+              "kind": "battery_gwh",
+              "revenue": 5360.0,
+              "grossMargin": 0.25,
+              "grossProfit": 1340.0,
+              "volume": 800,
+              "asp": 0.67,
+              "note": "2026年以半年报收入、全球装机份额和产能利用率约束；后两年同时计入ASP下降和欧洲产能爬坡。"
+            },
+            {
+              "name": "储能电池系统",
+              "kind": "battery_gwh",
+              "revenue": 1908.0,
+              "grossMargin": 0.24,
+              "grossProfit": 457.91999999999996,
+              "volume": 360,
+              "asp": 0.53,
+              "note": "以2026年储能需求上修、500Ah+渗透和海外系统项目为基础，未把全部行业增长归给公司。"
+            },
+            {
+              "name": "电池材料、回收及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 580.0,
+              "grossMargin": 0.29,
+              "grossProfit": 168.2,
+              "volume": null,
+              "asp": null,
+              "note": "与公司半年报业务口径对账，不与动力和储能出货重复。"
+            }
+          ],
+          "revenue": 7848.0,
+          "grossProfit": 1966.1200000000001,
+          "grossMargin": 0.2505249745158002,
+          "operatingExpenses": 572.904,
+          "otherPretax": 80.0,
+          "pretaxProfit": 1473.2160000000001,
+          "taxRate": 0.12,
+          "minorityInterest": 12.0,
+          "netIncome": 1284.43008,
+          "ocf": 1733.9806080000003,
+          "capex": 590.0,
+          "freeCashFlow": 1143.9806080000003,
+          "dividends": 616.5264384000001,
+          "endingEquity": 5494.501416038073,
+          "endingAssets": 10832.5734,
+          "roe": 0.24889404825897135,
+          "roa": 0.12075568904936237,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 1160.7428799999998,
+          "lowParameter": 18,
+          "highParameter": 24,
+          "valueLow": 20893.371839999996,
+          "valueHigh": 27857.829119999995,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 4826.597774438073,
+          "lowParameter": 3.24833215155403,
+          "highParameter": 4.043331829250584,
+          "valueLow": 15678.39273332632,
+          "valueHigh": 19515.536408375494,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约25.24%；股权成本8.5%—9.5%，长期增长2.5%—3.0%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 1160.7428799999998,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 18083.74,
+          "valueHigh": 18083.74,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 15.579453737420302,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 88,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:300750.SZ:2025A",
+        "company_filing:300750.SZ:latest_2026",
+        "structured_actual:300750.SZ:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026H1",
+            "title": "宁德时代2026年半年度报告",
+            "localPath": "papers/锂电池/宁德时代/2026-07-25_宁德时代_2026年半年度报告.pdf",
+            "sha256": "sha256:d96b5d49ae75bec5913d032de781873565f5405bf99fd8b011eab152549862b9"
+          },
+          {
+            "period": "2025A",
+            "title": "宁德时代2025年年度报告",
+            "localPath": "papers/锂电池/宁德时代/2026-03-10_宁德时代_2025年年度报告.pdf",
+            "sha256": "sha256:c15272977147dee7e6935a38ea0e4fd6855370aabb106f54cfe20f7cf6048ec9"
+          }
+        ]
+      },
+      "inputHash": "sha256:976844c22185d8856601788305d4aaf09ce3f500a1c42fa2b27db6b954cf7281",
+      "outputHash": "sha256:5ef531f52a20b3e1d7575d3ccd3ecf7bcebc3f446e44ee77ec858ccde7469c2b",
+      "policyProfile": {
+        "company": "宁德时代",
+        "companyId": 254,
+        "ticker": "300750.SZ",
+        "reportedOverseasRevenuePct": 30.6,
+        "reportedDomesticRevenuePct": 69.4,
+        "revenueScope": "2025年集团分地区收入",
+        "sourceRef": "宁德时代2025年报，第25页",
+        "exposure": "德国工厂已量产，匈牙利5GWh模组线于2026年5月启动，匈牙利电芯、与Stellantis的西班牙合资及印尼产业链继续推进。欧洲本地化降低整车贸易壁垒，但爬坡期固定成本和合规资本开支先于规模收益。",
+        "politicalRisk": "中高：地域分散能力最强，但美国技术授权/PFE资格仍是条件变量。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "比亚迪",
+      "companyId": 414,
+      "ticker": "002594.SZ",
+      "modelType": "整车集团＋电池业务桥接",
+      "marketCapRmb100m": 8510.9,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 2161.42395,
+          "netIncome": 30.45188,
+          "ocf": 654.66682,
+          "capex": 373.43609,
+          "grossMarginPct": 13.0214,
+          "netMarginPct": 1.8355000000000001,
+          "roePct": 4.0083,
+          "roaPct": 2.3325,
+          "sourceRef": "wind:annual:002594.SZ:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 4240.60635,
+          "netIncome": 166.22448,
+          "ocf": 1408.37657,
+          "capex": 974.56862,
+          "grossMarginPct": 17.0365,
+          "netMarginPct": 4.177,
+          "roePct": 16.1305,
+          "roaPct": 5.2091,
+          "sourceRef": "wind:annual:002594.SZ:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 6023.15354,
+          "netIncome": 300.40811,
+          "ocf": 1697.25025,
+          "capex": 1220.93509,
+          "grossMarginPct": 20.2148,
+          "netMarginPct": 5.2039,
+          "roePct": 24.0481,
+          "roaPct": 6.1871,
+          "sourceRef": "wind:annual:002594.SZ:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 7771.02455,
+          "netIncome": 402.54346,
+          "ocf": 1334.53873,
+          "capex": 973.59768,
+          "grossMarginPct": 19.4383,
+          "netMarginPct": 5.3517,
+          "roePct": 24.8437,
+          "roaPct": 6.7387,
+          "sourceRef": "wind:annual:002594.SZ:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 8039.64958,
+          "netIncome": 326.19022,
+          "ocf": 591.35544,
+          "capex": 1568.07853,
+          "grossMarginPct": 17.7445,
+          "netMarginPct": 4.1993,
+          "roePct": 15.118,
+          "roaPct": 4.7829,
+          "sourceRef": "wind:annual:002594.SZ:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "新能源汽车",
+            "kind": "vehicle_million_units",
+            "volume": {
+              "2026": 5.3,
+              "2027": 6.15,
+              "2028": 6.9
+            },
+            "asp": {
+              "2026": 125000,
+              "2027": 126000,
+              "2028": 127000
+            },
+            "grossMargin": {
+              "2026": 0.19,
+              "2027": 0.192,
+              "2028": 0.193
+            },
+            "formula": "分部收入（亿元）＝销量（百万辆）×单车收入（元）÷100",
+            "note": "电池内部供应不重复计收入；整车销量与海外工厂节奏共同约束。"
+          },
+          {
+            "name": "手机部件及组装",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 1900,
+              "2027": 2050,
+              "2028": 2200
+            },
+            "grossMargin": {
+              "2026": 0.085,
+              "2027": 0.087,
+              "2028": 0.088
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "按集团披露口径保留，与电池行业利润分开。"
+          },
+          {
+            "name": "外供电池、储能及其他",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 800,
+              "2027": 950,
+              "2028": 1100
+            },
+            "grossMargin": {
+              "2026": 0.18,
+              "2027": 0.185,
+              "2028": 0.19
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "只计外供和可识别业务，不把集团内部刀片电池结算重复加入收入。"
+          }
+        ],
+        "opexRatio": [
+          0.12,
+          0.119,
+          0.118
+        ],
+        "otherPretax": [
+          0,
+          5,
+          10
+        ],
+        "taxRate": [
+          0.22,
+          0.22,
+          0.22
+        ],
+        "minority": [
+          10,
+          12,
+          14
+        ],
+        "cashConversion": [
+          1.45,
+          1.4,
+          1.35
+        ],
+        "capex": [
+          1550,
+          1450,
+          1350
+        ],
+        "payoutRatio": [
+          0.28,
+          0.3,
+          0.32
+        ],
+        "openingEquity": 2319.125068523437,
+        "openingAssets": 8837.29883
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "新能源汽车",
+              "kind": "vehicle_million_units",
+              "revenue": 6625.0,
+              "grossMargin": 0.19,
+              "grossProfit": 1258.75,
+              "volume": 5.3,
+              "asp": 125000,
+              "note": "电池内部供应不重复计收入；整车销量与海外工厂节奏共同约束。"
+            },
+            {
+              "name": "手机部件及组装",
+              "kind": "revenue_rmb_100m",
+              "revenue": 1900.0,
+              "grossMargin": 0.085,
+              "grossProfit": 161.5,
+              "volume": null,
+              "asp": null,
+              "note": "按集团披露口径保留，与电池行业利润分开。"
+            },
+            {
+              "name": "外供电池、储能及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 800.0,
+              "grossMargin": 0.18,
+              "grossProfit": 144.0,
+              "volume": null,
+              "asp": null,
+              "note": "只计外供和可识别业务，不把集团内部刀片电池结算重复加入收入。"
+            }
+          ],
+          "revenue": 9325.0,
+          "grossProfit": 1564.25,
+          "grossMargin": 0.1677479892761394,
+          "operatingExpenses": 1119.0,
+          "otherPretax": 0.0,
+          "pretaxProfit": 445.25,
+          "taxRate": 0.22,
+          "minorityInterest": 10.0,
+          "netIncome": 337.295,
+          "ocf": 489.07775,
+          "capex": 1550.0,
+          "freeCashFlow": -1060.92225,
+          "dividends": 94.44260000000001,
+          "endingEquity": 2561.9774685234374,
+          "endingAssets": 10544.7793925,
+          "roe": 0.1382044312488742,
+          "roa": 0.03480483322045885,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "新能源汽车",
+              "kind": "vehicle_million_units",
+              "revenue": 7749.0,
+              "grossMargin": 0.192,
+              "grossProfit": 1487.808,
+              "volume": 6.15,
+              "asp": 126000,
+              "note": "电池内部供应不重复计收入；整车销量与海外工厂节奏共同约束。"
+            },
+            {
+              "name": "手机部件及组装",
+              "kind": "revenue_rmb_100m",
+              "revenue": 2050.0,
+              "grossMargin": 0.087,
+              "grossProfit": 178.35,
+              "volume": null,
+              "asp": null,
+              "note": "按集团披露口径保留，与电池行业利润分开。"
+            },
+            {
+              "name": "外供电池、储能及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 950.0,
+              "grossMargin": 0.185,
+              "grossProfit": 175.75,
+              "volume": null,
+              "asp": null,
+              "note": "只计外供和可识别业务，不把集团内部刀片电池结算重复加入收入。"
+            }
+          ],
+          "revenue": 10749.0,
+          "grossProfit": 1841.908,
+          "grossMargin": 0.1713562191831798,
+          "operatingExpenses": 1279.1309999999999,
+          "otherPretax": 5.0,
+          "pretaxProfit": 567.777,
+          "taxRate": 0.22,
+          "minorityInterest": 12.0,
+          "netIncome": 430.86606000000006,
+          "ocf": 603.212484,
+          "capex": 1450.0,
+          "freeCashFlow": -846.787516,
+          "dividends": 129.25981800000002,
+          "endingEquity": 2863.5837105234373,
+          "endingAssets": 12166.446271499999,
+          "roe": 0.15882820072658058,
+          "roa": 0.03794300372638842,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "新能源汽车",
+              "kind": "vehicle_million_units",
+              "revenue": 8763.0,
+              "grossMargin": 0.193,
+              "grossProfit": 1691.259,
+              "volume": 6.9,
+              "asp": 127000,
+              "note": "电池内部供应不重复计收入；整车销量与海外工厂节奏共同约束。"
+            },
+            {
+              "name": "手机部件及组装",
+              "kind": "revenue_rmb_100m",
+              "revenue": 2200.0,
+              "grossMargin": 0.088,
+              "grossProfit": 193.6,
+              "volume": null,
+              "asp": null,
+              "note": "按集团披露口径保留，与电池行业利润分开。"
+            },
+            {
+              "name": "外供电池、储能及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 1100.0,
+              "grossMargin": 0.19,
+              "grossProfit": 209.0,
+              "volume": null,
+              "asp": null,
+              "note": "只计外供和可识别业务，不把集团内部刀片电池结算重复加入收入。"
+            }
+          ],
+          "revenue": 12063.0,
+          "grossProfit": 2093.859,
+          "grossMargin": 0.1735769709027605,
+          "operatingExpenses": 1423.434,
+          "otherPretax": 10.0,
+          "pretaxProfit": 680.425,
+          "taxRate": 0.22,
+          "minorityInterest": 14.0,
+          "netIncome": 516.7315,
+          "ocf": 697.587525,
+          "capex": 1350.0,
+          "freeCashFlow": -652.412475,
+          "dividends": 165.35408,
+          "endingEquity": 3214.961130523437,
+          "endingAssets": 13703.939390249998,
+          "roe": 0.17001815846142748,
+          "roa": 0.03994772298767855,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 430.86606000000006,
+          "lowParameter": 16,
+          "highParameter": 22,
+          "valueLow": 6893.856960000001,
+          "valueHigh": 9479.05332,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 2863.5837105234373,
+          "lowParameter": 1.742789744925051,
+          "highParameter": 2.0680489168308314,
+          "valueLow": 4990.624324434672,
+          "valueHigh": 5922.031190802408,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约16.44%；股权成本9.5%—10.5%，长期增长2.5%—3.0%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 430.86606000000006,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 8510.9,
+          "valueHigh": 8510.9,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 19.753006305486206,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 43,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:002594.SZ:2025A",
+        "company_filing:002594.SZ:latest_2026",
+        "structured_actual:002594.SZ:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "比亚迪2026年第一季度报告",
+            "localPath": "papers/锂电池/比亚迪/2026-04-29_比亚迪_2026年第一季度报告.pdf",
+            "sha256": "sha256:8e07bf9481c450daa0184c8bab218eb5b29f5587fc406116a911903852c0c907"
+          },
+          {
+            "period": "2025A",
+            "title": "比亚迪2025年年度报告",
+            "localPath": "papers/锂电池/比亚迪/2026-03-28_比亚迪_2025年年度报告.pdf",
+            "sha256": "sha256:710d8b2e08e37ba521f1c4071d2c3e2369d3cadabc21a45073215d9f72138b0b"
+          }
+        ]
+      },
+      "inputHash": "sha256:797614eccdafedc6cee3519298e8db0649859b7531ed81d78fb3a4a318c2b080",
+      "outputHash": "sha256:a3a527995fa6af0c9ccf67673f1760eb40c63085a24ab5f2c6904052768d10f0",
+      "policyProfile": {
+        "company": "比亚迪",
+        "companyId": 414,
+        "ticker": "002594.SZ",
+        "reportedOverseasRevenuePct": 38.65,
+        "reportedDomesticRevenuePct": 61.35,
+        "revenueScope": "2025年集团收入，包含汽车、手机部件及组装等，不能视作电池出口占比",
+        "sourceRef": "比亚迪2025年报，第29—30页",
+        "exposure": "欧盟反补贴税首先作用于中国生产整车；匈牙利本地整车制造可降低关税摩擦，但初期利用率、欧洲人工能源成本和本地供应链爬坡可能抵消部分税差。自产电池影响应由欧洲整车销量和单车带电量传导，而非直接对集团收入扣税。",
+        "politicalRisk": "中高：海外增长贡献大，整车贸易和本地化执行同时决定电池利润。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "国轩高科",
+      "companyId": 662,
+      "ticker": "002074.SZ",
+      "modelType": "动力＋储能＋海外扩产",
+      "marketCapRmb100m": 490.7,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 103.5608119176,
+          "netIncome": 1.0189017125,
+          "ocf": 10.5821003312,
+          "capex": 44.4970872336,
+          "grossMarginPct": 18.6058,
+          "netMarginPct": 0.7428,
+          "roePct": 0.6865,
+          "roaPct": 1.0584,
+          "sourceRef": "wind:annual:002074.SZ:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 230.517014846,
+          "netIncome": 3.1157643181,
+          "ocf": 8.0127083912,
+          "capex": 134.09304306049998,
+          "grossMarginPct": 17.7948,
+          "netMarginPct": 1.5862,
+          "roePct": 1.4735,
+          "roaPct": 1.3448,
+          "sourceRef": "wind:annual:002074.SZ:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 316.0549002032,
+          "netIncome": 9.3872684776,
+          "ocf": 24.1869081729,
+          "capex": 131.2965058344,
+          "grossMarginPct": 16.922,
+          "netMarginPct": 3.0662,
+          "roePct": 3.8647,
+          "roaPct": 2.0409,
+          "sourceRef": "wind:annual:002074.SZ:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 353.9181709544,
+          "netIncome": 12.067901295899999,
+          "ocf": 27.055717290100002,
+          "capex": 90.68397787469999,
+          "grossMarginPct": 18.0033,
+          "netMarginPct": 3.261,
+          "roePct": 4.73,
+          "roaPct": 2.2008,
+          "sourceRef": "wind:annual:002074.SZ:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 450.70461822870004,
+          "netIncome": 23.8327193821,
+          "ocf": 36.244149666999995,
+          "capex": 101.7096565414,
+          "grossMarginPct": 16.1749,
+          "netMarginPct": 5.0774,
+          "roePct": 8.6532,
+          "roaPct": 2.8841,
+          "sourceRef": "wind:annual:002074.SZ:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "动力电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 92,
+              "2027": 119,
+              "2028": 148
+            },
+            "asp": {
+              "2026": 0.5,
+              "2027": 0.48,
+              "2028": 0.46
+            },
+            "grossMargin": {
+              "2026": 0.165,
+              "2027": 0.17,
+              "2028": 0.175
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "以2025年全球动力装机53.5GWh、2026年一季度收入和大众体系放量节奏为约束。"
+          },
+          {
+            "name": "储能电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 28,
+              "2027": 42,
+              "2028": 58
+            },
+            "asp": {
+              "2026": 0.48,
+              "2027": 0.46,
+              "2028": 0.44
+            },
+            "grossMargin": {
+              "2026": 0.155,
+              "2027": 0.16,
+              "2028": 0.165
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "储能按独立出货建模，不以动力装机榜份额代替储能份额。"
+          },
+          {
+            "name": "输配电及其他",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 55,
+              "2027": 60,
+              "2028": 65
+            },
+            "grossMargin": {
+              "2026": 0.2,
+              "2027": 0.2,
+              "2028": 0.2
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "保留非电池业务以完成集团利润对账。"
+          }
+        ],
+        "opexRatio": [
+          0.13,
+          0.127,
+          0.124
+        ],
+        "otherPretax": [
+          5,
+          4,
+          4
+        ],
+        "taxRate": [
+          0.15,
+          0.15,
+          0.15
+        ],
+        "minority": [
+          2,
+          3,
+          4
+        ],
+        "cashConversion": [
+          1.55,
+          1.45,
+          1.35
+        ],
+        "capex": [
+          105,
+          100,
+          90
+        ],
+        "payoutRatio": [
+          0.1,
+          0.12,
+          0.15
+        ],
+        "openingEquity": 287.588083930499,
+        "openingAssets": 1272.1451973862
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 460.0,
+              "grossMargin": 0.165,
+              "grossProfit": 75.9,
+              "volume": 92,
+              "asp": 0.5,
+              "note": "以2025年全球动力装机53.5GWh、2026年一季度收入和大众体系放量节奏为约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 134.4,
+              "grossMargin": 0.155,
+              "grossProfit": 20.832,
+              "volume": 28,
+              "asp": 0.48,
+              "note": "储能按独立出货建模，不以动力装机榜份额代替储能份额。"
+            },
+            {
+              "name": "输配电及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 55.0,
+              "grossMargin": 0.2,
+              "grossProfit": 11.0,
+              "volume": null,
+              "asp": null,
+              "note": "保留非电池业务以完成集团利润对账。"
+            }
+          ],
+          "revenue": 649.4,
+          "grossProfit": 107.732,
+          "grossMargin": 0.16589467200492763,
+          "operatingExpenses": 84.422,
+          "otherPretax": 5.0,
+          "pretaxProfit": 28.310000000000002,
+          "taxRate": 0.15,
+          "minorityInterest": 2.0,
+          "netIncome": 22.0635,
+          "ocf": 34.198425,
+          "capex": 105.0,
+          "freeCashFlow": -70.801575,
+          "dividends": 2.20635,
+          "endingEquity": 307.445233930499,
+          "endingAssets": 1388.0775911362,
+          "roe": 0.07415887257981783,
+          "roa": 0.016587708439453674,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 571.1999999999999,
+              "grossMargin": 0.17,
+              "grossProfit": 97.104,
+              "volume": 119,
+              "asp": 0.48,
+              "note": "以2025年全球动力装机53.5GWh、2026年一季度收入和大众体系放量节奏为约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 193.2,
+              "grossMargin": 0.16,
+              "grossProfit": 30.912,
+              "volume": 42,
+              "asp": 0.46,
+              "note": "储能按独立出货建模，不以动力装机榜份额代替储能份额。"
+            },
+            {
+              "name": "输配电及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 60.0,
+              "grossMargin": 0.2,
+              "grossProfit": 12.0,
+              "volume": null,
+              "asp": null,
+              "note": "保留非电池业务以完成集团利润对账。"
+            }
+          ],
+          "revenue": 824.3999999999999,
+          "grossProfit": 140.016,
+          "grossMargin": 0.16983988355167395,
+          "operatingExpenses": 104.69879999999998,
+          "otherPretax": 4.0,
+          "pretaxProfit": 39.317200000000014,
+          "taxRate": 0.15,
+          "minorityInterest": 3.0,
+          "netIncome": 30.41962000000001,
+          "ocf": 44.108449000000014,
+          "capex": 100.0,
+          "freeCashFlow": -55.891550999999986,
+          "dividends": 3.6503544000000008,
+          "endingEquity": 334.214499530499,
+          "endingAssets": 1501.7824788862,
+          "roe": 0.0948154244802678,
+          "roa": 0.021052659480335478,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 680.8,
+              "grossMargin": 0.175,
+              "grossProfit": 119.13999999999999,
+              "volume": 148,
+              "asp": 0.46,
+              "note": "以2025年全球动力装机53.5GWh、2026年一季度收入和大众体系放量节奏为约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 255.2,
+              "grossMargin": 0.165,
+              "grossProfit": 42.108,
+              "volume": 58,
+              "asp": 0.44,
+              "note": "储能按独立出货建模，不以动力装机榜份额代替储能份额。"
+            },
+            {
+              "name": "输配电及其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 65.0,
+              "grossMargin": 0.2,
+              "grossProfit": 13.0,
+              "volume": null,
+              "asp": null,
+              "note": "保留非电池业务以完成集团利润对账。"
+            }
+          ],
+          "revenue": 1001.0,
+          "grossProfit": 174.248,
+          "grossMargin": 0.17407392607392608,
+          "operatingExpenses": 124.124,
+          "otherPretax": 4.0,
+          "pretaxProfit": 54.123999999999995,
+          "taxRate": 0.15,
+          "minorityInterest": 4.0,
+          "netIncome": 42.005399999999995,
+          "ocf": 56.70728999999999,
+          "capex": 90.0,
+          "freeCashFlow": -33.29271000000001,
+          "dividends": 6.300809999999999,
+          "endingEquity": 369.919089530499,
+          "endingAssets": 1607.6356563861998,
+          "roe": 0.11931088262957765,
+          "roa": 0.02701817393003667,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 30.41962000000001,
+          "lowParameter": 16,
+          "highParameter": 24,
+          "valueLow": 486.71392000000014,
+          "valueHigh": 730.0708800000002,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 334.214499530499,
+          "lowParameter": 0.9164542479465548,
+          "highParameter": 1.0257894194365342,
+          "valueLow": 306.2922978200576,
+          "valueHigh": 342.8336974406624,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约10.71%；股权成本10.5%—11.5%，长期增长2.0%—2.5%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 30.41962000000001,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 490.7,
+          "valueHigh": 490.7,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 16.131036482375514,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 16,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:002074.SZ:2025A",
+        "company_filing:002074.SZ:latest_2026",
+        "structured_actual:002074.SZ:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "国轩高科2026年第一季度报告",
+            "localPath": "papers/锂电池/国轩高科/2026-04-29_国轩高科_2026年第一季度报告.pdf",
+            "sha256": "sha256:a00e2899f8a6abbe07a281c3ae4ac294feaa6c3a3205fb04f502fb04405fbb1d"
+          },
+          {
+            "period": "2025A",
+            "title": "国轩高科2025年年度报告",
+            "localPath": "papers/锂电池/国轩高科/2026-04-29_国轩高科_2025年年度报告.pdf",
+            "sha256": "sha256:2a255f70026f280deb60691a7937b662615a1b1addb2ce379a56e95698e358fb"
+          }
+        ]
+      },
+      "inputHash": "sha256:8ea3ae5eea67a206c97cabec5cc87f027792307a95df0ae3364bfcc252e5c523",
+      "outputHash": "sha256:48349dd03c89cbe3d0c5042f2f1f4a7365148e81d704a83f8d92beb1d3677b71",
+      "policyProfile": {
+        "company": "国轩高科",
+        "companyId": 662,
+        "ticker": "002074.SZ",
+        "reportedOverseasRevenuePct": 22.59,
+        "reportedDomesticRevenuePct": 77.41,
+        "revenueScope": "2025年集团分地区收入（含港澳台）",
+        "sourceRef": "国轩高科2025年报，第20页",
+        "exposure": "泰国、越南已有产能，伊利诺伊项目仍在建设并形成大额在建工程，摩洛哥、斯洛伐克等布局面向欧美客户。美国项目是否满足PFE、有效控制和材料援助规则，直接决定本地化资产能否取得45X。",
+        "politicalRisk": "很高：美国资产投入较大，补贴资格和政治审查对项目回报非线性。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "中创新航",
+      "companyId": 663,
+      "ticker": "3931.HK",
+      "modelType": "动力＋储能",
+      "marketCapRmb100m": 246.41200852575074,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2022,
+          "revenue": 203.74942,
+          "netIncome": 6.91626,
+          "ocf": 21.09054,
+          "capex": 316.2612,
+          "sourceRef": "yfinance:annual:3931.HK:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 270.05885,
+          "netIncome": 2.94377,
+          "ocf": 29.00168,
+          "capex": 201.2902,
+          "sourceRef": "yfinance:annual:3931.HK:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 277.51526,
+          "netIncome": 5.91196,
+          "ocf": 31.13102,
+          "capex": 166.06582,
+          "sourceRef": "yfinance:annual:3931.HK:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 444.00067,
+          "netIncome": 14.75632,
+          "ocf": 101.60086,
+          "capex": 153.36162,
+          "sourceRef": "yfinance:annual:3931.HK:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "动力电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 88,
+              "2027": 113,
+              "2028": 139
+            },
+            "asp": {
+              "2026": 0.55,
+              "2027": 0.52,
+              "2028": 0.5
+            },
+            "grossMargin": {
+              "2026": 0.155,
+              "2027": 0.165,
+              "2028": 0.175
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "以2025年年报、2026年一季度报告和全球动力装机排名约束。"
+          },
+          {
+            "name": "储能电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 20,
+              "2027": 31,
+              "2028": 44
+            },
+            "asp": {
+              "2026": 0.5,
+              "2027": 0.47,
+              "2028": 0.45
+            },
+            "grossMargin": {
+              "2026": 0.145,
+              "2027": 0.155,
+              "2028": 0.165
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "储能采用独立客户和项目节奏，避免把动力客户认证直接外推。"
+          },
+          {
+            "name": "其他业务",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 15,
+              "2027": 18,
+              "2028": 20
+            },
+            "grossMargin": {
+              "2026": 0.2,
+              "2027": 0.2,
+              "2028": 0.2
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "集团对账项。"
+          }
+        ],
+        "opexRatio": [
+          0.09,
+          0.087,
+          0.084
+        ],
+        "otherPretax": [
+          2,
+          2,
+          3
+        ],
+        "taxRate": [
+          0.18,
+          0.18,
+          0.18
+        ],
+        "minority": [
+          1,
+          1,
+          2
+        ],
+        "cashConversion": [
+          1.35,
+          1.3,
+          1.25
+        ],
+        "capex": [
+          70,
+          75,
+          75
+        ],
+        "payoutRatio": [
+          0.1,
+          0.12,
+          0.15
+        ],
+        "openingEquity": 372.2619286847236,
+        "openingAssets": 1485.55128
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 484.00000000000006,
+              "grossMargin": 0.155,
+              "grossProfit": 75.02000000000001,
+              "volume": 88,
+              "asp": 0.55,
+              "note": "以2025年年报、2026年一季度报告和全球动力装机排名约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 100.0,
+              "grossMargin": 0.145,
+              "grossProfit": 14.499999999999998,
+              "volume": 20,
+              "asp": 0.5,
+              "note": "储能采用独立客户和项目节奏，避免把动力客户认证直接外推。"
+            },
+            {
+              "name": "其他业务",
+              "kind": "revenue_rmb_100m",
+              "revenue": 15.0,
+              "grossMargin": 0.2,
+              "grossProfit": 3.0,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 599.0,
+          "grossProfit": 92.52000000000001,
+          "grossMargin": 0.15445742904841403,
+          "operatingExpenses": 53.91,
+          "otherPretax": 2.0,
+          "pretaxProfit": 40.610000000000014,
+          "taxRate": 0.18,
+          "minorityInterest": 1.0,
+          "netIncome": 32.30020000000001,
+          "ocf": 43.60527000000002,
+          "capex": 70.0,
+          "freeCashFlow": -26.39472999999998,
+          "dividends": 3.2300200000000014,
+          "endingEquity": 401.3321086847236,
+          "endingAssets": 1562.6199625,
+          "roe": 0.08350684839773222,
+          "roa": 0.021193166282553442,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 587.6,
+              "grossMargin": 0.165,
+              "grossProfit": 96.95400000000001,
+              "volume": 113,
+              "asp": 0.52,
+              "note": "以2025年年报、2026年一季度报告和全球动力装机排名约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 145.7,
+              "grossMargin": 0.155,
+              "grossProfit": 22.583499999999997,
+              "volume": 31,
+              "asp": 0.47,
+              "note": "储能采用独立客户和项目节奏，避免把动力客户认证直接外推。"
+            },
+            {
+              "name": "其他业务",
+              "kind": "revenue_rmb_100m",
+              "revenue": 18.0,
+              "grossMargin": 0.2,
+              "grossProfit": 3.6,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 751.3,
+          "grossProfit": 123.1375,
+          "grossMargin": 0.16389924131505393,
+          "operatingExpenses": 65.36309999999999,
+          "otherPretax": 2.0,
+          "pretaxProfit": 59.774400000000014,
+          "taxRate": 0.18,
+          "minorityInterest": 1.0,
+          "netIncome": 48.015008000000016,
+          "ocf": 62.41951040000002,
+          "capex": 75.0,
+          "freeCashFlow": -12.580489599999979,
+          "dividends": 5.761800960000001,
+          "endingEquity": 443.5853157247236,
+          "endingAssets": 1644.5540849,
+          "roe": 0.11365609611746373,
+          "roa": 0.02994225276855489,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 695.0,
+              "grossMargin": 0.175,
+              "grossProfit": 121.62499999999999,
+              "volume": 139,
+              "asp": 0.5,
+              "note": "以2025年年报、2026年一季度报告和全球动力装机排名约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 198.0,
+              "grossMargin": 0.165,
+              "grossProfit": 32.67,
+              "volume": 44,
+              "asp": 0.45,
+              "note": "储能采用独立客户和项目节奏，避免把动力客户认证直接外推。"
+            },
+            {
+              "name": "其他业务",
+              "kind": "revenue_rmb_100m",
+              "revenue": 20.0,
+              "grossMargin": 0.2,
+              "grossProfit": 4.0,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 913.0,
+          "grossProfit": 158.295,
+          "grossMargin": 0.1733789704271632,
+          "operatingExpenses": 76.69200000000001,
+          "otherPretax": 3.0,
+          "pretaxProfit": 84.60299999999998,
+          "taxRate": 0.18,
+          "minorityInterest": 2.0,
+          "netIncome": 67.37445999999998,
+          "ocf": 84.21807499999998,
+          "capex": 75.0,
+          "freeCashFlow": 9.218074999999985,
+          "dividends": 10.106168999999998,
+          "endingEquity": 500.8536067247236,
+          "endingAssets": 1725.88956615,
+          "roe": 0.14267616126040447,
+          "roa": 0.039979579530434045,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 48.015008000000016,
+          "lowParameter": 10,
+          "highParameter": 16,
+          "valueLow": 480.1500800000002,
+          "valueHigh": 768.2401280000003,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 443.5853157247236,
+          "lowParameter": 1.081661286889341,
+          "highParameter": 1.2137191610462836,
+          "valueLow": 479.80906345201913,
+          "valueHigh": 538.3879972538624,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约12.82%；股权成本11.0%—12.0%，长期增长2.0%—2.5%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 48.015008000000016,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 246.41200852575074,
+          "valueHigh": 246.41200852575074,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 5.1319789122132535,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": false,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 0,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:3931.HK:2025A",
+        "company_filing:3931.HK:latest_2026",
+        "structured_actual:3931.HK:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "中创新航2026年第一季度报告",
+            "localPath": "papers/锂电池/中创新航/2026-04-30_中创新航_2026年第一季度报告.pdf",
+            "sha256": "sha256:d4d4e628c9691458c86dc28ece5b00d8497ae0473445e66cd8724e170089affb"
+          },
+          {
+            "period": "2025A",
+            "title": "中创新航2025年年度报告",
+            "localPath": "papers/锂电池/中创新航/2026-04-29_中创新航_2025年年度报告.pdf",
+            "sha256": "sha256:e5e9d53926d99be0fe7666921bc2f9087c8cc3a44950efaa52a0dbb5d39f084d"
+          }
+        ]
+      },
+      "inputHash": "sha256:95a8458b097ebdd88518a2e634bcc56c9f8eaf3aad5e97a12ec5dcb3a9f6953c",
+      "outputHash": "sha256:95fe77b279e95a924cc8565e9016ef86520f47995d41e45c7a87ae1e45a3603e",
+      "policyProfile": {
+        "company": "中创新航",
+        "companyId": 663,
+        "ticker": "3931.HK",
+        "reportedOverseasRevenuePct": 2.1,
+        "reportedDomesticRevenuePct": 97.9,
+        "revenueScope": "2025年按交付地点划分的集团收入",
+        "sourceRef": "中创新航2025年报，第20页",
+        "exposure": "2025年海外收入基数很低，但葡萄牙和泰国法人/项目构成未来本地化期权。政策风险当前更多体现为新增资本开支和爬坡风险，而不是存量海外利润被直接冲击。",
+        "politicalRisk": "中：存量直接暴露低，欧洲扩张成败决定未来风险上升速度。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "亿纬锂能",
+      "companyId": 664,
+      "ticker": "300014.SZ",
+      "modelType": "动力＋储能＋消费＋投资收益",
+      "marketCapRmb100m": 1175.32,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 168.9980408638,
+          "netIncome": 29.057929036799997,
+          "ocf": 18.6285392453,
+          "capex": 62.698715608,
+          "grossMarginPct": 21.5714,
+          "netMarginPct": 18.6363,
+          "roePct": 17.9869,
+          "roaPct": 8.8847,
+          "sourceRef": "wind:annual:300014.SZ:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 363.0394780853,
+          "netIncome": 35.089638274,
+          "ocf": 28.6022000815,
+          "capex": 138.3521839725,
+          "grossMarginPct": 16.4321,
+          "netMarginPct": 10.1143,
+          "roePct": 14.5156,
+          "roaPct": 5.9652,
+          "sourceRef": "wind:annual:300014.SZ:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 487.8358717586,
+          "netIncome": 40.5017469952,
+          "ocf": 86.76259761120001,
+          "capex": 50.034963990200005,
+          "grossMarginPct": 17.035,
+          "netMarginPct": 9.266,
+          "roePct": 12.4341,
+          "roaPct": 5.7391000000000005,
+          "sourceRef": "wind:annual:300014.SZ:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 486.14556525089995,
+          "netIncome": 40.7558528437,
+          "ocf": 44.337328945500005,
+          "capex": 55.453248931400005,
+          "grossMarginPct": 17.4132,
+          "netMarginPct": 8.6834,
+          "roePct": 11.272,
+          "roaPct": 5.2344,
+          "sourceRef": "wind:annual:300014.SZ:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 614.6963077608999,
+          "netIncome": 41.3430367089,
+          "ocf": 74.9213166679,
+          "capex": 104.4607826232,
+          "grossMarginPct": 16.1724,
+          "netMarginPct": 6.9988,
+          "roePct": 10.3486,
+          "roaPct": 4.4618,
+          "sourceRef": "wind:annual:300014.SZ:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "动力电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 50,
+              "2027": 65,
+              "2028": 82
+            },
+            "asp": {
+              "2026": 0.65,
+              "2027": 0.62,
+              "2028": 0.59
+            },
+            "grossMargin": {
+              "2026": 0.16,
+              "2027": 0.165,
+              "2028": 0.17
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "以2025年报产品收入和2026年一季度出货增长约束。"
+          },
+          {
+            "name": "储能电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 65,
+              "2027": 88,
+              "2028": 112
+            },
+            "asp": {
+              "2026": 0.55,
+              "2027": 0.52,
+              "2028": 0.49
+            },
+            "grossMargin": {
+              "2026": 0.135,
+              "2027": 0.145,
+              "2028": 0.155
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "储能价格传导滞后单独体现在毛利率，不以收入增速代替利润增速。"
+          },
+          {
+            "name": "消费电池与锂原电池",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 270,
+              "2027": 295,
+              "2028": 320
+            },
+            "grossMargin": {
+              "2026": 0.245,
+              "2027": 0.245,
+              "2028": 0.245
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "沿用2025年报分产品基数，避免只研究动储。"
+          }
+        ],
+        "opexRatio": [
+          0.1,
+          0.098,
+          0.096
+        ],
+        "otherPretax": [
+          20,
+          22,
+          24
+        ],
+        "taxRate": [
+          0.18,
+          0.18,
+          0.18
+        ],
+        "minority": [
+          7,
+          8,
+          9
+        ],
+        "cashConversion": [
+          1.35,
+          1.3,
+          1.25
+        ],
+        "capex": [
+          120,
+          125,
+          125
+        ],
+        "payoutRatio": [
+          0.18,
+          0.2,
+          0.22
+        ],
+        "openingEquity": 480.538968850637,
+        "openingAssets": 1255.4229656958
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 325.0,
+              "grossMargin": 0.16,
+              "grossProfit": 52.0,
+              "volume": 50,
+              "asp": 0.65,
+              "note": "以2025年报产品收入和2026年一季度出货增长约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 357.5,
+              "grossMargin": 0.135,
+              "grossProfit": 48.2625,
+              "volume": 65,
+              "asp": 0.55,
+              "note": "储能价格传导滞后单独体现在毛利率，不以收入增速代替利润增速。"
+            },
+            {
+              "name": "消费电池与锂原电池",
+              "kind": "revenue_rmb_100m",
+              "revenue": 270.0,
+              "grossMargin": 0.245,
+              "grossProfit": 66.15,
+              "volume": null,
+              "asp": null,
+              "note": "沿用2025年报分产品基数，避免只研究动储。"
+            }
+          ],
+          "revenue": 952.5,
+          "grossProfit": 166.41250000000002,
+          "grossMargin": 0.17471128608923886,
+          "operatingExpenses": 95.25,
+          "otherPretax": 20.0,
+          "pretaxProfit": 91.16250000000002,
+          "taxRate": 0.18,
+          "minorityInterest": 7.0,
+          "netIncome": 67.75325000000002,
+          "ocf": 91.46688750000004,
+          "capex": 120.0,
+          "freeCashFlow": -28.53311249999996,
+          "dividends": 12.195585000000003,
+          "endingEquity": 536.096633850637,
+          "endingAssets": 1381.1312438208001,
+          "roe": 0.13328915458001817,
+          "roa": 0.05139530206164224,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 403.0,
+              "grossMargin": 0.165,
+              "grossProfit": 66.495,
+              "volume": 65,
+              "asp": 0.62,
+              "note": "以2025年报产品收入和2026年一季度出货增长约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 457.6,
+              "grossMargin": 0.145,
+              "grossProfit": 66.352,
+              "volume": 88,
+              "asp": 0.52,
+              "note": "储能价格传导滞后单独体现在毛利率，不以收入增速代替利润增速。"
+            },
+            {
+              "name": "消费电池与锂原电池",
+              "kind": "revenue_rmb_100m",
+              "revenue": 295.0,
+              "grossMargin": 0.245,
+              "grossProfit": 72.275,
+              "volume": null,
+              "asp": null,
+              "note": "沿用2025年报分产品基数，避免只研究动储。"
+            }
+          ],
+          "revenue": 1155.6,
+          "grossProfit": 205.122,
+          "grossMargin": 0.17750259605399796,
+          "operatingExpenses": 113.24879999999999,
+          "otherPretax": 22.0,
+          "pretaxProfit": 113.87320000000003,
+          "taxRate": 0.18,
+          "minorityInterest": 8.0,
+          "netIncome": 85.37602400000003,
+          "ocf": 110.98883120000004,
+          "capex": 125.0,
+          "freeCashFlow": -14.011168799999965,
+          "dividends": 17.075204800000005,
+          "endingEquity": 604.397453050637,
+          "endingAssets": 1513.0520360208,
+          "roe": 0.1497176092021081,
+          "roa": 0.05899835341780615,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 483.79999999999995,
+              "grossMargin": 0.17,
+              "grossProfit": 82.246,
+              "volume": 82,
+              "asp": 0.59,
+              "note": "以2025年报产品收入和2026年一季度出货增长约束。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 548.8,
+              "grossMargin": 0.155,
+              "grossProfit": 85.064,
+              "volume": 112,
+              "asp": 0.49,
+              "note": "储能价格传导滞后单独体现在毛利率，不以收入增速代替利润增速。"
+            },
+            {
+              "name": "消费电池与锂原电池",
+              "kind": "revenue_rmb_100m",
+              "revenue": 320.0,
+              "grossMargin": 0.245,
+              "grossProfit": 78.4,
+              "volume": null,
+              "asp": null,
+              "note": "沿用2025年报分产品基数，避免只研究动储。"
+            }
+          ],
+          "revenue": 1352.6,
+          "grossProfit": 245.71,
+          "grossMargin": 0.18165754842525508,
+          "operatingExpenses": 129.84959999999998,
+          "otherPretax": 24.0,
+          "pretaxProfit": 139.86040000000003,
+          "taxRate": 0.18,
+          "minorityInterest": 9.0,
+          "netIncome": 105.68552800000003,
+          "ocf": 132.10691000000003,
+          "capex": 125.0,
+          "freeCashFlow": 7.106910000000028,
+          "dividends": 23.250816160000007,
+          "endingEquity": 686.832164890637,
+          "endingAssets": 1645.6033085207998,
+          "roe": 0.16369749660560634,
+          "roa": 0.06691804991173399,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 85.37602400000003,
+          "lowParameter": 15,
+          "highParameter": 21,
+          "valueLow": 1280.6403600000003,
+          "valueHigh": 1792.8965040000007,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 604.397453050637,
+          "lowParameter": 1.5189728100428583,
+          "highParameter": 1.756100705384763,
+          "valueLow": 918.0632976430726,
+          "valueHigh": 1061.3827936349778,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约15.67%；股权成本10.0%—11.0%，长期增长2.0%—2.5%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 85.37602400000003,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 1175.32,
+          "valueHigh": 1175.32,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 13.766394181111076,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 56,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:300014.SZ:2025A",
+        "company_filing:300014.SZ:latest_2026",
+        "structured_actual:300014.SZ:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "亿纬锂能2026年第一季度报告",
+            "localPath": "papers/锂电池/亿纬锂能/2026-04-25_亿纬锂能_2026年第一季度报告.pdf",
+            "sha256": "sha256:c4b7137c27ff412695559d1f96f4f52e1b244b1d93e5a5c9e0be554a31d8cc41"
+          },
+          {
+            "period": "2025A",
+            "title": "亿纬锂能2025年年度报告",
+            "localPath": "papers/锂电池/亿纬锂能/2026-03-28_亿纬锂能_2025年年度报告.pdf",
+            "sha256": "sha256:3bee0ca9a6232c60c53f195d078446a45fd4941bd997258b474cebe835eea3b8"
+          }
+        ]
+      },
+      "inputHash": "sha256:1aad9c4edce876eb62f6ba67e1b254f25d020b8f8f6a2cc786ecab364572c05e",
+      "outputHash": "sha256:fbae9d9b92ac5e4e3557b7fd01425036e792880911e594cea3b3aee178312beb",
+      "policyProfile": {
+        "company": "亿纬锂能",
+        "companyId": 664,
+        "ticker": "300014.SZ",
+        "reportedOverseasRevenuePct": 23.56,
+        "reportedDomesticRevenuePct": 76.44,
+        "revenueScope": "2025年集团分地区收入",
+        "sourceRef": "亿纬锂能2025年报，第20页",
+        "exposure": "马来西亚基地已投产并继续扩储能，匈牙利大圆柱项目邻近宝马工厂，北美以客户合作/服务和储能市场为主。东南亚本地制造可缓冲中国出口政策，但美国最终市场关税和PFE仍可能沿客户订单传导。",
+        "politicalRisk": "中高：海外收入可观，马来西亚提供缓冲，匈牙利爬坡推高资本需求。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "瑞浦兰钧",
+      "companyId": 665,
+      "ticker": "0666.HK",
+      "modelType": "储能＋动力双轮驱动",
+      "marketCapRmb100m": 199.13671417634154,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2022,
+          "revenue": 146.47778,
+          "netIncome": -3.54121,
+          "ocf": -22.30473,
+          "capex": 39.83382,
+          "sourceRef": "yfinance:annual:0666.HK:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 137.48914,
+          "netIncome": -14.71802,
+          "ocf": 10.74606,
+          "capex": 56.92422,
+          "sourceRef": "yfinance:annual:0666.HK:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 177.95914,
+          "netIncome": -11.63089,
+          "ocf": 11.56914,
+          "capex": 39.71616,
+          "sourceRef": "yfinance:annual:0666.HK:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 243.33984,
+          "netIncome": 6.22992,
+          "ocf": 31.3585,
+          "capex": 30.5398,
+          "sourceRef": "yfinance:annual:0666.HK:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "动力电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 35,
+              "2027": 44,
+              "2028": 54
+            },
+            "asp": {
+              "2026": 0.55,
+              "2027": 0.52,
+              "2028": 0.49
+            },
+            "grossMargin": {
+              "2026": 0.115,
+              "2027": 0.125,
+              "2028": 0.135
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "2026年上半年盈利预告已经验证规模效应，但仍保留价格和客户集中折价。"
+          },
+          {
+            "name": "储能电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 25,
+              "2027": 36,
+              "2028": 48
+            },
+            "asp": {
+              "2026": 0.5,
+              "2027": 0.47,
+              "2028": 0.45
+            },
+            "grossMargin": {
+              "2026": 0.135,
+              "2027": 0.145,
+              "2028": 0.155
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "储能按海外与大储订单扩张建模。"
+          },
+          {
+            "name": "其他",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 5,
+              "2027": 6,
+              "2028": 7
+            },
+            "grossMargin": {
+              "2026": 0.18,
+              "2027": 0.18,
+              "2028": 0.18
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "集团对账项。"
+          }
+        ],
+        "opexRatio": [
+          0.058,
+          0.056,
+          0.054
+        ],
+        "otherPretax": [
+          1,
+          1,
+          1
+        ],
+        "taxRate": [
+          0.18,
+          0.18,
+          0.18
+        ],
+        "minority": [
+          4,
+          5,
+          6
+        ],
+        "cashConversion": [
+          1.25,
+          1.2,
+          1.18
+        ],
+        "capex": [
+          38,
+          42,
+          45
+        ],
+        "payoutRatio": [
+          0.08,
+          0.1,
+          0.12
+        ],
+        "openingEquity": 117.33739889106937,
+        "openingAssets": 464.72198
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 192.5,
+              "grossMargin": 0.115,
+              "grossProfit": 22.1375,
+              "volume": 35,
+              "asp": 0.55,
+              "note": "2026年上半年盈利预告已经验证规模效应，但仍保留价格和客户集中折价。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 125.0,
+              "grossMargin": 0.135,
+              "grossProfit": 16.875,
+              "volume": 25,
+              "asp": 0.5,
+              "note": "储能按海外与大储订单扩张建模。"
+            },
+            {
+              "name": "其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 5.0,
+              "grossMargin": 0.18,
+              "grossProfit": 0.8999999999999999,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 322.5,
+          "grossProfit": 39.9125,
+          "grossMargin": 0.12375968992248063,
+          "operatingExpenses": 18.705000000000002,
+          "otherPretax": 1.0,
+          "pretaxProfit": 22.2075,
+          "taxRate": 0.18,
+          "minorityInterest": 4.0,
+          "netIncome": 14.210150000000002,
+          "ocf": 17.762687500000002,
+          "capex": 38.0,
+          "freeCashFlow": -20.237312499999998,
+          "dividends": 1.1368120000000002,
+          "endingEquity": 130.41073689106938,
+          "endingAssets": 507.95630812499996,
+          "roe": 0.11471448578322238,
+          "roa": 0.029218602231560947,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 228.8,
+              "grossMargin": 0.125,
+              "grossProfit": 28.6,
+              "volume": 44,
+              "asp": 0.52,
+              "note": "2026年上半年盈利预告已经验证规模效应，但仍保留价格和客户集中折价。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 169.2,
+              "grossMargin": 0.145,
+              "grossProfit": 24.533999999999995,
+              "volume": 36,
+              "asp": 0.47,
+              "note": "储能按海外与大储订单扩张建模。"
+            },
+            {
+              "name": "其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 6.0,
+              "grossMargin": 0.18,
+              "grossProfit": 1.08,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 404.0,
+          "grossProfit": 54.214,
+          "grossMargin": 0.1341930693069307,
+          "operatingExpenses": 22.624,
+          "otherPretax": 1.0,
+          "pretaxProfit": 32.59,
+          "taxRate": 0.18,
+          "minorityInterest": 5.0,
+          "netIncome": 21.723800000000004,
+          "ocf": 26.068560000000005,
+          "capex": 42.0,
+          "freeCashFlow": -15.931439999999995,
+          "dividends": 2.1723800000000004,
+          "endingEquity": 149.96215689106938,
+          "endingAssets": 555.5591681249999,
+          "roe": 0.1549636250990817,
+          "roa": 0.04085281405889651,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 264.6,
+              "grossMargin": 0.135,
+              "grossProfit": 35.721000000000004,
+              "volume": 54,
+              "asp": 0.49,
+              "note": "2026年上半年盈利预告已经验证规模效应，但仍保留价格和客户集中折价。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 216.0,
+              "grossMargin": 0.155,
+              "grossProfit": 33.48,
+              "volume": 48,
+              "asp": 0.45,
+              "note": "储能按海外与大储订单扩张建模。"
+            },
+            {
+              "name": "其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 7.0,
+              "grossMargin": 0.18,
+              "grossProfit": 1.26,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 487.6,
+          "grossProfit": 70.461,
+          "grossMargin": 0.14450574241181297,
+          "operatingExpenses": 26.3304,
+          "otherPretax": 1.0,
+          "pretaxProfit": 45.1306,
+          "taxRate": 0.18,
+          "minorityInterest": 6.0,
+          "netIncome": 31.007092000000007,
+          "ocf": 36.588368560000006,
+          "capex": 45.0,
+          "freeCashFlow": -8.411631439999994,
+          "dividends": 3.7208510400000008,
+          "endingEquity": 177.24839785106937,
+          "endingAssets": 606.0400759849999,
+          "roe": 0.1895237885858262,
+          "roa": 0.053386901131736164,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 21.723800000000004,
+          "lowParameter": 12,
+          "highParameter": 18,
+          "valueLow": 260.6856,
+          "valueHigh": 391.0284000000001,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 149.96215689106938,
+          "lowParameter": 1.5224370684245396,
+          "highParameter": 1.73227890402887,
+          "valueLow": 228.30794651186054,
+          "valueHigh": 259.7762807850671,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约17.22%；股权成本11.0%—12.0%，长期增长2.0%—2.5%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 21.723800000000004,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 199.13671417634154,
+          "valueHigh": 199.13671417634154,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 9.166753246501141,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": false,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 0,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:0666.HK:2025A",
+        "company_filing:0666.HK:latest_2026",
+        "structured_actual:0666.HK:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026H1E",
+            "title": "瑞浦兰钧2026年上半年正面盈利预告",
+            "localPath": "papers/锂电池/瑞浦兰钧/2026-07-09_瑞浦兰钧_2026年上半年正面盈利预告.pdf",
+            "sha256": "sha256:7d5a88594ff38c8ae07f34261a1d709278d58cdf7fd20d1890fd8dd4b878b579"
+          },
+          {
+            "period": "2025A",
+            "title": "瑞浦兰钧2025年年度报告",
+            "localPath": "papers/锂电池/瑞浦兰钧/2026-04-29_瑞浦兰钧_2025年年度报告.pdf",
+            "sha256": "sha256:bb36db93c73d9161ecc3adf4d60840241fdd15c37e400ea3f76c39f7580529ed"
+          }
+        ]
+      },
+      "inputHash": "sha256:375e473a4058c4d0dba0821ad2c07da75fc8dfd896c38596d2557d5c9a1f9935",
+      "outputHash": "sha256:13cf7774834fdb523939e1e5386094662b108faf3f9443f2d070e61882923906",
+      "policyProfile": {
+        "company": "瑞浦兰钧",
+        "companyId": 665,
+        "ticker": "0666.HK",
+        "reportedOverseasRevenuePct": 5.87,
+        "reportedDomesticRevenuePct": 94.13,
+        "revenueScope": "2025年按直接签约客户所在地划分的集团收入",
+        "sourceRef": "瑞浦兰钧2025年报，第127页",
+        "exposure": "印尼一期规划8GWh并在2025年爬坡，用于降低贸易壁垒；年报同时披露关税不确定性曾导致海外客户暂停电池部件订单。当前海外收入占比不高，但订单波动已证明贸易政策具有实际经营传导。",
+        "politicalRisk": "中高：存量地域收入低，但储能出口扩张和较小资产负债表放大波动。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "欣旺达",
+      "companyId": 666,
+      "ticker": "300207.SZ",
+      "modelType": "消费电子＋动力＋储能",
+      "marketCapRmb100m": 332.17,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 373.5872351207,
+          "netIncome": 9.1565408418,
+          "ocf": 16.341682081800002,
+          "capex": 38.6021315535,
+          "grossMarginPct": 14.6872,
+          "netMarginPct": 2.2886,
+          "roePct": 9.2262,
+          "roaPct": 3.9611,
+          "sourceRef": "wind:annual:300207.SZ:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 521.6226931389,
+          "netIncome": 10.637536726,
+          "ocf": 5.587750939,
+          "capex": 90.93619076709999,
+          "grossMarginPct": 13.8401,
+          "netMarginPct": 1.4536,
+          "roePct": 6.4302,
+          "roaPct": 1.51,
+          "sourceRef": "wind:annual:300207.SZ:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 478.62226994239995,
+          "netIncome": 10.7619834324,
+          "ocf": 36.181981330999996,
+          "capex": 58.960830312700004,
+          "grossMarginPct": 14.5959,
+          "netMarginPct": 0.6910000000000001,
+          "roePct": 4.9857,
+          "roaPct": 0.6232,
+          "sourceRef": "wind:annual:300207.SZ:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 560.2063411780999,
+          "netIncome": 14.6824056281,
+          "ocf": 32.9035681385,
+          "capex": 61.930977576000004,
+          "grossMarginPct": 15.1759,
+          "netMarginPct": 0.9286000000000001,
+          "roePct": 6.2687,
+          "roaPct": 1.2612,
+          "sourceRef": "wind:annual:300207.SZ:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 632.4625207273,
+          "netIncome": 10.5723451268,
+          "ocf": 36.3197316638,
+          "capex": 84.1059948695,
+          "grossMarginPct": 13.9407,
+          "netMarginPct": -1.0415,
+          "roePct": 4.3872,
+          "roaPct": -0.021,
+          "sourceRef": "wind:annual:300207.SZ:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "消费类电池与结构件",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 400,
+              "2027": 425,
+              "2028": 450
+            },
+            "grossMargin": {
+              "2026": 0.145,
+              "2027": 0.145,
+              "2028": 0.145
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "保留公司基本盘，不能把集团整体当成纯动力电池公司。"
+          },
+          {
+            "name": "动力电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 35,
+              "2027": 48,
+              "2028": 62
+            },
+            "asp": {
+              "2026": 0.6,
+              "2027": 0.57,
+              "2028": 0.54
+            },
+            "grossMargin": {
+              "2026": 0.105,
+              "2027": 0.12,
+              "2028": 0.135
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "以2026年一季度动储出货和客户爬坡约束，盈利修复慢于收入。"
+          },
+          {
+            "name": "储能电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 12,
+              "2027": 19,
+              "2028": 28
+            },
+            "asp": {
+              "2026": 0.54,
+              "2027": 0.51,
+              "2028": 0.48
+            },
+            "grossMargin": {
+              "2026": 0.12,
+              "2027": 0.13,
+              "2028": 0.14
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "储能单独建模。"
+          },
+          {
+            "name": "其他",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 60,
+              "2027": 65,
+              "2028": 70
+            },
+            "grossMargin": {
+              "2026": 0.16,
+              "2027": 0.16,
+              "2028": 0.16
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "集团对账项。"
+          }
+        ],
+        "opexRatio": [
+          0.107,
+          0.104,
+          0.101
+        ],
+        "otherPretax": [
+          13,
+          12,
+          11
+        ],
+        "taxRate": [
+          0.18,
+          0.18,
+          0.18
+        ],
+        "minority": [
+          4,
+          5,
+          6
+        ],
+        "cashConversion": [
+          1.3,
+          1.25,
+          1.2
+        ],
+        "capex": [
+          90,
+          88,
+          85
+        ],
+        "payoutRatio": [
+          0.18,
+          0.2,
+          0.22
+        ],
+        "openingEquity": 244.746403217741,
+        "openingAssets": 1080.7222501649
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "消费类电池与结构件",
+              "kind": "revenue_rmb_100m",
+              "revenue": 400.0,
+              "grossMargin": 0.145,
+              "grossProfit": 57.99999999999999,
+              "volume": null,
+              "asp": null,
+              "note": "保留公司基本盘，不能把集团整体当成纯动力电池公司。"
+            },
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 210.0,
+              "grossMargin": 0.105,
+              "grossProfit": 22.05,
+              "volume": 35,
+              "asp": 0.6,
+              "note": "以2026年一季度动储出货和客户爬坡约束，盈利修复慢于收入。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 64.80000000000001,
+              "grossMargin": 0.12,
+              "grossProfit": 7.776000000000001,
+              "volume": 12,
+              "asp": 0.54,
+              "note": "储能单独建模。"
+            },
+            {
+              "name": "其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 60.0,
+              "grossMargin": 0.16,
+              "grossProfit": 9.6,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 734.8,
+          "grossProfit": 97.42599999999999,
+          "grossMargin": 0.13258845944474687,
+          "operatingExpenses": 78.6236,
+          "otherPretax": 13.0,
+          "pretaxProfit": 31.80239999999999,
+          "taxRate": 0.18,
+          "minorityInterest": 4.0,
+          "netIncome": 22.077967999999995,
+          "ocf": 28.701358399999993,
+          "capex": 90.0,
+          "freeCashFlow": -61.29864160000001,
+          "dividends": 3.974034239999999,
+          "endingEquity": 262.850336977741,
+          "endingAssets": 1185.5909105649002,
+          "roe": 0.08699018828015911,
+          "roa": 0.019483598632847748,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "消费类电池与结构件",
+              "kind": "revenue_rmb_100m",
+              "revenue": 425.0,
+              "grossMargin": 0.145,
+              "grossProfit": 61.62499999999999,
+              "volume": null,
+              "asp": null,
+              "note": "保留公司基本盘，不能把集团整体当成纯动力电池公司。"
+            },
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 273.6,
+              "grossMargin": 0.12,
+              "grossProfit": 32.832,
+              "volume": 48,
+              "asp": 0.57,
+              "note": "以2026年一季度动储出货和客户爬坡约束，盈利修复慢于收入。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 96.89999999999999,
+              "grossMargin": 0.13,
+              "grossProfit": 12.597,
+              "volume": 19,
+              "asp": 0.51,
+              "note": "储能单独建模。"
+            },
+            {
+              "name": "其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 65.0,
+              "grossMargin": 0.16,
+              "grossProfit": 10.4,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 860.5,
+          "grossProfit": 117.454,
+          "grossMargin": 0.1364950610110401,
+          "operatingExpenses": 89.49199999999999,
+          "otherPretax": 12.0,
+          "pretaxProfit": 39.962,
+          "taxRate": 0.18,
+          "minorityInterest": 5.0,
+          "netIncome": 27.768840000000004,
+          "ocf": 34.71105000000001,
+          "capex": 88.0,
+          "freeCashFlow": -53.28894999999999,
+          "dividends": 5.553768000000002,
+          "endingEquity": 285.065408977741,
+          "endingAssets": 1290.7281480649003,
+          "roe": 0.10136171557389853,
+          "roa": 0.022427513856284,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "消费类电池与结构件",
+              "kind": "revenue_rmb_100m",
+              "revenue": 450.0,
+              "grossMargin": 0.145,
+              "grossProfit": 65.25,
+              "volume": null,
+              "asp": null,
+              "note": "保留公司基本盘，不能把集团整体当成纯动力电池公司。"
+            },
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 334.80000000000007,
+              "grossMargin": 0.135,
+              "grossProfit": 45.198000000000015,
+              "volume": 62,
+              "asp": 0.54,
+              "note": "以2026年一季度动储出货和客户爬坡约束，盈利修复慢于收入。"
+            },
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 134.4,
+              "grossMargin": 0.14,
+              "grossProfit": 18.816000000000003,
+              "volume": 28,
+              "asp": 0.48,
+              "note": "储能单独建模。"
+            },
+            {
+              "name": "其他",
+              "kind": "revenue_rmb_100m",
+              "revenue": 70.0,
+              "grossMargin": 0.16,
+              "grossProfit": 11.200000000000001,
+              "volume": null,
+              "asp": null,
+              "note": "集团对账项。"
+            }
+          ],
+          "revenue": 989.2,
+          "grossProfit": 140.464,
+          "grossMargin": 0.14199757379700767,
+          "operatingExpenses": 99.90920000000001,
+          "otherPretax": 11.0,
+          "pretaxProfit": 51.554799999999986,
+          "taxRate": 0.18,
+          "minorityInterest": 6.0,
+          "netIncome": 36.27493599999999,
+          "ocf": 43.529923199999985,
+          "capex": 85.0,
+          "freeCashFlow": -41.470076800000015,
+          "dividends": 7.980485919999998,
+          "endingEquity": 313.359859057741,
+          "endingAssets": 1394.5216672649003,
+          "roe": 0.12123464010496683,
+          "roa": 0.027017922722057594,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 27.768840000000004,
+          "lowParameter": 12,
+          "highParameter": 18,
+          "valueLow": 333.22608,
+          "valueHigh": 499.8391200000001,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 285.065408977741,
+          "lowParameter": 0.961836884942605,
+          "highParameter": 1.07680704682235,
+          "valueLow": 274.18642497604014,
+          "valueHigh": 306.96044119252673,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约11.13%；股权成本10.5%—11.5%，长期增长1.8%—2.3%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 27.768840000000004,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 332.17,
+          "valueHigh": 332.17,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 11.961968883107827,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 22,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:300207.SZ:2025A",
+        "company_filing:300207.SZ:latest_2026",
+        "structured_actual:300207.SZ:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "欣旺达2026年第一季度报告",
+            "localPath": "papers/锂电池/欣旺达/2026-04-24_欣旺达_2026年第一季度报告.pdf",
+            "sha256": "sha256:bccff5c964cf834a1856950e190e53062a0f23e3391e4ce618eca93d4599a4e9"
+          },
+          {
+            "period": "2025A",
+            "title": "欣旺达2025年年度报告",
+            "localPath": "papers/锂电池/欣旺达/2026-04-24_欣旺达_2025年年度报告.pdf",
+            "sha256": "sha256:1bf90eb16fc3b0ba81928df909c06ae13d97d27da23216f37f4a7fc1198bec04"
+          }
+        ]
+      },
+      "inputHash": "sha256:67de3f207d2f2a81a0ec359c65ed4d682702ad51b71491746bb21f4c203b60ed",
+      "outputHash": "sha256:45016c4694c76792d9ad0a889701a70069dc113492d13c2b62662939440d679a",
+      "policyProfile": {
+        "company": "欣旺达",
+        "companyId": 666,
+        "ticker": "300207.SZ",
+        "reportedOverseasRevenuePct": 38.64,
+        "reportedDomesticRevenuePct": 61.36,
+        "revenueScope": "2025年集团收入，境外收入主要为消费类电池",
+        "sourceRef": "欣旺达2025年报，第14—15页",
+        "exposure": "越南消费电芯基地推进，泰国动力电池一期投产；集团海外占比较高，但不能把消费电池出口占比直接套到动力/储能模型。政策冲击需按消费、动力、储能和地区重新拆分。",
+        "politicalRisk": "中高：集团海外高暴露，但电池业务结构错配使粗略比例尤其容易误判。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "鹏辉能源",
+      "companyId": 661,
+      "ticker": "300438.SZ",
+      "modelType": "储能为主＋消费与小动力",
+      "marketCapRmb100m": 308.3,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 56.9289358413,
+          "netIncome": 1.824317184,
+          "ocf": 2.0493584215,
+          "capex": 6.319457538099999,
+          "grossMarginPct": 16.2128,
+          "netMarginPct": 3.2092,
+          "roePct": 6.9937000000000005,
+          "roaPct": 2.9925,
+          "sourceRef": "wind:annual:300438.SZ:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 90.6670400458,
+          "netIncome": 6.2838218657,
+          "ocf": 7.2050857684,
+          "capex": 12.0549007261,
+          "grossMarginPct": 18.6886,
+          "netMarginPct": 7.1592,
+          "roePct": 18.7068,
+          "roaPct": 7.0143,
+          "sourceRef": "wind:annual:300438.SZ:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 69.3247547975,
+          "netIncome": 0.43102038119999997,
+          "ocf": 4.1515674069,
+          "capex": 14.6443717576,
+          "grossMarginPct": 16.5119,
+          "netMarginPct": 0.9583,
+          "roePct": 0.9212,
+          "roaPct": 0.5684,
+          "sourceRef": "wind:annual:300438.SZ:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 79.6050726213,
+          "netIncome": -2.5245572832,
+          "ocf": -2.4442346618,
+          "capex": 5.4265576965,
+          "grossMarginPct": 12.795,
+          "netMarginPct": -4.064,
+          "roePct": -4.8134,
+          "roaPct": -1.6268,
+          "sourceRef": "wind:annual:300438.SZ:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 119.43958058129999,
+          "netIncome": 2.0602252225,
+          "ocf": 9.301195218,
+          "capex": 5.4582601213,
+          "grossMarginPct": 14.5971,
+          "netMarginPct": 1.6677,
+          "roePct": 3.9434,
+          "roaPct": 1.4464000000000001,
+          "sourceRef": "wind:annual:300438.SZ:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "储能电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 32,
+              "2027": 47,
+              "2028": 63
+            },
+            "asp": {
+              "2026": 0.55,
+              "2027": 0.52,
+              "2028": 0.49
+            },
+            "grossMargin": {
+              "2026": 0.185,
+              "2027": 0.19,
+              "2028": 0.195
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "以2026年一季度收入、满产状态和扩产节奏为约束。"
+          },
+          {
+            "name": "消费与小动力",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 58,
+              "2027": 64,
+              "2028": 70
+            },
+            "grossMargin": {
+              "2026": 0.18,
+              "2027": 0.18,
+              "2028": 0.18
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "保留非储能业务，不将所有增长归因于大储。"
+          }
+        ],
+        "opexRatio": [
+          0.08,
+          0.078,
+          0.076
+        ],
+        "otherPretax": [
+          1,
+          1,
+          1
+        ],
+        "taxRate": [
+          0.18,
+          0.18,
+          0.18
+        ],
+        "minority": [
+          1,
+          1,
+          1
+        ],
+        "cashConversion": [
+          1.2,
+          1.18,
+          1.15
+        ],
+        "capex": [
+          28,
+          32,
+          35
+        ],
+        "payoutRatio": [
+          0.15,
+          0.18,
+          0.2
+        ],
+        "openingEquity": 56.666703909477754,
+        "openingAssets": 213.8623922516
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 176.0,
+              "grossMargin": 0.185,
+              "grossProfit": 32.56,
+              "volume": 32,
+              "asp": 0.55,
+              "note": "以2026年一季度收入、满产状态和扩产节奏为约束。"
+            },
+            {
+              "name": "消费与小动力",
+              "kind": "revenue_rmb_100m",
+              "revenue": 58.0,
+              "grossMargin": 0.18,
+              "grossProfit": 10.44,
+              "volume": null,
+              "asp": null,
+              "note": "保留非储能业务，不将所有增长归因于大储。"
+            }
+          ],
+          "revenue": 234.0,
+          "grossProfit": 43.0,
+          "grossMargin": 0.18376068376068377,
+          "operatingExpenses": 18.72,
+          "otherPretax": 1.0,
+          "pretaxProfit": 25.28,
+          "taxRate": 0.18,
+          "minorityInterest": 1.0,
+          "netIncome": 19.7296,
+          "ocf": 23.675520000000002,
+          "capex": 28.0,
+          "freeCashFlow": -4.324479999999998,
+          "dividends": 2.9594400000000003,
+          "endingEquity": 73.43686390947775,
+          "endingAssets": 242.9635122516,
+          "roe": 0.30329068342621557,
+          "roa": 0.08637688802457916,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 244.4,
+              "grossMargin": 0.19,
+              "grossProfit": 46.436,
+              "volume": 47,
+              "asp": 0.52,
+              "note": "以2026年一季度收入、满产状态和扩产节奏为约束。"
+            },
+            {
+              "name": "消费与小动力",
+              "kind": "revenue_rmb_100m",
+              "revenue": 64.0,
+              "grossMargin": 0.18,
+              "grossProfit": 11.52,
+              "volume": null,
+              "asp": null,
+              "note": "保留非储能业务，不将所有增长归因于大储。"
+            }
+          ],
+          "revenue": 308.4,
+          "grossProfit": 57.956,
+          "grossMargin": 0.18792477302204932,
+          "operatingExpenses": 24.0552,
+          "otherPretax": 1.0,
+          "pretaxProfit": 34.900800000000004,
+          "taxRate": 0.18,
+          "minorityInterest": 1.0,
+          "netIncome": 27.618656000000005,
+          "ocf": 32.59001408,
+          "capex": 32.0,
+          "freeCashFlow": 0.5900140800000031,
+          "dividends": 4.971358080000001,
+          "endingEquity": 96.08416182947775,
+          "endingAssets": 276.06800873160006,
+          "roe": 0.3258434271454896,
+          "roa": 0.10642381005177512,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "储能电池",
+              "kind": "battery_gwh",
+              "revenue": 308.7,
+              "grossMargin": 0.195,
+              "grossProfit": 60.1965,
+              "volume": 63,
+              "asp": 0.49,
+              "note": "以2026年一季度收入、满产状态和扩产节奏为约束。"
+            },
+            {
+              "name": "消费与小动力",
+              "kind": "revenue_rmb_100m",
+              "revenue": 70.0,
+              "grossMargin": 0.18,
+              "grossProfit": 12.6,
+              "volume": null,
+              "asp": null,
+              "note": "保留非储能业务，不将所有增长归因于大储。"
+            }
+          ],
+          "revenue": 378.7,
+          "grossProfit": 72.7965,
+          "grossMargin": 0.19222735674676525,
+          "operatingExpenses": 28.7812,
+          "otherPretax": 1.0,
+          "pretaxProfit": 45.015299999999996,
+          "taxRate": 0.18,
+          "minorityInterest": 1.0,
+          "netIncome": 35.912546,
+          "ocf": 41.2994279,
+          "capex": 35.0,
+          "freeCashFlow": 6.299427899999998,
+          "dividends": 7.1825092,
+          "endingEquity": 124.81419862947774,
+          "endingAssets": 312.10415175660006,
+          "roe": 0.32514995516838896,
+          "roa": 0.1221157627392345,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 27.618656000000005,
+          "lowParameter": 14,
+          "highParameter": 20,
+          "valueLow": 386.66118400000005,
+          "valueHigh": 552.3731200000001,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 96.08416182947775,
+          "lowParameter": 3.215754643757255,
+          "highParameter": 3.756208639461741,
+          "valueLow": 308.9830895946667,
+          "valueHigh": 360.91215877932433,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约32.55%；股权成本10.5%—11.5%，长期增长2.0%—2.5%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 27.618656000000005,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 308.3,
+          "valueHigh": 308.3,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 11.16274448691493,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 20,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:300438.SZ:2025A",
+        "company_filing:300438.SZ:latest_2026",
+        "structured_actual:300438.SZ:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "鹏辉能源2026年第一季度报告",
+            "localPath": "papers/锂电池/鹏辉能源/2026-04-29_鹏辉能源_2026年第一季度报告.pdf",
+            "sha256": "sha256:7a9960644d356a4bb370e207df3bb0a7e7301a2eb162d0a85cb74caf5acf4a8a"
+          },
+          {
+            "period": "2025A",
+            "title": "鹏辉能源2025年年度报告",
+            "localPath": "papers/锂电池/鹏辉能源/2026-04-29_鹏辉能源_2025年年度报告.pdf",
+            "sha256": "sha256:7e0b0011799bdb9ef6f6c391848ec78bcbf1107a8672cac53bd27fc958fb98a3"
+          }
+        ]
+      },
+      "inputHash": "sha256:0f60f81d66c1229afe2ae75be8da35c032f1a61a194b9147c3149c1998576fda",
+      "outputHash": "sha256:64fa075a2e2afa1112c93c7a4e6c2599144c44e7961b39ea3bf14d71ee5483a1",
+      "policyProfile": {
+        "company": "鹏辉能源",
+        "companyId": 661,
+        "ticker": "300438.SZ",
+        "reportedOverseasRevenuePct": 15.01,
+        "reportedDomesticRevenuePct": 84.99,
+        "revenueScope": "2025年集团分地区收入",
+        "sourceRef": "鹏辉能源2025年报，第14页",
+        "exposure": "储能产品可销往美国、欧洲等市场，但公司未单独披露美国直供收入。相较龙头，出口退税和美国储能关税对利润率的边际敏感度更高，而海外本地制造缓冲仍有限。",
+        "politicalRisk": "高：储能出口增长快、规模和议价能力弱于宁德时代。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    },
+    {
+      "company": "孚能科技",
+      "companyId": 667,
+      "ticker": "688567.SH",
+      "modelType": "软包动力电池扭亏模型",
+      "marketCapRmb100m": 116.22,
+      "marketDate": "2026-07-28",
+      "history": [
+        {
+          "year": 2021,
+          "revenue": 35.0007622191,
+          "netIncome": -9.5272029243,
+          "ocf": 2.3324184274,
+          "capex": 23.3125910968,
+          "grossMarginPct": -3.3469,
+          "netMarginPct": -27.2208,
+          "roePct": -9.8469,
+          "roaPct": -6.0222,
+          "sourceRef": "wind:annual:688567.SH:2021"
+        },
+        {
+          "year": 2022,
+          "revenue": 115.8809673796,
+          "netIncome": -9.2698881079,
+          "ocf": -17.470921912999998,
+          "capex": 18.669530427,
+          "grossMarginPct": 7.5115,
+          "netMarginPct": -7.9995,
+          "roePct": -8.7079,
+          "roaPct": -3.859,
+          "sourceRef": "wind:annual:688567.SH:2022"
+        },
+        {
+          "year": 2023,
+          "revenue": 164.364191185,
+          "netIncome": -18.6774732424,
+          "ocf": 6.6403060112,
+          "capex": 10.7334903286,
+          "grossMarginPct": 6.8444,
+          "netMarginPct": -11.3635,
+          "roePct": -16.6754,
+          "roaPct": -6.28,
+          "sourceRef": "wind:annual:688567.SH:2023"
+        },
+        {
+          "year": 2024,
+          "revenue": 116.8046863674,
+          "netIncome": -3.3205938886,
+          "ocf": 9.0877156261,
+          "capex": 15.5762074433,
+          "grossMarginPct": 11.3202,
+          "netMarginPct": -2.8429,
+          "roePct": -3.2721,
+          "roaPct": -0.8706,
+          "sourceRef": "wind:annual:688567.SH:2024"
+        },
+        {
+          "year": 2025,
+          "revenue": 91.1679600376,
+          "netIncome": -7.4616673598,
+          "ocf": 17.2274285752,
+          "capex": 4.79189623,
+          "grossMarginPct": 9.1758,
+          "netMarginPct": -8.1845,
+          "roePct": -7.7821,
+          "roaPct": -1.8416000000000001,
+          "sourceRef": "wind:annual:688567.SH:2025"
+        }
+      ],
+      "inputs": {
+        "segments": [
+          {
+            "name": "动力电池",
+            "kind": "battery_gwh",
+            "volume": {
+              "2026": 13,
+              "2027": 18,
+              "2028": 25
+            },
+            "asp": {
+              "2026": 0.7,
+              "2027": 0.68,
+              "2028": 0.65
+            },
+            "grossMargin": {
+              "2026": 0.12,
+              "2027": 0.145,
+              "2028": 0.165
+            },
+            "formula": "分部收入（亿元）＝出货量（GWh）×不含税均价（元/Wh）×10",
+            "note": "2026年以一季度1.667亿元收入、13.82%毛利率和产能爬坡反推；旧卖方预测不作当前输入。"
+          },
+          {
+            "name": "其他与研发服务",
+            "kind": "revenue_rmb_100m",
+            "revenue": {
+              "2026": 4,
+              "2027": 5,
+              "2028": 6
+            },
+            "grossMargin": {
+              "2026": 0.25,
+              "2027": 0.25,
+              "2028": 0.25
+            },
+            "formula": "分部收入直接采用亿元人民币输入",
+            "note": "仅作集团对账，不给固态电池未兑现收入。"
+          }
+        ],
+        "opexRatio": [
+          0.14,
+          0.12,
+          0.11
+        ],
+        "otherPretax": [
+          -2,
+          -1,
+          0
+        ],
+        "taxRate": [
+          0.0,
+          0.15,
+          0.15
+        ],
+        "minority": [
+          0,
+          0,
+          0
+        ],
+        "cashConversion": [
+          0.0,
+          1.1,
+          1.15
+        ],
+        "capex": [
+          12,
+          15,
+          18
+        ],
+        "payoutRatio": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "openingEquity": 91.29045716163905,
+        "openingAssets": 228.024585211
+      },
+      "forecast": [
+        {
+          "year": 2026,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 91.0,
+              "grossMargin": 0.12,
+              "grossProfit": 10.92,
+              "volume": 13,
+              "asp": 0.7,
+              "note": "2026年以一季度1.667亿元收入、13.82%毛利率和产能爬坡反推；旧卖方预测不作当前输入。"
+            },
+            {
+              "name": "其他与研发服务",
+              "kind": "revenue_rmb_100m",
+              "revenue": 4.0,
+              "grossMargin": 0.25,
+              "grossProfit": 1.0,
+              "volume": null,
+              "asp": null,
+              "note": "仅作集团对账，不给固态电池未兑现收入。"
+            }
+          ],
+          "revenue": 95.0,
+          "grossProfit": 11.92,
+          "grossMargin": 0.12547368421052632,
+          "operatingExpenses": 13.3,
+          "otherPretax": -2.0,
+          "pretaxProfit": -3.380000000000001,
+          "taxRate": 0.0,
+          "minorityInterest": 0.0,
+          "netIncome": -3.380000000000001,
+          "ocf": 0.0,
+          "capex": 12.0,
+          "freeCashFlow": -12.0,
+          "dividends": 0.0,
+          "endingEquity": 87.91045716163906,
+          "endingAssets": 242.87458521099998,
+          "roe": -0.0377230218134098,
+          "roa": -0.014355514778125378,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2027,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 122.4,
+              "grossMargin": 0.145,
+              "grossProfit": 17.748,
+              "volume": 18,
+              "asp": 0.68,
+              "note": "2026年以一季度1.667亿元收入、13.82%毛利率和产能爬坡反推；旧卖方预测不作当前输入。"
+            },
+            {
+              "name": "其他与研发服务",
+              "kind": "revenue_rmb_100m",
+              "revenue": 5.0,
+              "grossMargin": 0.25,
+              "grossProfit": 1.25,
+              "volume": null,
+              "asp": null,
+              "note": "仅作集团对账，不给固态电池未兑现收入。"
+            }
+          ],
+          "revenue": 127.4,
+          "grossProfit": 18.998,
+          "grossMargin": 0.14912087912087912,
+          "operatingExpenses": 15.288,
+          "otherPretax": -1.0,
+          "pretaxProfit": 2.710000000000001,
+          "taxRate": 0.15,
+          "minorityInterest": 0.0,
+          "netIncome": 2.3035000000000005,
+          "ocf": 2.5338500000000006,
+          "capex": 15.0,
+          "freeCashFlow": -12.466149999999999,
+          "dividends": 0.0,
+          "endingEquity": 90.21395716163906,
+          "endingAssets": 261.06312271099995,
+          "roe": 0.025863944690022973,
+          "roa": 0.009142002925316074,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        },
+        {
+          "year": 2028,
+          "segments": [
+            {
+              "name": "动力电池",
+              "kind": "battery_gwh",
+              "revenue": 162.5,
+              "grossMargin": 0.165,
+              "grossProfit": 26.8125,
+              "volume": 25,
+              "asp": 0.65,
+              "note": "2026年以一季度1.667亿元收入、13.82%毛利率和产能爬坡反推；旧卖方预测不作当前输入。"
+            },
+            {
+              "name": "其他与研发服务",
+              "kind": "revenue_rmb_100m",
+              "revenue": 6.0,
+              "grossMargin": 0.25,
+              "grossProfit": 1.5,
+              "volume": null,
+              "asp": null,
+              "note": "仅作集团对账，不给固态电池未兑现收入。"
+            }
+          ],
+          "revenue": 168.5,
+          "grossProfit": 28.3125,
+          "grossMargin": 0.168026706231454,
+          "operatingExpenses": 18.535,
+          "otherPretax": 0.0,
+          "pretaxProfit": 9.7775,
+          "taxRate": 0.15,
+          "minorityInterest": 0.0,
+          "netIncome": 8.310875,
+          "ocf": 9.557506249999998,
+          "capex": 18.0,
+          "freeCashFlow": -8.442493750000002,
+          "dividends": 0.0,
+          "endingEquity": 98.52483216163905,
+          "endingAssets": 281.72874614849997,
+          "roe": 0.08806748236330852,
+          "roa": 0.030622695278993743,
+          "formula": "收入＝各分部收入之和；归母净利润＝[毛利润－经营费用＋税前其他收益]×（1－税率）－少数股东损益；自由现金流＝经营现金流－资本开支"
+        }
+      ],
+      "valuationMethods": [
+        {
+          "method": "正常化市盈率",
+          "role": "核心",
+          "basisYear": 2027,
+          "basisValue": 2.3035000000000005,
+          "lowParameter": 12,
+          "highParameter": 18,
+          "valueLow": 27.642000000000007,
+          "valueHigh": 41.46300000000001,
+          "formula": "股权价值＝正常化归母净利润×目标市盈率",
+          "parameterBasis": "历史估值、盈利质量、周期位置与真正可比公司交叉约束。"
+        },
+        {
+          "method": "PB—ROE",
+          "role": "资产回报诊断",
+          "basisYear": 2027,
+          "basisValue": 90.21395716163906,
+          "lowParameter": 0.45,
+          "highParameter": 0.55,
+          "valueLow": 40.596280722737575,
+          "valueHigh": 49.61767643890148,
+          "formula": "合理PB＝（可持续ROE－长期增长率）÷（股权成本－长期增长率）",
+          "parameterBasis": "FY2—FY3平均ROE约5.70%；股权成本12.0%—13.0%，长期增长1.5%—2.0%。"
+        },
+        {
+          "method": "当前市场隐含市盈率",
+          "role": "反向诊断",
+          "basisYear": 2027,
+          "basisValue": 2.3035000000000005,
+          "lowParameter": null,
+          "highParameter": null,
+          "valueLow": 116.22,
+          "valueHigh": 116.22,
+          "formula": "市场隐含市盈率＝当前市值÷独立模型FY2归母净利润",
+          "impliedMultiple": 50.453657477751236,
+          "parameterBasis": "市场快照只用于模型冻结后的反向诊断。"
+        }
+      ],
+      "workbookReference": {
+        "available": true,
+        "workbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665",
+        "selectedSeriesCount": 17,
+        "role": "历史季度业务拆分和公式缺陷审计；不把工作簿预测缓存当作当前事实。"
+      },
+      "sourceRefs": [
+        "company_filing:688567.SH:2025A",
+        "company_filing:688567.SH:latest_2026",
+        "structured_actual:688567.SH:2026-07-28",
+        "battery_quarterly_workbook_extract_v1",
+        "industry_supply_demand_20260728"
+      ],
+      "limitations": [
+        "出货量和ASP属于研究区间中值，不能解释为公司指引。",
+        "产能只有在具备投产、客户和利用率证据时才进入出货量。",
+        "不同业务的利润率分别建模；集团非电池业务保留用于财务对账。"
+      ],
+      "sourceArtifacts": {
+        "structuredFinancialSnapshot": {
+          "path": "cache/lithium_battery_research/models/battery_financial_snapshot_v1.json",
+          "sha256": "sha256:0ce77ae4d6eee5ba5e2765cba721977d49293cb893cccd38a51e1617d4b0d6e8"
+        },
+        "workbookExtract": {
+          "path": "cache/lithium_battery_research/models/battery_quarterly_workbook_extract_v1.json",
+          "sha256": "sha256:1c766003c5b8591171da9a23e6a432fbacd234766409911418fbb84a3c091a6a",
+          "sourceWorkbookSha256": "sha256:7196e544fa809ef647fbc1dc94c0378449f142b55726575419ab89af8dfec665"
+        },
+        "companyFilingManifest": {
+          "path": "cache/lithium_battery_research/sources/company_filing_manifest_v1.json",
+          "sha256": "sha256:86b393e629f64b254f958b9f97df61659e6b970c1d42cf02ce85085ba939b246"
+        },
+        "companyFilings": [
+          {
+            "period": "2026Q1",
+            "title": "孚能科技2026年第一季度报告",
+            "localPath": "papers/锂电池/孚能科技/2026-04-30_孚能科技_2026年第一季度报告.pdf",
+            "sha256": "sha256:599768950f44b3648b4b475a5c67feef552a603210c77a39f46290a210061a2f"
+          },
+          {
+            "period": "2025A",
+            "title": "孚能科技2025年年度报告",
+            "localPath": "papers/锂电池/孚能科技/2026-04-30_孚能科技_2025年年度报告.pdf",
+            "sha256": "sha256:b91a893cb6141987797d1638794f22e391600d01efbc47fbd3a520094eca2e83"
+          }
+        ]
+      },
+      "inputHash": "sha256:1be10772c573a34584dcfcb2f276178a9556f6e0c57516f4e549c2f006e0a01b",
+      "outputHash": "sha256:29207628db978184726e99419878cba1484527428c38d4d778c9861016ecd15a",
+      "policyProfile": {
+        "company": "孚能科技",
+        "companyId": 667,
+        "ticker": "688567.SH",
+        "reportedOverseasRevenuePct": 81.88,
+        "reportedDomesticRevenuePct": 18.12,
+        "revenueScope": "2025年主营电池业务分地区收入；占集团总收入约78.05%",
+        "sourceRef": "孚能科技2025年报，第28页及第197页",
+        "exposure": "土耳其Siro 6GWh已完成爬坡并服务欧洲、中东和非洲，但中国出口退税下降和美国关税已被公司明确列为2025年毛利率压力。高海外占比与尚未稳定盈利叠加，使政策成本更难由利润缓冲。",
+        "politicalRisk": "很高：海外收入占比最高、盈利脆弱，本地化缓冲与出口税负并存。"
+      },
+      "policyInputs": {
+        "domesticEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "consumptionTaxRate": [
+          0.0066666667,
+          0.0266666667,
+          0.04
+        ],
+        "taxPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "upstreamTaxDeductible": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "exportEligibleRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "exportRebateLossRate": [
+          0.0225,
+          0.09,
+          0.09
+        ],
+        "exportPassThrough": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "usDirectExportRevenueShare": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usTariffRate": [
+          0.25,
+          0.25,
+          0.25
+        ],
+        "usSupplierAbsorption": [
+          0.5,
+          0.5,
+          0.5
+        ],
+        "euComplianceCapex": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euInterestFreeLoanRmb100m": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "euAlternativeBorrowingRate": [
+          0.05,
+          0.05,
+          0.05
+        ],
+        "usLocalEligibleGwh": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xCellUsdPerKwh": [
+          35.0,
+          35.0,
+          35.0
+        ],
+        "us45xModuleUsdPerKwh": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "us45xEligibility": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "us45xUtilization": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "usdCny": 7.15
+      }
+    }
+  ],
+  "policyScenarioLedger": {
+    "schemaVersion": "lithium_battery.policy_scenarios.v1",
+    "asOfDate": "2026-07-28",
+    "policies": [
+      {
+        "policyId": "cn_battery_consumption_tax_2026",
+        "jurisdiction": "中国",
+        "status": "已公告，2026年9月1日起执行",
+        "rule": "锂原电池、锂离子蓄电池等自2026年9月1日起按2%征收消费税，自2027年9月1日起按4%征收；连续生产应税电池可按规定扣除已缴消费税。",
+        "technologyExemption": "符合国家标准并取得合格检测报告的钠离子、固态和燃料电池，2026年9月1日至2028年12月31日免征。",
+        "sourceTitle": "财政部 海关总署 税务总局公告2026年第20号",
+        "sourceUrl": "https://fgk.chinatax.gov.cn/zcfgk/c102416/c5251171/content.html",
+        "sourceType": "中国税务总局政策原文",
+        "modelFormula": "消费税现金影响＝公司收入×国内应税收入比例×全年等效税率×（1－向客户转嫁比例）×（1－上游已税投入抵扣比例）",
+        "annualEquivalentRate": {
+          "2026": 0.0066666667,
+          "2027": 0.0266666667,
+          "2028": 0.04
+        },
+        "boundary": "全年等效率按收入均匀发生近似；真实申报按应税销售额、纳税环节、实际抵扣和合同调价执行，不能直接套用集团总收入。"
+      },
+      {
+        "policyId": "cn_export_vat_rebate_2026",
+        "jurisdiction": "中国",
+        "status": "已执行",
+        "rule": "电池产品出口退税率自2026年4月1日至12月31日由9%降至6%，2027年1月1日起取消；出口消费税退免政策不变。",
+        "sourceTitle": "财政部 税务总局公告2026年第2号",
+        "sourceUrl": "https://szs.mof.gov.cn/zhengcefabu/202601/t20260109_3981637.htm",
+        "sourceType": "中国财政部政策原文",
+        "modelFormula": "退税减少现金影响＝公司收入×符合清单的出口收入比例×全年等效退税减少率×（1－向客户转嫁比例）",
+        "annualEquivalentRate": {
+          "2026": 0.0225,
+          "2027": 0.09,
+          "2028": 0.09
+        },
+        "boundary": "2026年的2.25%是将4—12月每期减少3个百分点按全年收入均匀化；若输入本身只含4—12月出口收入，应直接使用3%。"
+      },
+      {
+        "policyId": "us_clean_vehicle_credit_end_2025",
+        "jurisdiction": "美国",
+        "status": "已执行",
+        "rule": "30D新车、25E二手车和45W商用清洁车辆抵免不再适用于2025年9月30日之后取得的车辆。",
+        "sourceTitle": "IRS Clean vehicle tax credits",
+        "sourceUrl": "https://www.irs.gov/clean-vehicle-tax-credits",
+        "sourceType": "美国国税局",
+        "modelFormula": "需求影响＝美国相关电池收入×美国电动车销量情景变化；不得把原车辆抵免金额直接从电芯ASP中扣除。",
+        "boundary": "需求弹性需由车型、客户、库存和其他州级激励另行判断。"
+      },
+      {
+        "policyId": "us_section_301_battery_tariff",
+        "jurisdiction": "美国",
+        "status": "已执行",
+        "rule": "中国锂离子电动车电池自2024年起为25%关税，非电动车锂离子电池自2026年起升至25%。",
+        "sourceTitle": "USTR Section 301 statutory four-year review action",
+        "sourceUrl": "https://ustr.gov/about-us/policy-offices/press-office/press-releases/2024/may/us-trade-representative-katherine-tai-take-further-action-china-tariffs-after-releasing-statutory",
+        "sourceType": "美国贸易代表办公室",
+        "modelFormula": "关税经济影响＝公司收入×美国直接出口比例×25%×由供应商承担的比例",
+        "boundary": "关税法律支付方通常是进口商，最终经济承担由议价、转口、本地化和客户替代决定；海外总收入不能替代美国直接出口收入。"
+      },
+      {
+        "policyId": "us_45x_and_pfe",
+        "jurisdiction": "美国",
+        "status": "45X有效，但PFE限制已收紧",
+        "rule": "符合条件的美国本土电芯抵免35美元/kWh，含电芯模组10美元/kWh，不含电芯模组45美元/kWh；2030—2032年按75%/50%/25%退坡。",
+        "sourceTitle": "IRS final regulations under section 45X",
+        "sourceUrl": "https://www.irs.gov/irb/2024-51_IRB",
+        "pfeSourceTitle": "IRS Notice 2026-15",
+        "pfeSourceUrl": "https://www.irs.gov/irb/2026-11_IRB",
+        "sourceType": "美国国税局法规与实施指引",
+        "modelFormula": "45X现金抵免＝合资格美国本地产量GWh×每kWh抵免美元×美元兑人民币÷100×产能利用率×资格实现比例",
+        "boundary": "中国企业的所有权、有效控制、技术许可和材料援助可能触发PFE限制；未核实具体项目资格前，45X只能放在条件上行情景，不能进入基准利润。"
+      },
+      {
+        "policyId": "eu_battery_regulation",
+        "jurisdiction": "欧盟",
+        "status": "分阶段执行",
+        "rule": "相关电动车、轻型交通工具及2kWh以上工业电池自2027年2月18日起需要电池护照；电池尽职调查义务推迟至2027年8月18日。",
+        "sourceTitle": "EU Batteries Regulation 2023/1542",
+        "sourceUrl": "https://eur-lex.europa.eu/eli/reg/2023/1542/oj?locale=en",
+        "dueDiligenceSourceTitle": "Council stop-the-clock act",
+        "dueDiligenceSourceUrl": "https://www.consilium.europa.eu/en/press/press-releases/2025/07/18/simplification-council-adopts-law-to-stop-the-clock-on-due-diligence-rules-for-batteries/",
+        "sourceType": "欧盟法规及理事会最终立法说明",
+        "modelFormula": "合规现金影响＝系统改造、追溯、审计和认证资本开支＋持续运营费用；不得简单按收入统一扣点。",
+        "boundary": "义务承担主体与产品投放方式有关；成本可能由电芯厂、整车厂、进口商或当地合资实体分担。"
+      },
+      {
+        "policyId": "eu_battery_booster_2026",
+        "jurisdiction": "欧盟",
+        "status": "已设立，预计2026年三季度征集",
+        "rule": "Battery Booster Facility提供总额15亿欧元无息贷款，单项目最高5亿欧元；项目须在欧洲经济区、最低10GWh并面向适用EV电池技术。",
+        "sourceTitle": "European Commission Battery Booster Facility",
+        "sourceUrl": "https://climate.ec.europa.eu/eu-action/eu-funding-climate-action/innovation-fund/battery-booster-facility_en",
+        "sourceType": "欧盟委员会",
+        "modelFormula": "年度融资节约＝实际获批无息贷款×替代市场融资利率",
+        "boundary": "无息贷款改善融资成本而非制造成本；只有获批、提款和完成里程碑后才能计入现金流，不能预先计作营业收入或补贴利润。"
+      },
+      {
+        "policyId": "eu_china_bev_duties",
+        "jurisdiction": "欧盟",
+        "status": "已执行",
+        "rule": "中国生产的纯电动车反补贴税率按企业为7.8%—35.3%。",
+        "sourceTitle": "European Commission definitive countervailing duties",
+        "sourceUrl": "https://ec.europa.eu/commission/presscorner/api/files/document/print/en/ip_24_5589/IP_24_5589_EN.pdf",
+        "sourceType": "欧盟委员会",
+        "modelFormula": "间接电池影响＝受税车型欧洲销量变化×单车带电量×电池供货份额×ASP；BYD等整车电池一体化公司需先经过整车销量传导。",
+        "boundary": "欧盟整车反补贴税不是对所有中国电芯直接加征同一税率。"
+      },
+      {
+        "policyId": "cn_lithium_battery_norm_2024",
+        "jurisdiction": "中国",
+        "status": "现行行业规范",
+        "rule": "2024年版锂离子电池行业规范条件以技术、质量、安全、能耗、环保和资源综合利用约束项目，不把单纯扩大名义产能作为鼓励方向。",
+        "sourceTitle": "锂离子电池行业规范条件（2024年本）",
+        "sourceUrl": "https://www.miit.gov.cn/zwgk/zcwj/wjfb/gg/art/2024/art_dfe849c6837c4a50bf3e3c30d1697710.html",
+        "sourceType": "工业和信息化部",
+        "modelFormula": "规范条件本身不直接形成补贴收入；通过有效产能比例、合规资本开支、良率和项目退出概率进入供给模型。",
+        "boundary": "规范条件是行业管理与引导，不等于所有入列企业获得订单或利润。"
+      },
+      {
+        "policyId": "cn_storage_capacity_price_2026",
+        "jurisdiction": "中国",
+        "status": "已发布",
+        "rule": "符合条件的电网侧独立新型储能可按顶峰能力和放电时长折算容量电价，并与现货市场和可靠容量补偿衔接。",
+        "sourceTitle": "关于完善发电侧容量电价机制的通知",
+        "sourceUrl": "https://zfxxgk.ndrc.gov.cn/web/iteminfo.jsp?id=20602",
+        "sourceType": "国家发展改革委、国家能源局",
+        "modelFormula": "储能电芯需求影响＝新增合资格储能功率×配置时长÷系统效率×项目落地比例；政策不直接增加电芯厂每Wh毛利。",
+        "boundary": "容量电价改善项目收入确定性，但实际需求仍取决于各地细则、并网和融资。"
+      },
+      {
+        "policyId": "cn_ev_battery_recycling_2026",
+        "jurisdiction": "中国",
+        "status": "2026年4月1日起施行",
+        "rule": "动力电池回收新规强化电池生产、整车、维修、换电和回收主体的全链条责任与信息追溯。",
+        "sourceTitle": "新能源汽车废旧动力电池回收和综合利用管理暂行办法",
+        "sourceUrl": "https://www.miit.gov.cn/gyhxxhb/jgsj/cyzcyfgs/bmgz/jdcjxl/art/2026/art_392462fdc40c415ea4a4129cac3028c2.html",
+        "sourceType": "工业和信息化部等六部门",
+        "modelFormula": "回收净现金＝可获得废料量×单位回收价差－回收处理、物流、追溯和合规成本；没有废料来源时不按回收名义产能计利润。",
+        "boundary": "生产者责任先增加合规投入，稳定废料来源和回收效率形成后才可能成为利润池。"
+      },
+      {
+        "policyId": "cn_battery_material_export_control_2025",
+        "jurisdiction": "中国",
+        "status": "2025年11月8日起实施出口许可",
+        "rule": "达到参数门槛的高能量密度锂离子电池、关键设备、磷酸铁锂正极、石墨负极及相关技术进入出口许可管理；不是对全部电池的一刀切禁运。",
+        "sourceTitle": "商务部 海关总署公告2025年第58号",
+        "sourceUrl": "https://www.mofcom.gov.cn/cms_files/filemanager/policySummary/viewcore_24600584ed4a4abf8f74d7385d935f3c.html",
+        "sourceType": "商务部、海关总署",
+        "modelFormula": "项目延迟现金影响＝受控产品或设备相关收入×许可证导致的交付延迟与取消比例＋替代采购或本地化额外成本。",
+        "boundary": "只有产品参数、技术和目的地落入清单且许可证影响交付时才进入公司情景。"
+      },
+      {
+        "policyId": "eu_digital_battery_passport_2026",
+        "jurisdiction": "欧盟",
+        "status": "登记系统推进中，2027年2月起强制",
+        "rule": "欧盟数字产品护照登记系统计划于2026年运行，相关电动车、轻型交通及2kWh以上工业电池自2027年2月18日起配置电池护照。",
+        "sourceTitle": "European Commission Digital Product Passport",
+        "sourceUrl": "https://single-market-economy.ec.europa.eu/single-market/digital-product-passport/batteries_en",
+        "sourceType": "欧盟委员会",
+        "modelFormula": "合规成本＝一次性数据系统与供应链改造资本开支＋持续认证、审计和数据运营费用。",
+        "boundary": "护照提升准入与追溯，不应按收入统一扣减；头部和小厂成本比例不同。"
+      },
+      {
+        "policyId": "eu_industrial_accelerator_proposal_2026",
+        "jurisdiction": "欧盟",
+        "status": "欧盟委员会提案，尚未完成立法",
+        "rule": "提案拟对电池等战略行业的大型第三国外资附加就业、本地含量、技术与治理条件，并设置投资额和来源国全球产能份额门槛。",
+        "sourceTitle": "Industrial Accelerator Act proposal",
+        "sourceUrl": "https://commission.europa.eu/news-and-media/news/commission-proposes-new-measures-boost-eu-industry-and-jobs-2026-03-04_en",
+        "sourceType": "欧盟委员会",
+        "modelFormula": "提案情景影响＝新增本地化资本开支＋技术/治理约束造成的项目折价－获得本地市场与融资的价值。",
+        "boundary": "尚未完成立法，只能作为政策压力测试，不能当作现行义务。"
+      },
+      {
+        "policyId": "india_acc_battery_pli",
+        "jurisdiction": "印度",
+        "status": "执行中",
+        "rule": "先进化学电池生产激励计划目标50GWh，截至2026年2月已向四家受益企业分配40GWh，政策目标是形成本地制造和供应链。",
+        "sourceTitle": "Production Linked Incentive Scheme for ACC Battery Storage",
+        "sourceUrl": "https://www.pib.gov.in/PressReleasePage.aspx?PRID=2225877&lang=1&reg=1",
+        "sourceType": "印度政府新闻局",
+        "modelFormula": "项目价值＝本地客户与激励形成的税后现金流－本地化资本开支－爬坡成本－进口与本地含量约束成本。",
+        "boundary": "计划容量不等于中国企业可获得份额，需核验获配主体、客户和本地资格。"
+      },
+      {
+        "policyId": "brazil_storage_auction_2026",
+        "jurisdiction": "巴西",
+        "status": "首次电池储能拍卖规则推进中",
+        "rule": "巴西矿业和能源部发布首次电池储能拍卖指引，需求机会来自电网容量与灵活性，而不是传统新能源汽车补贴。",
+        "sourceTitle": "Battery Energy Storage Auction Guidelines",
+        "sourceUrl": "https://www.gov.br/mme/pt-br/assuntos/noticias/mme-publica-diretrizes-para-leilao-inedito-de-armazenamento-de-energia-em-baterias-no-brasil",
+        "sourceType": "巴西矿业和能源部",
+        "modelFormula": "可服务电芯需求＝中标功率×时长÷系统效率×企业供货份额；利润还需扣除项目融资、质保和本地交付成本。",
+        "boundary": "拍卖规则和中标规模落实前只作为需求管线，不计确定订单。"
+      }
+    ],
+    "companyExposures": [
+      {
+        "company": "鹏辉能源",
+        "companyId": 661,
+        "ticker": "300438.SZ",
+        "reportedOverseasRevenuePct": 15.01,
+        "reportedDomesticRevenuePct": 84.99,
+        "revenueScope": "2025年集团分地区收入",
+        "sourceRef": "鹏辉能源2025年报，第14页",
+        "exposure": "储能产品可销往美国、欧洲等市场，但公司未单独披露美国直供收入。相较龙头，出口退税和美国储能关税对利润率的边际敏感度更高，而海外本地制造缓冲仍有限。",
+        "politicalRisk": "高：储能出口增长快、规模和议价能力弱于宁德时代。"
+      },
+      {
+        "company": "宁德时代",
+        "companyId": 254,
+        "ticker": "300750.SZ",
+        "reportedOverseasRevenuePct": 30.6,
+        "reportedDomesticRevenuePct": 69.4,
+        "revenueScope": "2025年集团分地区收入",
+        "sourceRef": "宁德时代2025年报，第25页",
+        "exposure": "德国工厂已量产，匈牙利5GWh模组线于2026年5月启动，匈牙利电芯、与Stellantis的西班牙合资及印尼产业链继续推进。欧洲本地化降低整车贸易壁垒，但爬坡期固定成本和合规资本开支先于规模收益。",
+        "politicalRisk": "中高：地域分散能力最强，但美国技术授权/PFE资格仍是条件变量。"
+      },
+      {
+        "company": "比亚迪",
+        "companyId": 414,
+        "ticker": "002594.SZ",
+        "reportedOverseasRevenuePct": 38.65,
+        "reportedDomesticRevenuePct": 61.35,
+        "revenueScope": "2025年集团收入，包含汽车、手机部件及组装等，不能视作电池出口占比",
+        "sourceRef": "比亚迪2025年报，第29—30页",
+        "exposure": "欧盟反补贴税首先作用于中国生产整车；匈牙利本地整车制造可降低关税摩擦，但初期利用率、欧洲人工能源成本和本地供应链爬坡可能抵消部分税差。自产电池影响应由欧洲整车销量和单车带电量传导，而非直接对集团收入扣税。",
+        "politicalRisk": "中高：海外增长贡献大，整车贸易和本地化执行同时决定电池利润。"
+      },
+      {
+        "company": "国轩高科",
+        "companyId": 662,
+        "ticker": "002074.SZ",
+        "reportedOverseasRevenuePct": 22.59,
+        "reportedDomesticRevenuePct": 77.41,
+        "revenueScope": "2025年集团分地区收入（含港澳台）",
+        "sourceRef": "国轩高科2025年报，第20页",
+        "exposure": "泰国、越南已有产能，伊利诺伊项目仍在建设并形成大额在建工程，摩洛哥、斯洛伐克等布局面向欧美客户。美国项目是否满足PFE、有效控制和材料援助规则，直接决定本地化资产能否取得45X。",
+        "politicalRisk": "很高：美国资产投入较大，补贴资格和政治审查对项目回报非线性。"
+      },
+      {
+        "company": "中创新航",
+        "companyId": 663,
+        "ticker": "3931.HK",
+        "reportedOverseasRevenuePct": 2.1,
+        "reportedDomesticRevenuePct": 97.9,
+        "revenueScope": "2025年按交付地点划分的集团收入",
+        "sourceRef": "中创新航2025年报，第20页",
+        "exposure": "2025年海外收入基数很低，但葡萄牙和泰国法人/项目构成未来本地化期权。政策风险当前更多体现为新增资本开支和爬坡风险，而不是存量海外利润被直接冲击。",
+        "politicalRisk": "中：存量直接暴露低，欧洲扩张成败决定未来风险上升速度。"
+      },
+      {
+        "company": "亿纬锂能",
+        "companyId": 664,
+        "ticker": "300014.SZ",
+        "reportedOverseasRevenuePct": 23.56,
+        "reportedDomesticRevenuePct": 76.44,
+        "revenueScope": "2025年集团分地区收入",
+        "sourceRef": "亿纬锂能2025年报，第20页",
+        "exposure": "马来西亚基地已投产并继续扩储能，匈牙利大圆柱项目邻近宝马工厂，北美以客户合作/服务和储能市场为主。东南亚本地制造可缓冲中国出口政策，但美国最终市场关税和PFE仍可能沿客户订单传导。",
+        "politicalRisk": "中高：海外收入可观，马来西亚提供缓冲，匈牙利爬坡推高资本需求。"
+      },
+      {
+        "company": "瑞浦兰钧",
+        "companyId": 665,
+        "ticker": "0666.HK",
+        "reportedOverseasRevenuePct": 5.87,
+        "reportedDomesticRevenuePct": 94.13,
+        "revenueScope": "2025年按直接签约客户所在地划分的集团收入",
+        "sourceRef": "瑞浦兰钧2025年报，第127页",
+        "exposure": "印尼一期规划8GWh并在2025年爬坡，用于降低贸易壁垒；年报同时披露关税不确定性曾导致海外客户暂停电池部件订单。当前海外收入占比不高，但订单波动已证明贸易政策具有实际经营传导。",
+        "politicalRisk": "中高：存量地域收入低，但储能出口扩张和较小资产负债表放大波动。"
+      },
+      {
+        "company": "欣旺达",
+        "companyId": 666,
+        "ticker": "300207.SZ",
+        "reportedOverseasRevenuePct": 38.64,
+        "reportedDomesticRevenuePct": 61.36,
+        "revenueScope": "2025年集团收入，境外收入主要为消费类电池",
+        "sourceRef": "欣旺达2025年报，第14—15页",
+        "exposure": "越南消费电芯基地推进，泰国动力电池一期投产；集团海外占比较高，但不能把消费电池出口占比直接套到动力/储能模型。政策冲击需按消费、动力、储能和地区重新拆分。",
+        "politicalRisk": "中高：集团海外高暴露，但电池业务结构错配使粗略比例尤其容易误判。"
+      },
+      {
+        "company": "孚能科技",
+        "companyId": 667,
+        "ticker": "688567.SH",
+        "reportedOverseasRevenuePct": 81.88,
+        "reportedDomesticRevenuePct": 18.12,
+        "revenueScope": "2025年主营电池业务分地区收入；占集团总收入约78.05%",
+        "sourceRef": "孚能科技2025年报，第28页及第197页",
+        "exposure": "土耳其Siro 6GWh已完成爬坡并服务欧洲、中东和非洲，但中国出口退税下降和美国关税已被公司明确列为2025年毛利率压力。高海外占比与尚未稳定盈利叠加，使政策成本更难由利润缓冲。",
+        "politicalRisk": "很高：海外收入占比最高、盈利脆弱，本地化缓冲与出口税负并存。"
+      }
+    ],
+    "politicalOutlook": [
+      {
+        "region": "中国",
+        "currentSituation": "政策组合已从单纯鼓励出口量，转向取消出口退税、恢复成熟电池消费税，同时对钠电和固态给予阶段性免税。",
+        "baseCase": "2026—2028年税制按公告执行，行业通过涨价、供应链抵扣和产品升级分担成本；低毛利、出口占比高且议价弱的企业先承压。",
+        "upside": "先进化学体系免税延续或头部厂商成功向客户转嫁税负。",
+        "downside": "价格竞争阻碍转嫁、抵扣链条不完整，现金税负接近机械上限。",
+        "financialVariables": [
+          "国内应税收入比例",
+          "转嫁率",
+          "已税投入抵扣率",
+          "出口收入比例"
+        ]
+      },
+      {
+        "region": "美国",
+        "currentSituation": "车辆端补贴退坡与制造端45X并存，但301关税、FEOC/PFE和有效控制规则把政策重点从普遍电动化补贴转向本地、安全、非中国控制的供应链。",
+        "baseCase": "中国直供美国的动力和储能份额继续受压；技术授权、合资和本地生产只有在所有权、材料和控制权合规后才可能获得政策收益。",
+        "upside": "独立本地实体通过PFE审查，产量爬坡并兑现45X。",
+        "downside": "PFE解释扩大到技术许可或关键材料，已投资项目无法取得抵免或客户退出。",
+        "financialVariables": [
+          "美国直供收入",
+          "关税承担",
+          "合资格本地产量",
+          "PFE资格实现率"
+        ]
+      },
+      {
+        "region": "欧盟",
+        "currentSituation": "欧洲不是简单排除中国供应商，而是同时使用整车贸易防御、追溯/碳足迹规则、尽职调查和本地电芯融资，推动“可审计的本地化”。",
+        "baseCase": "中国企业可凭欧洲工厂保留客户，但前两三年利用率和合规投入压低回报；无息贷款只缓解融资成本，不能替代产能爬坡。",
+        "upside": "获得Battery Booster贷款并快速提高本地产能利用率。",
+        "downside": "外资筛查、补贴资格或本地含量继续收紧，低利用率工厂形成现金拖累。",
+        "financialVariables": [
+          "欧洲本地产量",
+          "利用率",
+          "合规资本开支",
+          "无息贷款",
+          "整车销量"
+        ]
+      },
+      {
+        "region": "印度、东南亚与中东非",
+        "currentSituation": "印度、东南亚和摩洛哥等地区正用本地制造激励、关税和开发性融资承接电池产业链，但终端需求、供应链完整度和项目融资成熟度差异很大。",
+        "baseCase": "中国企业优先通过马来西亚、泰国、印尼、摩洛哥等项目服务区域客户或作为对欧美出口缓冲；量产速度慢于规划产能。",
+        "upside": "本地客户、开发性融资和出口通道同时兑现，利用率快速提高。",
+        "downside": "本地需求不足、供应链依赖进口或政策提高本地含量，项目形成低利用率资产。",
+        "financialVariables": [
+          "项目投资",
+          "当地销量",
+          "利用率",
+          "开发性融资",
+          "本地化成本"
+        ]
+      },
+      {
+        "region": "拉丁美洲",
+        "currentSituation": "电动车销量增速较高，巴西开始用储能拍卖建立电网需求；与此同时，整车关税和本地制造政策正在提高直接出口的不确定性。",
+        "baseCase": "储能和经济型电动车形成增量市场，但规模与利润依赖拍卖、中标、项目融资和本地渠道，不把高同比直接外推。",
+        "upside": "巴西储能拍卖形成连续项目管线，区域EV渗透持续超预期。",
+        "downside": "融资成本、汇率、关税和本地化要求延迟项目或压低回款。",
+        "financialVariables": [
+          "中标GWh",
+          "项目融资",
+          "汇率",
+          "关税承担",
+          "回款周期"
+        ]
+      },
+      {
+        "region": "关键矿产与材料",
+        "currentSituation": "锂、钴、石墨等精炼和加工集中度继续上升，电池材料与锂矿资本开支在低价阶段下降，出口配额和许可已把地缘风险转为实际经营变量。",
+        "baseCase": "铁锂降低镍钴暴露但仍依赖锂和石墨；头部通过长协、回收和供应链布局缓冲波动，中小企业更易受到价格与交付冲击。",
+        "upside": "材料供给扩张、回收料来源增加且贸易许可稳定，成本波动下降。",
+        "downside": "上游投资不足与出口限制叠加，材料成本、库存和交付同时恶化。",
+        "financialVariables": [
+          "材料价格",
+          "采购合同",
+          "库存",
+          "出口许可",
+          "回收料来源"
+        ]
+      }
+    ],
+    "calculatorDefaults": {
+      "taxPassThroughPct": 50.0,
+      "upstreamTaxDeductiblePct": 50.0,
+      "exportPassThroughPct": 50.0,
+      "usTariffPct": 25.0,
+      "usSupplierAbsorptionPct": 50.0,
+      "euAlternativeBorrowingRatePct": 5.0,
+      "usdCny": 7.15,
+      "eurCny": 8.35,
+      "us45xCellUsdPerKwh": 35.0,
+      "us45xModuleUsdPerKwh": 10.0,
+      "us45xEligibilityPct": 0.0,
+      "us45xUtilizationPct": 0.0,
+      "companySpecificSharesDefaultToZero": "国内应税、出口退税清单内收入和美国直供收入均默认0；研究员必须按公司业务口径显式输入，披露海外收入只显示为上限锚。"
+    },
+    "unitSensitivities": {
+      "chinaConsumptionTaxGrossPerRmb10bnEligibleRevenue": {
+        "2026": 0.66666667,
+        "2027": 2.66666667,
+        "2028": 4.0,
+        "unit": "亿元，未计转嫁和抵扣"
+      },
+      "chinaExportRebateLossPerRmb10bnEligibleExportRevenue": {
+        "2026": 2.25,
+        "2027": 9.0,
+        "2028": 9.0,
+        "unit": "亿元，未计转嫁"
+      },
+      "usTariffGrossPerRmb10bnDirectExportRevenue": {
+        "allYears": 25.0,
+        "unit": "亿元，未计进口商/供应商承担分配"
+      },
+      "euInterestSavingPerEur500mLoanAt5Pct": {
+        "annualEurMillion": 25.0,
+        "unit": "百万欧元/年，只有实际获批提款后成立"
+      },
+      "us45xGrossPer10GwhCellAndModuleAtFullEligibility": {
+        "annualUsdMillion": 450.0,
+        "unit": "百万美元/年，未计PFE、利用率和退坡"
+      }
+    },
+    "modelBoundary": "本底稿将已生效政策与研究情景分开。任何公司级结果都必须显示实际输入，不得以海外总收入自动替代出口退税清单收入或美国直接出口收入，不得把未获批的45X或欧盟无息贷款放进基准利润。",
+    "contentSha256": "sha256:d059309b0e30799c0be60ee29af037010bc333565ec935ca40763f3742354268"
+  },
+  "supplyDemandLedger": {
+    "schemaVersion": "lithium_battery.industry_supply_demand.v1",
+    "asOfDate": "2026-07-28",
+    "researchRunRef": "lithium_battery_b_20260728",
+    "question": "全球和中国动力、储能电池需求如何增长，名义产能经投产、认证、利用率、良率、产品和区域资格折算后，何时形成紧张或过剩？",
+    "measurementContract": {
+      "deployment": "车辆或项目实际部署的电量，不含供应链库存。",
+      "shipment": "电芯厂向客户发出的产品，可能含库存和交付时点差。",
+      "production": "当期生产量，不等于销售或终端使用。",
+      "sales": "行业统计销售口径，含国内、出口及不同应用。",
+      "nameplateCapacity": "设计或名义产能，不等于合格可销售产量。",
+      "effectiveSupplyFormula": "有效供给＝名义产能×已投产比例×客户认证比例×利用率×良率×产品适配比例×区域合规比例"
+    },
+    "observedAnchors": [
+      {
+        "metric": "全球锂离子电池部署",
+        "period": "2025",
+        "value": 1.5,
+        "unit": "TWh，下限",
+        "sourceRef": "iea_ev_batteries_2026"
+      },
+      {
+        "metric": "全球电动车电池部署",
+        "period": "2025",
+        "value": 1.2,
+        "unit": "TWh",
+        "sourceRef": "iea_ev_batteries_2026"
+      },
+      {
+        "metric": "全球电动车电池部署",
+        "period": "2030 CPS/STEPS",
+        "value": 3.0,
+        "unit": "TWh，约值",
+        "sourceRef": "iea_ev_batteries_2026"
+      },
+      {
+        "metric": "全球锂离子电池名义产能",
+        "period": "2025年末",
+        "value": 4.0,
+        "unit": "TWh，下限",
+        "sourceRef": "iea_ev_batteries_2026"
+      },
+      {
+        "metric": "全球储能电芯出货",
+        "period": "2026Q1",
+        "value": 0.20552,
+        "unit": "TWh",
+        "sourceRef": "infolink_ess_2026q1"
+      },
+      {
+        "metric": "全球储能电芯出货",
+        "period": "2026全年预测",
+        "value": 0.897,
+        "unit": "TWh",
+        "sourceRef": "infolink_ess_2026q1"
+      }
+    ],
+    "demandModel": {
+      "evFormula": "EV电池部署＝Σ（各地区×车型销量×平均带电量）；公开模型使用IEA 2025与2030锚进行中间年份插值，不把插值伪装成外部预测。",
+      "evAnchorCagrPct": 20.1124,
+      "evPath": [
+        {
+          "year": 2025,
+          "evBatteryDeploymentTwh": 1.2,
+          "identity": "IEA事实锚"
+        },
+        {
+          "year": 2026,
+          "evBatteryDeploymentTwh": 1.4413,
+          "identity": "在2025与2030 IEA事实/预测锚之间的等复合增速插值"
+        },
+        {
+          "year": 2027,
+          "evBatteryDeploymentTwh": 1.7312,
+          "identity": "在2025与2030 IEA事实/预测锚之间的等复合增速插值"
+        },
+        {
+          "year": 2028,
+          "evBatteryDeploymentTwh": 2.0794,
+          "identity": "在2025与2030 IEA事实/预测锚之间的等复合增速插值"
+        },
+        {
+          "year": 2029,
+          "evBatteryDeploymentTwh": 2.4977,
+          "identity": "在2025与2030 IEA事实/预测锚之间的等复合增速插值"
+        },
+        {
+          "year": 2030,
+          "evBatteryDeploymentTwh": 3.0,
+          "identity": "IEA事实锚"
+        }
+      ],
+      "storageFormula": "储能电芯需求＝新增储能功率×平均时长÷系统效率＋替换、安全冗余和供应链库存变化。",
+      "storageShipmentPath": [
+        {
+          "year": 2026,
+          "storageCellShipmentTwh": 0.897,
+          "identity": "InfoLink 2026年全球储能电芯出货预测"
+        },
+        {
+          "year": 2027,
+          "storageCellShipmentTwh": 1.1213,
+          "growthAssumptionPct": 25.0,
+          "identity": "内部基准情景假设"
+        },
+        {
+          "year": 2028,
+          "storageCellShipmentTwh": 1.3455,
+          "growthAssumptionPct": 20.0,
+          "identity": "内部基准情景假设"
+        },
+        {
+          "year": 2029,
+          "storageCellShipmentTwh": 1.5877,
+          "growthAssumptionPct": 18.0,
+          "identity": "内部基准情景假设"
+        },
+        {
+          "year": 2030,
+          "storageCellShipmentTwh": 1.8258,
+          "growthAssumptionPct": 15.0,
+          "identity": "内部基准情景假设"
+        }
+      ],
+      "nonAdditivityWarning": "EV是终端部署口径，储能是电芯出货口径；二者不得直接相加成全球终端电池需求。储能路径用于供应商排产与景气分析。"
+    },
+    "chinaFlowBridge2026H1": {
+      "productionGwh": 1068.9,
+      "salesGwh": 979.4,
+      "productionMinusSalesGwh": 89.5,
+      "powerSalesGwh": 661.3,
+      "storageSalesGwh": 318.1,
+      "exportsGwh": 181.3,
+      "domesticPowerInstallationGwh": 335.6,
+      "formula": "产量＝国内动力交付＋国内储能交付＋出口＋库存变化＋在途、样品及统计差异",
+      "boundary": "89.5GWh只是当期产销差，不等于期末库存；产量减国内动力装车更不能解释成过剩，因为遗漏储能、出口和其他流向。",
+      "sourceRef": "fastmarkets_cabia_2026h1"
+    },
+    "scenarioContract": {
+      "probabilitiesAssigned": false,
+      "scenarios": [
+        {
+          "name": "需求强、供给有序",
+          "evVsAnchor": "高于IEA插值路径",
+          "storageVsBase": "高于内部基准路径",
+          "effectiveSupply": "按客户和订单节奏投放",
+          "financialTransmission": "ASP降幅较小，利用率和单Wh利润提高，头部与已有合格储能产能的公司自由现金流上修。"
+        },
+        {
+          "name": "基准",
+          "evVsAnchor": "沿IEA插值路径",
+          "storageVsBase": "沿内部基准路径",
+          "effectiveSupply": "头部高利用率、部分新厂爬坡",
+          "financialTransmission": "行业收入增长，利润向高利用率、合格产品与合规地区集中。"
+        },
+        {
+          "name": "需求弱、产能集中释放",
+          "evVsAnchor": "低于IEA插值路径",
+          "storageVsBase": "项目融资或并网导致低于基准",
+          "effectiveSupply": "多地项目同时投产",
+          "financialTransmission": "ASP、利用率和ROE同步下降，负自由现金流与高融资依赖公司的下行更大。"
+        }
+      ]
+    },
+    "monitoring": [
+      "区域EV销量、车型结构和平均带电量",
+      "全球储能电芯出货、项目装机、并网和回款",
+      "中国产量、销量、装车、出口、库存和应收",
+      "公司产能利用率、良率、折旧和资本开支",
+      "不同规格电芯ASP、材料成本和分部毛利",
+      "海外项目客户、资格、实际产量与融资"
+    ],
+    "limitations": [
+      "全球名义产能为下限锚，不构造缺乏来源的逐年全球产能单点。",
+      "储能2027—2030增速是内部情景假设，不是InfoLink或IEA预测。",
+      "EV部署和储能电芯出货口径不同，公开输出不得直接相加。",
+      "有效供给折算项在公司缺少公开数据时使用范围或项目状态，不默认100%。",
+      "模型输出描述供需方向与财务传导，不给主观概率或伪精确市场规模。"
+    ],
+    "contentSha256": "sha256:36e59350275f25d90f3883bc27eebe8ba03b7562163f4f2c2e3c45881ecd4c69"
+  },
+  "scenarioContract": {
+    "storage": "browser_local_storage_only",
+    "immutableBaselines": [
+      "AI基准情景",
+      "市场一致预期情景"
+    ],
+    "actions": [
+      "保存",
+      "复制",
+      "重命名",
+      "删除",
+      "恢复默认",
+      "并排比较"
+    ]
+  },
+  "limitations": [
+    "研究员情景只保存在当前浏览器，不写回financial.db、research.db或冻结AI模型。",
+    "新增分部自动进入公司收入、利润、现金流、ROE与估值汇总；删除分部同步移除下游计算。",
+    "产能、客户和地区维度是研究标签，只有被启用且含经营参数的分部才进入财务计算。",
+    "孚能科技处于扭亏阶段，PE只作诊断，收入倍数与现金消耗必须同时检查。",
+    "政策模块默认不猜公司应税、出口清单或美国直供比例；输入为0时基线不受影响。",
+    "政策调整结果与冻结经营基线并列展示，浏览器情景不会回写数据库。"
+  ],
+  "contentSha256": "sha256:4e417655dcfbba457c1b12b95b7931e4d8e2aa6280407265d846b25f6f527ba2"
+}

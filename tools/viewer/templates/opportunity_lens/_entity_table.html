@@ -1,0 +1,30 @@
+{% if entities %}
+<table class="opp-table opp-entity-table">
+  <thead><tr><th>实体</th><th>研究类型</th><th>类型</th><th>成熟度</th><th>核心分</th><th>线索评分</th><th>验证优先级分</th><th>验证优先级状态</th><th>质量/置信度</th></tr></thead>
+  <tbody>
+  {% for e in entities %}
+  <tr>
+	    <td><a href="/opportunity-lens/entity/{{ e.entity_id }}">{{ e.display_name or e.canonical_name }}</a></td>
+	    <td>{{ (e.entity_research_mode or "market_linked")|opp_label }}</td>
+	    <td>{{ e.entity_type|opp_label }}</td>
+	    <td><span class="opp-badge">{{ e.maturation_status|opp_label }}</span></td>
+	    {% if e.entity_research_mode == "theory_research" %}
+	    <td class="mono">不评分</td>
+	    <td>不适用</td>
+	    <td>不适用</td>
+	    <td>{{ e.research_depth_status|default("complete", true)|opp_label }}</td>
+	    <td>深度研究</td>
+	    {% else %}
+	    <td class="mono">{% if e.score_status == "complete" and e.score_point is not none %}{{ "%.1f"|format(e.score_point) }} <span class="opp-grade">{{ e.score_grade or "未评级" }}</span>{% else %}证据不足，未评级{% endif %}</td>
+	    <td>{{ "%.1f"|format(e.early_signal_score) if e.early_signal_score is not none else "无" }}{% if e.early_signal_strength_label %} · {{ e.early_signal_strength_label|opp_label }}{% endif %}</td>
+	    <td class="mono">{{ "%.1f"|format(e.research_priority_score) if e.research_priority_score is not none else "无" }}</td>
+	    <td>{{ e.research_priority_label|opp_label if e.research_priority_label else "无" }}</td>
+	    <td>{{ (e.score_quality_label or "unrated_insufficient_evidence")|opp_label }}</td>
+	    {% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="opp-empty">扫描存在，但暂无规范化机会实体。</div>
+{% endif %}

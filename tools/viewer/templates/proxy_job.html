@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}招聘代理变量 · 行研工具系统{% endblock %}
+{% block content %}
+<style>
+.px-wrap{max-width:1180px}
+.px-kpi{display:flex;gap:12px;flex-wrap:wrap;margin:14px 0}
+.px-kpi .k{background:#fff;border:1px solid #e3e8f0;border-radius:11px;padding:11px 18px;box-shadow:0 1px 3px rgba(16,32,64,.05)}
+.px-kpi .k b{font-size:24px;color:#13203a;display:block;font-variant-numeric:tabular-nums}.px-kpi .k span{font-size:12px;color:#6b7891}
+.px-kpi .k.hot b{color:#d23a30}
+.px-sec h2{font-size:14px;color:#33415c;border-left:3px solid #0070C0;padding-left:9px;margin:22px 0 10px}
+.px-ctrl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0;position:sticky;top:0;background:rgba(247,249,252,.97);padding:9px 0;z-index:5}
+.px-ctrl input,.px-ctrl select{font-size:13px;padding:7px 11px;border:1px solid #cdd8e8;border-radius:9px;background:#fff;color:#1f2a44}
+.px-ctrl input{min-width:210px}
+.px-ctrl .hint{font-size:11.5px;color:#8090a8}
+.px-tog{display:inline-flex;border:1px solid #cdd8e8;border-radius:9px;overflow:hidden}
+.px-tog button{font-size:12.5px;padding:7px 13px;background:#fff;border:none;cursor:pointer;color:#5b6a85}
+.px-tog button.on{background:#0070C0;color:#fff;font-weight:600}
+/* 公司卡 */
+.px-co{background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:14px 17px;margin-bottom:13px;box-shadow:0 1px 3px rgba(16,32,64,.05)}
+.px-co h3{font-size:15px;color:#13203a;margin:0 0 4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.px-co h3 a{color:inherit;text-decoration:none}.px-co h3 a:hover{color:#0070C0}
+.px-co h3 .tk{color:#9aa6bb;font-size:12px;font-weight:400}
+.px-co h3 .indtag{font-size:11px;font-weight:600;color:#0a6ca8;background:#e9f4fc;border:1px solid #cfe6f7;border-radius:9px;padding:1px 9px}
+.px-co h3 .tot{margin-left:auto;font-size:12.5px;color:#5b6a85;font-weight:400}
+.px-co h3 .tot b{color:#13203a}.px-co h3 .tot .nw{color:#d23a30}
+.px-co .doms{font-size:11.5px;color:#8090a8;margin-bottom:9px}
+.px-co .doms .dm{display:inline-block;background:#e9f4fc;color:#0a6ca8;border-radius:9px;padding:1px 8px;margin-right:4px}
+/* 职能行:职能 + 数量 + 城市拆解 */
+.fnrow{display:flex;align-items:flex-start;gap:10px;padding:5px 0;border-top:1px solid #f2f5f9;font-size:13px}
+.fnrow:first-of-type{border-top:none}
+.fnrow .fname{min-width:96px;font-weight:600;color:#33415c}
+.fnrow .fname .fn-new{font-size:10px;color:#d23a30;font-weight:700;margin-left:3px}
+.fnrow .fbar{flex:1}
+.fnrow .fcount{font-variant-numeric:tabular-nums;color:#13203a;font-weight:600;margin-right:8px}
+.fnrow .fcities{color:#6b7891;font-size:12.5px}
+.fnrow .fcities .city{white-space:nowrap;margin-right:8px}
+.fnrow .fcities .city b{color:#1f2a44;font-weight:600}
+.fnrow .fcities .noc{color:#b3bccb}
+/* 本周新增 */
+.newbox{margin-top:9px;background:#fdf4f3;border:1px solid #f6d6d2;border-radius:9px;padding:9px 12px}
+.newbox .nh{font-size:12px;color:#d23a30;font-weight:600;margin-bottom:5px}
+.newbox .nj{font-size:12.5px;color:#33415c;padding:2px 0}
+.newbox .nj .jf{font-size:10.5px;background:#fff;border:1px solid #f0cfca;color:#c0524a;border-radius:8px;padding:0 6px;margin-left:5px}
+.newbox .nj .jl{color:#8090a8;font-size:11.5px;margin-left:5px}
+.px-st{font-size:11px;padding:1px 8px;border-radius:11px;border:1px solid;font-weight:600}
+.st-ok{color:#138a5e;background:#e8f7f0;border-color:#a8dcc6}
+.st-todo{color:#8090a8;background:#f2f5f9;border-color:#d6deea}
+.st-blk{color:#b9670c;background:#fdf2e2;border-color:#f0cfa0}
+.px-srctbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.px-srctbl td,.px-srctbl th{text-align:left;padding:6px 9px;border-bottom:1px solid #eef1f6;color:#33415c}
+.px-srctbl th{color:#8090a8;font-weight:500;font-size:11.5px}
+.px-srctbl .path{font-size:11px;color:#8090a8;font-family:ui-monospace,monospace}
+.px-chg{font-size:13px;color:#33415c;padding:8px 0;border-bottom:1px solid #eef1f6}
+.px-chg .new{color:#d23a30}.px-chg .closed{color:#138a5e}
+.px-note{font-size:12.5px;color:#6b7891;line-height:1.7;background:#f7f9fc;border:1px dashed #cdd8e8;border-radius:10px;padding:13px 17px;margin:16px 0}
+.px-hide{display:none}
+details.px-fold summary{cursor:pointer;font-size:13px;color:#0070C0;padding:6px 0}
+</style>
+<div class="px-wrap">
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <a href="{{ url_for('dynamic_sentiment') }}">情绪·事件</a> / <strong>招聘代理变量</strong></div>
+<header class="entity-header"><div>
+  <h1>💼 招聘代理变量(按公司)</h1>
+  <p class="entity-meta">每家公司:<b>招什么职能 · 在哪招 · 招多少 · 本周新增</b> · 招聘=先行变量(产品上线前数季度扩招)· 数据 <code>sentiment.db / recruit_*</code></p>
+</div></header>
+
+<div class="px-kpi">
+  <div class="k"><b>{{ n_ok }}</b><span>官网抓取就绪 / {{ n_src }} 覆盖</span></div>
+  <div class="k"><b>{{ tot_open }}</b><span>当前在招岗位</span></div>
+  <div class="k hot"><b>{{ n_new7 }}</b><span>近 7 天新增岗位</span></div>
+</div>
+
+<div class="px-ctrl">
+  <input id="q" type="text" placeholder=" 搜公司 / 岗位 / 城市 / 领域" autocomplete="off">
+  <select id="indSel" title="按主营行业筛选">
+    <option value="">全部行业（{{ companies|length }} 家）</option>
+    {% for ind in inds %}<option value="{{ ind }}">{{ ind }}（{{ ind_counts[ind] }}）</option>{% endfor %}
+  </select>
+  <span class="px-tog" id="viewTog"><button class="on" data-v="all">全部公司</button><button data-v="new">仅本周有新增</button></span>
+  <span class="hint">按行业筛选 · 每家按职能拆解(数量+城市)· 本周新增 · 点公司名进透视页</span>
+</div>
+
+{# 按公司卡:职能 × 地点 × 数量 + 本周新增 #}
+<div class="px-sec">
+{% for c in companies %}
+  <div class="px-co" data-co="{{ c.name }}" data-new="{{ 1 if c.n_new else 0 }}" data-ind="{{ c.ind }}"
+       data-s="{{ c.name }} {{ c.ticker }} {{ c.ind }} {% for f in c.funcs %}{{ f.func }} {% for ct,n in f.cities %}{{ ct }} {% endfor %}{% endfor %}{% for d,n in c.domains %}{{ d }} {% endfor %}{% for nj in c.new_jobs %}{{ nj.title }} {% endfor %}">
+    <h3><a href="{{ url_for('company_tag', company_id=c.company_id) }}">{{ c.name }}</a> <span class="tk">{{ c.ticker }}</span>
+      <span class="indtag">{{ c.ind }}</span>
+      <span class="tot">在招 <b>{{ c.n_open }}</b>{% if c.n_new %} · <span class="nw">本周＋{{ c.n_new }}</span>{% endif %}</span></h3>
+    {% if c.domains %}<div class="doms">领域:{% for d,n in c.domains %}<span class="dm">{{ d }} {{ n }}</span>{% endfor %}</div>{% endif %}
+    {# 职能 × 城市 #}
+    {% for f in c.funcs %}
+    <div class="fnrow">
+      <span class="fname">{{ f.func }}{% if f.new %}<span class="fn-new">＋{{ f.new }}</span>{% endif %}</span>
+      <span class="fcount">{{ f.n }}</span>
+      <span class="fcities">
+        {% if f.cities %}{% for ct,n in f.cities %}<span class="city"><b>{{ ct }}</b> {{ n }}</span>{% endfor %}{% else %}<span class="noc">地点见岗位标题/部门</span>{% endif %}
+      </span>
+    </div>
+    {% endfor %}
+    {# 本周新增岗位明细 #}
+    {% if c.new_jobs %}
+    <div class="newbox">
+      <div class="nh"> 本周新增 {{ c.n_new }} 岗{% if c.new_jobs|length < c.n_new %}(列前 {{ c.new_jobs|length }}){% endif %}</div>
+      {% for nj in c.new_jobs %}
+      <div class="nj">{{ nj.title }}{% if nj.func %}<span class="jf">{{ nj.func }}</span>{% endif %}{% if nj.location %}<span class="jl">{{ nj.location }}</span>{% endif %}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+{% else %}
+  <div class="empty-state"><p>暂无在招岗位数据。</p></div>
+{% endfor %}
+  <div id="noMatch" class="px-hide" style="color:#8090a8;font-size:13px;padding:18px">没有匹配公司。</div>
+</div>
+
+{# 每周变更(只列有增减的)#}
+<div class="px-sec">
+  <h2>每周变更(新增/下架历史)</h2>
+  {% if changes %}
+  {% for c in changes %}
+  <div class="px-chg">
+    <b>{{ c.run_date }} · {{ c.name }}</b> — 在招 {{ c.n_open }}
+    {% if c.n_new %}<span class="new"> · ＋{{ c.n_new }} 新增</span>{% endif %}
+    {% if c.n_closed %}<span class="closed"> · －{{ c.n_closed }} 下架</span>{% endif %}
+    {% if c.new_list %}<div style="font-size:12px;color:#9aa6bb;margin-top:2px">新增:{{ c.new_list[:10]|join(' · ') }}{% if c.new_list|length>10 %} …{% endif %}</div>{% endif %}
+  </div>
+  {% endfor %}
+  {% else %}<div class="empty-state"><p>暂无变更历史(每周运行一次后累积"本周新增 vs 上周")。当前所有岗位均为首次抓取。</p></div>{% endif %}
+</div>
+
+{# 抓取路径台账(折叠)#}
+<details class="px-fold">
+  <summary> 各公司招聘页 + 抓取路径台账({{ n_src }} 家,点开)</summary>
+  <table class="px-srctbl">
+    <thead><tr><th>公司</th><th>招聘页</th><th>平台</th><th>状态</th><th>在招</th><th>抓取路径</th></tr></thead>
+    <tbody>
+    {% for s in sources %}
+    <tr>
+      <td><b>{{ s.name }}</b> <span style="color:#9aa6bb">{{ s.ticker }}</span></td>
+      <td>{% if s.career_url %}<a href="{{ s.career_url }}" target="_blank" rel="noopener">官网 ↗</a>{% else %}<span style="color:#9aa6bb">待补</span>{% endif %}</td>
+      <td>{{ s.platform_type or '—' }}</td>
+      <td><span class="px-st {{ 'st-ok' if s.status=='ok' else 'st-blk' if s.status in ('待定制','js_blocked','无在线列表','招聘暂停') else 'st-todo' }}">{{ s.status or '—' }}</span></td>
+      <td>{{ s.n_jobs if s.n_jobs is not none else '—' }}</td>
+      <td class="path">{{ s.scrape_path or s.extractor or '—' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</details>
+
+<div class="px-note">
+   <b>机制</b>:各公司官网招聘页 → Playwright 真浏览器抓取(北森/Moka/hotjob/CSS静态多平台抽取器)。<b>职能</b>(研发设计/制造工艺/光硬件/销售…)与<b>影响领域</b>(光模块/存储/AI服务器…)由岗位标题规则分类;<b>城市</b>取自岗位 LocNames(北森门户多为空 → 城市在标题/部门里,如实标注)。<b>每周自动刷新</b>(IndustryDemo_RecruitWeekly 周一09:00):重抓→比对<b>新增/下架</b>→分类。<b>绝不伪造 JD</b>。
+</div>
+</div>
+
+<script>
+(function(){
+  const q=document.getElementById('q'), tog=document.getElementById('viewTog'),
+        indSel=document.getElementById('indSel'), noMatch=document.getElementById('noMatch');
+  let mode='all';
+  function apply(){
+    const term=(q.value||'').trim().toLowerCase(); const ind=indSel.value; let total=0;
+    document.querySelectorAll('.px-co').forEach(co=>{
+      const m=(!term||(co.getAttribute('data-s')||'').toLowerCase().includes(term));
+      const nw=(mode==='all'||co.getAttribute('data-new')==='1');
+      const ix=(!ind||co.getAttribute('data-ind')===ind);
+      const show=m&&nw&&ix; co.style.display=show?'':'none'; if(show)total++;
+    });
+    noMatch.className=total?'px-hide':'';
+  }
+  q.addEventListener('input',apply);
+  indSel.addEventListener('change',apply);
+  tog.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    tog.querySelectorAll('button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); mode=b.getAttribute('data-v'); apply();
+  }));
+})();
+</script>
+{% endblock %}

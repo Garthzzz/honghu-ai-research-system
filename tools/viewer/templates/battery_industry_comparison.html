@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}锂电池行业比较与情景分析{% endblock %}
+{% block content %}
+<style>
+.bi{max-width:1480px;margin:0 auto;color:#203247}.bi *{box-sizing:border-box}.bi-head{display:flex;justify-content:space-between;gap:18px;align-items:flex-start;padding:8px 0 18px}.bi-kicker{font-size:11px;font-weight:900;color:#9c312b;letter-spacing:.08em}.bi h1{margin:5px 0 7px;font-size:28px}.bi-sub{max-width:900px;color:#607187;font-size:13px;line-height:1.7}.bi-actions{display:flex;gap:8px;flex-wrap:wrap}.bi-btn,.bi-select{border:1px solid #cad6e1;border-radius:8px;background:#fff;color:#294057;padding:7px 10px;font:inherit}.bi-btn{text-decoration:none;font-weight:750;cursor:pointer}.bi-card{border:1px solid #d9e3ec;border-radius:15px;background:#fff;box-shadow:0 10px 28px rgba(34,58,85,.07);padding:18px;margin-bottom:16px}.bi-card h2{margin:0 0 13px;font-size:18px}.bi-card h3{margin:17px 0 9px;font-size:14px}.bi-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.bi-kpi{border:1px solid #dde6ee;border-radius:11px;padding:13px;background:linear-gradient(145deg,#fff,#f5f9fb)}.bi-kpi b{display:block;font-size:21px}.bi-kpi span{display:block;margin-top:5px;color:#687b8d;font-size:11px}.bi-kpi small{display:block;margin-top:7px;color:#52687c;line-height:1.5}.bi-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}.bi-scroll{overflow:auto;border:1px solid #d9e3eb;border-radius:10px;scrollbar-gutter:stable}.bi-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1150px;font-size:12px}.bi-table th{position:sticky;top:0;background:#edf3f7;color:#334b62;padding:9px 8px;border-bottom:1px solid #cbd7e1;text-align:left;white-space:nowrap;cursor:pointer}.bi-table td{padding:8px;border-bottom:1px solid #e6edf2;vertical-align:top;line-height:1.55}.bi-table tbody tr:nth-child(even){background:#fafcfd}.bi-table .num{text-align:right;font-variant-numeric:tabular-nums}.bi-name{display:flex;align-items:center;gap:8px;min-width:130px}.bi-dot{width:9px;height:9px;border-radius:50%;background:#9d312a;flex:none}.bi-chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.bi-chart{height:390px;border:1px solid #e0e7ed;border-radius:11px}.bi-note{margin-top:9px;color:#65788b;font-size:11px;line-height:1.65}.bi-checks{display:flex;gap:7px;flex-wrap:wrap}.bi-check{display:flex;gap:5px;align-items:center;border:1px solid #d9e2ea;border-radius:16px;padding:5px 8px;font-size:11px}.bi-policy{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.bi-policy article{border:1px solid #dce5ed;border-top:4px solid #9d312a;background:linear-gradient(150deg,#fff,#f5f8fa);border-radius:11px;padding:14px;color:#4b6074;font-size:12px;line-height:1.65}.bi-policy article[data-region="美国"]{border-top-color:#315e84}.bi-policy article[data-region="欧盟"]{border-top-color:#32745f}.bi-policy b{color:#243a4f}.bi-policy-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.bi-policy-title strong{font-size:16px}.bi-pill{padding:3px 7px;border-radius:12px;background:#e8eef3;color:#496276;font-size:10px;font-weight:800}.bi-scenario{margin-top:8px;padding-top:8px;border-top:1px solid #dde5eb}.bi-scenario b{display:inline-block;min-width:55px}.bi-impact{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}.bi-impact div{border:1px solid #dde6ed;border-radius:10px;padding:10px;background:#fbfcfd}.bi-impact b{display:block;font-size:15px;color:#8f302b}.bi-impact span{display:block;margin-top:4px;color:#65788a;font-size:10px;line-height:1.45}.bi-policy-table{min-width:1180px}.bi-policy-table th{cursor:default}.bi-risk{display:inline-block;padding:3px 7px;border-radius:12px;background:#fff0e8;color:#99411d;font-weight:800;white-space:nowrap}.bi-scope{max-width:220px;color:#607487}.bi-source{font-size:11px;color:#738395;overflow-wrap:anywhere;word-break:break-word}
+.bi-policy-table th:last-child,.bi-policy-table td:last-child{width:220px;max-width:220px;overflow-wrap:anywhere}
+.bi-table th:nth-child(n+3):nth-child(-n+11){text-align:right}.bi-chart{height:410px}
+@media(max-width:1100px){.bi-policy{grid-template-columns:1fr}.bi-impact{grid-template-columns:1fr 1fr}}@media(max-width:900px){.bi-grid,.bi-chart-grid{grid-template-columns:1fr}.bi-head{display:block}.bi-actions{margin-top:12px}.bi h1{font-size:24px}}@media(max-width:560px){.bi-impact{grid-template-columns:1fr}}
+</style>
+<main class="bi">
+  <header class="bi-head">
+    <div><div class="bi-kicker">INDUSTRY COMPARISON</div><h1>锂电池行业比较与情景分析</h1><div class="bi-sub">统一比较九家重点公司的出货与业务规模、盈利、现金流、ROE和估值。动力装机、储能出货和设计产能使用不同口径，不混成一张份额榜。</div></div>
+    <div class="bi-actions"><a class="bi-btn" href="{{ url_for('battery_calculator') }}">进入锂电池计算器</a><a class="bi-btn" href="{{ url_for('tools_index') }}">返回工具选择</a></div>
+  </header>
+
+  <section class="bi-card">
+    <h2>全球与中国行业集中度</h2>
+    <div class="bi-grid" id="concentrationGrid"></div>
+    <div class="bi-note" id="concentrationBoundary"></div>
+  </section>
+
+  <section class="bi-card">
+    <h2>公司经营、现金流与估值总览</h2>
+    <div class="bi-controls">
+      <label>年度 <select id="yearSelect" class="bi-select"><option>2026</option><option selected>2027</option><option>2028</option></select></label>
+      <label>情景 <select id="scenarioSelect" class="bi-select"><option value="ai">AI基准情景</option><option value="researcher">各公司最近保存的研究员情景</option></select></label>
+      <label>排序 <select id="sortSelect" class="bi-select"><option value="netIncome">归母净利润</option><option value="revenue">收入</option><option value="fcf">自由现金流</option><option value="roe">ROE</option><option value="marketCap">当前市值</option><option value="impliedPe">隐含PE</option></select></label>
+      <button type="button" class="bi-btn" id="sortDirection">降序</button>
+    </div>
+    <div class="bi-checks" id="companyChecks"></div>
+    <div class="bi-scroll" style="margin-top:11px">
+      <table class="bi-table"><thead><tr><th data-sort="company">公司</th><th>代码</th><th data-sort="revenue">收入</th><th data-sort="netIncome">归母净利润</th><th data-sort="fcf">自由现金流</th><th data-sort="roe">ROE</th><th data-sort="roa">ROA</th><th data-sort="marketCap">当前市值</th><th data-sort="impliedPe">隐含PE</th><th>收入较2025增长</th><th>利润较2025增长</th><th>情景来源</th></tr></thead><tbody id="comparisonBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="bi-card">
+    <h2>公司差距与估值弹性</h2>
+    <div class="bi-chart-grid"><div id="profitChart" class="bi-chart"></div><div id="valueChart" class="bi-chart"></div></div>
+    <div class="bi-note">左图比较同年度收入、归母净利润和自由现金流；右图以ROE和当前市值隐含PE观察资产回报与市场定价。亏损公司不绘制隐含PE，避免负数PE造成误导。</div>
+  </section>
+
+  <section class="bi-card">
+    <h2>比较页情景快照</h2>
+    <div class="bi-controls"><input id="compareScenarioName" class="bi-select" style="min-width:230px" maxlength="40" placeholder="比较页情景名称"><button type="button" class="bi-btn" id="compareSave">保存快照</button><select id="compareSaved" class="bi-select"></select><button type="button" class="bi-btn" id="compareLoad">载入</button><button type="button" class="bi-btn" id="compareDelete">删除</button></div>
+    <div class="bi-note" id="compareMessage">保存年度、数据情景、排序方向和公司勾选范围；各公司的详细经营参数仍在单公司计算器中分别保存。</div>
+  </section>
+
+  <section class="bi-card">
+    <h2>中美欧政策、政治情景与公司财务传导</h2>
+    <div class="bi-note" style="margin:0 0 12px">现行法规与未来政治情景分开处理：已公布税率进入可复算规则；尚未取得资格的补贴、无法从公开资料拆出的美国直供收入和退税清单收入，默认不进入公司基准利润。</div>
+    <div class="bi-policy" id="policyOutlookGrid"></div>
+    <h3>同一政策变量改变多少财务结果</h3>
+    <div class="bi-impact" id="policySensitivityGrid"></div>
+    <h3>九家公司当前暴露与应进入模型的变量</h3>
+    <div class="bi-scroll">
+      <table class="bi-table bi-policy-table">
+        <thead><tr><th>公司</th><th>2025年披露海外收入</th><th>披露口径</th><th>政治风险</th><th>已核验的经营暴露</th><th>财务模型如何处理</th></tr></thead>
+        <tbody id="policyExposureBody"></tbody>
+      </table>
+    </div>
+    <div class="bi-note">比亚迪的海外比例包含整车及其他业务，欣旺达的海外收入主要来自消费类电池，两者均不能直接当作动力/储能电池出口比例。其余公司的“海外收入”也只是上限锚，不等于美国直供、退税清单内收入或可获得45X的本地产量。</div>
+  </section>
+
+  <div class="bi-source">数据截止 {{ model_as_of }} · 冻结模型 {{ model_sha256 }}。研究员情景来自当前浏览器本地存储，不写入服务器。</div>
+</main>
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script>
+const MODEL={{ battery_model_json|safe }},YEARS=[2026,2027,2028];
+let year=2027,sortKey='netIncome',desc=true,scenario='ai';
+const comparisonStorageKey='industry_demo_battery_comparison_scenarios_v1';
+const visible=new Set(MODEL.companies.map(c=>String(c.companyId)));
+const num=(v,d=0)=>{const n=Number(v);return Number.isFinite(n)?n:d},fmt=v=>num(v).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2});
+function concentration(){
+  const ctx=MODEL.industryContext,items=[ctx.globalEvBatteryJanMay2026,ctx.chinaEvBatteryH12026,ctx.globalEssQ12026];
+  document.getElementById('concentrationGrid').innerHTML=items.map(x=>`<div class="bi-kpi"><b>CR3 ${x.cr3Pct??'—'}% · CR5 ${x.cr5Pct??'—'}%</b><span>${x.metric} · ${x.period}</span><small>${x.totalGwh}GWh · ${x.source}</small></div>`).join('');
+  document.getElementById('concentrationBoundary').textContent=ctx.boundary;
+}
+function policy(){
+  const ledger=MODEL.policyScenarioLedger||{},outlooks=ledger.politicalOutlook||[];
+  document.getElementById('policyOutlookGrid').innerHTML=outlooks.map(x=>`<article data-region="${x.region}">
+    <div class="bi-policy-title"><strong>${x.region}</strong><span class="bi-pill">现状—情景—财务</span></div>
+    <div><b>当前格局：</b>${x.currentSituation}</div>
+    <div class="bi-scenario"><b>基准：</b>${x.baseCase}</div>
+    <div class="bi-scenario"><b>改善：</b>${x.upside}</div>
+    <div class="bi-scenario"><b>恶化：</b>${x.downside}</div>
+    <div class="bi-scenario"><b>进入模型：</b>${(x.financialVariables||[]).join('、')}</div>
+  </article>`).join('');
+  const u=ledger.unitSensitivities||{};
+  const sensitivities=[
+    ['中国消费税',`每100亿元适用收入：2026年${fmt(u.chinaConsumptionTaxGrossPerRmb10bnEligibleRevenue?.['2026'])}亿元；2027年${fmt(u.chinaConsumptionTaxGrossPerRmb10bnEligibleRevenue?.['2027'])}亿元；2028年${fmt(u.chinaConsumptionTaxGrossPerRmb10bnEligibleRevenue?.['2028'])}亿元`,'未计客户转嫁和上游已税投入抵扣'],
+    ['出口退税减少',`每100亿元适用出口收入：2026年${fmt(u.chinaExportRebateLossPerRmb10bnEligibleExportRevenue?.['2026'])}亿元；2027年起${fmt(u.chinaExportRebateLossPerRmb10bnEligibleExportRevenue?.['2027'])}亿元`,'2026年按4月起6%、2027年取消的全年等效口径'],
+    ['美国301关税',`每100亿元美国直供收入，法定关税毛额${fmt(u.usTariffGrossPerRmb10bnDirectExportRevenue?.allYears)}亿元`,'经济损失取决于进口商、供应商与客户的议价分担'],
+    ['美国45X/欧盟融资',`10GWh合资格电芯及模组45X毛额${fmt(u.us45xGrossPer10GwhCellAndModuleAtFullEligibility?.annualUsdMillion)}百万美元；5亿欧元无息贷款每年节息${fmt(u.euInterestSavingPerEur500mLoanAt5Pct?.annualEurMillion)}百万欧元`,'均须实际通过资格审查、投产、利用并获得/提取资金']
+  ];
+  document.getElementById('policySensitivityGrid').innerHTML=sensitivities.map(x=>`<div><b>${x[0]}</b><span>${x[1]}</span><span>${x[2]}</span></div>`).join('');
+  document.getElementById('policyExposureBody').innerHTML=(ledger.companyExposures||[]).map(x=>`<tr>
+    <td><div class="bi-name"><i class="bi-dot"></i><a href="/company/${x.companyId}"><b>${x.company}</b></a></div><small>${x.ticker}</small></td>
+    <td class="num">${fmt(x.reportedOverseasRevenuePct)}%</td>
+    <td class="bi-scope">${x.revenueScope}</td>
+    <td><span class="bi-risk">${x.politicalRisk.split('：')[0]}</span><div class="bi-note">${x.politicalRisk.split('：').slice(1).join('：')}</div></td>
+    <td>${x.exposure}</td>
+    <td>以披露海外比例作上限锚；国内应税、退税清单、美国直供、45X合资格产量和欧盟贷款均由研究员逐项输入，不自动代入。</td>
+  </tr>`).join('');
+}
+function stored(c){
+  try{const rows=JSON.parse(localStorage.getItem('industry-demo:battery-calculator:'+c.companyId)||'[]');return Array.isArray(rows)&&rows.length?rows[rows.length-1]:null}catch(_){return null}
+}
+function rowFor(c){
+  let r=c.forecast.find(x=>Number(x.year)===year),source='AI基准';
+  if(scenario==='researcher'){const s=stored(c);const sr=s?.summary?.find(x=>Number(x.year)===year);if(sr){r={...r,revenue:sr.revenue,netIncome:sr.netIncome,freeCashFlow:sr.fcf??sr.freeCashFlow,roe:sr.roe??r.roe,roa:sr.roa??r.roa};source=s.name;}}
+  const hist=c.history.find(x=>Number(x.year)===2025)||{};
+  return{company:c.company,companyId:c.companyId,ticker:c.ticker,revenue:num(r.revenue),netIncome:num(r.netIncome),fcf:num(r.freeCashFlow),roe:num(r.roe),roa:num(r.roa),marketCap:num(c.marketCapRmb100m),impliedPe:num(r.netIncome)>0?num(c.marketCapRmb100m)/num(r.netIncome):null,revenueGrowth:num(hist.revenue)?(num(r.revenue)/num(hist.revenue)-1):null,profitGrowth:num(hist.netIncome)&&num(hist.netIncome)>0?(num(r.netIncome)/num(hist.netIncome)-1):null,source};
+}
+function rows(){return MODEL.companies.filter(c=>visible.has(String(c.companyId))).map(rowFor).sort((a,b)=>{const av=a[sortKey],bv=b[sortKey];if(typeof av==='string')return(desc?-1:1)*av.localeCompare(bv,'zh-CN');return(desc?-1:1)*(num(av,-Infinity)-num(bv,-Infinity));});}
+function render(){
+  const data=rows();document.getElementById('comparisonBody').innerHTML=data.map(r=>`<tr><td><div class="bi-name"><i class="bi-dot"></i><a href="/company/${r.companyId}"><b>${r.company}</b></a></div></td><td>${r.ticker}</td><td class="num">${fmt(r.revenue)}</td><td class="num">${fmt(r.netIncome)}</td><td class="num">${fmt(r.fcf)}</td><td class="num">${(r.roe*100).toFixed(2)}%</td><td class="num">${(r.roa*100).toFixed(2)}%</td><td class="num">${fmt(r.marketCap)}</td><td class="num">${r.impliedPe===null?'—':fmt(r.impliedPe)}</td><td class="num">${r.revenueGrowth===null?'—':(r.revenueGrowth*100).toFixed(2)+'%'}</td><td class="num">${r.profitGrowth===null?'基数不适用':(r.profitGrowth*100).toFixed(2)+'%'}</td><td>${r.source}</td></tr>`).join('');
+  Plotly.react('profitChart',[
+    {x:data.map(r=>r.company),y:data.map(r=>r.revenue),type:'bar',name:'收入',marker:{color:'#4d718f'}},
+    {x:data.map(r=>r.company),y:data.map(r=>r.netIncome),type:'scatter',mode:'lines+markers',name:'归母净利润',yaxis:'y2',line:{color:'#a23831',width:3}},
+    {x:data.map(r=>r.company),y:data.map(r=>r.fcf),type:'scatter',mode:'lines+markers',name:'自由现金流',yaxis:'y2',line:{color:'#318066',width:3}}
+  ],{margin:{l:55,r:55,t:78,b:85},legend:{orientation:'h',x:0,y:1.16,yanchor:'bottom'},xaxis:{tickangle:-25},yaxis:{title:'收入（亿元）',gridcolor:'#e7edf2'},yaxis2:{title:'利润/现金流（亿元）',overlaying:'y',side:'right',zeroline:true,zerolinecolor:'#9baaba'}},{responsive:true,displaylogo:false,modeBarButtonsToRemove:['lasso2d','select2d']});
+  const valued=data.filter(r=>r.impliedPe!==null);
+  Plotly.react('valueChart',[{x:valued.map(r=>r.roe*100),y:valued.map(r=>r.impliedPe),text:valued.map(r=>r.company),mode:'markers+text',type:'scatter',textposition:'top center',marker:{size:valued.map(r=>Math.max(11,Math.sqrt(r.marketCap)/3)),color:valued.map(r=>r.fcf),colorscale:'RdYlGn',showscale:true,colorbar:{title:'FCF'}}}],{margin:{l:55,r:30,t:35,b:50},xaxis:{title:'ROE（%）',gridcolor:'#e7edf2'},yaxis:{title:'当前市值隐含PE（倍）',gridcolor:'#e7edf2'}},{responsive:true,displaylogo:false});
+}
+function compareSavedAll(){try{return JSON.parse(localStorage.getItem(comparisonStorageKey)||'[]')}catch(_){return[]}}
+function setCompareSaved(rows){localStorage.setItem(comparisonStorageKey,JSON.stringify(rows))}
+function esc(value){return String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function renderCompareSaved(){const rows=compareSavedAll();document.getElementById('compareSaved').innerHTML='<option value="">已保存比较页快照</option>'+rows.map((x,i)=>`<option value="${i}">${esc(x.name)} · ${esc((x.savedAt||'').slice(0,10))}</option>`).join('')}
+document.getElementById('companyChecks').innerHTML=MODEL.companies.map(c=>`<label class="bi-check"><input type="checkbox" data-company="${c.companyId}" checked>${c.company}</label>`).join('');
+document.querySelectorAll('[data-company]').forEach(el=>el.addEventListener('change',()=>{el.checked?visible.add(el.dataset.company):visible.delete(el.dataset.company);render();}));
+document.getElementById('yearSelect').addEventListener('change',e=>{year=Number(e.target.value);render();});
+document.getElementById('scenarioSelect').addEventListener('change',e=>{scenario=e.target.value;render();});
+document.getElementById('sortSelect').addEventListener('change',e=>{sortKey=e.target.value;render();});
+document.getElementById('sortDirection').addEventListener('click',e=>{desc=!desc;e.target.textContent=desc?'降序':'升序';render();});
+document.querySelectorAll('[data-sort]').forEach(el=>el.addEventListener('click',()=>{sortKey=el.dataset.sort;document.getElementById('sortSelect').value=sortKey;render();}));
+document.getElementById('compareSave').addEventListener('click',()=>{const name=document.getElementById('compareScenarioName').value.trim()||`比较页情景 ${new Date().toLocaleString('zh-CN')}`,rows=compareSavedAll();rows.push({name,savedAt:new Date().toISOString(),year,sortKey,desc,scenario,visible:[...visible]});setCompareSaved(rows);renderCompareSaved();document.getElementById('compareMessage').textContent=`已保存“${name}”。`});
+document.getElementById('compareLoad').addEventListener('click',()=>{const i=Number(document.getElementById('compareSaved').value),row=compareSavedAll()[i];if(!Number.isInteger(i)||!row)return;year=Number(row.year)||2027;sortKey=row.sortKey||'netIncome';desc=row.desc!==false;scenario=row.scenario||'ai';visible.clear();(row.visible||[]).forEach(x=>visible.add(String(x)));document.getElementById('yearSelect').value=String(year);document.getElementById('sortSelect').value=sortKey;document.getElementById('scenarioSelect').value=scenario;document.getElementById('sortDirection').textContent=desc?'降序':'升序';document.querySelectorAll('[data-company]').forEach(el=>el.checked=visible.has(el.dataset.company));render();document.getElementById('compareMessage').textContent=`已载入“${row.name}”。`});
+document.getElementById('compareDelete').addEventListener('click',()=>{const i=Number(document.getElementById('compareSaved').value),rows=compareSavedAll();if(!Number.isInteger(i)||!rows[i])return;const name=rows[i].name;if(!window.confirm(`确定删除“${name}”吗？`))return;rows.splice(i,1);setCompareSaved(rows);renderCompareSaved();document.getElementById('compareMessage').textContent=`已删除“${name}”。`});
+renderCompareSaved();concentration();policy();render();
+</script>
+{% endblock %}

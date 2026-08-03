@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}扫描结果 · {{ ind.name }}{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a> /
+  <a href="{{ url_for('refresh_industry', industry_id=ind.id) }}">扫描新增 source</a> /
+  <strong>扫描结果</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ ind.name }} · 扫描结果</h1>
+    <p class="entity-meta">命令:<code>{{ cmd }}</code> · 退出码:<code>{{ returncode }}</code></p>
+  </div>
+  <div class="entity-header-actions">
+    <a class="btn btn-secondary" href="{{ url_for('refresh_industry', industry_id=ind.id) }}">← 再扫一次</a>
+  </div>
+</header>
+
+{% if returncode == 0 %}
+  <div class="ai-synth-banner" style="background: #dcfce7; border-color: #22c55e; color: #14532d;">
+     扫描完成。如有新增 source,接下来开 SCIENTIST session 执行抽取。
+  </div>
+{% else %}
+  <div class="error-box">脚本执行失败(退出码 {{ returncode }})。stderr 见下。</div>
+{% endif %}
+
+{% if stdout %}
+<section class="panel">
+  <h3 class="panel-title">stdout</h3>
+  <pre class="output-pre">{{ stdout }}</pre>
+</section>
+{% endif %}
+
+{% if stderr %}
+<section class="panel">
+  <h3 class="panel-title">stderr</h3>
+  <pre class="output-pre output-pre-err">{{ stderr }}</pre>
+</section>
+{% endif %}
+
+{% endblock %}

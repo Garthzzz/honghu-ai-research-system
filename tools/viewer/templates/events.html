@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}事件日历 · 行研工具系统{% endblock %}
+
+{% macro ev_row(e) %}
+<tr class="ev-row ev-imp-{{ e.importance }}">
+  <td class="ev-date">{{ e.scheduled_date }}<span class="ev-wd"> 周{{ e.weekday }}</span></td>
+  <td><span class="ev-type ev-type-{{ e.event_type }}">{{ e.event_type }}</span> <span class="ev-imp-badge ev-imp-badge-{{ e.importance }}">{{ e.importance_label }}</span></td>
+  <td class="ev-title"><a href="{{ url_for('event_detail', event_id=e.id) }}">{{ e.title }}</a></td>
+  <td class="ev-tags">
+    {% for c in e.companies %}<span class="ev-chip">{{ c.name }}{% if c.ticker %} <small>{{ c.ticker }}</small>{% endif %}</span>{% endfor %}
+    {% for i in e.industries %}<a class="ev-chip ev-chip-ind" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% endfor %}
+  </td>
+  <td>{% if e.official_url %}<a href="{{ e.official_url }}" target="_blank" rel="noopener">官方↗</a>{% endif %}</td>
+  <td><a class="btn btn-secondary btn-xs" href="{{ url_for('event_detail', event_id=e.id) }}">详情 →</a></td>
+</tr>
+{% endmacro %}
+
+{% macro ev_table(rows) %}
+{% if rows %}
+<table class="data-table ev-table">
+  <thead><tr><th>日期</th><th>类型/级别</th><th>事件</th><th>关联</th><th>官方</th><th></th></tr></thead>
+  <tbody>{% for e in rows %}{{ ev_row(e) }}{% endfor %}</tbody>
+</table>
+{% else %}<p class="empty-state">本时段暂无事件。</p>{% endif %}
+{% endmacro %}
+
+{% block content %}
+<div class="breadcrumb"><a href="{{ url_for('index') }}">首页</a> / <strong>事件日历</strong></div>
+
+<header class="entity-header">
+  <div>
+    <h1>📅 重要事件日历</h1>
+    <p class="entity-meta">财报(yfinance 预估披露日)/ 大会(config)/ 手动补充 · 共 {{ total }} 个未来事件 · 红=L1核心 黄=L2 灰=L3</p>
+  </div>
+</header>
+
+<div class="ev-viewtabs">
+  <button class="ev-vt-btn active" data-view="week">本周({{ week|length }})</button>
+  <button class="ev-vt-btn" data-view="next">下周({{ next_week|length }})</button>
+  <button class="ev-vt-btn" data-view="month">本月({{ month|length }})</button>
+  <button class="ev-vt-btn" data-view="all">全部未来({{ total }})</button>
+</div>
+
+<div class="ev-view" id="ev-view-week"><h3 class="panel-title">本周</h3>{{ ev_table(week) }}</div>
+<div class="ev-view" id="ev-view-next" style="display:none"><h3 class="panel-title">下周</h3>{{ ev_table(next_week) }}</div>
+<div class="ev-view" id="ev-view-month" style="display:none"><h3 class="panel-title">本月</h3>{{ ev_table(month) }}</div>
+<div class="ev-view" id="ev-view-all" style="display:none"><h3 class="panel-title">全部未来事件</h3>{{ ev_table(upcoming) }}</div>
+
+{% if total == 0 %}
+<div class="empty-state"><p>暂无未来事件。财报由 scheduler event_calendar(yfinance)抓取;大会由 config 加载;可 POST /api/event 手动补充。</p></div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.ev-vt-btn').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.ev-vt-btn').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  ['week','next','month','all'].forEach(v => {
+    document.getElementById('ev-view-'+v).style.display = (v === b.dataset.view) ? '' : 'none';
+  });
+}));
+</script>
+{% endblock %}

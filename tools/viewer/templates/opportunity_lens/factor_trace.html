@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}因子追踪{% endblock %}
+{% block head_extra %}{% if g.opp_viewer_v2 %}{% include "opportunity_lens/_head_v2.html" %}{% else %}{% include "opportunity_lens/_head.html" %}{% endif %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar">
+    <div>
+      {% if g.opp_viewer_v2 %}
+      <p class="opp-eyebrow">研究因子</p>
+      <h1>{{ factor.factor_label }}</h1>
+      {% else %}
+      <p class="opp-eyebrow">因子评分 {{ factor.id }}</p>
+      <h1>{{ factor.factor_label }}</h1>
+      <p class="opp-code" translate="no">{{ factor.factor_code }}</p>
+      {% endif %}
+    </div>
+  </div>
+  <div class="opp-panel">
+    <div class="opp-explain">
+      <h2>{{ "指标如何计算" if g.opp_viewer_v2 else "计算公式解释" }}</h2>
+      <p>{{ factor.human_explanation.headline|opp_public_text }}</p>
+      <dl>
+        <dt>这个因子在问什么</dt>
+        <dd>{{ factor.factor_human_question }}</dd>
+        <dt>业务含义</dt>
+        <dd>{{ factor.factor_description }}</dd>
+        <dt>计算公式</dt>
+        <dd>{{ factor.factor_formula|opp_public_text }}</dd>
+      </dl>
+      <ol>
+        {% for step in factor.human_explanation.plain_steps %}
+        <li>{{ step|opp_public_text }}</li>
+        {% endfor %}
+      </ol>
+    </div>
+    <div class="opp-factor-analysis">
+      <h2>介绍和分析</h2>
+      <p>{{ factor.intro_analysis.headline|opp_public_text }}</p>
+      {% if factor.intro_analysis.factor_value_summary %}
+      <h3>因子总结</h3>
+      <p>{{ factor.intro_analysis.factor_value_summary|opp_public_text }}</p>
+      {% endif %}
+      {% if factor.intro_analysis.source_context_summary %}
+      <h3>{{ "资料背景与适用范围" if g.opp_viewer_v2 else "原始链接上下文" }}</h3>
+      <p>{{ factor.intro_analysis.source_context_summary|opp_public_text }}</p>
+      {% endif %}
+      <h3>信息、来源和时间</h3>
+      <ul class="opp-analysis-list opp-evidence-analysis-list">
+        {% for item in factor.intro_analysis.information_points %}
+        <li class="opp-evidence-analysis-card">
+          <h4>{{ item.slot_name }}</h4>
+          <span class="opp-evidence-analysis-label">引用的原文</span>
+          <blockquote>{{ item.excerpt }}</blockquote>
+          {% if item.excerpt_zh %}<div class="opp-translation"><b>中文译意</b><span>{{ item.excerpt_zh }}</span></div>{% endif %}
+          <dl>
+            <dt>来源</dt>
+            <dd>{{ item.source_title }}</dd>
+            <dt>发布方</dt>
+            <dd>{{ item.publisher }}</dd>
+            <dt>时间</dt>
+            <dd>{{ item.publish_date }}</dd>
+            <dt>口径</dt>
+            <dd>{{ item.metric_line }}</dd>
+          </dl>
+          <p>{{ item.interpretation|opp_public_text }}</p>
+          {% if item.evidence_ref %}
+          <button type="button" data-opp-evidence="{{ item.evidence_ref }}" title="{{ item.evidence_ref|opp_evidence_title }}">{{ item.evidence_ref|opp_evidence_label }}</button>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      <h3>{{ "量化判断依据" if g.opp_viewer_v2 else "打分理由" }}</h3>
+      <p>{{ factor.intro_analysis.score_rationale|opp_public_text }}</p>
+      <h3>主题判断及证实或证伪路径</h3>
+      <p>{{ factor.intro_analysis.related_theme_analysis|opp_public_text }}</p>
+      <ul class="opp-analysis-list">
+        {% for item in factor.intro_analysis.theme_analysis_points %}
+        <li>{{ item|opp_public_text }}</li>
+        {% endfor %}
+      </ul>
+      {% if factor.intro_analysis.evidence_weighting %}
+      <h3>{{ "证据如何影响判断" if g.opp_viewer_v2 else "证据加权" }}</h3>
+      {% if g.opp_viewer_v2 %}
+      <p>
+        最少需要 {{ factor.intro_analysis.evidence_weighting.minimum_required_groups or factor.intro_analysis.evidence_weighting.minimum_required_refs }} 个独立证据组；
+        当前有 {{ factor.intro_analysis.evidence_weighting.available_group_count or factor.intro_analysis.evidence_weighting.available_ref_count }} 个，
+        {% if factor.intro_analysis.evidence_weighting.gate_verdict in ["pass", "pass_core", "pass_reference", "pass_early_signal"] %}
+        已满足证据数量要求。
+        {% else %}
+        尚未满足证据数量要求。
+        {% endif %}
+      </p>
+      {% else %}
+      <p>
+        最少需要 {{ factor.intro_analysis.evidence_weighting.minimum_required_groups or factor.intro_analysis.evidence_weighting.minimum_required_refs }} 个独立证据组；
+        当前 {{ factor.intro_analysis.evidence_weighting.available_group_count or factor.intro_analysis.evidence_weighting.available_ref_count }} 个。
+        加权方向分 {{ "%.2f"|format(factor.intro_analysis.evidence_weighting.weighted_evidence_score or 0) }}，
+        闸门结论 {{ factor.intro_analysis.evidence_weighting.gate_verdict|opp_label }}。
+      </p>
+      {% endif %}
+      {% if not g.opp_viewer_v2 or factor.is_score_displayable %}
+      <div class="opp-wide-scroll">
+        <table class="opp-table opp-weight-table">
+          <thead><tr><th>证据</th><th>可信度</th><th>数值支撑</th><th>方向</th><th>权重贡献</th><th>解释</th></tr></thead>
+          <tbody>
+      {% for item in factor.intro_analysis.evidence_weighting["items"] %}
+          <tr>
+            <td><button type="button" data-opp-evidence="{{ item.evidence_ref }}" title="{{ item.evidence_ref|opp_evidence_title }}">{{ item.evidence_ref|opp_evidence_label }}</button></td>
+            <td>{{ "%.0f"|format((item.credibility_weight or 0)*100) }}%</td>
+            <td>{{ "%.0f"|format((item.numeric_weight or 0)*100) }}%</td>
+            <td>{{ item.direction|opp_label }}</td>
+            <td>{{ "%.2f"|format(item.weighted_contribution or 0) }}</td>
+            <td>{{ item.reason }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% endif %}
+      <div class="opp-evidence-list">
+        {% for ref in factor.intro_analysis.evidence_refs %}
+        <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="opp-kpis">
+      <div class="opp-kpi"><span>状态</span><b>{{ factor.score_status|opp_label }}</b></div>
+      {% if factor.is_score_displayable %}
+      <div class="opp-kpi"><span>原始分</span><b>{{ "%.1f"|format(factor.score_raw or 0) }}</b></div>
+      <div class="opp-kpi"><span>调整后分数</span><b>{{ "%.1f"|format(factor.score_adjusted or 0) }}</b></div>
+      {% else %}
+      <div class="opp-kpi"><span>评分</span><b>证据不足，暂不评分</b></div>
+      {% endif %}
+      <div class="opp-kpi"><span>可靠性</span><b>{{ "%.0f"|format((factor.reliability_multiplier or 0)*100) }}%</b></div>
+    </div>
+    <h2>{{ "研究指标" if g.opp_viewer_v2 else "指标槽" }}</h2>
+    <div class="opp-wide-scroll">
+    <table class="opp-table opp-slot-table">
+      <thead><tr><th>{{ "研究指标" if g.opp_viewer_v2 else "指标槽" }}</th><th>指标含义</th><th>状态</th><th>分数</th><th>证据</th></tr></thead>
+      <tbody>
+      {% for slot in factor.slots %}
+      <tr>
+        <td><a href="/opportunity-lens/metric-slot/{{ slot.id }}">{{ slot.slot_label or slot.slot_key }}</a>{% if not g.opp_viewer_v2 %}<br><span class="opp-code" translate="no">{{ slot.slot_key }}</span>{% endif %}</td>
+        <td>{{ slot.factor_description }}</td>
+        <td>{{ slot.metric_slot_status|opp_label }}</td>
+        <td>{% if slot.human_explanation.score_displayable %}{{ slot.slot_score }}{% else %}证据不足{% endif %}</td>
+        <td>
+          {% if slot.evidence_ref_uri and slot.evidence_ref_uri|string|lower != "none" %}
+          <button type="button" data-opp-evidence="{{ slot.evidence_ref_uri }}" title="{{ slot.evidence_ref_uri|opp_evidence_title }}">{{ slot.evidence_ref_uri|opp_evidence_label }}</button>
+          {% else %}
+          暂无直接证据
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <details class="opp-json-box">
+      <summary>{{ "查看复算方法说明" if g.opp_viewer_v2 else "查看复算字段与审计说明" }}</summary>
+      <div class="opp-json-help">
+        <p><b>复算字段说明</b></p>
+        <b>这部分用于系统复算和审计，默认不作为正文阅读内容。</b>
+        <ul>
+          {% for item in factor.human_explanation.json_guide %}
+          <li>{{ item|opp_public_text }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </details>
+  </div>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

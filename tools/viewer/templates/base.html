@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}行研工具系统 · 多行业{% endblock %}</title>
+<script>
+(function(){
+  var key='rx_theme_mode';
+  var mode='auto';
+  try { mode = localStorage.getItem(key) || 'auto'; } catch(e) {}
+  if (!/^(auto|light|dark|blue)$/.test(mode)) mode='auto';
+  var dark = false;
+  try { dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch(e) {}
+  document.documentElement.dataset.themeMode = mode;
+  document.documentElement.dataset.theme = mode === 'auto' ? (dark ? 'dark' : 'light') : mode;
+})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex-0.16.9/katex.min.css') }}">
+<script defer src="{{ url_for('static', filename='vendor/katex-0.16.9/katex.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='vendor/katex-0.16.9/contrib/auto-render.min.js') }}"
+        onload="renderMathInElement(document.body, {delimiters: [
+          {left: '$$', right: '$$', display: true},
+          {left: '\\(', right: '\\)', display: false},
+          {left: '\\[', right: '\\]', display: true}
+        ],
+          ignoredClasses: ['no-katex'],
+          ignoredTags: ['script','noscript','style','textarea','pre','code','option'],
+          throwOnError: false});"></script>
+<style>
+/* ── 设计令牌:事件徽章配色(T11;语义清晰、对比足、稳重涨跌色)── */
+.badge{display:inline-block;font-size:11px;line-height:1.5;padding:1px 8px;border-radius:14px;border:1px solid;font-weight:600;letter-spacing:.2px;white-space:nowrap}
+.bg-mat-hi{color:#fff;background:#b3382b;border-color:#e0584a}                 /* 重大性 高 = 醒目警示 */
+.bg-mat-mid{color:#ffd9a0;background:rgba(176,108,28,.32);border-color:#b87f3c} /* 中 = 琥珀 */
+.bg-mat-lo{color:#9fb0c4;background:rgba(120,140,170,.16);border-color:#46546a} /* 低 = 静音 */
+.bg-pos{color:#ffb3a3;background:rgba(196,72,60,.24);border-color:#c2504a}      /* 正面 = 红(A股涨) */
+.bg-neg{color:#86e6a6;background:rgba(40,150,90,.22);border-color:#2f8d59}      /* 负面 = 绿(A股跌) */
+.bg-neu{color:#aeb8c6;background:rgba(120,140,170,.14);border-color:#46546a}    /* 中性 = 灰 */
+</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='v4.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='dynamic.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='theme.css') }}">
+{% block head_extra %}{% endblock %}
+</head>
+<body class="world-{{ nav_world|default('research') }}">
+{# ============================================================
+    v4 参考体系 App 壳:左侧图标轨 + 可折叠行业侧栏 + 主列
+   ============================================================ #}
+{% macro railicon(key, href, label, paths) -%}
+  <a href="{{ href }}" class="rail-item{{ ' active' if nav_active==key else '' }}" data-tip="{{ label }}" aria-label="{{ label }}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">{{ paths|safe }}</svg>
+  </a>
+{%- endmacro %}
+<div class="app-shell">
+  <nav class="rail" aria-label="主导航">
+    <a href="{{ url_for('index') }}" class="rail-brand" aria-label="行研工具系统">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-8"/><path d="M21 19H3"/></svg>
+    </a>
+    <div class="rail-items">
+      {# 动态情报世界:首页 · 研究员观点 · 日历 #}
+      {{ railicon('intel',   url_for('index'),                 '首页', '<path d="M3 9.5 12 3l9 6.5"/><path d="M5 9v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9"/><path d="M9 21v-7h6v7"/>') }}
+      {{ railicon('hyp',     url_for('hypotheses_index'),      '研究员观点', '<path d="M14 2v6l4.5 9a2 2 0 0 1-1.8 3H7.3a2 2 0 0 1-1.8-3L10 8V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/>') }}
+      {{ railicon('events',  url_for('events_index'),          '日历', '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>') }}
+      <div class="rail-div" aria-hidden="true"></div>
+      {# 深度研究世界:行业 · 产业链 · 数据点 #}
+      {{ railicon('lib',     url_for('research_home'),         '行业', '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>') }}
+      {{ railicon('companies', url_for('companies_index'),      '公司', '<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0 1 12 0v2"/><path d="M16 4h5v16h-5"/>') }}
+      {{ railicon('chain',   url_for('ai_macro_chain'),        '产业链全景', '<line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>') }}
+      {{ railicon('data',    url_for('data_points_index'),     '数据点', '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>') }}
+      {{ railicon('opportunity', url_for('opportunity_lens.opportunity_home'), '机会透镜', '<path d="M3 12h4l2-5 4 10 2-5h6"/><path d="M4 19h16"/><circle cx="18" cy="7" r="3"/>') }}
+      {{ railicon('tools',   url_for('tools_index'),           '工具', '<path d="M14.7 6.3a4 4 0 0 0-5-5l2.1 2.1-2.8 2.8-2.1-2.1a4 4 0 0 0 5 5L19 16.2a2 2 0 1 1-2.8 2.8l-7.1-7.1a4 4 0 0 0-5-5l2.1 2.1-2.8 2.8-2.1-2.1a4 4 0 0 0 5 5"/>') }}
+      <div class="rail-div" aria-hidden="true"></div>
+      {{ railicon('senti',   url_for('dynamic_sentiment'),     '情绪·事件', '<path d="M3 12h4l2 6 4-14 2 8h6"/>') }}
+    </div>
+  </nav>
+
+  <aside class="sidebar" aria-label="行业侧栏">
+    <div class="sb-head">
+      <span class="sb-title">{{ '工具' if nav_active == 'tools' else '行研库' }}</span>
+      <button class="sb-collapse" type="button" aria-label="折叠侧栏" title="折叠/展开侧栏">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      </button>
+    </div>
+    {% if nav_active == 'tools' %}
+    <div class="sb-section-label">研究与估值工具 · 3</div>
+    <div class="sb-list" id="sb-list">
+      <a href="{{ url_for('lithium_calculator') }}"
+         class="sb-ind{{ ' active' if request.endpoint in ['lithium_calculator', 'lithium_industry_comparison'] else '' }}" data-name="碳酸锂估值计算器">
+        <span class="tier-dot tier-1"></span>
+        <span class="sb-ind-name">碳酸锂估值计算器</span>
+      </a>
+      <a href="{{ url_for('copper_calculator') }}"
+         class="sb-ind{{ ' active' if request.endpoint in ['copper_calculator', 'copper_industry_comparison'] else '' }}" data-name="铜矿项目与现金流计算器">
+        <span class="tier-dot tier-1"></span>
+        <span class="sb-ind-name">铜矿项目与现金流计算器</span>
+      </a>
+      <a href="{{ url_for('battery_calculator') }}"
+         class="sb-ind{{ ' active' if request.endpoint in ['battery_calculator', 'battery_industry_comparison'] else '' }}" data-name="锂电池业务与估值计算器">
+        <span class="tier-dot tier-1"></span>
+        <span class="sb-ind-name">锂电池业务与估值计算器</span>
+      </a>
+    </div>
+    <div class="sb-quick">
+      <a href="{{ url_for('research_home') }}">返回行业</a>
+      <a href="{{ url_for('companies_index') }}">公司</a>
+      <a href="{{ url_for('opportunity_lens.opportunity_home') }}">机会透镜</a>
+    </div>
+    {% else %}
+    <div class="sb-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input type="text" id="sb-filter" placeholder="筛选行业…" autocomplete="off">
+    </div>
+    <div class="sb-section-label">深度跟踪 · {{ nav_deep_count }}</div>
+    <div class="sb-list" id="sb-list">
+      {% for ind in nav_industries if ind.status == '深度跟踪' %}
+      <a href="{{ url_for('industry_detail', industry_id=ind.id) }}"
+         class="sb-ind{{ ' active' if request.view_args and request.view_args.get('industry_id')==ind.id else '' }}"
+         data-name="{{ ind.name }}">
+        <span class="tier-dot tier-{{ ind.tier or 3 }}"></span>
+        <span class="sb-ind-name">{{ ind.name }}</span>
+        {% if ind.data_point_count %}<span class="sb-ind-n">{{ ind.data_point_count }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </div>
+    {% set other_inds = nav_industries | rejectattr('status', 'equalto', '深度跟踪') | list %}
+    {% if other_inds %}
+    <details class="sb-other">
+      <summary>其他行业 · {{ other_inds|length }}</summary>
+      <div class="sb-list">
+        {% for ind in other_inds %}
+        <a href="{{ url_for('industry_detail', industry_id=ind.id) }}"
+           class="sb-ind dim{{ ' active' if request.view_args and request.view_args.get('industry_id')==ind.id else '' }}"
+           data-name="{{ ind.name }}">
+          <span class="tier-dot tier-{{ ind.tier or 3 }}"></span>
+          <span class="sb-ind-name">{{ ind.name }}</span>
+        </a>
+        {% endfor %}
+      </div>
+    </details>
+    {% endif %}
+    <div class="sb-quick">
+      <a class="{{ 'active' if nav_active == 'companies' else '' }}" href="{{ url_for('companies_index') }}">公司</a>
+      <a class="{{ 'active' if nav_active == 'opportunity' else '' }}" href="{{ url_for('opportunity_lens.opportunity_home') }}">机会透镜</a>
+      <a href="{{ url_for('incremental_index') }}">增量更新</a>
+      <a href="{{ url_for('data_points_index') }}">全部数据点</a>
+      <a href="{{ url_for('sources_index') }}">Source 库</a>
+    </div>
+    {% endif %}
+  </aside>
+
+  <div class="app-main">
+    <main class="container">
+    {% if error %}
+      <div class="error-box">{{ error }}</div>
+    {% endif %}
+    {% block content %}{% endblock %}
+    </main>
+    <footer class="footer">
+      <span>行研工具系统 · 多行业系统(光模块 · 存储 · 大模型)· 2026</span>
+      <span class="footer-sep">|</span>
+      <span>db: research / financial / sentiment / opportunity</span>
+      <span class="footer-sep">|</span>
+      <span><a href="/api/health">/api/health</a></span>
+    </footer>
+  </div>
+</div>
+
+<div class="rx-theme-switcher" data-theme-switcher>
+  <button class="rx-theme-toggle" type="button" aria-label="切换颜色主题" aria-expanded="false" aria-controls="rx-theme-menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="4"></circle>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+    </svg>
+    <span data-theme-label>自动</span>
+  </button>
+  <div class="rx-theme-menu" id="rx-theme-menu" role="radiogroup" aria-label="颜色主题" hidden>
+    <button type="button" role="radio" data-theme-choice="auto" aria-checked="true">自动</button>
+    <button type="button" role="radio" data-theme-choice="light" aria-checked="false">浅色</button>
+    <button type="button" role="radio" data-theme-choice="dark" aria-checked="false">深色</button>
+    <button type="button" role="radio" data-theme-choice="blue" aria-checked="false">蓝色</button>
+  </div>
+</div>
+
+<!-- ============================================================
+      数据溯源 modal(全站通用,任务 3b)
+     触发:.trace-btn 按钮 / sup.src-ref 上标
+     ============================================================ -->
+<div id="trace-modal" class="trace-modal-overlay" hidden>
+  <div class="trace-modal" role="dialog" aria-modal="true" aria-labelledby="trace-modal-title">
+    <button class="trace-modal-close" aria-label="关闭" data-trace-close>×</button>
+    <div class="trace-modal-head">
+      <div class="trace-modal-meta">
+        <span class="tier-badge" id="trace-tier"></span>
+        <span id="trace-type-badge" class="trace-pill"></span>
+        <span id="trace-ai-badge" class="ai-synth-tag" hidden> AI 综合</span>
+        <span id="trace-forecast-badge" class="forecast-tag" hidden>前瞻(降级)</span>
+      </div>
+      <h2 id="trace-modal-title">加载中…</h2>
+      <div class="trace-modal-sub">
+        <span id="trace-publisher"></span>
+        <span id="trace-date" class="trace-sep-before"></span>
+        <span id="trace-author" class="trace-sep-before"></span>
+      </div>
+    </div>
+    <div class="trace-modal-body">
+      <div id="trace-primary-wrap" hidden>
+        <h4 class="trace-section-title">引用的原文摘录</h4>
+        <div id="trace-primary-meta" class="trace-ex-meta"></div>
+        <blockquote id="trace-excerpt" class="trace-excerpt">—</blockquote>
+        <a id="trace-primary-link" class="trace-ex-locate" href="#" hidden>在 source 详情页定位该数据点 →</a>
+      </div>
+      <details id="trace-others" class="trace-others" hidden>
+        <summary id="trace-others-sum">该 source 其他原文摘录</summary>
+        <div id="trace-ex-list" class="trace-ex-list"></div>
+      </details>
+      <div id="trace-ex-empty" class="trace-hint" hidden>该 source 暂无录入原文摘录(可前往详情页查看关联实体)。</div>
+    </div>
+    <div class="trace-modal-actions">
+      <a id="trace-detail-link" class="btn" href="#">查看 Source 详情</a>
+      <a id="trace-pdf-link" class="btn btn-secondary" href="#" target="_blank" hidden>查看原文 PDF</a>
+      <a id="trace-url-link" class="btn btn-secondary" href="#" target="_blank" rel="noopener" hidden>原始 URL</a>
+    </div>
+    <div id="trace-modal-error" class="trace-modal-error" hidden></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const overlay   = document.getElementById('trace-modal');
+  const titleEl   = document.getElementById('trace-modal-title');
+  const tierEl    = document.getElementById('trace-tier');
+  const typeEl    = document.getElementById('trace-type-badge');
+  const aiEl      = document.getElementById('trace-ai-badge');
+  const fcEl      = document.getElementById('trace-forecast-badge');
+  const pubEl     = document.getElementById('trace-publisher');
+  const dateEl    = document.getElementById('trace-date');
+  const authorEl  = document.getElementById('trace-author');
+  const excerptEl   = document.getElementById('trace-excerpt');
+  const primWrap    = document.getElementById('trace-primary-wrap');
+  const primMeta    = document.getElementById('trace-primary-meta');
+  const primLink    = document.getElementById('trace-primary-link');
+  const othersEl    = document.getElementById('trace-others');
+  const othersSumEl = document.getElementById('trace-others-sum');
+  const exListEl    = document.getElementById('trace-ex-list');
+  const exEmptyEl   = document.getElementById('trace-ex-empty');
+  const detailEl  = document.getElementById('trace-detail-link');
+  const pdfEl     = document.getElementById('trace-pdf-link');
+  const urlEl     = document.getElementById('trace-url-link');
+  const errEl     = document.getElementById('trace-modal-error');
+
+  let curInline = '';   // 表格溯源按钮带的具体摘录
+  let curCtx    = '';   // md ^src 上标所在句子(用于匹配具体那一条)
+
+  function buildExItem(it) {
+    const a = document.createElement('a');
+    a.className = 'trace-ex-item';
+    if (it.hl_url) a.href = it.hl_url;
+    const meta = document.createElement('div');
+    meta.className = 'trace-ex-meta';
+    meta.textContent = (it.industry_name ? it.industry_name + ' · ' : '') + (it.metric || '') + (it.as_of ? ' · ' + it.as_of : '');
+    const q = document.createElement('div');
+    q.className = 'trace-ex-text';
+    q.textContent = it.excerpt;
+    a.appendChild(meta); a.appendChild(q);
+    return a;
+  }
+  // 上下文匹配打分:共享数字(高权重)+ 子串重叠,定位"被引用的那一条"
+  function scoreEx(exText, ctx) {
+    if (!ctx || !exText) return 0;
+    let s = 0;
+    const ctxNums = (ctx.match(/\d+\.?\d*/g) || []).filter(n => n.replace('.', '').length >= 2);
+    const exSet = new Set(exText.match(/\d+\.?\d*/g) || []);
+    ctxNums.forEach(n => { if (exSet.has(n)) s += 10; });
+    const c = ctx.replace(/\s+/g, '');
+    for (let i = 0; i + 5 <= c.length && i < 600; i += 2) { if (exText.indexOf(c.substr(i, 5)) >= 0) s += 1; }
+    return s;
+  }
+  function renderExcerpts(ex) {
+    exListEl.innerHTML = '';
+    if (!ex.length) { exEmptyEl.hidden = false; return; }
+    let primary = null, primaryIdx = -1;
+    if (curInline && curInline.trim()) {
+      const norm = curInline.replace(/\s/g, '');
+      primaryIdx = ex.findIndex(it => it.excerpt.replace(/\s/g, '') === norm);
+      primary = primaryIdx >= 0 ? ex[primaryIdx]
+                                : { excerpt: curInline, metric: '', industry_name: '', as_of: '', hl_url: null };
+    } else if (curCtx) {
+      let best = -1, bestScore = 0;
+      ex.forEach((it, i) => { const sc = scoreEx(it.excerpt, curCtx); if (sc > bestScore) { bestScore = sc; best = i; } });
+      if (best >= 0 && bestScore > 0) { primaryIdx = best; primary = ex[best]; }
+    }
+    if (primary) {
+      primWrap.hidden = false;
+      excerptEl.textContent = primary.excerpt;
+      primMeta.textContent = (primary.industry_name ? primary.industry_name + ' · ' : '') + (primary.metric || '') + (primary.as_of ? ' · ' + primary.as_of : '');
+      if (primary.hl_url) { primLink.href = primary.hl_url; primLink.hidden = false; }
+      const others = ex.filter((_, i) => i !== primaryIdx);
+      if (others.length) {
+        othersEl.hidden = false;
+        othersSumEl.textContent = '该 source 其他原文摘录(' + others.length + ' 条)';
+        others.forEach(it => exListEl.appendChild(buildExItem(it)));
+      }
+    } else {
+      othersEl.hidden = false; othersEl.open = true;
+      othersSumEl.textContent = '该 source 全部原文摘录(' + ex.length + ' 条)';
+      ex.forEach(it => exListEl.appendChild(buildExItem(it)));
+    }
+  }
+
+  function openModal() {
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+  }
+  function resetModal() {
+    titleEl.textContent = '加载中…';
+    tierEl.textContent = '—';
+    tierEl.className = 'tier-badge';
+    typeEl.textContent = '';
+    aiEl.hidden = true;
+    fcEl.hidden = true;
+    pubEl.textContent = '';
+    dateEl.textContent = '';
+    authorEl.textContent = '';
+    excerptEl.textContent = '—';
+    primWrap.hidden = true;
+    primMeta.textContent = '';
+    primLink.hidden = true; primLink.href = '#';
+    othersEl.hidden = true; othersEl.open = false;
+    exListEl.innerHTML = '';
+    exEmptyEl.hidden = true;
+    detailEl.href = '#';
+    pdfEl.hidden = true;
+    urlEl.hidden = true;
+    errEl.hidden = true;
+    errEl.textContent = '';
+  }
+
+  async function fillFromApi(sourceId) {
+    try {
+      const resp = await fetch('/api/source/' + encodeURIComponent(sourceId));
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        errEl.textContent = data.error || ('source #' + sourceId + ' 加载失败');
+        errEl.hidden = false;
+        titleEl.textContent = 'source #' + sourceId;
+        return;
+      }
+      titleEl.textContent = data.title || ('source #' + sourceId);
+      tierEl.textContent = 'tier ' + data.quality_tier;
+      tierEl.className = 'tier-badge tier-' + data.quality_tier;
+      typeEl.textContent = data.source_type || '';
+      aiEl.hidden = !data.is_ai_synth;
+      fcEl.hidden = !data.is_forward_looking;
+      pubEl.textContent = data.publisher || '—';
+      dateEl.textContent = data.publish_date || '—';
+      authorEl.textContent = data.author ? ('作者:' + data.author) : '';
+      detailEl.href = data.detail_url;
+      if (data.has_pdf && data.pdf_url) { pdfEl.href = data.pdf_url; pdfEl.hidden = false; }
+      if (data.url) { urlEl.href = data.url; urlEl.hidden = false; }
+      // 渲染:优先定位"被引用的具体那一条",其余收进可展开列表
+      renderExcerpts(data.excerpts || []);
+    } catch (e) {
+      errEl.textContent = '网络错误:' + e.message;
+      errEl.hidden = false;
+      titleEl.textContent = 'source #' + sourceId;
+    }
+  }
+
+  window.openTraceModal = function(opts) {
+    resetModal();
+    openModal();
+    const sourceId = opts.sourceId;
+    curInline = (opts.excerpt || '').trim();     // 表格溯源:精确那一条
+    curCtx    = (opts.context || '').trim();     // md ^src:按上下文匹配那一条
+    if (sourceId) {
+      fillFromApi(sourceId);   // 内部 renderExcerpts 定位被引用的具体那一条
+    } else {
+      titleEl.textContent = '(未知 source)';
+    }
+  };
+
+  // 关闭
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+  document.querySelectorAll('[data-trace-close]').forEach(b => b.addEventListener('click', closeModal));
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !overlay.hidden) closeModal(); });
+
+  // 全局事件委托:.trace-btn 和 sup.src-ref(md 内嵌)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.trace-btn');
+    if (btn) {
+      e.preventDefault();
+      window.openTraceModal({
+        sourceId: btn.dataset.sourceId,
+        excerpt: btn.dataset.excerpt || ''
+      });
+      return;
+    }
+    const sup = e.target.closest('sup.src-ref');
+    if (sup) {
+      e.preventDefault();
+      // 取上标所在句子/块作为上下文,用于匹配"被引用的那一条"原文摘录
+      const block = sup.closest('p, li, td, h1, h2, h3, h4, blockquote, div');
+      const ctx = block ? (block.textContent || '') : '';
+      window.openTraceModal({
+        sourceId: sup.dataset.sourceId,
+        excerpt: '',
+        context: ctx
+      });
+    }
+  });
+  // 上标键盘可达性
+  document.addEventListener('keydown', (e) => {
+    if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('sup.src-ref')) {
+      e.preventDefault();
+      const block = e.target.closest('p, li, td, h1, h2, h3, h4, blockquote, div');
+      window.openTraceModal({ sourceId: e.target.dataset.sourceId, excerpt: '', context: block ? (block.textContent || '') : '' });
+    }
+  });
+})();
+</script>
+
+<script>
+/* ── App 壳:侧栏折叠(localStorage 记忆)+ 行业即时筛选 ── */
+(function(){
+  var shell = document.querySelector('.app-shell');
+  if (!shell) return;
+  var KEY = 'rx_sidebar_collapsed';
+  try { if (localStorage.getItem(KEY) === '1') shell.classList.add('sidebar-collapsed'); } catch(e){}
+  var btn = document.querySelector('.sb-collapse');
+  if (btn) btn.addEventListener('click', function(){
+    shell.classList.toggle('sidebar-collapsed');
+    try { localStorage.setItem(KEY, shell.classList.contains('sidebar-collapsed') ? '1' : '0'); } catch(e){}
+  });
+  var filt = document.getElementById('sb-filter');
+  if (filt) filt.addEventListener('input', function(){
+    var q = this.value.trim().toLowerCase();
+    document.querySelectorAll('.sidebar .sb-ind').forEach(function(a){
+      var n = (a.getAttribute('data-name')||'').toLowerCase();
+      a.style.display = (!q || n.indexOf(q) >= 0) ? '' : 'none';
+    });
+  });
+})();
+</script>
+
+<script>
+/* ── 全局颜色主题:自动 / 浅色 / 深色 / 蓝色 ── */
+(function(){
+  var root = document.documentElement;
+  var key = 'rx_theme_mode';
+  var labels = {auto:'自动', light:'浅色', dark:'深色', blue:'蓝色'};
+  var media = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+  var box = document.querySelector('[data-theme-switcher]');
+  if (!box) return;
+  var toggle = box.querySelector('.rx-theme-toggle');
+  var menu = box.querySelector('.rx-theme-menu');
+  var label = box.querySelector('[data-theme-label]');
+  var choices = Array.prototype.slice.call(box.querySelectorAll('[data-theme-choice]'));
+
+  function storedMode(){
+    var mode = 'auto';
+    try { mode = localStorage.getItem(key) || 'auto'; } catch(e) {}
+    return /^(auto|light|dark|blue)$/.test(mode) ? mode : 'auto';
+  }
+  function resolvedMode(mode){
+    return mode === 'auto' ? ((media && media.matches) ? 'dark' : 'light') : mode;
+  }
+  function apply(mode){
+    var resolved = resolvedMode(mode);
+    root.dataset.themeMode = mode;
+    root.dataset.theme = resolved;
+    if (label) label.textContent = labels[mode] || labels.auto;
+    choices.forEach(function(btn){
+      var on = btn.dataset.themeChoice === mode;
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      btn.classList.toggle('active', on);
+    });
+    try {
+      root.dispatchEvent(new CustomEvent('rx-theme-change', {detail:{mode:mode, resolved:resolved}}));
+    } catch(e) {}
+  }
+  function setMode(mode){
+    try { localStorage.setItem(key, mode); } catch(e) {}
+    apply(mode);
+  }
+  function close(){
+    menu.hidden = true;
+    toggle.setAttribute('aria-expanded', 'false');
+  }
+  function open(){
+    menu.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+  }
+
+  apply(storedMode());
+  if (media) {
+    var onMedia = function(){ if (storedMode() === 'auto') apply('auto'); };
+    if (media.addEventListener) media.addEventListener('change', onMedia);
+    else if (media.addListener) media.addListener(onMedia);
+  }
+  toggle.addEventListener('click', function(){ menu.hidden ? open() : close(); });
+  choices.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      setMode(btn.dataset.themeChoice || 'auto');
+      close();
+      toggle.focus();
+    });
+  });
+  document.addEventListener('click', function(e){
+    if (!box.contains(e.target)) close();
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape') close();
+  });
+})();
+</script>
+
+<script>
+/* ── 懒加载 Plotly:图进入视口才 newPlot(首屏快);节点 customdata=url → 点击跳转 ── */
+(function(){
+  var divs = document.querySelectorAll('.rx-plotly[data-plotly]');
+  if(!divs.length) return;
+  function ensure(cb){
+    if(window.Plotly){ cb(); return; }
+    var n=0, t=setInterval(function(){ if(window.Plotly||n++>80){ clearInterval(t); if(window.Plotly) cb(); } }, 50);
+  }
+  function render(div){
+    if(div.dataset.rendered) return;
+    var s = div.querySelector('script.fig'); if(!s) return;
+    var fig; try{ fig = JSON.parse(s.textContent); }catch(e){ return; }
+    div.dataset.rendered = '1';
+    ensure(function(){
+      window.Plotly.newPlot(div, fig.data, fig.layout, {displayModeBar:false, responsive:true, scrollZoom:true});
+      if(div.on) div.on('plotly_click', function(ev){
+        var p = ev.points && ev.points[0], u = p && p.customdata;
+        if(u && typeof u === 'string'){ window.location.href = u; }
+      });
+    });
+  }
+  if('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ render(e.target); io.unobserve(e.target); } });
+    }, {rootMargin:'250px'});
+    divs.forEach(function(d){ io.observe(d); });
+  } else { divs.forEach(render); }
+  /*  隐藏 tab(display:none,如「结构化数据」「按公司看」)里的图,IntersectionObserver 可能不触发;
+     点击任意 tab/视图切换按钮后补渲染当前可见但未渲染的图。 */
+  function renderVisible(){
+    document.querySelectorAll('.rx-plotly[data-plotly]').forEach(function(d){
+      if(d.dataset.rendered) return;
+      var r = d.getBoundingClientRect();
+      if(r.width > 0 && r.height > 0){ render(d); }
+      else if(r.width > 0 && window.Plotly){ /* 容器可见但高度待布局,下一帧再试 */ }
+    });
+  }
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if(t && t.closest && t.closest('.tab-btn,.val-vt-btn,.cp-vt-btn,[data-tab],[data-view]')){
+      setTimeout(renderVisible, 60); setTimeout(renderVisible, 220);
+    }
+  });
+})();
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

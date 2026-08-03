@@ -1,0 +1,4785 @@
+{
+  "schema_version": "honghu.sqlite_dependency_baseline.v1",
+  "definition": {
+    "writer": "domain mutation path/write endpoint/writer operation/transaction contract",
+    "not_equivalent_to": "whole process, Viewer application, or scheduled-task process",
+    "phase1_scope": "static operation-level ratchet; no cutover-unit ownership assignment"
+  },
+  "counts_by_file_rule": {
+    "tools/dynamic/ai_funnel.py": {
+      "sqlite_conflict_dml": 2
+    },
+    "tools/dynamic/ai_tagger.py": {
+      "sqlite3_connect": 2
+    },
+    "tools/dynamic/backfill_voice_musk_only.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/event_preview_auto.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/event_preview_cc.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/event_sources/conference_loader.py": {
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/dynamic/event_sources/earnings_fetcher.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/event_store.py": {
+      "sqlite_conflict_dml": 2
+    },
+    "tools/dynamic/news_ingest.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/news_publishers/google_news_rss.py": {
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/dynamic/relevance_classifier.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/scheduler.py": {
+      "sqlite3_connect": 2
+    },
+    "tools/dynamic/seed_3a.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/seed_leader_profiles.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/stage3g_b123.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/translate_cc.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/dynamic/voice_ingest.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 2
+    },
+    "tools/financial/apply_run16_peer_actual_snapshot.py": {
+      "pragma": 1
+    },
+    "tools/financial/build_lithium_calculator_ledger.py": {
+      "attach": 1
+    },
+    "tools/financial/db.py": {
+      "begin_immediate": 1,
+      "pragma": 5,
+      "sqlite3_connect": 2
+    },
+    "tools/financial/migrate.py": {
+      "hardcoded_data_db": 2,
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/financial/repository.py": {
+      "sqlite_conflict_dml": 3
+    },
+    "tools/maintenance/apply_run15_broadcast.py": {
+      "hardcoded_data_db": 5,
+      "pragma": 2,
+      "sqlite3_connect": 3
+    },
+    "tools/maintenance/apply_run16_ai_chain_update.py": {
+      "begin_immediate": 1,
+      "pragma": 5,
+      "sqlite3_connect": 2,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/maintenance/apply_run16_homepage_summary.py": {
+      "begin_immediate": 1,
+      "hardcoded_data_db": 1,
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/audit_copper_research.py": {
+      "pragma": 4,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/audit_lithium_battery_release.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/audit_pcb_equipment_browser.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/audit_pcb_equipment_release_scope.py": {
+      "pragma": 4,
+      "sqlite3_connect": 2
+    },
+    "tools/maintenance/audit_workflow_contract.py": {
+      "pragma": 3,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/backfill_opportunity_factor_missing_reasons.py": {
+      "begin_immediate": 1,
+      "pragma": 2,
+      "sqlite3_connect": 2
+    },
+    "tools/maintenance/build_context_snapshot.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/build_pcb_equipment_final_bundle.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/build_required_cache_bundle.py": {
+      "hardcoded_data_db": 4,
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/build_viewer_broadcast_bundle.py": {
+      "hardcoded_data_db": 6,
+      "pragma": 2,
+      "sqlite3_connect": 3
+    },
+    "tools/maintenance/finalize_copper_workflow.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/finalize_hdi_workflow.py": {
+      "sqlite3_connect": 2
+    },
+    "tools/maintenance/finalize_lithium_workflow.py": {
+      "pragma": 2,
+      "sqlite3_connect": 4
+    },
+    "tools/maintenance/finalize_pcb_equipment_workflow.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/migrate_paper_paths.py": {
+      "begin_immediate": 1,
+      "hardcoded_data_db": 4,
+      "pragma": 6,
+      "sqlite3_connect": 7
+    },
+    "tools/maintenance/project_artifacts.py": {
+      "hardcoded_data_db": 4,
+      "pragma": 2,
+      "sqlite3_connect": 2
+    },
+    "tools/maintenance/refresh_project_backup.py": {
+      "hardcoded_data_db": 4,
+      "pragma": 2,
+      "sqlite3_connect": 3
+    },
+    "tools/maintenance/sentiment_retention.py": {
+      "begin_immediate": 2,
+      "pragma": 13,
+      "sqlite3_connect": 2
+    },
+    "tools/maintenance/sync_hdi_source_indexes.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/validate_sqlite_migration.py": {
+      "pragma": 4,
+      "sqlite3_connect": 1
+    },
+    "tools/maintenance/verify_pcb_equipment_release_equivalence.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrate/2026_05_28_anomaly_detect.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/migrate/2026_05_28_metric_normalize.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/migrate/2026_05_28_scope_split.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/migrate/2026_05_28_unit_normalize.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/001_company_profile_arch.py": {
+      "pragma": 3,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/001_stage2cf_valuation_analyst.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/002_stage2cg_thesis_refactor.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/003_stage2cg_canonical_align.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/004_stage3_dynamic.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/005_p0_fixes.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/006_stage3g_schema_extension.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/007_stage3h_industry_v2.py": {
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/migrations/008_stage3h_translation.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/009_stage4a_hypothesis.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 2
+    },
+    "tools/migrations/010_p1_news_ai_cols.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/011_p1_dynamic_seen.py": {
+      "pragma": 1,
+      "sqlite3_connect": 2
+    },
+    "tools/migrations/012_p1_leader_featured.py": {
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/migrations/013_company_financial_metrics.py": {
+      "begin_immediate": 1,
+      "pragma": 4,
+      "sqlite3_connect": 2
+    },
+    "tools/migrations/014_company_identity_status_corrections.py": {
+      "begin_immediate": 1,
+      "pragma": 3,
+      "sqlite3_connect": 2
+    },
+    "tools/migrations/015_company_identity_consolidation.py": {
+      "begin_immediate": 1,
+      "pragma": 7,
+      "sqlite3_connect": 2,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/migrations/016_source_channel_separation.py": {
+      "begin_immediate": 2,
+      "pragma": 5,
+      "sqlite3_connect": 3
+    },
+    "tools/opportunity_lens/ab_readonly.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/opportunity_lens/build_ai_inductor_run_pack.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/opportunity_lens/build_deep_rerun_packs.py": {
+      "sqlite3_connect": 3
+    },
+    "tools/opportunity_lens/build_high_multilayer_pcb_supply_demand_run_pack.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/opportunity_lens/build_run16_supplemental_company_financial_export.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/opportunity_lens/build_silicon_wafer_price_tracking_run_pack.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/opportunity_lens/candidate_builder.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/opportunity_lens/db.py": {
+      "pragma": 1,
+      "sqlite3_connect": 2
+    },
+    "tools/opportunity_lens/early_signal.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/opportunity_lens/fixture_loader.py": {
+      "pragma": 2
+    },
+    "tools/opportunity_lens/intake_contract.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/opportunity_lens/manual_run_loader.py": {
+      "hardcoded_data_db": 2,
+      "pragma": 2,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 4
+    },
+    "tools/opportunity_lens/migrate.py": {
+      "pragma": 6,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/opportunity_lens/read_models.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/opportunity_lens/repair_published_run_text.py": {
+      "pragma": 2,
+      "sqlite3_connect": 6,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/opportunity_lens/run16_financial_portfolio_model.py": {
+      "attach": 1
+    },
+    "tools/opportunity_lens/run16_pack_builder.py": {
+      "sqlite3_connect": 2
+    },
+    "tools/opportunity_lens/run_immutability_audit.py": {
+      "pragma": 4,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/add_pcb_equipment_official_data_points.py": {
+      "begin_immediate": 1,
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/apply_copper_research.py": {
+      "begin_immediate": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/pipeline/apply_hdi_research.py": {
+      "begin_immediate": 1,
+      "sqlite3_connect": 2,
+      "sqlite_conflict_dml": 2
+    },
+    "tools/pipeline/apply_lithium_battery_research.py": {
+      "begin_immediate": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/pipeline/apply_lithium_research.py": {
+      "begin_immediate": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 4
+    },
+    "tools/pipeline/apply_pcb_equipment_research.py": {
+      "begin_immediate": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/pipeline/build_high_multilayer_pcb_research.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/pipeline/build_lithium_battery_independent_models.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/build_lithium_battery_reconciliation_artifact.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/build_pcb_research.py": {
+      "hardcoded_data_db": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 2
+    },
+    "tools/pipeline/build_semiconductor_metrology_research.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/consensus_compute.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/db_writer.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/duplicate_detection.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/ensure_listed_company_profile.py": {
+      "attach": 1,
+      "begin_immediate": 1,
+      "pragma": 3,
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/pipeline/extend_copper_valuation_peers.py": {
+      "begin_immediate": 1,
+      "pragma": 2,
+      "sqlite3_connect": 3,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/pipeline/fix_company_industry.py": {
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/pipeline/hdi_external_reconciliation.py": {
+      "begin_immediate": 1,
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/hdi_wind_financial_snapshot.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/incremental_update.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/ingest_research.py": {
+      "begin_immediate": 1,
+      "hardcoded_data_db": 1,
+      "pragma": 1,
+      "sqlite_conflict_dml": 2
+    },
+    "tools/pipeline/ingest_电力.py": {
+      "pragma": 1,
+      "sqlite_conflict_dml": 2
+    },
+    "tools/pipeline/m6_final_query.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/prepare_copper_research.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/prepare_hdi_research.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/prepare_lithium_battery_research.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/prepare_lithium_research.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/refresh_company_financial_metrics.py": {
+      "attach": 1,
+      "begin_immediate": 1,
+      "hardcoded_data_db": 1,
+      "pragma": 6,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/refresh_company_tickers.py": {
+      "begin_immediate": 1,
+      "pragma": 4,
+      "sqlite3_connect": 2
+    },
+    "tools/pipeline/register_pcb_equipment_profile_sources.py": {
+      "begin_immediate": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/repair_pcb_equipment_provenance.py": {
+      "begin_immediate": 5,
+      "pragma": 5,
+      "sqlite3_connect": 3
+    },
+    "tools/pipeline/scientist_session_audit.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/seed_测试机_profiles.py": {
+      "hardcoded_data_db": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/seed_电力_companies.py": {
+      "pragma": 3,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/pipeline/seed_硅片_profiles.py": {
+      "hardcoded_data_db": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/source_credibility.py": {
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/stage2c_a_aggregate_shares.py": {
+      "hardcoded_data_db": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/stage2c_f_fetch_valuation.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/stage2c_f_ingest_fields.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/stage2c_g_gen_consensus_narrative.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/stage2c_g_write_narrative_cc.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/unify_marketcap_cny.py": {
+      "pragma": 1
+    },
+    "tools/pipeline/write_brief_intro.py": {
+      "hardcoded_data_db": 1,
+      "pragma": 1,
+      "sqlite3_connect": 1
+    },
+    "tools/pipeline/zero_data_alert.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/research_core/config.py": {
+      "hardcoded_data_db": 2
+    },
+    "tools/sentiment/common.py": {
+      "attach": 3,
+      "hardcoded_data_db": 2,
+      "pragma": 3,
+      "sqlite3_connect": 2,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/event_ingest.py": {
+      "sqlite_conflict_dml": 2
+    },
+    "tools/sentiment/finish_sampling_backfill.py": {
+      "sqlite3_connect": 1
+    },
+    "tools/sentiment/gen_subject_list.py": {
+      "sqlite3_connect": 2
+    },
+    "tools/sentiment/init_db.py": {
+      "hardcoded_data_db": 2,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/migrate_3layer.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/migrate_company_identity_consolidation.py": {
+      "begin_immediate": 1,
+      "pragma": 5,
+      "sqlite3_connect": 2,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/sentiment/migrate_recruit.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/migrate_recruit_v2.py": {
+      "pragma": 2
+    },
+    "tools/sentiment/migrate_retail_windows_v2.py": {
+      "begin_immediate": 1,
+      "hardcoded_data_db": 2,
+      "pragma": 4,
+      "sqlite3_connect": 2,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/sentiment/migrate_retire_hbm_topic.py": {
+      "begin_immediate": 2,
+      "pragma": 4,
+      "sqlite3_connect": 2
+    },
+    "tools/sentiment/migrate_retire_keyword_sentiment.py": {
+      "begin_immediate": 1,
+      "pragma": 2,
+      "sqlite3_connect": 1
+    },
+    "tools/sentiment/migrate_sampling.py": {
+      "pragma": 1
+    },
+    "tools/sentiment/migrate_v2.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/migrate_v3.py": {
+      "sqlite3_connect": 1,
+      "sqlite_conflict_dml": 3
+    },
+    "tools/sentiment/migrate_xinghan_v4.py": {
+      "pragma": 1
+    },
+    "tools/sentiment/recruit_scrape.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/recruit_scrape_batch1.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/register_new_stocks.py": {
+      "sqlite_conflict_dml": 2
+    },
+    "tools/sentiment/retail_window_tick.py": {
+      "sqlite_conflict_dml": 2
+    },
+    "tools/sentiment/retail_windows_v2.py": {
+      "pragma": 5,
+      "sqlite_conflict_dml": 4
+    },
+    "tools/sentiment/senti3.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/senti_aggregate.py": {
+      "sqlite_conflict_dml": 2
+    },
+    "tools/sentiment/senti_aggregate_3layer.py": {
+      "sqlite_conflict_dml": 3
+    },
+    "tools/sentiment/senti_direction.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/senti_fetch_guba.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/senti_fetch_xinghan.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/senti_indicators.py": {
+      "sqlite_conflict_dml": 4
+    },
+    "tools/sentiment/senti_ingest.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/senti_run_xinghan.py": {
+      "sqlite_conflict_dml": 1
+    },
+    "tools/sentiment/stock_kline_fetch.py": {
+      "pragma": 1,
+      "sqlite_conflict_dml": 1
+    },
+    "tools/viewer/app.py": {
+      "attach": 3,
+      "pragma": 3,
+      "sqlite3_connect": 3
+    },
+    "tools/viewer/preflight.py": {
+      "hardcoded_data_db": 8,
+      "sqlite3_connect": 2
+    }
+  },
+  "records": [
+    {
+      "path": "tools/dynamic/ai_funnel.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 52,
+      "writer_operation_candidate": "seen_record",
+      "fingerprint": "sha256:616da25b9101d8f63e5f4f36eaa64568d48e88f99057e368d57c52213844f03a"
+    },
+    {
+      "path": "tools/dynamic/ai_funnel.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 152,
+      "writer_operation_candidate": "process_news",
+      "fingerprint": "sha256:e6ec292e2e245a1868991c3ae3d9182573f2de6158a9030c42601e2c0578a5ca"
+    },
+    {
+      "path": "tools/dynamic/ai_tagger.py",
+      "rule": "sqlite3_connect",
+      "line": 59,
+      "writer_operation_candidate": "tag_news",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/ai_tagger.py",
+      "rule": "sqlite3_connect",
+      "line": 106,
+      "writer_operation_candidate": "tag_voices",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/backfill_voice_musk_only.py",
+      "rule": "sqlite3_connect",
+      "line": 36,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/event_preview_auto.py",
+      "rule": "sqlite3_connect",
+      "line": 68,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/event_preview_cc.py",
+      "rule": "sqlite3_connect",
+      "line": 57,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/dynamic/event_sources/conference_loader.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 7,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:05685ab52bdd1a3f8a4ea5e35c72a59981450e0488923ded0f53d87138cfb23f"
+    },
+    {
+      "path": "tools/dynamic/event_sources/conference_loader.py",
+      "rule": "sqlite3_connect",
+      "line": 29,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:8319aedc4cb7800b51c378478969ab5b21c1059e941e18ad1463eb9f530ceae5"
+    },
+    {
+      "path": "tools/dynamic/event_sources/earnings_fetcher.py",
+      "rule": "sqlite3_connect",
+      "line": 112,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/dynamic/event_store.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 8,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d0ca75379f70577d1a08ca68bd5e5f0ffd774f7d60f039491d4b2d65bd26b23a"
+    },
+    {
+      "path": "tools/dynamic/event_store.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 46,
+      "writer_operation_candidate": "upsert_conference",
+      "fingerprint": "sha256:d9bd998c6ccfa236a24e8cadd47d934e90f86e314fc48a228f132b6ad283f586"
+    },
+    {
+      "path": "tools/dynamic/news_ingest.py",
+      "rule": "sqlite3_connect",
+      "line": 129,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/news_publishers/google_news_rss.py",
+      "rule": "sqlite3_connect",
+      "line": 72,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/dynamic/news_publishers/google_news_rss.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 87,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:421910951083b750e3629997a26ea165409227ba708e5eabd456c96a5e4ed6e4"
+    },
+    {
+      "path": "tools/dynamic/relevance_classifier.py",
+      "rule": "sqlite3_connect",
+      "line": 73,
+      "writer_operation_candidate": "run",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/scheduler.py",
+      "rule": "sqlite3_connect",
+      "line": 201,
+      "writer_operation_candidate": "tick",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/scheduler.py",
+      "rule": "sqlite3_connect",
+      "line": 292,
+      "writer_operation_candidate": "status",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/dynamic/seed_3a.py",
+      "rule": "sqlite3_connect",
+      "line": 98,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/dynamic/seed_3a.py",
+      "rule": "pragma",
+      "line": 99,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:245799329ffca9257272ae1ba2102190315156e7659bf102408b1a3bc44afbaf"
+    },
+    {
+      "path": "tools/dynamic/seed_leader_profiles.py",
+      "rule": "sqlite3_connect",
+      "line": 48,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/dynamic/stage3g_b123.py",
+      "rule": "sqlite3_connect",
+      "line": 97,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:8319aedc4cb7800b51c378478969ab5b21c1059e941e18ad1463eb9f530ceae5"
+    },
+    {
+      "path": "tools/dynamic/translate_cc.py",
+      "rule": "sqlite3_connect",
+      "line": 88,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/dynamic/voice_ingest.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 99,
+      "writer_operation_candidate": "_upsert_candidates",
+      "fingerprint": "sha256:1e922221f9305dbfc3cf0ae163c1e5d42ca26a59498954cfe998c23348db1bfc"
+    },
+    {
+      "path": "tools/dynamic/voice_ingest.py",
+      "rule": "pragma",
+      "line": 165,
+      "writer_operation_candidate": "_clear_voice_enrichment",
+      "fingerprint": "sha256:31ab9c87106ecf84fddd777741be7391fa38e22e9dfc249ce384e5e978dd1f05"
+    },
+    {
+      "path": "tools/dynamic/voice_ingest.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 190,
+      "writer_operation_candidate": "_insert_non_weibo_candidates",
+      "fingerprint": "sha256:a980d60364d181a9ccc3be10d4d4a61acae87fdefad03895662b82ba6db270a2"
+    },
+    {
+      "path": "tools/dynamic/voice_ingest.py",
+      "rule": "sqlite3_connect",
+      "line": 308,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/financial/apply_run16_peer_actual_snapshot.py",
+      "rule": "pragma",
+      "line": 261,
+      "writer_operation_candidate": "apply_snapshot",
+      "fingerprint": "sha256:5b938aedffa94c25bcc75fe866652cbccf04d7fb12da8f589fccf8d880c1e711"
+    },
+    {
+      "path": "tools/financial/build_lithium_calculator_ledger.py",
+      "rule": "attach",
+      "line": 317,
+      "writer_operation_candidate": "_compile_company",
+      "fingerprint": "sha256:114c74b4069af90d5be9f5896797baf71e5e6e4b296d77b4d39463dd0d7815f6"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "sqlite3_connect",
+      "line": 26,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:fc0a44a28088a2be470dd497335ca0960367537015b541f5cf210458c57d13b4"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "pragma",
+      "line": 27,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "sqlite3_connect",
+      "line": 30,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:534cd581fe721683d318b5664ae8aa8df2621b78819fa8be45e0f75e8dd96218"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "pragma",
+      "line": 32,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "pragma",
+      "line": 33,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:62f60a0ddde7a8c92aab9e2f54fd2b0ae5b3a9fac078f5e1b46d35cbc2c3aba7"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "pragma",
+      "line": 60,
+      "writer_operation_candidate": "verify_database",
+      "fingerprint": "sha256:2f4b011fc7ca4935c477e84311306e41b97addbd6e28635534a0d67713b24c73"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "pragma",
+      "line": 61,
+      "writer_operation_candidate": "verify_database",
+      "fingerprint": "sha256:47a7240c43b1975feb81117d710dcc50ad633d2c47f219317d2826a59574a248"
+    },
+    {
+      "path": "tools/financial/db.py",
+      "rule": "begin_immediate",
+      "line": 79,
+      "writer_operation_candidate": "transaction",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/financial/migrate.py",
+      "rule": "hardcoded_data_db",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:54ee6b19df1305e2b2787e3f3c884ab0364de8c52a3e1e57086be98bfd8b5ed5"
+    },
+    {
+      "path": "tools/financial/migrate.py",
+      "rule": "sqlite3_connect",
+      "line": 85,
+      "writer_operation_candidate": "_ro",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/financial/migrate.py",
+      "rule": "pragma",
+      "line": 87,
+      "writer_operation_candidate": "_ro",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/financial/migrate.py",
+      "rule": "pragma",
+      "line": 88,
+      "writer_operation_candidate": "_ro",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/financial/migrate.py",
+      "rule": "hardcoded_data_db",
+      "line": 386,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:d0727e9127edcc3f40c86ae76bfd1d1c8f51c00cdaaa6e3f09e8f16494f3ea91"
+    },
+    {
+      "path": "tools/financial/repository.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 112,
+      "writer_operation_candidate": "upsert_security",
+      "fingerprint": "sha256:f1c981156f39b22ade1e5422ade97500f19fd69776225f71c4991f8c9356c91a"
+    },
+    {
+      "path": "tools/financial/repository.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 261,
+      "writer_operation_candidate": "upsert_observation",
+      "fingerprint": "sha256:a1f56b2ddc5adcfbc21ea0090a7b064cf25f01871e1239c9684f31852fa8a12f"
+    },
+    {
+      "path": "tools/financial/repository.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 438,
+      "writer_operation_candidate": "record_external_reconciliation",
+      "fingerprint": "sha256:0f51497e4fda274dd8526fd39e2cfc3575496f5adc4e4d93dababccf2800f0da"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "hardcoded_data_db",
+      "line": 20,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a2db9d5796bda521cc93f0f647c8b488508dfc4c26e718bad772f5ef9b672fd7"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "hardcoded_data_db",
+      "line": 22,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d806af54ac6e8cad8f283ce16c74713fb4971c0d544327eb29208f311dd51f22"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "hardcoded_data_db",
+      "line": 23,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:788db78ece03467fad0b833524e84d57ef4f3410073b33a2816f7ac7db16d061"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "hardcoded_data_db",
+      "line": 24,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:0bd8b226a5a565c94a9c3c49db689d2ae831c6b59d774c67c2055586985c2ae1"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "hardcoded_data_db",
+      "line": 25,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9ca51383d164b49498ea7d3223b8e12261d3b624397fdfbd9c520f57279405d3"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "sqlite3_connect",
+      "line": 51,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:7fdd2d7041de2037af0641d6830dca2e9710c33383c0cd64a2f135b903adb353"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "sqlite3_connect",
+      "line": 52,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d6b7d3cce5a9c1f4a62f7778698736397377db553dbe54d640a280d8577d4c27"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "sqlite3_connect",
+      "line": 55,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d5a7b6be8e77f4e0f3ea248e989e52b74437a3393e56a6aa12f8cd9203de0faa"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "pragma",
+      "line": 56,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:9df2f6c49c4f5531b6549d2d18890f6ceec028d66fb70a3c4a95f5a4ded34da2"
+    },
+    {
+      "path": "tools/maintenance/apply_run15_broadcast.py",
+      "rule": "pragma",
+      "line": 57,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:a96887d31b37bc14dfdedf81465a190e703c81de56b6825e28999765a8d92d21"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "sqlite3_connect",
+      "line": 242,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:4b65c5f5547837849597be68c26af75a687a01720467dfafea18801922f664b6"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "sqlite3_connect",
+      "line": 244,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "pragma",
+      "line": 245,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "pragma",
+      "line": 247,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "pragma",
+      "line": 401,
+      "writer_operation_candidate": "build_plan",
+      "fingerprint": "sha256:20ab1c3fe433645b3a88708449626c42cee8826d7e55ffe472833d2ba5c49aec"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 485,
+      "writer_operation_candidate": "_upsert_industries",
+      "fingerprint": "sha256:552e92282ecf58920124a28b08a2112a0df6759c938591b48a5d9896aeccf986"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 517,
+      "writer_operation_candidate": "_upsert_memberships",
+      "fingerprint": "sha256:3b0dfdf312da5c2fee6c7fea2b4ef1849dfead5ae98ce69b33bf8c874ba8252f"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 532,
+      "writer_operation_candidate": "_upsert_relations",
+      "fingerprint": "sha256:19a911c1bfdab750cfaa57416a559f237a8dc0c03f9ac7cc4e6bc416b11485f9"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "pragma",
+      "line": 547,
+      "writer_operation_candidate": "_verify",
+      "fingerprint": "sha256:2f4b011fc7ca4935c477e84311306e41b97addbd6e28635534a0d67713b24c73"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "pragma",
+      "line": 548,
+      "writer_operation_candidate": "_verify",
+      "fingerprint": "sha256:1bdf7d335927646fa4b30dc441c95f1889397516afaaf76858337eadf88a04e3"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_ai_chain_update.py",
+      "rule": "begin_immediate",
+      "line": 601,
+      "writer_operation_candidate": "apply_update",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_homepage_summary.py",
+      "rule": "hardcoded_data_db",
+      "line": 21,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:cf6e3a4b15d343008f0c83a8489f353459e2dde8bb88bf96939df16de73820ec"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_homepage_summary.py",
+      "rule": "sqlite3_connect",
+      "line": 93,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_homepage_summary.py",
+      "rule": "begin_immediate",
+      "line": 127,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_homepage_summary.py",
+      "rule": "pragma",
+      "line": 135,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5077f95d9e6148db79ae22c21e10bc3e544c47239a17c79463370339652a35b6"
+    },
+    {
+      "path": "tools/maintenance/apply_run16_homepage_summary.py",
+      "rule": "pragma",
+      "line": 137,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:6a21ed2235a6c115edee8ba54838e604813dd77a9880f96758e9c1bee3d2c2c0"
+    },
+    {
+      "path": "tools/maintenance/audit_copper_research.py",
+      "rule": "sqlite3_connect",
+      "line": 57,
+      "writer_operation_candidate": "_readonly",
+      "fingerprint": "sha256:8b28536a040fd7f5eb302db0f68b0e311bd154c107ed28c673be5ccd1cc18b29"
+    },
+    {
+      "path": "tools/maintenance/audit_copper_research.py",
+      "rule": "pragma",
+      "line": 392,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:9d27cc4a1327560e02ffe378d8a3914840d37d7cea1d3aed174a5a0ba961bce6"
+    },
+    {
+      "path": "tools/maintenance/audit_copper_research.py",
+      "rule": "pragma",
+      "line": 393,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:892e22469ad316f48fc3b70b503c65a91447d1231291eb18714a73269ba9bdf2"
+    },
+    {
+      "path": "tools/maintenance/audit_copper_research.py",
+      "rule": "pragma",
+      "line": 419,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:9d27cc4a1327560e02ffe378d8a3914840d37d7cea1d3aed174a5a0ba961bce6"
+    },
+    {
+      "path": "tools/maintenance/audit_copper_research.py",
+      "rule": "pragma",
+      "line": 420,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:892e22469ad316f48fc3b70b503c65a91447d1231291eb18714a73269ba9bdf2"
+    },
+    {
+      "path": "tools/maintenance/audit_lithium_battery_release.py",
+      "rule": "sqlite3_connect",
+      "line": 65,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:2d88afe2ab1c203b21f3bdbaee1afa2121890c5d34228e881711c2875f90ccb3"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_browser.py",
+      "rule": "sqlite3_connect",
+      "line": 59,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_release_scope.py",
+      "rule": "sqlite3_connect",
+      "line": 46,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:6bf5fdde3f87567695906412cd865db948a2c01984b1c9aaf8d66b08a595cd0c"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_release_scope.py",
+      "rule": "sqlite3_connect",
+      "line": 47,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5f6465f927fc4e3b585aa7a40a3c2e762e9ccef384d2ae304c5c27030e748ec4"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_release_scope.py",
+      "rule": "pragma",
+      "line": 104,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:a6db412609b1f5fa1d97d5e5f11521542cd85db0bc429635bcfff8727478be25"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_release_scope.py",
+      "rule": "pragma",
+      "line": 105,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:ae462de4fc7dc516d56f014937720c36061db74e572b0735f588aaab7496243b"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_release_scope.py",
+      "rule": "pragma",
+      "line": 106,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:fe5da04f385ac4ca2ab5d683f4587dbf5426d8d51ccded5b74d32bd9a90ad38b"
+    },
+    {
+      "path": "tools/maintenance/audit_pcb_equipment_release_scope.py",
+      "rule": "pragma",
+      "line": 107,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:6a7a96028ac152c1524df8e2ba784adc3b6e83db2fb55a36644f81c0efb27414"
+    },
+    {
+      "path": "tools/maintenance/audit_workflow_contract.py",
+      "rule": "pragma",
+      "line": 97,
+      "writer_operation_candidate": "_columns",
+      "fingerprint": "sha256:8433e3bafd80386ccaa4bef19b56c447bf92c357b7adc46cc3c371d1c644107c"
+    },
+    {
+      "path": "tools/maintenance/audit_workflow_contract.py",
+      "rule": "sqlite3_connect",
+      "line": 186,
+      "writer_operation_candidate": "audit_workflow",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/maintenance/audit_workflow_contract.py",
+      "rule": "pragma",
+      "line": 220,
+      "writer_operation_candidate": "audit_workflow",
+      "fingerprint": "sha256:9df2f6c49c4f5531b6549d2d18890f6ceec028d66fb70a3c4a95f5a4ded34da2"
+    },
+    {
+      "path": "tools/maintenance/audit_workflow_contract.py",
+      "rule": "pragma",
+      "line": 223,
+      "writer_operation_candidate": "audit_workflow",
+      "fingerprint": "sha256:5c8fe641a9c73bd6d5d3d09aa9c81c3c7d540ce63a3975279a7e0d09b2a18592"
+    },
+    {
+      "path": "tools/maintenance/backfill_opportunity_factor_missing_reasons.py",
+      "rule": "sqlite3_connect",
+      "line": 15,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/maintenance/backfill_opportunity_factor_missing_reasons.py",
+      "rule": "sqlite3_connect",
+      "line": 17,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:4b65c5f5547837849597be68c26af75a687a01720467dfafea18801922f664b6"
+    },
+    {
+      "path": "tools/maintenance/backfill_opportunity_factor_missing_reasons.py",
+      "rule": "pragma",
+      "line": 19,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/maintenance/backfill_opportunity_factor_missing_reasons.py",
+      "rule": "begin_immediate",
+      "line": 81,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/maintenance/backfill_opportunity_factor_missing_reasons.py",
+      "rule": "pragma",
+      "line": 88,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:ba33c081f480906f2b8c141858cf48bd4b91d2396e82c89d471a5277a1621fcb"
+    },
+    {
+      "path": "tools/maintenance/build_context_snapshot.py",
+      "rule": "sqlite3_connect",
+      "line": 23,
+      "writer_operation_candidate": "_connect_readonly",
+      "fingerprint": "sha256:bd954321cd2b5907041684c2e7ea55f3bec9a25003e51c0bb0b2c3cfb450e95d"
+    },
+    {
+      "path": "tools/maintenance/build_pcb_equipment_final_bundle.py",
+      "rule": "sqlite3_connect",
+      "line": 77,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/maintenance/build_pcb_equipment_final_bundle.py",
+      "rule": "pragma",
+      "line": 80,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:9df2f6c49c4f5531b6549d2d18890f6ceec028d66fb70a3c4a95f5a4ded34da2"
+    },
+    {
+      "path": "tools/maintenance/build_pcb_equipment_final_bundle.py",
+      "rule": "pragma",
+      "line": 81,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:6bfaa3f20d918080c847de09eab3b1b8ff364362fe5f474d9183a4f2c25dcd62"
+    },
+    {
+      "path": "tools/maintenance/build_required_cache_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 21,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d806af54ac6e8cad8f283ce16c74713fb4971c0d544327eb29208f311dd51f22"
+    },
+    {
+      "path": "tools/maintenance/build_required_cache_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 22,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:788db78ece03467fad0b833524e84d57ef4f3410073b33a2816f7ac7db16d061"
+    },
+    {
+      "path": "tools/maintenance/build_required_cache_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 23,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:0bd8b226a5a565c94a9c3c49db689d2ae831c6b59d774c67c2055586985c2ae1"
+    },
+    {
+      "path": "tools/maintenance/build_required_cache_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 24,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9ca51383d164b49498ea7d3223b8e12261d3b624397fdfbd9c520f57279405d3"
+    },
+    {
+      "path": "tools/maintenance/build_required_cache_bundle.py",
+      "rule": "sqlite3_connect",
+      "line": 151,
+      "writer_operation_candidate": "_database_paths",
+      "fingerprint": "sha256:603ffb6c169b274af62d4f43c0cc9e5db8d8e750c51c27a4f7a647bd8520a95b"
+    },
+    {
+      "path": "tools/maintenance/build_required_cache_bundle.py",
+      "rule": "pragma",
+      "line": 162,
+      "writer_operation_candidate": "_database_paths",
+      "fingerprint": "sha256:b954ad3887407f04bc6c9700b235cffa53d855def3c3b3c177643db2727b8273"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 34,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d806af54ac6e8cad8f283ce16c74713fb4971c0d544327eb29208f311dd51f22"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 35,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:788db78ece03467fad0b833524e84d57ef4f3410073b33a2816f7ac7db16d061"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 36,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:0bd8b226a5a565c94a9c3c49db689d2ae831c6b59d774c67c2055586985c2ae1"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 37,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9ca51383d164b49498ea7d3223b8e12261d3b624397fdfbd9c520f57279405d3"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "sqlite3_connect",
+      "line": 146,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:7fdd2d7041de2037af0641d6830dca2e9710c33383c0cd64a2f135b903adb353"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "sqlite3_connect",
+      "line": 147,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d6b7d3cce5a9c1f4a62f7778698736397377db553dbe54d640a280d8577d4c27"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "sqlite3_connect",
+      "line": 150,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d5a7b6be8e77f4e0f3ea248e989e52b74437a3393e56a6aa12f8cd9203de0faa"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "pragma",
+      "line": 151,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:2f4b011fc7ca4935c477e84311306e41b97addbd6e28635534a0d67713b24c73"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "pragma",
+      "line": 152,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:cca92ecce51064b94c007e2c695159a90a8a927c5871d97497c48b16bde28254"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 425,
+      "writer_operation_candidate": "_full_replace_powershell",
+      "fingerprint": "sha256:15707cab5ec917cf3f27c3caf89ea87b551ac368058068abb5466576b5a22a55"
+    },
+    {
+      "path": "tools/maintenance/build_viewer_broadcast_bundle.py",
+      "rule": "hardcoded_data_db",
+      "line": 426,
+      "writer_operation_candidate": "_full_replace_powershell",
+      "fingerprint": "sha256:29cc06af5273345f26bc526ac8ef00d12ac8d4ee64d046977df5c11f600a0cc7"
+    },
+    {
+      "path": "tools/maintenance/finalize_copper_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 165,
+      "writer_operation_candidate": "_document_audit",
+      "fingerprint": "sha256:727e8701eece6a2d57db05ddb6cb27ba8d5d89658e8c9f7c885d012efd112a2e"
+    },
+    {
+      "path": "tools/maintenance/finalize_copper_workflow.py",
+      "rule": "pragma",
+      "line": 182,
+      "writer_operation_candidate": "_document_audit",
+      "fingerprint": "sha256:4dcc45851bd455b896582dc0b834364c50a5e4ed624b03cfe26b883a63015cda"
+    },
+    {
+      "path": "tools/maintenance/finalize_copper_workflow.py",
+      "rule": "pragma",
+      "line": 183,
+      "writer_operation_candidate": "_document_audit",
+      "fingerprint": "sha256:9d27cc4a1327560e02ffe378d8a3914840d37d7cea1d3aed174a5a0ba961bce6"
+    },
+    {
+      "path": "tools/maintenance/finalize_hdi_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 309,
+      "writer_operation_candidate": "_prepare_document_review",
+      "fingerprint": "sha256:f73c4ac2e060ca9b1405440ff6bc796a83bb1f193aa64adc2db446b86c257d13"
+    },
+    {
+      "path": "tools/maintenance/finalize_hdi_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 463,
+      "writer_operation_candidate": "_prepare_evidence_independence_audit",
+      "fingerprint": "sha256:f73c4ac2e060ca9b1405440ff6bc796a83bb1f193aa64adc2db446b86c257d13"
+    },
+    {
+      "path": "tools/maintenance/finalize_lithium_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 122,
+      "writer_operation_candidate": "_document_review",
+      "fingerprint": "sha256:727e8701eece6a2d57db05ddb6cb27ba8d5d89658e8c9f7c885d012efd112a2e"
+    },
+    {
+      "path": "tools/maintenance/finalize_lithium_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 438,
+      "writer_operation_candidate": "_database_review",
+      "fingerprint": "sha256:1963a044c812f69fc87e467aa13aae4cd80fd21d6c74c6af8e7e3ae10d285991"
+    },
+    {
+      "path": "tools/maintenance/finalize_lithium_workflow.py",
+      "rule": "pragma",
+      "line": 440,
+      "writer_operation_candidate": "_database_review",
+      "fingerprint": "sha256:7f71d1c67f26b097bc7f3526ed9dcaf23e90febc85c4dde4aa07b1603fd78c08"
+    },
+    {
+      "path": "tools/maintenance/finalize_lithium_workflow.py",
+      "rule": "pragma",
+      "line": 441,
+      "writer_operation_candidate": "_database_review",
+      "fingerprint": "sha256:70b8c95b785b3c5784605001f4d7f0f8f316169dbdcdc6a3c34420cf5ef90fdf"
+    },
+    {
+      "path": "tools/maintenance/finalize_lithium_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 455,
+      "writer_operation_candidate": "_database_review",
+      "fingerprint": "sha256:a49ff902292466c35c51ae13ece4e40b7cac019bd958564ef454263ac6a114b4"
+    },
+    {
+      "path": "tools/maintenance/finalize_lithium_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 459,
+      "writer_operation_candidate": "_database_review",
+      "fingerprint": "sha256:892ebfc498176c2b9ba1cf366e2a668014fa7df742b73155ba22561a65c98940"
+    },
+    {
+      "path": "tools/maintenance/finalize_pcb_equipment_workflow.py",
+      "rule": "sqlite3_connect",
+      "line": 119,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/maintenance/finalize_pcb_equipment_workflow.py",
+      "rule": "pragma",
+      "line": 121,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:9df2f6c49c4f5531b6549d2d18890f6ceec028d66fb70a3c4a95f5a4ded34da2"
+    },
+    {
+      "path": "tools/maintenance/finalize_pcb_equipment_workflow.py",
+      "rule": "pragma",
+      "line": 122,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:2ddfbda66e3867d6ca4080463517c8ffdc962156a2b7f1b84d7a5dc4d755a233"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "hardcoded_data_db",
+      "line": 31,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d806af54ac6e8cad8f283ce16c74713fb4971c0d544327eb29208f311dd51f22"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "hardcoded_data_db",
+      "line": 32,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:788db78ece03467fad0b833524e84d57ef4f3410073b33a2816f7ac7db16d061"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "hardcoded_data_db",
+      "line": 33,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:0bd8b226a5a565c94a9c3c49db689d2ae831c6b59d774c67c2055586985c2ae1"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "hardcoded_data_db",
+      "line": 34,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9ca51383d164b49498ea7d3223b8e12261d3b624397fdfbd9c520f57279405d3"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "pragma",
+      "line": 203,
+      "writer_operation_candidate": "_database_candidates",
+      "fingerprint": "sha256:89cd59093a37d8565f303d5ce14cccfcddd59bcc92f6a20ba0722ffa446af64c"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 228,
+      "writer_operation_candidate": "_database_plan",
+      "fingerprint": "sha256:603ffb6c169b274af62d4f43c0cc9e5db8d8e750c51c27a4f7a647bd8520a95b"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 250,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:7fdd2d7041de2037af0641d6830dca2e9710c33383c0cd64a2f135b903adb353"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 251,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d6b7d3cce5a9c1f4a62f7778698736397377db553dbe54d640a280d8577d4c27"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 254,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d5a7b6be8e77f4e0f3ea248e989e52b74437a3393e56a6aa12f8cd9203de0faa"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "pragma",
+      "line": 255,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:2f4b011fc7ca4935c477e84311306e41b97addbd6e28635534a0d67713b24c73"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "pragma",
+      "line": 256,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:6bfaa3f20d918080c847de09eab3b1b8ff364362fe5f474d9183a4f2c25dcd62"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 273,
+      "writer_operation_candidate": "_restore_sqlite_snapshot",
+      "fingerprint": "sha256:7fdd2d7041de2037af0641d6830dca2e9710c33383c0cd64a2f135b903adb353"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 274,
+      "writer_operation_candidate": "_restore_sqlite_snapshot",
+      "fingerprint": "sha256:b33c04330def2c61d8cec0fd7fe7e4b33e1f91548dbf3421406c9be84a7f1bb9"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "sqlite3_connect",
+      "line": 333,
+      "writer_operation_candidate": "_apply_databases",
+      "fingerprint": "sha256:31ca7e635f576365e2c556f6f3ba3b4b79c735c3c8b55cd3ebd4cc777a7215c6"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "pragma",
+      "line": 334,
+      "writer_operation_candidate": "_apply_databases",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "begin_immediate",
+      "line": 335,
+      "writer_operation_candidate": "_apply_databases",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "pragma",
+      "line": 362,
+      "writer_operation_candidate": "_apply_databases",
+      "fingerprint": "sha256:2f4b011fc7ca4935c477e84311306e41b97addbd6e28635534a0d67713b24c73"
+    },
+    {
+      "path": "tools/maintenance/migrate_paper_paths.py",
+      "rule": "pragma",
+      "line": 363,
+      "writer_operation_candidate": "_apply_databases",
+      "fingerprint": "sha256:6bfaa3f20d918080c847de09eab3b1b8ff364362fe5f474d9183a4f2c25dcd62"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "hardcoded_data_db",
+      "line": 24,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9ca51383d164b49498ea7d3223b8e12261d3b624397fdfbd9c520f57279405d3"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "hardcoded_data_db",
+      "line": 25,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d806af54ac6e8cad8f283ce16c74713fb4971c0d544327eb29208f311dd51f22"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "hardcoded_data_db",
+      "line": 26,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:788db78ece03467fad0b833524e84d57ef4f3410073b33a2816f7ac7db16d061"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "hardcoded_data_db",
+      "line": 27,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:0bd8b226a5a565c94a9c3c49db689d2ae831c6b59d774c67c2055586985c2ae1"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "sqlite3_connect",
+      "line": 800,
+      "writer_operation_candidate": "_db_snapshot",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "pragma",
+      "line": 805,
+      "writer_operation_candidate": "_db_snapshot",
+      "fingerprint": "sha256:3b37428faab2629fb1d9c4186c3625b658cab813f42576040fc64c6f07dc49b7"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "pragma",
+      "line": 806,
+      "writer_operation_candidate": "_db_snapshot",
+      "fingerprint": "sha256:95f46aab6970dfda4c9be64063079aae21b8b519cda5a93806c1176a7e76ef84"
+    },
+    {
+      "path": "tools/maintenance/project_artifacts.py",
+      "rule": "sqlite3_connect",
+      "line": 855,
+      "writer_operation_candidate": "_database_file_references",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "hardcoded_data_db",
+      "line": 20,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d806af54ac6e8cad8f283ce16c74713fb4971c0d544327eb29208f311dd51f22"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "hardcoded_data_db",
+      "line": 21,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:788db78ece03467fad0b833524e84d57ef4f3410073b33a2816f7ac7db16d061"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "hardcoded_data_db",
+      "line": 22,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:0bd8b226a5a565c94a9c3c49db689d2ae831c6b59d774c67c2055586985c2ae1"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "hardcoded_data_db",
+      "line": 23,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9ca51383d164b49498ea7d3223b8e12261d3b624397fdfbd9c520f57279405d3"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "sqlite3_connect",
+      "line": 96,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:4fe17aded7c6b41e732cab904c20cc7dc2abbd679ee877ed20293dd6d1e3c298"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "sqlite3_connect",
+      "line": 97,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d6b7d3cce5a9c1f4a62f7778698736397377db553dbe54d640a280d8577d4c27"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "sqlite3_connect",
+      "line": 100,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:d5a7b6be8e77f4e0f3ea248e989e52b74437a3393e56a6aa12f8cd9203de0faa"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "pragma",
+      "line": 101,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:9df2f6c49c4f5531b6549d2d18890f6ceec028d66fb70a3c4a95f5a4ded34da2"
+    },
+    {
+      "path": "tools/maintenance/refresh_project_backup.py",
+      "rule": "pragma",
+      "line": 102,
+      "writer_operation_candidate": "_sqlite_snapshot",
+      "fingerprint": "sha256:cca92ecce51064b94c007e2c695159a90a8a927c5871d97497c48b16bde28254"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "sqlite3_connect",
+      "line": 51,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:6713362cfe909be8d0979fb63289c6294e6cf8c4936aa98579462184a7510f15"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "sqlite3_connect",
+      "line": 57,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:35c10fe383754fda9bb08518db6d0ef79ee1a5633fad6ac857ee9e35ccd09110"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 59,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dee8af973ceeb041869a65888017297a15cc5c0badc7a46b8c86961491286b58"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 61,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:879af998347406f449498bf6bdfb1dc373d1c8d9a4876e50e67729af8bfe2720"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 68,
+      "writer_operation_candidate": "_columns",
+      "fingerprint": "sha256:73c34adbdc6d770d3e193081bfad49c49b9cdb0e79b2c481a461eab27ecc7362"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 97,
+      "writer_operation_candidate": "_average_payload",
+      "fingerprint": "sha256:73c34adbdc6d770d3e193081bfad49c49b9cdb0e79b2c481a461eab27ecc7362"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 256,
+      "writer_operation_candidate": "_legacy_aggregate_sha256",
+      "fingerprint": "sha256:73c34adbdc6d770d3e193081bfad49c49b9cdb0e79b2c481a461eab27ecc7362"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "begin_immediate",
+      "line": 763,
+      "writer_operation_candidate": "apply_retention",
+      "fingerprint": "sha256:2df473d01c875b8fbe376c89e433dc6d5d46baffbea8c6131f4b529cffadd873"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "begin_immediate",
+      "line": 782,
+      "writer_operation_candidate": "apply_retention",
+      "fingerprint": "sha256:2df473d01c875b8fbe376c89e433dc6d5d46baffbea8c6131f4b529cffadd873"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 865,
+      "writer_operation_candidate": "apply_retention",
+      "fingerprint": "sha256:58108f91683c08f8f0c8c0df45906a44f7f67fac7f0ef30703643ebfdd7fbd9a"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 866,
+      "writer_operation_candidate": "apply_retention",
+      "fingerprint": "sha256:347d08d43a480eb97e7fa0e9a9b1a3cbc941a55759036713fb78a01715b31b51"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 902,
+      "writer_operation_candidate": "compact_database",
+      "fingerprint": "sha256:593a1a5c70d1d0649a9d099b5655b433e4fd6b0818608026b3d5c28c037ca4dd"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 915,
+      "writer_operation_candidate": "compact_database",
+      "fingerprint": "sha256:3723fb09a9c87293c089b0293d5235b1ad084991ace589ee303292cc796220d2"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 916,
+      "writer_operation_candidate": "compact_database",
+      "fingerprint": "sha256:99809a9a0c26201e04043b1315db6ea1aec69c2e9611274eba9984eb14ce2041"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 940,
+      "writer_operation_candidate": "compact_database",
+      "fingerprint": "sha256:d4500aeabe1b13c46211fa66a1050a7b37e5afd0ac7cd72a6b0dcdcd050880bb"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 943,
+      "writer_operation_candidate": "compact_database",
+      "fingerprint": "sha256:265456c844bfba15525cfa8d5630b995f891f2d45c93a5132e5fb8921e1b647e"
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "rule": "pragma",
+      "line": 945,
+      "writer_operation_candidate": "compact_database",
+      "fingerprint": "sha256:378353c5821619d3877ef9185950f5e28993ff6df7153379e95e93f9bfd6a5e9"
+    },
+    {
+      "path": "tools/maintenance/sync_hdi_source_indexes.py",
+      "rule": "sqlite3_connect",
+      "line": 20,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/maintenance/validate_sqlite_migration.py",
+      "rule": "sqlite3_connect",
+      "line": 12,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/maintenance/validate_sqlite_migration.py",
+      "rule": "pragma",
+      "line": 14,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/maintenance/validate_sqlite_migration.py",
+      "rule": "pragma",
+      "line": 34,
+      "writer_operation_candidate": "_columns",
+      "fingerprint": "sha256:42949b4384d24728bb351ccec56a5dcd4ed98c51e36f412d73b10e8fea20ee85"
+    },
+    {
+      "path": "tools/maintenance/validate_sqlite_migration.py",
+      "rule": "pragma",
+      "line": 81,
+      "writer_operation_candidate": "compare_databases",
+      "fingerprint": "sha256:170570f01b220483e8a898c2ab8cf7b1fa1b8bea4107971144d789b93651ef16"
+    },
+    {
+      "path": "tools/maintenance/validate_sqlite_migration.py",
+      "rule": "pragma",
+      "line": 82,
+      "writer_operation_candidate": "compare_databases",
+      "fingerprint": "sha256:92d66b04fc80f9747ef6384c3a8896cd2bf3d3911e1d5a8b12a9962b5713235d"
+    },
+    {
+      "path": "tools/maintenance/verify_pcb_equipment_release_equivalence.py",
+      "rule": "sqlite3_connect",
+      "line": 100,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:4b65c5f5547837849597be68c26af75a687a01720467dfafea18801922f664b6"
+    },
+    {
+      "path": "tools/maintenance/verify_pcb_equipment_release_equivalence.py",
+      "rule": "pragma",
+      "line": 106,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c21fd82cb2eb300297746cdd19d476ace86f87a59fc11655f534f53836cae6c4"
+    },
+    {
+      "path": "tools/maintenance/verify_pcb_equipment_release_equivalence.py",
+      "rule": "pragma",
+      "line": 107,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:790b6966308843c6297be431dcae24679de3a7f3d4c5a7504e946f2c9a96471d"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_anomaly_detect.py",
+      "rule": "hardcoded_data_db",
+      "line": 9,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_anomaly_detect.py",
+      "rule": "sqlite3_connect",
+      "line": 9,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_metric_normalize.py",
+      "rule": "sqlite3_connect",
+      "line": 22,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:74837419c75f72472a6948904dbfac8595a08ec679d0f13a828a956316541a42"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_scope_split.py",
+      "rule": "hardcoded_data_db",
+      "line": 14,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_scope_split.py",
+      "rule": "sqlite3_connect",
+      "line": 14,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_unit_normalize.py",
+      "rule": "hardcoded_data_db",
+      "line": 24,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/migrate/2026_05_28_unit_normalize.py",
+      "rule": "sqlite3_connect",
+      "line": 24,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/migrations/001_company_profile_arch.py",
+      "rule": "pragma",
+      "line": 115,
+      "writer_operation_candidate": "cols_of",
+      "fingerprint": "sha256:81d87d3a0036591f8f0886f1fddd61f2b5e6a3905b92fb9f3065b57929ea7dde"
+    },
+    {
+      "path": "tools/migrations/001_company_profile_arch.py",
+      "rule": "sqlite3_connect",
+      "line": 288,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:627f7b1f208b8879a8a3dee3b7d40de3ee9e9dc222b9d2d13d35e922d4e57fc9"
+    },
+    {
+      "path": "tools/migrations/001_company_profile_arch.py",
+      "rule": "pragma",
+      "line": 289,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:18f85332e5cc82fd4d4e2ecf6a8d3c413e1b144df4f2a700a0171ee1832c548f"
+    },
+    {
+      "path": "tools/migrations/001_company_profile_arch.py",
+      "rule": "pragma",
+      "line": 306,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/migrations/001_stage2cf_valuation_analyst.py",
+      "rule": "sqlite3_connect",
+      "line": 68,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/001_stage2cf_valuation_analyst.py",
+      "rule": "pragma",
+      "line": 69,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:3892bcf27992c733b49396ae850d742612eba1f8a6154d0f33ebd756a6cd3ca0"
+    },
+    {
+      "path": "tools/migrations/001_stage2cf_valuation_analyst.py",
+      "rule": "pragma",
+      "line": 84,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:85018b0b569d689b7d34ebd86088b30eb970a23e03f5d0a0ea74f4c3d4480978"
+    },
+    {
+      "path": "tools/migrations/002_stage2cg_thesis_refactor.py",
+      "rule": "sqlite3_connect",
+      "line": 51,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/002_stage2cg_thesis_refactor.py",
+      "rule": "pragma",
+      "line": 61,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:1ede5da9b68cb4ab8bfdc58e8da738e83aa7cedebcaaba0943b9acc3abc8b2e9"
+    },
+    {
+      "path": "tools/migrations/002_stage2cg_thesis_refactor.py",
+      "rule": "pragma",
+      "line": 62,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5235ee642460cb506a6cfb237bf758b932128abf8e7e497997ed2478cd6e07ff"
+    },
+    {
+      "path": "tools/migrations/003_stage2cg_canonical_align.py",
+      "rule": "sqlite3_connect",
+      "line": 39,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/003_stage2cg_canonical_align.py",
+      "rule": "pragma",
+      "line": 40,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:1f5221e18cb1f8f88ac4921947825a383e0a1513a714d88821153f1e072bdcba"
+    },
+    {
+      "path": "tools/migrations/003_stage2cg_canonical_align.py",
+      "rule": "pragma",
+      "line": 66,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5235ee642460cb506a6cfb237bf758b932128abf8e7e497997ed2478cd6e07ff"
+    },
+    {
+      "path": "tools/migrations/004_stage3_dynamic.py",
+      "rule": "sqlite3_connect",
+      "line": 172,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/004_stage3_dynamic.py",
+      "rule": "pragma",
+      "line": 178,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:8628f437d7385a59100ab0047ced107b8a8e1c7147ec1291302d412700cda2ee"
+    },
+    {
+      "path": "tools/migrations/004_stage3_dynamic.py",
+      "rule": "pragma",
+      "line": 181,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:fa874e05d64610d27212570ffe26587c9fdb36df73c313e401cda2374e03ee14"
+    },
+    {
+      "path": "tools/migrations/005_p0_fixes.py",
+      "rule": "sqlite3_connect",
+      "line": 36,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/006_stage3g_schema_extension.py",
+      "rule": "sqlite3_connect",
+      "line": 23,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/006_stage3g_schema_extension.py",
+      "rule": "pragma",
+      "line": 26,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:57f43e69b63b5f7fd83e2b88a7f656c946449079d319c453556ac1512d609ae7"
+    },
+    {
+      "path": "tools/migrations/007_stage3h_industry_v2.py",
+      "rule": "sqlite3_connect",
+      "line": 21,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/007_stage3h_industry_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 25,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:e59c2bee17d33b971fafd71041554f6ba3289a0bd341510006b8f83c25ab6764"
+    },
+    {
+      "path": "tools/migrations/008_stage3h_translation.py",
+      "rule": "sqlite3_connect",
+      "line": 13,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:0f5ec5b5766a6a5fe87c2335cfc9c293e86a056b4173378b6334b552765b8e8a"
+    },
+    {
+      "path": "tools/migrations/008_stage3h_translation.py",
+      "rule": "pragma",
+      "line": 15,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:33c90d9206d8f68484f6ddb908003b0e2c070dab0735ecfa6264574d50ce116b"
+    },
+    {
+      "path": "tools/migrations/009_stage4a_hypothesis.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 8,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:9c9cdd2b2d0b759e6e8ddc1b6e07080bed0aaa0d0e2e65fbc091dc4ddf8b7d19"
+    },
+    {
+      "path": "tools/migrations/009_stage4a_hypothesis.py",
+      "rule": "sqlite3_connect",
+      "line": 137,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/009_stage4a_hypothesis.py",
+      "rule": "pragma",
+      "line": 138,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:01f9d2c890d4cb526465255efa5623c201352fa0c5edac24786265a3ea7a3ffc"
+    },
+    {
+      "path": "tools/migrations/009_stage4a_hypothesis.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 146,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:9e4f8a57c22c3556e31f6371156133c9b91cd2d0da3ca7590ba59cbf90a9d8ac"
+    },
+    {
+      "path": "tools/migrations/010_p1_news_ai_cols.py",
+      "rule": "sqlite3_connect",
+      "line": 38,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:212b86feb1ff03a9cbf173adb4aa8217e58ab21fe4dba6567ffac5f1eb4f9258"
+    },
+    {
+      "path": "tools/migrations/010_p1_news_ai_cols.py",
+      "rule": "pragma",
+      "line": 40,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:adbcda4ed0e36d2daec615f92d0f54f567d8db4cd517a0c4bd7070460a307b64"
+    },
+    {
+      "path": "tools/migrations/010_p1_news_ai_cols.py",
+      "rule": "pragma",
+      "line": 57,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:1a22167e1dc7eb6f3bc556a2af4bd55bb94c78a87c94355af278076a815f85d0"
+    },
+    {
+      "path": "tools/migrations/011_p1_dynamic_seen.py",
+      "rule": "sqlite3_connect",
+      "line": 64,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/011_p1_dynamic_seen.py",
+      "rule": "pragma",
+      "line": 67,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5e996dd7a73e858bb985703c78245d0825300411bc444cd5421e72d48f4fc8bd"
+    },
+    {
+      "path": "tools/migrations/011_p1_dynamic_seen.py",
+      "rule": "sqlite3_connect",
+      "line": 77,
+      "writer_operation_candidate": "prune",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/012_p1_leader_featured.py",
+      "rule": "sqlite3_connect",
+      "line": 23,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/migrations/012_p1_leader_featured.py",
+      "rule": "pragma",
+      "line": 24,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:11ce401c4e5a781a3b0101b3fdb9a0c0485418ddc126aeada7fcfb25ae6d4790"
+    },
+    {
+      "path": "tools/migrations/012_p1_leader_featured.py",
+      "rule": "pragma",
+      "line": 31,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:11ce401c4e5a781a3b0101b3fdb9a0c0485418ddc126aeada7fcfb25ae6d4790"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 38,
+      "writer_operation_candidate": "columns_of",
+      "fingerprint": "sha256:8433e3bafd80386ccaa4bef19b56c447bf92c357b7adc46cc3c371d1c644107c"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 71,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:9f253c40120b3bfd2570d07cba9cacc3582bc76fb132cfbc166844b62f032697"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 82,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:54c12a97ff8fa715dabc4385d406cac173e31d441d72501900f433fd03256d8f"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "sqlite3_connect",
+      "line": 89,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:a1b7adec5e1a95d49225fe3839405f9825b73fb32da5b5b7adfe2238a88dc4f3"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "sqlite3_connect",
+      "line": 91,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 92,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/migrations/013_company_financial_metrics.py",
+      "rule": "begin_immediate",
+      "line": 117,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/migrations/014_company_identity_status_corrections.py",
+      "rule": "sqlite3_connect",
+      "line": 44,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:a1b7adec5e1a95d49225fe3839405f9825b73fb32da5b5b7adfe2238a88dc4f3"
+    },
+    {
+      "path": "tools/migrations/014_company_identity_status_corrections.py",
+      "rule": "sqlite3_connect",
+      "line": 46,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/migrations/014_company_identity_status_corrections.py",
+      "rule": "pragma",
+      "line": 47,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/migrations/014_company_identity_status_corrections.py",
+      "rule": "pragma",
+      "line": 49,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/migrations/014_company_identity_status_corrections.py",
+      "rule": "pragma",
+      "line": 107,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:54c12a97ff8fa715dabc4385d406cac173e31d441d72501900f433fd03256d8f"
+    },
+    {
+      "path": "tools/migrations/014_company_identity_status_corrections.py",
+      "rule": "begin_immediate",
+      "line": 127,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "sqlite3_connect",
+      "line": 97,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:f1420d3f80cecace48b5397a25c252a17b03282bb51228999e1b73cfc67076ee"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "sqlite3_connect",
+      "line": 99,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:420157c37e931e67840760c6a869875b3d8828f06cfa0e730535d3ebbb864313"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 100,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:edfd2da35e3b1efaf2cbd3fa0da265fbb81a96c3ff7c5d36499bab97d6e9f7b0"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 102,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:245799329ffca9257272ae1ba2102190315156e7659bf102408b1a3bc44afbaf"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 351,
+      "writer_operation_candidate": "_merge_company_table",
+      "fingerprint": "sha256:e9967403c16458dc637836560537babf52a8971ba23992b518280f62f5b92999"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 352,
+      "writer_operation_candidate": "_merge_company_table",
+      "fingerprint": "sha256:51e5dddcca3632dfdd8442b0ea9c51a4ab219793cdfeb5747d9c09089eedde1b"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 451,
+      "writer_operation_candidate": "_upsert_alias",
+      "fingerprint": "sha256:08641125836bf5beabc26db02f079a62c9f57357fd99400d6a49e6d9b30091cd"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 641,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:bdf3344a145658fdeec9c3c94b0f52b030d2535919d49b20bad699f955f42ce7"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 693,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:09a2d6ed3158c467479d70ce50e1095f18891ce472b484f5cda0cc33d17872eb"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 696,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:8f463c1cd630ab214afe76c1e26c85ce08a32d764f4becdbaae227ee5b4f5618"
+    },
+    {
+      "path": "tools/migrations/015_company_identity_consolidation.py",
+      "rule": "begin_immediate",
+      "line": 724,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:6bf27eda679d5ab08d7d237d30291b49752c33b000989b9fb39d07bc47e507cb"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "sqlite3_connect",
+      "line": 17,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:a1b7adec5e1a95d49225fe3839405f9825b73fb32da5b5b7adfe2238a88dc4f3"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "pragma",
+      "line": 19,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "pragma",
+      "line": 24,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:faf58fad431a1b4ef1410339d5c5a9f77fee48475403574e62990ab5845ea8b9"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "pragma",
+      "line": 48,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:faf58fad431a1b4ef1410339d5c5a9f77fee48475403574e62990ab5845ea8b9"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "pragma",
+      "line": 56,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:c21fd82cb2eb300297746cdd19d476ace86f87a59fc11655f534f53836cae6c4"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "pragma",
+      "line": 57,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:44a787d8af6a3c888b256a7fc8eb1fad0e92309986bbbffdb777eda99df4ac30"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "begin_immediate",
+      "line": 75,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "sqlite3_connect",
+      "line": 87,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:153c5b549114c8af6cbc7c8c3972b6553388a322e74a35bedc6fdf620d4f4477"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "sqlite3_connect",
+      "line": 88,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:f77196317726d558108d4e45c57da479cb2cd0ef440a5ca84936af8b6b0f50e6"
+    },
+    {
+      "path": "tools/migrations/016_source_channel_separation.py",
+      "rule": "begin_immediate",
+      "line": 96,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/opportunity_lens/ab_readonly.py",
+      "rule": "sqlite3_connect",
+      "line": 128,
+      "writer_operation_candidate": "connect_ab",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/opportunity_lens/ab_readonly.py",
+      "rule": "pragma",
+      "line": 130,
+      "writer_operation_candidate": "connect_ab",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/opportunity_lens/build_ai_inductor_run_pack.py",
+      "rule": "sqlite3_connect",
+      "line": 1105,
+      "writer_operation_candidate": "_build_ab_snapshot_points",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/opportunity_lens/build_deep_rerun_packs.py",
+      "rule": "sqlite3_connect",
+      "line": 544,
+      "writer_operation_candidate": "_select_storage_rows",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/opportunity_lens/build_deep_rerun_packs.py",
+      "rule": "sqlite3_connect",
+      "line": 786,
+      "writer_operation_candidate": "_company_name_by_ticker",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/opportunity_lens/build_deep_rerun_packs.py",
+      "rule": "sqlite3_connect",
+      "line": 936,
+      "writer_operation_candidate": "_target_company_lookup",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/opportunity_lens/build_high_multilayer_pcb_supply_demand_run_pack.py",
+      "rule": "sqlite3_connect",
+      "line": 664,
+      "writer_operation_candidate": "_ab_wus_materials",
+      "fingerprint": "sha256:65aed6b33886a55b660457b15004d798deec02bd29fbc88793d7188653992238"
+    },
+    {
+      "path": "tools/opportunity_lens/build_high_multilayer_pcb_supply_demand_run_pack.py",
+      "rule": "pragma",
+      "line": 666,
+      "writer_operation_candidate": "_ab_wus_materials",
+      "fingerprint": "sha256:57d51fb7083cf64fdcccf0f08b4bea399bb7a67d07b6b584086cdfdd418197b9"
+    },
+    {
+      "path": "tools/opportunity_lens/build_run16_supplemental_company_financial_export.py",
+      "rule": "hardcoded_data_db",
+      "line": 31,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:3e28320a0c200ef7673d57e021d13c35c07262774fb9daea34882a2c2063eaa2"
+    },
+    {
+      "path": "tools/opportunity_lens/build_run16_supplemental_company_financial_export.py",
+      "rule": "sqlite3_connect",
+      "line": 309,
+      "writer_operation_candidate": "_db_rows",
+      "fingerprint": "sha256:3774f7993b81e334cff18313ea7a4e27a7b73e1a1aa3556802b250e2d2a60a94"
+    },
+    {
+      "path": "tools/opportunity_lens/build_silicon_wafer_price_tracking_run_pack.py",
+      "rule": "sqlite3_connect",
+      "line": 806,
+      "writer_operation_candidate": "_load_ab_sources_and_points",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/opportunity_lens/candidate_builder.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 64,
+      "writer_operation_candidate": "promote_candidate_to_entity",
+      "fingerprint": "sha256:7d23b3d8e0d1a3007e88756a48a2084622773db50f4a5d8602ecf3d2e0eb9b4b"
+    },
+    {
+      "path": "tools/opportunity_lens/db.py",
+      "rule": "sqlite3_connect",
+      "line": 15,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/opportunity_lens/db.py",
+      "rule": "sqlite3_connect",
+      "line": 18,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:a1b7adec5e1a95d49225fe3839405f9825b73fb32da5b5b7adfe2238a88dc4f3"
+    },
+    {
+      "path": "tools/opportunity_lens/db.py",
+      "rule": "pragma",
+      "line": 20,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/opportunity_lens/early_signal.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 116,
+      "writer_operation_candidate": "aggregate_run_early_signals",
+      "fingerprint": "sha256:f481457d2d7748337a194fce421d3ee2fb301e158f12513039a54ef9aedb804a"
+    },
+    {
+      "path": "tools/opportunity_lens/fixture_loader.py",
+      "rule": "pragma",
+      "line": 78,
+      "writer_operation_candidate": "reset_fixture_rows",
+      "fingerprint": "sha256:3fa0bd7fa1c6a7feb2f760b04f2bcaf92878ffe34ac6addc97b642a770c1e5c1"
+    },
+    {
+      "path": "tools/opportunity_lens/fixture_loader.py",
+      "rule": "pragma",
+      "line": 82,
+      "writer_operation_candidate": "reset_fixture_rows",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/opportunity_lens/intake_contract.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 130,
+      "writer_operation_candidate": "save_intake_contract",
+      "fingerprint": "sha256:b078ff0ec3f63467b0261760333714b081ed7455d2b633c866ecc7244213fc9e"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "pragma",
+      "line": 639,
+      "writer_operation_candidate": "_tables_with_run_id",
+      "fingerprint": "sha256:5c7f606d0f83eb147b531a8138188e0a78c759904fda13e4baf5710c05382d50"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "pragma",
+      "line": 654,
+      "writer_operation_candidate": "_restore_replaced_run_id",
+      "fingerprint": "sha256:3635a9561c25cf449cbe92df8fdb8d5f1ef21424af07c1bc4e24474d40c24713"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "sqlite3_connect",
+      "line": 707,
+      "writer_operation_candidate": "_resolve_company_identity",
+      "fingerprint": "sha256:975e23878ead9c30fe92aa5b595511b7a8d5efbaf6e205b3ae3888a2003beae0"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 1802,
+      "writer_operation_candidate": "_insert_sections_visuals_and_followups",
+      "fingerprint": "sha256:e6601ca4ec8a764db332e3004beaa02ca566fd96044f7d9b2405c84ad3dedd2d"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 1836,
+      "writer_operation_candidate": "_insert_sections_visuals_and_followups",
+      "fingerprint": "sha256:e6601ca4ec8a764db332e3004beaa02ca566fd96044f7d9b2405c84ad3dedd2d"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 1982,
+      "writer_operation_candidate": "_insert_sections_visuals_and_followups",
+      "fingerprint": "sha256:50c20904cb00fc9f27e8c28d2b23b3b56cc300f8ce9d3b07b57a71253ae632e0"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 2020,
+      "writer_operation_candidate": "_insert_sections_visuals_and_followups",
+      "fingerprint": "sha256:50c20904cb00fc9f27e8c28d2b23b3b56cc300f8ce9d3b07b57a71253ae632e0"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "hardcoded_data_db",
+      "line": 2306,
+      "writer_operation_candidate": "load_pack",
+      "fingerprint": "sha256:32546c0c46463d06b0a8e0ecbe101d0fbb3fb35396aac4c6055704119f6e886c"
+    },
+    {
+      "path": "tools/opportunity_lens/manual_run_loader.py",
+      "rule": "hardcoded_data_db",
+      "line": 2432,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:1baf4713600b17a25db313ca093a1fa03e495a2fbde213ebb727d1d2f956f265"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "pragma",
+      "line": 275,
+      "writer_operation_candidate": "_table_columns",
+      "fingerprint": "sha256:7e9db1c03b26b720c3522e2a83c5ae2240a438f2c17418d35f65bcf24a6028bf"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "pragma",
+      "line": 381,
+      "writer_operation_candidate": "_rebuild_audit_issue_constraint_if_needed",
+      "fingerprint": "sha256:3fa0bd7fa1c6a7feb2f760b04f2bcaf92878ffe34ac6addc97b642a770c1e5c1"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "pragma",
+      "line": 420,
+      "writer_operation_candidate": "_rebuild_audit_issue_constraint_if_needed",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "pragma",
+      "line": 429,
+      "writer_operation_candidate": "_rebuild_candidate_priority_constraint_if_needed",
+      "fingerprint": "sha256:3fa0bd7fa1c6a7feb2f760b04f2bcaf92878ffe34ac6addc97b642a770c1e5c1"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "pragma",
+      "line": 479,
+      "writer_operation_candidate": "_rebuild_candidate_priority_constraint_if_needed",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 629,
+      "writer_operation_candidate": "init_db",
+      "fingerprint": "sha256:c43a0d63395828ea4582b2b7ac5dc2165084a9884115962b88819083d1ee75cf"
+    },
+    {
+      "path": "tools/opportunity_lens/migrate.py",
+      "rule": "pragma",
+      "line": 663,
+      "writer_operation_candidate": "verify_schema",
+      "fingerprint": "sha256:fd5fc80feb244b729ee8563c3b004f58e3e39c99b72d2d26d99654c930ee1c49"
+    },
+    {
+      "path": "tools/opportunity_lens/read_models.py",
+      "rule": "sqlite3_connect",
+      "line": 189,
+      "writer_operation_candidate": "_connect_research_read",
+      "fingerprint": "sha256:bd954321cd2b5907041684c2e7ea55f3bec9a25003e51c0bb0b2c3cfb450e95d"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite3_connect",
+      "line": 669,
+      "writer_operation_candidate": "_company_financial_points",
+      "fingerprint": "sha256:f5e4fc439219042c1a768f621bb66a87f1e55b5a234382e8965ae66355f38bf0"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite3_connect",
+      "line": 844,
+      "writer_operation_candidate": "_ab_data_point_info",
+      "fingerprint": "sha256:f5e4fc439219042c1a768f621bb66a87f1e55b5a234382e8965ae66355f38bf0"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite3_connect",
+      "line": 881,
+      "writer_operation_candidate": "_ab_source_info",
+      "fingerprint": "sha256:f5e4fc439219042c1a768f621bb66a87f1e55b5a234382e8965ae66355f38bf0"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite3_connect",
+      "line": 976,
+      "writer_operation_candidate": "_mirror_ab_data_point",
+      "fingerprint": "sha256:26089ff9e10dc20234d608cab0f22ca92047556cde872b533f76770477712165"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite3_connect",
+      "line": 1223,
+      "writer_operation_candidate": "update_db",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "pragma",
+      "line": 1224,
+      "writer_operation_candidate": "update_db",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "pragma",
+      "line": 1276,
+      "writer_operation_candidate": "update_db",
+      "fingerprint": "sha256:467d8fcbb9074e7c99cfa99a6cdb08efda11db73eff7b2122ef5021c59a15d77"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 1373,
+      "writer_operation_candidate": "update_db",
+      "fingerprint": "sha256:e6601ca4ec8a764db332e3004beaa02ca566fd96044f7d9b2405c84ad3dedd2d"
+    },
+    {
+      "path": "tools/opportunity_lens/repair_published_run_text.py",
+      "rule": "sqlite3_connect",
+      "line": 1504,
+      "writer_operation_candidate": "update_packs",
+      "fingerprint": "sha256:c2220dc71582aa53bda8ec546dbd5cb4cbf3f2f32cc3cb2c6d106f3954fc0339"
+    },
+    {
+      "path": "tools/opportunity_lens/run16_financial_portfolio_model.py",
+      "rule": "attach",
+      "line": 223,
+      "writer_operation_candidate": "_merge_parent_equity_snapshot",
+      "fingerprint": "sha256:26a7e9cdf1146690f4f164298b7fec9cc4922bacf6146329f22a5db9dc560ad2"
+    },
+    {
+      "path": "tools/opportunity_lens/run16_pack_builder.py",
+      "rule": "sqlite3_connect",
+      "line": 248,
+      "writer_operation_candidate": "_load_company_map",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/opportunity_lens/run16_pack_builder.py",
+      "rule": "sqlite3_connect",
+      "line": 287,
+      "writer_operation_candidate": "_load_company_map",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/opportunity_lens/run_immutability_audit.py",
+      "rule": "sqlite3_connect",
+      "line": 78,
+      "writer_operation_candidate": "snapshot",
+      "fingerprint": "sha256:da2e65d8cdfa3c669a1e8004531bbdd7a6c16303a4ea6d71dcee496712228356"
+    },
+    {
+      "path": "tools/opportunity_lens/run_immutability_audit.py",
+      "rule": "pragma",
+      "line": 80,
+      "writer_operation_candidate": "snapshot",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/opportunity_lens/run_immutability_audit.py",
+      "rule": "pragma",
+      "line": 92,
+      "writer_operation_candidate": "snapshot",
+      "fingerprint": "sha256:a501b557d7d3fdd1ba8b6ab8a35b6839bb0a6b36621d30c96e3cf092d440ccac"
+    },
+    {
+      "path": "tools/opportunity_lens/run_immutability_audit.py",
+      "rule": "pragma",
+      "line": 119,
+      "writer_operation_candidate": "snapshot",
+      "fingerprint": "sha256:c21fd82cb2eb300297746cdd19d476ace86f87a59fc11655f534f53836cae6c4"
+    },
+    {
+      "path": "tools/opportunity_lens/run_immutability_audit.py",
+      "rule": "pragma",
+      "line": 120,
+      "writer_operation_candidate": "snapshot",
+      "fingerprint": "sha256:e8abcc1f693c2f45173d99e01fdbd56c8fedad1eaa7ea8a6e892ab5e7ee5cff5"
+    },
+    {
+      "path": "tools/pipeline/add_pcb_equipment_official_data_points.py",
+      "rule": "sqlite3_connect",
+      "line": 81,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/add_pcb_equipment_official_data_points.py",
+      "rule": "pragma",
+      "line": 83,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/add_pcb_equipment_official_data_points.py",
+      "rule": "begin_immediate",
+      "line": 115,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/add_pcb_equipment_official_data_points.py",
+      "rule": "pragma",
+      "line": 154,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5c8fe641a9c73bd6d5d3d09aa9c81c3c7d540ce63a3975279a7e0d09b2a18592"
+    },
+    {
+      "path": "tools/pipeline/apply_copper_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 188,
+      "writer_operation_candidate": "register_sources",
+      "fingerprint": "sha256:8afe94fd22c5820f3bb8f3373063d2d3f7437bfa3c57f82597fc4300bb71d0f5"
+    },
+    {
+      "path": "tools/pipeline/apply_copper_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 218,
+      "writer_operation_candidate": "upsert_company_profiles",
+      "fingerprint": "sha256:3b0dfdf312da5c2fee6c7fea2b4ef1849dfead5ae98ce69b33bf8c874ba8252f"
+    },
+    {
+      "path": "tools/pipeline/apply_copper_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 382,
+      "writer_operation_candidate": "upsert_company_profiles",
+      "fingerprint": "sha256:8afe94fd22c5820f3bb8f3373063d2d3f7437bfa3c57f82597fc4300bb71d0f5"
+    },
+    {
+      "path": "tools/pipeline/apply_copper_research.py",
+      "rule": "sqlite3_connect",
+      "line": 545,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/apply_copper_research.py",
+      "rule": "pragma",
+      "line": 548,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/apply_copper_research.py",
+      "rule": "begin_immediate",
+      "line": 557,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/apply_hdi_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 164,
+      "writer_operation_candidate": "register_sources",
+      "fingerprint": "sha256:ffe6afe3a039ae66050e86d219fc342f918ad19f0a3d8d6952a4278e732c4112"
+    },
+    {
+      "path": "tools/pipeline/apply_hdi_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 195,
+      "writer_operation_candidate": "upsert_profiles",
+      "fingerprint": "sha256:7156cfdbc7a35c92005fc598e0d143c481fe9bd85ce2548ac8752f90a3e1da60"
+    },
+    {
+      "path": "tools/pipeline/apply_hdi_research.py",
+      "rule": "sqlite3_connect",
+      "line": 1388,
+      "writer_operation_candidate": "financial_review",
+      "fingerprint": "sha256:c8fcc59fa2d27b9dbc76c9b9aa46de87db989f061eda34b3b5c1a6189eb16aec"
+    },
+    {
+      "path": "tools/pipeline/apply_hdi_research.py",
+      "rule": "sqlite3_connect",
+      "line": 1456,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/apply_hdi_research.py",
+      "rule": "begin_immediate",
+      "line": 1465,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:59066eef1446609a520bde46b6af39a958b9a6c4a2222a7eddc4f53dba1d43d2"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_battery_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 342,
+      "writer_operation_candidate": "register_sources",
+      "fingerprint": "sha256:8afe94fd22c5820f3bb8f3373063d2d3f7437bfa3c57f82597fc4300bb71d0f5"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_battery_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 372,
+      "writer_operation_candidate": "upsert_company_profiles",
+      "fingerprint": "sha256:3b0dfdf312da5c2fee6c7fea2b4ef1849dfead5ae98ce69b33bf8c874ba8252f"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_battery_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 479,
+      "writer_operation_candidate": "upsert_company_profiles",
+      "fingerprint": "sha256:8afe94fd22c5820f3bb8f3373063d2d3f7437bfa3c57f82597fc4300bb71d0f5"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_battery_research.py",
+      "rule": "sqlite3_connect",
+      "line": 763,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_battery_research.py",
+      "rule": "pragma",
+      "line": 766,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_battery_research.py",
+      "rule": "begin_immediate",
+      "line": 775,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 156,
+      "writer_operation_candidate": "resolve_source_ids",
+      "fingerprint": "sha256:8afe94fd22c5820f3bb8f3373063d2d3f7437bfa3c57f82597fc4300bb71d0f5"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 211,
+      "writer_operation_candidate": "upsert_company_profiles",
+      "fingerprint": "sha256:3b0dfdf312da5c2fee6c7fea2b4ef1849dfead5ae98ce69b33bf8c874ba8252f"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 280,
+      "writer_operation_candidate": "upsert_company_profiles",
+      "fingerprint": "sha256:8afe94fd22c5820f3bb8f3373063d2d3f7437bfa3c57f82597fc4300bb71d0f5"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 299,
+      "writer_operation_candidate": "upsert_relations",
+      "fingerprint": "sha256:19a911c1bfdab750cfaa57416a559f237a8dc0c03f9ac7cc4e6bc416b11485f9"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "sqlite3_connect",
+      "line": 542,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "pragma",
+      "line": 545,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/apply_lithium_research.py",
+      "rule": "begin_immediate",
+      "line": 554,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/apply_pcb_equipment_research.py",
+      "rule": "sqlite3_connect",
+      "line": 67,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:4b65c5f5547837849597be68c26af75a687a01720467dfafea18801922f664b6"
+    },
+    {
+      "path": "tools/pipeline/apply_pcb_equipment_research.py",
+      "rule": "pragma",
+      "line": 69,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/apply_pcb_equipment_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 416,
+      "writer_operation_candidate": "ensure_companies",
+      "fingerprint": "sha256:6272a87808b29d73f33ca297ae8103e8c9a110dc16decc945557bdab98764e65"
+    },
+    {
+      "path": "tools/pipeline/apply_pcb_equipment_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 607,
+      "writer_operation_candidate": "ensure_relations",
+      "fingerprint": "sha256:2248734e3847e573093c4aa41da2e019501848a13e03cc80d1189f813683721b"
+    },
+    {
+      "path": "tools/pipeline/apply_pcb_equipment_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 833,
+      "writer_operation_candidate": "write_md_versions",
+      "fingerprint": "sha256:1f6741c26863c1bdabbe32c193b55178844232abf8ec5c6ae5f9b5d83882696d"
+    },
+    {
+      "path": "tools/pipeline/apply_pcb_equipment_research.py",
+      "rule": "begin_immediate",
+      "line": 868,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/build_high_multilayer_pcb_research.py",
+      "rule": "sqlite3_connect",
+      "line": 59,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/build_high_multilayer_pcb_research.py",
+      "rule": "pragma",
+      "line": 61,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/build_high_multilayer_pcb_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 320,
+      "writer_operation_candidate": "ensure_company",
+      "fingerprint": "sha256:e0be90cc867b6796af005a3b9b64ceac3c34553f40fb4d4e903757c28b6e29c4"
+    },
+    {
+      "path": "tools/pipeline/build_lithium_battery_independent_models.py",
+      "rule": "sqlite3_connect",
+      "line": 426,
+      "writer_operation_candidate": "_company_ids",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/pipeline/build_lithium_battery_reconciliation_artifact.py",
+      "rule": "sqlite3_connect",
+      "line": 40,
+      "writer_operation_candidate": "build",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/build_pcb_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 943,
+      "writer_operation_candidate": "ensure_company",
+      "fingerprint": "sha256:63a13ba6c685d4925288f171307fdfeea10ace7d432e0f08dadead2ff15ce2c9"
+    },
+    {
+      "path": "tools/pipeline/build_pcb_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 1023,
+      "writer_operation_candidate": "write_company_profile",
+      "fingerprint": "sha256:bc8c79d784454c18b4835ad38fb696ec2e6e27cc23c5fea893f462a3cffa73f7"
+    },
+    {
+      "path": "tools/pipeline/build_pcb_research.py",
+      "rule": "hardcoded_data_db",
+      "line": 1869,
+      "writer_operation_candidate": "write_docs",
+      "fingerprint": "sha256:0864e8202e6ba8e96d88afc099810512e4054cb8b4cdd6f9fe5b0cc3e8fc56ce"
+    },
+    {
+      "path": "tools/pipeline/build_pcb_research.py",
+      "rule": "sqlite3_connect",
+      "line": 2029,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/build_pcb_research.py",
+      "rule": "pragma",
+      "line": 2031,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/build_semiconductor_metrology_research.py",
+      "rule": "sqlite3_connect",
+      "line": 113,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/build_semiconductor_metrology_research.py",
+      "rule": "pragma",
+      "line": 115,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/consensus_compute.py",
+      "rule": "sqlite3_connect",
+      "line": 52,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:945ed21191c0acf75113c7d62fe9124315283b8a2ade9b232bc1593f54103eed"
+    },
+    {
+      "path": "tools/pipeline/consensus_compute.py",
+      "rule": "pragma",
+      "line": 54,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/db_writer.py",
+      "rule": "sqlite3_connect",
+      "line": 45,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:945ed21191c0acf75113c7d62fe9124315283b8a2ade9b232bc1593f54103eed"
+    },
+    {
+      "path": "tools/pipeline/db_writer.py",
+      "rule": "pragma",
+      "line": 47,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/duplicate_detection.py",
+      "rule": "hardcoded_data_db",
+      "line": 20,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:946efd764f6e778456d5dda8c31cabb4251b5b7f28076a36770a7a65bf16fa89"
+    },
+    {
+      "path": "tools/pipeline/duplicate_detection.py",
+      "rule": "sqlite3_connect",
+      "line": 20,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:946efd764f6e778456d5dda8c31cabb4251b5b7f28076a36770a7a65bf16fa89"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "sqlite3_connect",
+      "line": 49,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:7541ebb9080689edbd5799c96955efc369964b38c72c408052c634198ca861af"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "pragma",
+      "line": 51,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "attach",
+      "line": 53,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:c191605cfdd9dd7b478c716fce64ad6445c04d78bdee9f0614e0194e3fbc0fb1"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "begin_immediate",
+      "line": 54,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 106,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:621d37df5ae93437cb14d5f3206d2efc6fe633049defd8b8e91adcb3ed6d5267"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "pragma",
+      "line": 115,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:5077f95d9e6148db79ae22c21e10bc3e544c47239a17c79463370339652a35b6"
+    },
+    {
+      "path": "tools/pipeline/ensure_listed_company_profile.py",
+      "rule": "pragma",
+      "line": 117,
+      "writer_operation_candidate": "ensure_listed_company_profile",
+      "fingerprint": "sha256:cf2bc28905bf340e0602a840cb1ad0b3e40e42f7d95a52254f5aa3447237f828"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 237,
+      "writer_operation_candidate": "_upsert_profile",
+      "fingerprint": "sha256:3b0dfdf312da5c2fee6c7fea2b4ef1849dfead5ae98ce69b33bf8c874ba8252f"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 280,
+      "writer_operation_candidate": "_upsert_profile",
+      "fingerprint": "sha256:51dac78ac63356db72034c5c6498e163c1427bc7f5dfaa503972cf56bd80a5ff"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 321,
+      "writer_operation_candidate": "_upsert_profile",
+      "fingerprint": "sha256:f408243aad36144f735c4fe6c0c40cc47d1c903f532f125e2ff9393ef641b010"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "sqlite3_connect",
+      "line": 349,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:6500528430cb88dc63a869b4312a666543169140a6944a6a1b9509708b649384"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "pragma",
+      "line": 352,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "begin_immediate",
+      "line": 353,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "pragma",
+      "line": 362,
+      "writer_operation_candidate": "apply",
+      "fingerprint": "sha256:3ba2a9a0003a784a7f17abb87a5bae16a5255604a51dd1cf93648eeb6161616c"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "sqlite3_connect",
+      "line": 381,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:6500528430cb88dc63a869b4312a666543169140a6944a6a1b9509708b649384"
+    },
+    {
+      "path": "tools/pipeline/extend_copper_valuation_peers.py",
+      "rule": "sqlite3_connect",
+      "line": 404,
+      "writer_operation_candidate": "audit",
+      "fingerprint": "sha256:95f77b1ccd346120e5864b784d5d474aff2e19f9b706207aea6031033d09289d"
+    },
+    {
+      "path": "tools/pipeline/fix_company_industry.py",
+      "rule": "sqlite3_connect",
+      "line": 31,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:b1b5c325248d6190aafbe0c347fc002b9aa3b7937db4e8f43c3eb3354d395fc2"
+    },
+    {
+      "path": "tools/pipeline/fix_company_industry.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 74,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:9bf9ee999c716e3fe78232425c47176f23a78af99e377b27f642f7963ef72f91"
+    },
+    {
+      "path": "tools/pipeline/hdi_external_reconciliation.py",
+      "rule": "sqlite3_connect",
+      "line": 165,
+      "writer_operation_candidate": "reconcile",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/hdi_external_reconciliation.py",
+      "rule": "pragma",
+      "line": 171,
+      "writer_operation_candidate": "reconcile",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/hdi_external_reconciliation.py",
+      "rule": "begin_immediate",
+      "line": 172,
+      "writer_operation_candidate": "reconcile",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/hdi_external_reconciliation.py",
+      "rule": "pragma",
+      "line": 306,
+      "writer_operation_candidate": "reconcile",
+      "fingerprint": "sha256:ba33c081f480906f2b8c141858cf48bd4b91d2396e82c89d471a5277a1621fcb"
+    },
+    {
+      "path": "tools/pipeline/hdi_wind_financial_snapshot.py",
+      "rule": "sqlite3_connect",
+      "line": 152,
+      "writer_operation_candidate": "_company_identity",
+      "fingerprint": "sha256:85f9012db9276b7e1b9603b6c3022af99c0afcde41ac6f1708959026db2c9107"
+    },
+    {
+      "path": "tools/pipeline/incremental_update.py",
+      "rule": "sqlite3_connect",
+      "line": 61,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:627f7b1f208b8879a8a3dee3b7d40de3ee9e9dc222b9d2d13d35e922d4e57fc9"
+    },
+    {
+      "path": "tools/pipeline/incremental_update.py",
+      "rule": "pragma",
+      "line": 63,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/ingest_research.py",
+      "rule": "pragma",
+      "line": 449,
+      "writer_operation_candidate": "register_source",
+      "fingerprint": "sha256:a8d63ad2c2e5bc0bc5d4968da8091ff26cfd12dbf0a8cc8b6a4d16faf4d64914"
+    },
+    {
+      "path": "tools/pipeline/ingest_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 452,
+      "writer_operation_candidate": "register_source",
+      "fingerprint": "sha256:70d1c6bc82aae4bbe62f3f01ad6773c7eb4360533779d6983e769d880d6dc6e5"
+    },
+    {
+      "path": "tools/pipeline/ingest_research.py",
+      "rule": "begin_immediate",
+      "line": 538,
+      "writer_operation_candidate": "ingest",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/ingest_research.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 568,
+      "writer_operation_candidate": "company_id",
+      "fingerprint": "sha256:3b151985b8f7524d88d24d8f35f9fabcd6a661831dca6b2c1bb859edbf2497be"
+    },
+    {
+      "path": "tools/pipeline/ingest_research.py",
+      "rule": "hardcoded_data_db",
+      "line": 785,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:9e8131ca06226940fd740f3936a74039f700d145f26e59686ef3e1dcb5369f85"
+    },
+    {
+      "path": "tools/pipeline/ingest_电力.py",
+      "rule": "pragma",
+      "line": 52,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/ingest_电力.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 67,
+      "writer_operation_candidate": "get_company_id",
+      "fingerprint": "sha256:73d0238eae29372986ba977d7cecca729e478078cb419aa578cfb7f18cd1460e"
+    },
+    {
+      "path": "tools/pipeline/ingest_电力.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 107,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:5b9105c6be317e07ead9faec5efb6c319a135aebfae84b0e5be2b13b33641ed0"
+    },
+    {
+      "path": "tools/pipeline/m6_final_query.py",
+      "rule": "hardcoded_data_db",
+      "line": 4,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/pipeline/m6_final_query.py",
+      "rule": "sqlite3_connect",
+      "line": 4,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a086970c208412b63c7e9fc7500dc7fb9ef4ca0378ffb4ada8c59277a6c68407"
+    },
+    {
+      "path": "tools/pipeline/prepare_copper_research.py",
+      "rule": "sqlite3_connect",
+      "line": 57,
+      "writer_operation_candidate": "ensure_industry",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/prepare_hdi_research.py",
+      "rule": "sqlite3_connect",
+      "line": 61,
+      "writer_operation_candidate": "ensure_industry",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/prepare_lithium_battery_research.py",
+      "rule": "sqlite3_connect",
+      "line": 57,
+      "writer_operation_candidate": "ensure_industry",
+      "fingerprint": "sha256:c9bfe069ab49bd3c9e987c4e218b8cb7c89d59a6e31eeb354ca21bf84bbda937"
+    },
+    {
+      "path": "tools/pipeline/prepare_lithium_research.py",
+      "rule": "sqlite3_connect",
+      "line": 57,
+      "writer_operation_candidate": "ensure_industries",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/prepare_lithium_research.py",
+      "rule": "pragma",
+      "line": 59,
+      "writer_operation_candidate": "ensure_industries",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "sqlite3_connect",
+      "line": 328,
+      "writer_operation_candidate": "_readonly_connect",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 330,
+      "writer_operation_candidate": "_readonly_connect",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 331,
+      "writer_operation_candidate": "_readonly_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 937,
+      "writer_operation_candidate": "_company_columns",
+      "fingerprint": "sha256:da06031dfa51bc198fe230b2979f87ea782976aca6d98dd5bbfd466cee87de46"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 945,
+      "writer_operation_candidate": "_source_columns",
+      "fingerprint": "sha256:8682bbabacd8abaceb7b4a99c7dd0802d0ad86689d312156dd55c6b85eb8f37c"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "attach",
+      "line": 1210,
+      "writer_operation_candidate": "apply_refresh_manifest",
+      "fingerprint": "sha256:8f00cc33b6526f1cfe2c5f6c5847d3bf1318f5168d170c81506f9a6255b39b9d"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "begin_immediate",
+      "line": 1245,
+      "writer_operation_candidate": "apply_refresh_manifest",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 1527,
+      "writer_operation_candidate": "apply_refresh_manifest",
+      "fingerprint": "sha256:54c12a97ff8fa715dabc4385d406cac173e31d441d72501900f433fd03256d8f"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "pragma",
+      "line": 1530,
+      "writer_operation_candidate": "apply_refresh_manifest",
+      "fingerprint": "sha256:af3ae58bf5664fb0c9befd95500fbba6039463fdf20f7d6358d81bb5d4f0d548"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_financial_metrics.py",
+      "rule": "hardcoded_data_db",
+      "line": 1572,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:18905584e944a95df03aca9faa990f8dcec0cc3f1198cccbb2e3e31de22643a1"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "sqlite3_connect",
+      "line": 41,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:a1b7adec5e1a95d49225fe3839405f9825b73fb32da5b5b7adfe2238a88dc4f3"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "sqlite3_connect",
+      "line": 43,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:81617cdc13710fb3051e58e80a3c64152dbb0b031ddbac5a39b0ac4ed6c1d8b1"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "pragma",
+      "line": 44,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "pragma",
+      "line": 46,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "begin_immediate",
+      "line": 297,
+      "writer_operation_candidate": "apply_manifest",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "pragma",
+      "line": 317,
+      "writer_operation_candidate": "apply_manifest",
+      "fingerprint": "sha256:54c12a97ff8fa715dabc4385d406cac173e31d441d72501900f433fd03256d8f"
+    },
+    {
+      "path": "tools/pipeline/refresh_company_tickers.py",
+      "rule": "pragma",
+      "line": 320,
+      "writer_operation_candidate": "apply_manifest",
+      "fingerprint": "sha256:9df2f6c49c4f5531b6549d2d18890f6ceec028d66fb70a3c4a95f5a4ded34da2"
+    },
+    {
+      "path": "tools/pipeline/register_pcb_equipment_profile_sources.py",
+      "rule": "sqlite3_connect",
+      "line": 77,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cea68b8faaaf070d929f18de287b27a53cf34ed319dd3acdb3c82204297e7f73"
+    },
+    {
+      "path": "tools/pipeline/register_pcb_equipment_profile_sources.py",
+      "rule": "pragma",
+      "line": 79,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/register_pcb_equipment_profile_sources.py",
+      "rule": "begin_immediate",
+      "line": 90,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "begin_immediate",
+      "line": 16,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:fe627dbd9d9f826bfbea082a7d13338eed8aa6f6e1f602fafa44deaa3a57a0ac"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "sqlite3_connect",
+      "line": 237,
+      "writer_operation_candidate": "_open_read_only",
+      "fingerprint": "sha256:1e2e9a40c83299325568fa8aea8fef4798ab3bf0a3f0ef6bb7d63cc8420b5cc9"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "pragma",
+      "line": 240,
+      "writer_operation_candidate": "_open_read_only",
+      "fingerprint": "sha256:ed62d30583aa4e3ffd49341177e489b76a13a56239235444041a74b1981be2d1"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "pragma",
+      "line": 241,
+      "writer_operation_candidate": "_open_read_only",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "sqlite3_connect",
+      "line": 246,
+      "writer_operation_candidate": "_open_read_write",
+      "fingerprint": "sha256:1318d4963306542cc62add0917a0c85ae02433b9d9cb441462db9d29e7795302"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "pragma",
+      "line": 249,
+      "writer_operation_candidate": "_open_read_write",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "sqlite3_connect",
+      "line": 257,
+      "writer_operation_candidate": "_open_memory_copy",
+      "fingerprint": "sha256:09383770edc80fe33d8fe927594e2ace2801a185dd740173b5d58bd568cbe44c"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "pragma",
+      "line": 263,
+      "writer_operation_candidate": "_open_memory_copy",
+      "fingerprint": "sha256:ead7b4022ddd0dfaf1cd8b214b45ee5b0131bf6175df853919ea2174d612a565"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "pragma",
+      "line": 701,
+      "writer_operation_candidate": "_foreign_key_violations",
+      "fingerprint": "sha256:6e2ef52d651f8e793322592f2969ecb4d0d19c8b60a83fcf54d526f6ad3ef2e4"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "begin_immediate",
+      "line": 992,
+      "writer_operation_candidate": "_run_dry",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "begin_immediate",
+      "line": 1031,
+      "writer_operation_candidate": "_run_dry",
+      "fingerprint": "sha256:299231430ca07ca2dfbfe40daa3ea7b3aa5520a6510503c8ac982458c4122d9d"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "begin_immediate",
+      "line": 1050,
+      "writer_operation_candidate": "_run_apply",
+      "fingerprint": "sha256:aba018605cd935e9fa9a8d52a0b69f0cf8d16dda8109d1556fdab73bbbe51bc8"
+    },
+    {
+      "path": "tools/pipeline/repair_pcb_equipment_provenance.py",
+      "rule": "begin_immediate",
+      "line": 1104,
+      "writer_operation_candidate": "_run_apply",
+      "fingerprint": "sha256:299231430ca07ca2dfbfe40daa3ea7b3aa5520a6510503c8ac982458c4122d9d"
+    },
+    {
+      "path": "tools/pipeline/scientist_session_audit.py",
+      "rule": "hardcoded_data_db",
+      "line": 25,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:946efd764f6e778456d5dda8c31cabb4251b5b7f28076a36770a7a65bf16fa89"
+    },
+    {
+      "path": "tools/pipeline/scientist_session_audit.py",
+      "rule": "sqlite3_connect",
+      "line": 25,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:946efd764f6e778456d5dda8c31cabb4251b5b7f28076a36770a7a65bf16fa89"
+    },
+    {
+      "path": "tools/pipeline/seed_测试机_profiles.py",
+      "rule": "hardcoded_data_db",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:33a3ecb8b1652eed6378bca125510136cc28350d0c09f3c0b69d80dbb5ee7699"
+    },
+    {
+      "path": "tools/pipeline/seed_测试机_profiles.py",
+      "rule": "sqlite3_connect",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:33a3ecb8b1652eed6378bca125510136cc28350d0c09f3c0b69d80dbb5ee7699"
+    },
+    {
+      "path": "tools/pipeline/seed_测试机_profiles.py",
+      "rule": "pragma",
+      "line": 7,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:e1ee76d8fb5d4d4e6b3ae5d99c242158de26e4d8c7e6474634c87d19038bb305"
+    },
+    {
+      "path": "tools/pipeline/seed_电力_companies.py",
+      "rule": "pragma",
+      "line": 39,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/seed_电力_companies.py",
+      "rule": "pragma",
+      "line": 40,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:4ae26dc53e3bac6456597deaff2d947cb39e5fb3d084a9fce6ba779c2ec28e8a"
+    },
+    {
+      "path": "tools/pipeline/seed_电力_companies.py",
+      "rule": "pragma",
+      "line": 41,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:3cd6db3c07bc8783020aed3d7b76e3d252c2f151026d67563e4af1661ab1c5ef"
+    },
+    {
+      "path": "tools/pipeline/seed_电力_companies.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 52,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:1068b33a7d0d97fa34ef8a5f756e43c38a3460e5642b265d8f0889e3622ce056"
+    },
+    {
+      "path": "tools/pipeline/seed_电力_companies.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 63,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:90893e541013b6b5619c2ffd4a8d5f21ebb0ce40d193cc6d5f2e7cb2b855f66e"
+    },
+    {
+      "path": "tools/pipeline/seed_电力_companies.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 99,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:32ed48e8caa1c755f2f688c6cd102b493b93eda86ca7ab8cfa9d5469d165d67a"
+    },
+    {
+      "path": "tools/pipeline/seed_硅片_profiles.py",
+      "rule": "hardcoded_data_db",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:33a3ecb8b1652eed6378bca125510136cc28350d0c09f3c0b69d80dbb5ee7699"
+    },
+    {
+      "path": "tools/pipeline/seed_硅片_profiles.py",
+      "rule": "sqlite3_connect",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:33a3ecb8b1652eed6378bca125510136cc28350d0c09f3c0b69d80dbb5ee7699"
+    },
+    {
+      "path": "tools/pipeline/seed_硅片_profiles.py",
+      "rule": "pragma",
+      "line": 7,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:e1ee76d8fb5d4d4e6b3ae5d99c242158de26e4d8c7e6474634c87d19038bb305"
+    },
+    {
+      "path": "tools/pipeline/source_credibility.py",
+      "rule": "sqlite3_connect",
+      "line": 108,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:945ed21191c0acf75113c7d62fe9124315283b8a2ade9b232bc1593f54103eed"
+    },
+    {
+      "path": "tools/pipeline/source_credibility.py",
+      "rule": "pragma",
+      "line": 110,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/pipeline/stage2c_a_aggregate_shares.py",
+      "rule": "hardcoded_data_db",
+      "line": 10,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:4e20c267d94760b054a4d8589eb121129802353c6ecc628fa3b2652ea2a7e11b"
+    },
+    {
+      "path": "tools/pipeline/stage2c_a_aggregate_shares.py",
+      "rule": "sqlite3_connect",
+      "line": 65,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c6e58260b104d5bc253804b5314e48ae8793e94f03881126573bcf7346136b10"
+    },
+    {
+      "path": "tools/pipeline/stage2c_f_fetch_valuation.py",
+      "rule": "sqlite3_connect",
+      "line": 136,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/pipeline/stage2c_f_ingest_fields.py",
+      "rule": "sqlite3_connect",
+      "line": 121,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:8319aedc4cb7800b51c378478969ab5b21c1059e941e18ad1463eb9f530ceae5"
+    },
+    {
+      "path": "tools/pipeline/stage2c_g_gen_consensus_narrative.py",
+      "rule": "sqlite3_connect",
+      "line": 152,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/pipeline/stage2c_g_write_narrative_cc.py",
+      "rule": "sqlite3_connect",
+      "line": 61,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:51f5c8057242d82331e15b335cd8808e8a6fd779939430f15005ff1b2d03151c"
+    },
+    {
+      "path": "tools/pipeline/unify_marketcap_cny.py",
+      "rule": "pragma",
+      "line": 51,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:dc035f9ea7ab5754f4cd26432076ff636f579a78207eb9a54ef263764dc98c9e"
+    },
+    {
+      "path": "tools/pipeline/write_brief_intro.py",
+      "rule": "hardcoded_data_db",
+      "line": 13,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c52e2c9e5502bfe3cfd47d7a0098cd6171f04471db5a5772d8c6bf4d0b51ff90"
+    },
+    {
+      "path": "tools/pipeline/write_brief_intro.py",
+      "rule": "sqlite3_connect",
+      "line": 13,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:c52e2c9e5502bfe3cfd47d7a0098cd6171f04471db5a5772d8c6bf4d0b51ff90"
+    },
+    {
+      "path": "tools/pipeline/write_brief_intro.py",
+      "rule": "pragma",
+      "line": 14,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:ddab85295adbe75fee2a139b9daa2a131f4af66c26f6c080f3d95b5047673a85"
+    },
+    {
+      "path": "tools/pipeline/zero_data_alert.py",
+      "rule": "sqlite3_connect",
+      "line": 41,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:627f7b1f208b8879a8a3dee3b7d40de3ee9e9dc222b9d2d13d35e922d4e57fc9"
+    },
+    {
+      "path": "tools/research_core/config.py",
+      "rule": "hardcoded_data_db",
+      "line": 126,
+      "writer_operation_candidate": "_validate",
+      "fingerprint": "sha256:54f3eff64b9d79d83b296fedcc7a3c3435cb03cef7a0ec57425ceae5b56c52c5"
+    },
+    {
+      "path": "tools/research_core/config.py",
+      "rule": "hardcoded_data_db",
+      "line": 127,
+      "writer_operation_candidate": "_validate",
+      "fingerprint": "sha256:f0c0e7d915c0f992e1fcd5c79b23cc644f4272a84f1b62ebd80fab60127e124e"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "hardcoded_data_db",
+      "line": 5,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:b87adc94ca14e4080ee4cfcc39232a7867a47538bbd81d680bf036ae5e63798a"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "sqlite3_connect",
+      "line": 29,
+      "writer_operation_candidate": "get_senti_db",
+      "fingerprint": "sha256:a0f659246eda53825b1f3772669b40241860a9a33e3622456205c1faf59d75e8"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "pragma",
+      "line": 31,
+      "writer_operation_candidate": "get_senti_db",
+      "fingerprint": "sha256:8be4cea4cd61f08c0a3c2d056222954cf2c4cc9c4310cb88f26fc1ab2ffb7060"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "pragma",
+      "line": 32,
+      "writer_operation_candidate": "get_senti_db",
+      "fingerprint": "sha256:aa1c0a07e6ee6ba90c1cd702b9a0ea0c36202abada0900075652d7e6bfc7d4b9"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "attach",
+      "line": 37,
+      "writer_operation_candidate": "attach_research_ro",
+      "fingerprint": "sha256:0ec811e73e743ffd866ddd29770ce5dba840dfab50bb1d0081840c9b3320566f"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "attach",
+      "line": 39,
+      "writer_operation_candidate": "attach_research_ro",
+      "fingerprint": "sha256:1effe3b65d2384e6b89f526aa767b34457e710cf0eff8a7737a7643fa0eb3b52"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "sqlite3_connect",
+      "line": 45,
+      "writer_operation_candidate": "research_ro_conn",
+      "fingerprint": "sha256:7b3019cdade51526a7eab33ad98a0033b6ec5f44c775240399df2116f2be696e"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 66,
+      "writer_operation_candidate": "mark_seen",
+      "fingerprint": "sha256:4d22f3754aaa71812a3a6a661530d9259b6f65efc4f4f9d0650577ef21b3ca4a"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "attach",
+      "line": 72,
+      "writer_operation_candidate": "assert_senti_only",
+      "fingerprint": "sha256:fc5cde30b2b1ba3d8346a3d96f541a5b14c0a2c53b7722befac2103a732f6e61"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "pragma",
+      "line": 73,
+      "writer_operation_candidate": "assert_senti_only",
+      "fingerprint": "sha256:760e64f100161d9a2b365daefe9375759612d0f190664d219ae269b76eed679d"
+    },
+    {
+      "path": "tools/sentiment/common.py",
+      "rule": "hardcoded_data_db",
+      "line": 75,
+      "writer_operation_candidate": "assert_senti_only",
+      "fingerprint": "sha256:f7da9812adfa66d0a5ec96f5351305ba25dc657b9220a1805b5a2a315943014c"
+    },
+    {
+      "path": "tools/sentiment/event_ingest.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 57,
+      "writer_operation_candidate": "get_orgid",
+      "fingerprint": "sha256:bb871d847833a0df30e61679a90864373802d3b9fb1ea8f242cfb8149565f494"
+    },
+    {
+      "path": "tools/sentiment/event_ingest.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 188,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:a36bedcaab1c05388cd9d286840afec57e5e778b2b81a130ad2a567a84fa68b8"
+    },
+    {
+      "path": "tools/sentiment/finish_sampling_backfill.py",
+      "rule": "sqlite3_connect",
+      "line": 20,
+      "writer_operation_candidate": "_q",
+      "fingerprint": "sha256:93daf4a01ec7d2cbb80318f3470fc5224db32f6e80c1816907043396d1408e47"
+    },
+    {
+      "path": "tools/sentiment/gen_subject_list.py",
+      "rule": "sqlite3_connect",
+      "line": 10,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:6fcfe34d06d941227c2d7dd4ede6fc0d99479d729affe33259ec726ce1cb9381"
+    },
+    {
+      "path": "tools/sentiment/gen_subject_list.py",
+      "rule": "sqlite3_connect",
+      "line": 11,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d3849d5529cc05eb0c466760bee16b3fe1658c4ca767293df361bfcd6aaef40e"
+    },
+    {
+      "path": "tools/sentiment/init_db.py",
+      "rule": "hardcoded_data_db",
+      "line": 3,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:2aeea155ec4ca21c2850ac4ff7e46a7cf1b4f49698aa2da6ab6631f1f37725ee"
+    },
+    {
+      "path": "tools/sentiment/init_db.py",
+      "rule": "hardcoded_data_db",
+      "line": 15,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:a7336de54ec1129b541aad75676ceda6cbfe0ddb58dec21cbea26190b99ed5d8"
+    },
+    {
+      "path": "tools/sentiment/init_db.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 27,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:06ee19484676100ffc4a06ff0dbac958afc19dba4331d1d1fc77efc8caa5f2ec"
+    },
+    {
+      "path": "tools/sentiment/migrate_3layer.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 221,
+      "writer_operation_candidate": "build_aliases",
+      "fingerprint": "sha256:3eda3a189da24937344ec2a050e5374b3c8182198c3525fd1c63cd1ec3dd7388"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "sqlite3_connect",
+      "line": 31,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:f1420d3f80cecace48b5397a25c252a17b03282bb51228999e1b73cfc67076ee"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "sqlite3_connect",
+      "line": 33,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:420157c37e931e67840760c6a869875b3d8828f06cfa0e730535d3ebbb864313"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 34,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:edfd2da35e3b1efaf2cbd3fa0da265fbb81a96c3ff7c5d36499bab97d6e9f7b0"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 36,
+      "writer_operation_candidate": "connect",
+      "fingerprint": "sha256:245799329ffca9257272ae1ba2102190315156e7659bf102408b1a3bc44afbaf"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 47,
+      "writer_operation_candidate": "_columns",
+      "fingerprint": "sha256:8e616bce3df0dccceb0c4c63e9f287861140b03c576e563bd05689cc98d6bdd5"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 133,
+      "writer_operation_candidate": "merge_aliases",
+      "fingerprint": "sha256:2381b41db4717315d82ce018c781ef99f4bcb136a626633a54f4df0d0f48f479"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 152,
+      "writer_operation_candidate": "merge_aliases",
+      "fingerprint": "sha256:2381b41db4717315d82ce018c781ef99f4bcb136a626633a54f4df0d0f48f479"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 183,
+      "writer_operation_candidate": "_upsert_redirects",
+      "fingerprint": "sha256:b2f04b1f054d79d0e9b7d909e5e7cf1520547af0a6ea95df5bf302065ee36b48"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 337,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:8f463c1cd630ab214afe76c1e26c85ce08a32d764f4becdbaae227ee5b4f5618"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "pragma",
+      "line": 338,
+      "writer_operation_candidate": "verify",
+      "fingerprint": "sha256:09a2d6ed3158c467479d70ce50e1095f18891ce472b484f5cda0cc33d17872eb"
+    },
+    {
+      "path": "tools/sentiment/migrate_company_identity_consolidation.py",
+      "rule": "begin_immediate",
+      "line": 366,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:6bf27eda679d5ab08d7d237d30291b49752c33b000989b9fb39d07bc47e507cb"
+    },
+    {
+      "path": "tools/sentiment/migrate_recruit.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 46,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:803fa81a184f2653b8a4958b7950a9fca594d1a8959e3a612ba6e29afd9cf9e6"
+    },
+    {
+      "path": "tools/sentiment/migrate_recruit_v2.py",
+      "rule": "pragma",
+      "line": 37,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:1010616af66c185de13e57f744724c66b9af83ab9b22c6872ee4951bc2e53045"
+    },
+    {
+      "path": "tools/sentiment/migrate_recruit_v2.py",
+      "rule": "pragma",
+      "line": 38,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:4c40fef6a1efecaad270adc83b15e2ea581740a1f17ec67cb127bd43b741b156"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "hardcoded_data_db",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:8cc846efacc0a2f2043a168a7278b8123633220dec339903ebd43da636119b87"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 129,
+      "writer_operation_candidate": "_columns",
+      "fingerprint": "sha256:8e616bce3df0dccceb0c4c63e9f287861140b03c576e563bd05689cc98d6bdd5"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 565,
+      "writer_operation_candidate": "sync_research_aliases",
+      "fingerprint": "sha256:af1109722f413645e753ef9c652969ffeb62131c93b36cfc531a3c8d944f00a5"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 591,
+      "writer_operation_candidate": "sync_remaining_senti_aliases",
+      "fingerprint": "sha256:af1109722f413645e753ef9c652969ffeb62131c93b36cfc531a3c8d944f00a5"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 618,
+      "writer_operation_candidate": "apply_migration",
+      "fingerprint": "sha256:a1a688cb9595bc0622166f3ac44e3a64794021aa66303e7f22bd1fc4c9df1e39"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "sqlite3_connect",
+      "line": 690,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:5cceaed444e65bd0fcf21bbf992f63c00e4fcdfbeedc3631c1b14a77ec076068"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "sqlite3_connect",
+      "line": 692,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:9b432e55a9ec4d9c73def44cd7b000d51921cb5d5d716ef339bbeccf8f9cb9df"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 694,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:245799329ffca9257272ae1ba2102190315156e7659bf102408b1a3bc44afbaf"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 695,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:cf4d36b5b61bf4ef583ede2d741ee389503aca54b3980b88b846bbe82a1e3f51"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "hardcoded_data_db",
+      "line": 707,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:84e837f25576d4c4eb9f23b3a5673cad2ffe0f4a43bcb6688b4b9bcc5fab8159"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "begin_immediate",
+      "line": 730,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:cf247416a38652f7b88b219c2514739264d55aef47d039371e959ee9cdc78199"
+    },
+    {
+      "path": "tools/sentiment/migrate_retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 737,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:e897a825a5764984182e4386047ad543fc02abdae9a46163de91016c51fca44f"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "begin_immediate",
+      "line": 6,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:b791cd282cbae7cdf9702314a72bf451b61e80ed7c12cea3bc71bdf10b9a5568"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "sqlite3_connect",
+      "line": 34,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:51a2284b08bd32aa6873f7a3d791c63736cb38e88c2cf73d79f98e0c90342c56"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "sqlite3_connect",
+      "line": 37,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:202f673405d600c190ee1b9d80e337eac5ebdb537324d15c88af06e0306e7f01"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "pragma",
+      "line": 39,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:4aec293adaf1760dc4f5200bb9c5b82300f28bde6cffc146eeb8b4791a46c63b"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "pragma",
+      "line": 40,
+      "writer_operation_candidate": "_connect",
+      "fingerprint": "sha256:245799329ffca9257272ae1ba2102190315156e7659bf102408b1a3bc44afbaf"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "begin_immediate",
+      "line": 88,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:6bf27eda679d5ab08d7d237d30291b49752c33b000989b9fb39d07bc47e507cb"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "pragma",
+      "line": 96,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:aa27ef2db55562741940fedca2b9e7aa0ba92648fd1640464c476660bdb119e4"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_hbm_topic.py",
+      "rule": "pragma",
+      "line": 99,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:45c7c9fb7c37229c099415bfd122d074bf952d7a42994b5ef89c357f566df9ff"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_keyword_sentiment.py",
+      "rule": "sqlite3_connect",
+      "line": 30,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:51a2284b08bd32aa6873f7a3d791c63736cb38e88c2cf73d79f98e0c90342c56"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_keyword_sentiment.py",
+      "rule": "pragma",
+      "line": 33,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:245799329ffca9257272ae1ba2102190315156e7659bf102408b1a3bc44afbaf"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_keyword_sentiment.py",
+      "rule": "begin_immediate",
+      "line": 48,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:6bf27eda679d5ab08d7d237d30291b49752c33b000989b9fb39d07bc47e507cb"
+    },
+    {
+      "path": "tools/sentiment/migrate_retire_keyword_sentiment.py",
+      "rule": "pragma",
+      "line": 53,
+      "writer_operation_candidate": "retire",
+      "fingerprint": "sha256:aa27ef2db55562741940fedca2b9e7aa0ba92648fd1640464c476660bdb119e4"
+    },
+    {
+      "path": "tools/sentiment/migrate_sampling.py",
+      "rule": "pragma",
+      "line": 22,
+      "writer_operation_candidate": "_cols",
+      "fingerprint": "sha256:8898887c9a8132c59f1ce14e39e4e2ea1f73b6370e2616595b73d461a4764b6f"
+    },
+    {
+      "path": "tools/sentiment/migrate_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 87,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:06ee19484676100ffc4a06ff0dbac958afc19dba4331d1d1fc77efc8caa5f2ec"
+    },
+    {
+      "path": "tools/sentiment/migrate_v3.py",
+      "rule": "sqlite3_connect",
+      "line": 53,
+      "writer_operation_candidate": "mirror_funda",
+      "fingerprint": "sha256:a605f9f2dbe8cc90d5b580b135d8cfde9d992438431878e8566981fb26e0d8d7"
+    },
+    {
+      "path": "tools/sentiment/migrate_v3.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 60,
+      "writer_operation_candidate": "mirror_funda",
+      "fingerprint": "sha256:eacf08eecb9c6ba1fb498012a35c344cb840afa818b0c13d52ccbd2714bff9d5"
+    },
+    {
+      "path": "tools/sentiment/migrate_v3.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 73,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:803fa81a184f2653b8a4958b7950a9fca594d1a8959e3a612ba6e29afd9cf9e6"
+    },
+    {
+      "path": "tools/sentiment/migrate_v3.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 75,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:803fa81a184f2653b8a4958b7950a9fca594d1a8959e3a612ba6e29afd9cf9e6"
+    },
+    {
+      "path": "tools/sentiment/migrate_xinghan_v4.py",
+      "rule": "pragma",
+      "line": 20,
+      "writer_operation_candidate": "add_col",
+      "fingerprint": "sha256:b1eff7dc0cf41ef6b95fccfa300726aa62d25213869df4db6f97f2a0f54d1300"
+    },
+    {
+      "path": "tools/sentiment/recruit_scrape.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 536,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:4024c5e75153a0fa0ceecf43962ac5b30d6acb76fb5c55b103c7910a7a15a9bc"
+    },
+    {
+      "path": "tools/sentiment/recruit_scrape_batch1.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 210,
+      "writer_operation_candidate": "upsert_sources",
+      "fingerprint": "sha256:6c465e15ea7ff0c794a0bc6f30a591f25dc7af45b7921a2aa7a1ad7677908d98"
+    },
+    {
+      "path": "tools/sentiment/register_new_stocks.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 49,
+      "writer_operation_candidate": "register_stocks",
+      "fingerprint": "sha256:b209aea6006b6bc9732eb8cb399314b2f7001bba01337843495795e64ecaf43f"
+    },
+    {
+      "path": "tools/sentiment/register_new_stocks.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 73,
+      "writer_operation_candidate": "register_stocks",
+      "fingerprint": "sha256:af1109722f413645e753ef9c652969ffeb62131c93b36cfc531a3c8d944f00a5"
+    },
+    {
+      "path": "tools/sentiment/retail_window_tick.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 252,
+      "writer_operation_candidate": "_source_status",
+      "fingerprint": "sha256:dfd10bfbade4d7f238b1d06b0f759253049865fdaff5a484f36c11dc7d663956"
+    },
+    {
+      "path": "tools/sentiment/retail_window_tick.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 356,
+      "writer_operation_candidate": "_set_empty_recheck_attempts",
+      "fingerprint": "sha256:dfd10bfbade4d7f238b1d06b0f759253049865fdaff5a484f36c11dc7d663956"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 273,
+      "writer_operation_candidate": "ensure_schema",
+      "fingerprint": "sha256:83023f4e6ec0c9bfcb3f6725d9f056161d8a8844c5c89af0c2bdc72cd6515590"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 304,
+      "writer_operation_candidate": "ensure_schema",
+      "fingerprint": "sha256:954efbafd291daa80e7a5a8520380214fd6828e2653a365c32717c233f0d61aa"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 320,
+      "writer_operation_candidate": "_ensure_columns",
+      "fingerprint": "sha256:8a8b2d10d727a098534f372d84feab1a5e723607ce077f43d57f8dcd1153422a"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 328,
+      "writer_operation_candidate": "_pk_columns",
+      "fingerprint": "sha256:1d7eac87b69b0e84a162e837045cb779a66e7c0d473b1a6be16f1e93c67d8909"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 348,
+      "writer_operation_candidate": "_ensure_yuqing_request_variant_schema",
+      "fingerprint": "sha256:33cdee06a5ec9903842f97a7e7757322d849b2b7a8cb8cb0b9b56c33e53a0fbc"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "pragma",
+      "line": 351,
+      "writer_operation_candidate": "_ensure_yuqing_request_variant_schema",
+      "fingerprint": "sha256:d46e4333f4cb2f08d07e6d7193024fd9ce9cd55ab17736c1eba390d7c998ee39"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 458,
+      "writer_operation_candidate": "ensure_window",
+      "fingerprint": "sha256:8814289025b8d41ec98886c6c974b6d61ce5984ed15ae0c67d8eece34253997b"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 546,
+      "writer_operation_candidate": "map_retail_raw_rows",
+      "fingerprint": "sha256:2a1d55a0402e61010a7e1a730bbc7f1f8a8516f4a0a420e8e781d6b22b5799c2"
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 602,
+      "writer_operation_candidate": "store_yuqing_feed_record",
+      "fingerprint": "sha256:a7a19da97529ff6935bb3dd8d583b73f2f5ebc860573bc5487ce6bdd209d3d2f"
+    },
+    {
+      "path": "tools/sentiment/senti3.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 363,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:da6670e18b15a33038ca91443a3b4f469541947e875a8f1d688a4f1cd2414ff0"
+    },
+    {
+      "path": "tools/sentiment/senti_aggregate.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 29,
+      "writer_operation_candidate": "recompute_company",
+      "fingerprint": "sha256:764edd12fd361e8dd6e2738fda9c4f91e92ab21fcfbaa3936a27c9d2641010bb"
+    },
+    {
+      "path": "tools/sentiment/senti_aggregate.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 44,
+      "writer_operation_candidate": "recompute_company",
+      "fingerprint": "sha256:dfccba0e46498163f2c2753d04dfa56adc496e7877c4c7a052f6ec49add56b4b"
+    },
+    {
+      "path": "tools/sentiment/senti_aggregate_3layer.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 86,
+      "writer_operation_candidate": "agg_retail",
+      "fingerprint": "sha256:b65e3b18ccfda7f28ccc38124b099cab1a9ff84b92cbf0df8ac8f03dbdf96bbc"
+    },
+    {
+      "path": "tools/sentiment/senti_aggregate_3layer.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 131,
+      "writer_operation_candidate": "agg_news",
+      "fingerprint": "sha256:b65e3b18ccfda7f28ccc38124b099cab1a9ff84b92cbf0df8ac8f03dbdf96bbc"
+    },
+    {
+      "path": "tools/sentiment/senti_aggregate_3layer.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 172,
+      "writer_operation_candidate": "agg_heat",
+      "fingerprint": "sha256:b65e3b18ccfda7f28ccc38124b099cab1a9ff84b92cbf0df8ac8f03dbdf96bbc"
+    },
+    {
+      "path": "tools/sentiment/senti_direction.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 90,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:dc32c54dc935682e52f655ca84d69b4932716e301bc8d9c75b41578c87adc0cb"
+    },
+    {
+      "path": "tools/sentiment/senti_fetch_guba.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 40,
+      "writer_operation_candidate": "write_raw",
+      "fingerprint": "sha256:23f73402eb5a606e580c2a72ae4fdfa6949e6cf8885011d80119c16e8d1735c2"
+    },
+    {
+      "path": "tools/sentiment/senti_fetch_xinghan.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 150,
+      "writer_operation_candidate": "_start_or_resume_checkpoint",
+      "fingerprint": "sha256:c7548ef40d23cc015e82cc6b7ca075a6b59309b127900032c8f1699f893f96ef"
+    },
+    {
+      "path": "tools/sentiment/senti_indicators.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 45,
+      "writer_operation_candidate": "_indicators",
+      "fingerprint": "sha256:b1dd8d5da82ff57422a8a74330642ace469c5fc197b2bec711a13cda6c40fdd7"
+    },
+    {
+      "path": "tools/sentiment/senti_indicators.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 55,
+      "writer_operation_candidate": "_indicators",
+      "fingerprint": "sha256:0c5e5ee097d52580bfd1ea5a2b2f673d858d28391695efd8acf3eee0313d3675"
+    },
+    {
+      "path": "tools/sentiment/senti_indicators.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 77,
+      "writer_operation_candidate": "_kline",
+      "fingerprint": "sha256:cbeb060cd164ca14693137c9fe4f3fdc6d5ac1e1acd6920e8eba4eaa94614f38"
+    },
+    {
+      "path": "tools/sentiment/senti_indicators.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 85,
+      "writer_operation_candidate": "_kline",
+      "fingerprint": "sha256:cbeb060cd164ca14693137c9fe4f3fdc6d5ac1e1acd6920e8eba4eaa94614f38"
+    },
+    {
+      "path": "tools/sentiment/senti_ingest.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 72,
+      "writer_operation_candidate": "main",
+      "fingerprint": "sha256:508c46cc80cd11750a1934c8dcc61f3336b9fe27da50d774ff28b2a7ab5ffac2"
+    },
+    {
+      "path": "tools/sentiment/senti_run_xinghan.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 7,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:46d63f74bb6e78ef6063f03b7c75ef873b238227d65012abd52abb46838fb063"
+    },
+    {
+      "path": "tools/sentiment/stock_kline_fetch.py",
+      "rule": "pragma",
+      "line": 87,
+      "writer_operation_candidate": "load_universe",
+      "fingerprint": "sha256:a25e4150c0530d7daf146035729cdb3cd7cb42e253aa61a8b5d62bf67416937e"
+    },
+    {
+      "path": "tools/sentiment/stock_kline_fetch.py",
+      "rule": "sqlite_conflict_dml",
+      "line": 419,
+      "writer_operation_candidate": "upsert_rows",
+      "fingerprint": "sha256:84de1578f1b9adaa30777a11a63ca0f0543ad8f8a8270fd298417ffa57a98816"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "sqlite3_connect",
+      "line": 468,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:627f7b1f208b8879a8a3dee3b7d40de3ee9e9dc222b9d2d13d35e922d4e57fc9"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "pragma",
+      "line": 470,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:979a4e4b0d02c521c7901b6482dfdda924e33c795accbf81bb5ef4dd6be5b588"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "pragma",
+      "line": 471,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:bbaed20e6846a8f6b163ec0e92de4a70c068093bb4b30a8892ab118ac7821592"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "pragma",
+      "line": 472,
+      "writer_operation_candidate": "get_db",
+      "fingerprint": "sha256:dcb8cc0c76a0a8caa710c91207e735d958f5af8315a515658bb6d6b8c144cd79"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "attach",
+      "line": 498,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:74e35d89be7ea6f4116a200fc5d66021c762217f5cb2de3212cadc075947155e"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "attach",
+      "line": 505,
+      "writer_operation_candidate": "senti_conn",
+      "fingerprint": "sha256:b705db94586064e1ef49abdb76f3662bb31d7052c1c24a5993648c6eafb1f5d3"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "sqlite3_connect",
+      "line": 505,
+      "writer_operation_candidate": "senti_conn",
+      "fingerprint": "sha256:b705db94586064e1ef49abdb76f3662bb31d7052c1c24a5993648c6eafb1f5d3"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "attach",
+      "line": 507,
+      "writer_operation_candidate": "senti_conn",
+      "fingerprint": "sha256:1b2d630ca8f68d416b31e6355d5a5ccec33d745dec48759b5e625206847d8e8c"
+    },
+    {
+      "path": "tools/viewer/app.py",
+      "rule": "sqlite3_connect",
+      "line": 2606,
+      "writer_operation_candidate": "_company_opportunity_links",
+      "fingerprint": "sha256:809a3feea768cda9db29ea45fade0c98772a00c1e25fdba3cc5d6dc9ab69acd9"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 13,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:ccadf43ff885085e04e616e3238b60cd5fc7167756b7ac500489deb6b5105728"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 14,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:25b305a88a37c0ab58519e169bfbdfd77fe240d64e0e8cdf03630db632f12922"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 15,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:d78d1b6a5efc2fadc095ba3cc316087287508041b1d1d5670dd63b0e3932a595"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 16,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:54df470403ab75d0cd0ea2284973e86acc064ba3dbca24b6771a5d3cb32b6ad9"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 51,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:2a7fba7385cae0ebc10900d0cb21074ec385eac4111410c721231a6892975f1d"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 52,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:2ed61fa0487fe2dd988bd2b98cf7437e245415a3490d8f6e979136a8a322e31b"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 53,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:fc4f92b9d31507415312de69e81ef6e9e3e3ce92739283ad5974708299a01264"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "hardcoded_data_db",
+      "line": 54,
+      "writer_operation_candidate": "<module>",
+      "fingerprint": "sha256:23685e15d3f0d867307394b162e71671172b093daedd9d6411abea486897bd2c"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "sqlite3_connect",
+      "line": 99,
+      "writer_operation_candidate": "check_databases",
+      "fingerprint": "sha256:c16a025af94d14b9a4ffa011c145e9187047ce28fea25961450d33c90b8f86d1"
+    },
+    {
+      "path": "tools/viewer/preflight.py",
+      "rule": "sqlite3_connect",
+      "line": 138,
+      "writer_operation_candidate": "check_active_feature_data",
+      "fingerprint": "sha256:727e8701eece6a2d57db05ddb6cb27ba8d5d89658e8c9f7c885d012efd112a2e"
+    }
+  ]
+}

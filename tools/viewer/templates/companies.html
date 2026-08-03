@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}公司 · 行研库{% endblock %}
+{% block content %}
+<style>
+.co-page{max-width:1180px;margin:0 auto}.co-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap;margin:12px 0 18px}.co-head h1{font-size:27px;color:#14213a;margin:0}.co-head p{color:#6b7891;margin:5px 0 0;font-size:13px}
+.co-search{display:flex;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid #dfe6f0;border-radius:12px;padding:9px}.co-search input,.co-search select{border:1px solid #d6deea;border-radius:8px;padding:8px 10px;font:inherit;color:#26334d;background:#fff;min-width:220px}.co-search select{min-width:130px}.co-search button{border:0;border-radius:8px;background:#176fac;color:#fff;padding:8px 17px;font-weight:650;cursor:pointer}
+.co-recent{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 18px}.co-recent a{font-size:12px;color:#365674;text-decoration:none;border:1px solid #dbe5ef;border-radius:16px;padding:4px 10px;background:#f9fbfd}.co-recent a:hover{border-color:#2470b8;color:#0b639f}
+.co-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}.co-card{display:block;text-decoration:none;background:#fff;border:1px solid #dfe6f0;border-radius:14px;padding:14px 15px;transition:border-color .15s,box-shadow .15s,transform .15s;min-width:0}.co-card:hover{border-color:#8ebadd;box-shadow:0 8px 24px rgba(45,83,126,.10);transform:translateY(-1px)}.co-name{font-size:16px;font-weight:750;color:#15233b}.co-ticker{font-size:11px;color:#7d8ca3;margin-left:7px}.co-meta{font-size:11px;color:#8491a5;margin:6px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.co-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:10px}.co-metrics span{font-size:10px;color:#8290a5}.co-metrics b{display:block;color:#293a55;font-size:12px;font-variant-numeric:tabular-nums}.co-intro{font-size:11.5px;color:#607089;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px}.co-source{margin-top:8px;padding-top:7px;border-top:1px solid #edf1f6;color:#8794a7;font-size:10.5px;font-variant-numeric:tabular-nums}.co-empty{padding:32px;text-align:center;border:1px dashed #ccd8e6;border-radius:12px;color:#718098}
+@media(max-width:620px){.co-search{display:grid;grid-template-columns:1fr}.co-search input,.co-search select{min-width:0;width:100%}.co-metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+<div class="co-page">
+  <div class="breadcrumb"><a href="{{ url_for('research_home') }}">行研库</a> / <strong>公司</strong></div>
+  <div class="co-head"><div><h1>公司</h1><p>按中文名、英文别名或证券代码查找公司画像；财务与估值读取独立 financial.db。</p></div></div>
+  <form class="co-search" method="get" action="{{ url_for('companies_index') }}" role="search">
+    <input name="q" value="{{ q }}" placeholder="公司名 / 英文名 / 证券代码…" aria-label="搜索公司">
+    <select name="market" aria-label="市场筛选"><option value="">全部市场</option>{% for item in markets %}<option value="{{ item }}" {{ 'selected' if item==market else '' }}>{{ item }}</option>{% endfor %}</select>
+    <button type="submit">搜索</button>
+  </form>
+  {% if not q and not market %}<div class="co-recent"><span style="font-size:12px;color:#7d8ca3;padding:4px 0">近期研究：</span>{% for c in recent %}<a href="{{ url_for('company_tag',company_id=c.id) }}">{{ c.name }}{% if c.ticker %} · {{ c.ticker }}{% endif %}</a>{% endfor %}</div>{% endif %}
+  {% if companies %}<div class="co-grid">
+    {% for c in companies %}<a class="co-card" href="{{ url_for('company_tag',company_id=c.id) }}">
+      <div><span class="co-name">{{ c.name }}</span><span class="co-ticker">{{ c.ticker or '未上市/代码待核验' }}</span></div>
+      <div class="co-meta">{{ c.market or '市场待核验' }}{% if c.industries %} · {{ c.industries }}{% endif %}</div>
+      <div class="co-intro">{% if c.brief_intro %}{{ c.brief_intro }}{% elif c.industries %}已纳入{{ c.industries }}研究；目前没有可核验的业务简介。{% else %}目前没有可核验的业务简介。{% endif %}</div>
+      <div class="co-metrics"><span>PE<b>{{ c.metric_displays.pe_ttm }}</b></span><span>PB<b>{{ c.metric_displays.pb }}</b></span><span>ROE<b>{{ c.metric_displays.roe }}</b></span><span>ROA<b>{{ c.metric_displays.roa }}</b></span></div>
+      {% if c.financial_provider_label or c.financial_snapshot_as_of %}<div class="co-source">财务快照{% if c.financial_provider_label %} · {{ c.financial_provider_label }}{% endif %}{% if c.financial_snapshot_as_of %} · {{ c.financial_snapshot_as_of }}{% endif %}</div>{% endif %}
+    </a>{% endfor %}
+  </div>{% else %}<div class="co-empty">没有匹配的公司。请检查中文名、英文别名或证券代码。</div>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block title %}机会透镜扫描 {{ run.id }}{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page">
+  <div class="opp-titlebar">
+    <div>
+      <p class="opp-eyebrow">扫描 {{ run.id }} · {{ run.run_mode|opp_label }}</p>
+      <h1>{{ run.research_question }}</h1>
+    </div>
+    <span class="opp-flag {{ run.flag_summary.level }}">{{ run.flag_summary.level|opp_label }}</span>
+  </div>
+  {% include "opportunity_lens/_nav.html" %}
+  {% if run.requested_by == "synthetic_fixture" or "合成" in run.research_question %}
+  <div class="opp-notice">
+    <b>这是合成示例，不是真实完整扫描结果。</b>
+    <span>当前页面用于验证机会透镜的 DB、评分、追踪、审计和前端展示链路。真实扫描还需要接入生产语料、真实来源检索和人工复核。</span>
+  </div>
+  {% endif %}
+  {% if run.intake_contract %}
+  <div class="opp-policy-banner">
+    <div>
+      <span>入口合同</span>
+      <b>{{ run.intake_contract.intake_contract_version|opp_label }}</b>
+    </div>
+    <div>
+      <span>资料状态</span>
+      <b>{{ run.intake_contract.available_materials_choice }} · {{ run.intake_contract.intake_material_type|opp_label }}</b>
+    </div>
+    <div>
+      <span>证据策略</span>
+      <b>{{ run.intake_contract.evidence_policy|opp_label }}</b>
+    </div>
+    <div>
+      <span>规则说明</span>
+      <b>机会线索不改变核心 14 因子评分</b>
+    </div>
+  </div>
+  {% endif %}
+  <div class="opp-kpis">
+    <div class="opp-kpi"><span>状态</span><b>{{ run.run_status|opp_label }}</b></div>
+    <div class="opp-kpi"><span>就绪度</span><b>{{ run.run_readiness_status|opp_label }}</b></div>
+    <div class="opp-kpi"><span>总来源 / 独立来源组</span><b>{{ run.source_count or 0 }} / {{ run.independent_source_count or 0 }}</b></div>
+    <div class="opp-kpi warn"><span>待处理 P1</span><b>{{ run.open_p1_count or 0 }}</b></div>
+  </div>
+  {% if entities %}
+  {% set market_entities = entities|rejectattr("entity_research_mode", "equalto", "theory_research")|list %}
+  {% set theory_entities = entities|selectattr("entity_research_mode", "equalto", "theory_research")|list %}
+  {% if market_entities %}
+  {% set top_entity = market_entities[0] %}
+  <section class="opp-panel opp-insight-panel" aria-labelledby="opp-insight-title">
+    <div class="opp-panel-heading">
+      <div>
+        <h2 id="opp-insight-title">观点数据总览</h2>
+        <p>先把核心观点、证据规模和机会线索放在同一屏判断，再进入研究报告和因子细节。</p>
+      </div>
+      <a href="#opp-series-visuals">查看长期序列图</a>
+    </div>
+    <div class="opp-insight-grid">
+      <article class="opp-thesis-card opp-thesis-card-primary">
+        <span>当前最强机会</span>
+        <h3><a href="/opportunity-lens/entity/{{ top_entity.entity_id }}">{{ top_entity.display_name or top_entity.canonical_name }}</a></h3>
+        <div class="opp-thesis-score">
+          <b>{{ "%.1f"|format(top_entity.score_point or 0) }}</b>
+          <span>核心分 {{ top_entity.score_grade or "未评级" }}</span>
+        </div>
+        <p>{{ top_entity.score_quality_label|default("unrated_insufficient_evidence", true)|opp_label }}；线索评分 {{ "%.1f"|format(top_entity.early_signal_score or 0) }}，验证优先级 {{ "%.1f"|format(top_entity.research_priority_score or 0) }}。</p>
+      </article>
+      <article class="opp-thesis-card">
+        <span>证据规模</span>
+        <h3>{{ run.source_count or 0 }} 个来源</h3>
+        <p>归并为 {{ run.independent_source_count or 0 }} 个独立来源组；本页证据按钮可直接打开原文摘录和数据点说明。</p>
+      </article>
+      <article class="opp-thesis-card">
+        <span>研究覆盖</span>
+        <h3>{{ run.scored_entity_count or entities|length }} 个实体已评分</h3>
+        <p>实体表按核心分从高到低排列；机会线索只影响验证优先级，不抬高核心 14 因子评分。</p>
+      </article>
+    </div>
+    <div class="opp-data-viz-grid">
+      <article class="opp-chart-card">
+        <div class="opp-chart-head">
+          <h3>高分机会矩阵</h3>
+          <span>核心分与验证优先级按 50-100 区间放大</span>
+        </div>
+        <div class="opp-thesis-map" role="img" aria-label="研究实体核心分和验证优先级矩阵">
+          <span class="opp-axis opp-axis-x">核心分 100</span>
+          <span class="opp-axis opp-axis-y">验证优先级 100</span>
+          <span class="opp-axis opp-axis-origin">50 / 50</span>
+          {% for e in market_entities[:12] %}
+          <a class="opp-thesis-map-point" href="/opportunity-lens/entity/{{ e.entity_id }}"
+             style="--x: {{ ((e.score_point or 0) - 50) * 2 }}%; --y: {{ ((e.research_priority_score or 0) - 50) * 2 }}%;"
+             title="{{ e.display_name or e.canonical_name }}：核心分 {{ '%.1f'|format(e.score_point or 0) }}，验证优先级 {{ '%.1f'|format(e.research_priority_score or 0) }}"
+             aria-label="{{ e.display_name or e.canonical_name }}，核心分 {{ '%.1f'|format(e.score_point or 0) }}，验证优先级 {{ '%.1f'|format(e.research_priority_score or 0) }}">
+            <b>{{ loop.index }}</b>
+            <span>{{ e.display_name or e.canonical_name }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </article>
+      <article class="opp-chart-card">
+        <div class="opp-chart-head">
+          <h3>实体评分与证据承载</h3>
+          <span>每行同时看核心分、证据数和机会线索</span>
+        </div>
+        <div class="opp-score-bars" aria-label="研究实体评分条形图">
+	          {% for e in market_entities[:10] %}
+          <a class="opp-score-bar-row" href="/opportunity-lens/entity/{{ e.entity_id }}">
+            <span class="opp-score-bar-name">{{ e.display_name or e.canonical_name }}</span>
+            <span class="opp-score-bar-track" aria-hidden="true"><i style="--bar-score: {{ e.score_point or 0 }}%;"></i></span>
+            <span class="opp-score-bar-num">{{ "%.0f"|format(e.score_point or 0) }}</span>
+            <span class="opp-score-bar-meta">{{ e.evidence_ref_uri_list|length }} 证据 · 线索 {{ "%.0f"|format(e.early_signal_score or 0) }}</span>
+          </a>
+          {% endfor %}
+        </div>
+      </article>
+    </div>
+  </section>
+  {% endif %}
+  {% if theory_entities %}
+  <section class="opp-panel">
+    <h2>深度研究主题</h2>
+    <p class="opp-muted">以下实体属于理论/研究型问题，不进入核心评分、不要求绑定标的或投资建议；重点看正文中的研究指标、计算逻辑、证据索引和问题回答，表格只作为底稿索引。</p>
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-entity-table">
+        <thead><tr><th>研究主题</th><th>状态</th><th>研究深度</th><th>说明</th></tr></thead>
+        <tbody>
+        {% for e in theory_entities %}
+        <tr>
+          <td><a href="/opportunity-lens/entity/{{ e.entity_id }}">{{ e.display_name or e.canonical_name }}</a></td>
+          <td><span class="opp-badge">{{ e.entity_research_mode|opp_label }}</span></td>
+          <td>{{ e.research_depth_status|default("complete", true)|opp_label }}</td>
+          <td>该主题走文献综述和指标计算底稿路径，不展示核心分、机会线索和标的投资建议。</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+  {% endif %}
+  <div class="opp-panel">
+    <h2>机会线索与验证优先级</h2>
+    <p class="opp-muted">这部分汇总尚未进入核心评分、但值得跟踪的机会线索；只用于验证优先级和补证排序，不抬高核心供需评分。</p>
+    {% if run.early_signals %}
+    <div class="opp-wide-scroll">
+      <table class="opp-table opp-early-table">
+        <thead><tr><th>实体</th><th>线索评分</th><th>强度</th><th>验证优先级</th><th>验证债</th><th>核心分是否被改变</th></tr></thead>
+        <tbody>
+        {% for signal in run.early_signals %}
+        <tr>
+          <td><a href="/opportunity-lens/entity/{{ signal.entity_id }}">{{ signal.display_name or signal.canonical_name }}</a></td>
+          <td class="mono">{{ "%.1f"|format(signal.early_signal_score or 0) }}</td>
+          <td>{{ signal.early_signal_strength_label|opp_label }}</td>
+          <td>{{ "%.1f"|format(signal.research_priority_score or 0) }} · {{ signal.research_priority_label|opp_label }}</td>
+          <td>{{ signal.verification_debt_count }}</td>
+          <td>{{ "否" if signal.core_score_changed_by_overlay == 0 else "是" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="opp-empty">暂无机会线索。没有 early_signal_only 证据时，这里保持为空。</div>
+    {% endif %}
+  </div>
+  <div class="opp-panel opp-report-panel">
+    <h2>研究报告</h2>
+    {% for section in run.sections %}
+    <article class="opp-section">
+      <h3>{{ section.section_title }}</h3>
+      {% if section.child_sections %}
+      <p class="opp-section-lead">以下按研究实体拆分展示研究边界、证据链、分析结论和投资框架。点击实体名称可进入该实体的独立研究页。</p>
+      <div class="opp-entity-report-list">
+        {% for child in section.child_sections %}
+        <section class="opp-entity-report-item">
+          <h4><a href="{{ child.entity_link }}">{{ child.section_title }}</a></h4>
+          <div class="opp-markdown">{{ child.body_markdown|opp_markdown }}</div>
+          <div class="opp-evidence-list">
+            {% for ref in child.evidence_ref_uri_list %}
+            <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+            {% endfor %}
+          </div>
+        </section>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="opp-markdown">{{ section.body_markdown|opp_markdown }}</div>
+      <div class="opp-evidence-list">
+        {% for ref in section.evidence_ref_uri_list %}
+        <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </article>
+    {% else %}
+    <div class="opp-empty">扫描存在，但暂无研究报告。</div>
+    {% endfor %}
+  </div>
+  <div class="opp-panel">
+    <h2>研究实体</h2>
+    <div class="opp-wide-scroll">
+      {% include "opportunity_lens/_entity_table.html" %}
+    </div>
+  </div>
+  <div class="opp-panel" id="opp-visual-modules">
+    <h2>因子热力图与结构化总览</h2>
+    <div class="opp-visual-grid">
+      {% for visual in visuals if visual.block_type != "line_chart" %}
+      <div class="opp-visual {{ visual.red_flag_level }}{% if visual.display_data and visual.display_data.columns and visual.display_data.rows and visual.block_type != 'heatmap' %} opp-visual-table-card{% endif %}">
+        <h3>{{ visual.title }}</h3>
+        <p>{{ visual.subtitle or visual.empty_state_reason }}</p>
+        {% if visual.block_type == "heatmap" and visual.data.factors %}
+        <div class="opp-heatmap-legend" aria-label="热力图图例">
+          <span class="cold">低分/证据弱</span>
+          <span class="mid">中等</span>
+          <span class="hot">高分/信号强</span>
+        </div>
+        <div class="opp-heatmap">
+          {% for f in visual.data.factors %}
+          {% set score = f.score_adjusted or 0 %}
+          {% set heat_class = "heat-low" if score < 50 else "heat-mid" if score < 70 else "heat-high" if score < 85 else "heat-peak" %}
+          <a class="{{ heat_class }}" href="/opportunity-lens/factor/{{ f.id }}" style="--score: {{ score }}; --score-pct: {{ score }}%" data-code="{{ f.factor_code }}" title="{{ f.factor_label }}｜{{ f.factor_formula }}｜{{ f.factor_code }}" aria-label="查看 {{ f.factor_label }} 因子追踪">
+            <span class="opp-heat-label">{{ f.factor_label }}</span>
+            <b>{{ "%.0f"|format(score) }}</b>
+            <span class="opp-heat-scale" aria-hidden="true"><i></i></span>
+            <span class="opp-heat-formula">点击查看计算方法与证据</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% elif visual.block_type == "line_chart" %}
+        <div class="opp-visual-notes">
+          {% if visual.data.what %}<p><b>是什么数据</b><span>{{ visual.data.what }}</span></p>{% endif %}
+          {% if visual.data.time_window %}<p><b>时间范围</b><span>{{ visual.data.time_window }}</span></p>{% endif %}
+          {% if visual.data.how_to_read %}<p><b>怎么看</b><span>{{ visual.data.how_to_read }}</span></p>{% endif %}
+          {% if visual.data.analysis %}<p><b>分析</b><span>{{ visual.data.analysis }}</span></p>{% endif %}
+        </div>
+        {% if visual.data.chart and visual.data.chart.panels %}
+        <div class="opp-line-chart-grid">
+          {% for panel in visual.data.chart.panels %}
+          {% if panel.series %}
+          <div class="opp-line-chart-panel">
+            <div class="opp-line-chart-head">
+              <b>{{ panel.title }}</b>
+              <span>{{ panel.x_start }} 至 {{ panel.x_end }}{% if panel.unit %} · {{ panel.unit }}{% endif %}</span>
+            </div>
+            <div class="opp-line-chart-wrap" aria-label="{{ panel.title }} 长期走势">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img">
+                <line x1="0" y1="20" x2="100" y2="20"></line>
+                <line x1="0" y1="50" x2="100" y2="50"></line>
+                <line x1="0" y1="80" x2="100" y2="80"></line>
+                {% for series in panel.series %}
+                <polyline points="{{ series.svg_points }}" style="--series-color: {{ series.color }}"></polyline>
+                {% endfor %}
+              </svg>
+              <div class="opp-line-y opp-line-y-top">{{ panel.y_max }}</div>
+              <div class="opp-line-y opp-line-y-bottom">{{ panel.y_min }}</div>
+            </div>
+            <div class="opp-line-legend">
+              {% for series in panel.series %}
+              <span><i style="--series-color: {{ series.color }}"></i>{{ series.label }}：{{ series.latest_period }} {{ series.latest_value }}，{{ series.observation_count }} 个观测</span>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+        {% if visual.display_data and visual.display_data.columns and visual.display_data.rows %}
+        <div class="opp-wide-scroll">
+          <table class="opp-table opp-visual-table">
+            {% include "opportunity_lens/_visual_table_colgroup.html" %}
+            <thead>
+              <tr>
+                {% for col in visual.display_data.columns %}
+                <th>{{ col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in visual.display_data.rows %}
+              <tr>
+                {% for cell in row %}
+                <td>{{ cell|opp_inline_evidence }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% elif visual.block_type == "time_series" %}
+        <div class="opp-visual-notes">
+          {% if visual.data.what %}<p><b>是什么数据</b><span>{{ visual.data.what }}</span></p>{% endif %}
+          {% if visual.data.time_window %}<p><b>时间范围</b><span>{{ visual.data.time_window }}</span></p>{% endif %}
+          {% if visual.data.how_to_read %}<p><b>怎么看</b><span>{{ visual.data.how_to_read }}</span></p>{% endif %}
+          {% if visual.data.analysis %}<p><b>分析</b><span>{{ visual.data.analysis }}</span></p>{% endif %}
+        </div>
+        {% if visual.display_data and visual.display_data.columns and visual.display_data.rows %}
+        <div class="opp-wide-scroll">
+          <table class="opp-table opp-visual-table">
+            {% include "opportunity_lens/_visual_table_colgroup.html" %}
+            <thead>
+              <tr>
+                {% for col in visual.display_data.columns %}
+                <th>{{ col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in visual.display_data.rows %}
+              <tr>
+                {% for cell in row %}
+                <td>{{ cell|opp_inline_evidence }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+        {% elif visual.display_data and visual.display_data.columns and visual.display_data.rows %}
+        <div class="opp-wide-scroll">
+          <table class="opp-table opp-visual-table">
+            {% include "opportunity_lens/_visual_table_colgroup.html" %}
+            <thead>
+              <tr>
+                {% for col in visual.display_data.columns %}
+                <th>{{ col }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in visual.display_data.rows %}
+              <tr>
+                {% for cell in row %}
+                <td>{{ cell|opp_inline_evidence }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% elif visual.data %}
+        <div class="opp-empty">该数据块尚未配置人读图表或表格，页面已阻止直接输出机器结构；请在研究包中补充受支持的 display_data。</div>
+        {% else %}
+        <div class="opp-empty">{{ visual.empty_state_reason or "暂无可视化数据。" }}</div>
+        {% endif %}
+        <div class="opp-evidence-list">
+          {% for ref in visual.evidence_ref_uri_list %}
+          <button type="button" data-opp-evidence="{{ ref }}" title="{{ ref|opp_evidence_title }}">{{ ref|opp_evidence_label }}</button>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="opp-empty">暂无因子热力图或结构化总览。</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="opp-panel" id="opp-series-visuals">
+    <h2>长期序列可视化总览</h2>
+    <p class="opp-muted">这里保留 run 级别的全部长期序列图，实体页会在对应实体的“证据和数据点”下同步展示相关图。图内面板桌面最多两列，避免一屏挤入过多曲线。</p>
+    <div class="opp-visual-stack">
+      {% for visual in visuals if visual.block_type == "line_chart" %}
+      {% include "opportunity_lens/_visual_block.html" %}
+      {% else %}
+      <div class="opp-empty">暂无长期序列可视化。</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+<div class="opp-drawer" data-opp-drawer hidden><button type="button" data-opp-close>关闭</button><div data-opp-drawer-body></div></div>
+{% endblock %}

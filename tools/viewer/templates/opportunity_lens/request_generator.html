@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+{% block title %}Opportunity Lens Request 生成器{% endblock %}
+{% block head_extra %}{% include "opportunity_lens/_head.html" %}{% endblock %}
+{% block content %}
+<section class="opp-page opp-request-page" data-opp-request-generator>
+  <div class="opp-titlebar">
+    <div>
+      <p class="opp-eyebrow">C 轨机会扫描工作台</p>
+      <h1>Opportunity Lens Request 生成器</h1>
+      <p class="opp-title-note">面向不熟悉 Markdown 的研究员和业务同事。按字段填写后，在页面底部生成标准 `.md` 请求文本，再发给张正泽进入机会透镜任务流程。</p>
+    </div>
+    <a class="btn btn-secondary" href="{{ url_for('opportunity_lens.opportunity_home') }}">返回扫描列表</a>
+  </div>
+
+  {% include "opportunity_lens/_nav.html" %}
+
+  <div class="opp-request-grid">
+    <form class="opp-request-form" autocomplete="off">
+      <section class="opp-request-section">
+        <div class="opp-request-section-head">
+          <span>必填 1</span>
+          <h2>研究问题</h2>
+        </div>
+        <label class="opp-field">
+          <span>任务标题</span>
+          <input id="oppReqTitle" type="text" placeholder="例如：AI 数据中心液冷泵行业研究与投资机会">
+          <small>用于生成下载文件名，也方便企业微信同步时识别任务。</small>
+        </label>
+        <label class="opp-field">
+          <span>要回答的核心问题</span>
+          <textarea id="oppReqQuestion" rows="9" placeholder="可以先写一个总问题，再拆成 5-10 个细分小问题：行业定义、供需变化、价格体系、客户验证、竞争格局、市场空间、潜在标的、反方风险、需要输出的图表和表格。"></textarea>
+          <small>不要只写行业名。写清要回答什么、为什么现在要研究、时间窗口、判断对象、是否需要映射到具体标的，以及最终希望拿到哪些结论。</small>
+        </label>
+      </section>
+
+      <section class="opp-request-section">
+        <div class="opp-request-section-head">
+          <span>必填 2</span>
+          <h2>可用资料状态</h2>
+        </div>
+        <div class="opp-radio-grid" role="radiogroup" aria-label="可用资料状态">
+          <label><input type="radio" name="oppReqMaterial" value="A" checked> <b>A. 无资料</b><small>从开放问题和公开搜索开始。</small></label>
+          <label><input type="radio" name="oppReqMaterial" value="B"> <b>B. 有研报或资料包</b><small>把资料压缩打包发送，不要求填写本机路径。</small></label>
+          <label><input type="radio" name="oppReqMaterial" value="C"> <b>C. 有可参考的行研库行业</b><small>可去行研系统“行业”页查看现有行业。</small></label>
+        </div>
+        <div class="opp-request-note" data-material-note="B">
+          <b>研报资料提交方式</b>
+          <span>如资料是本地研报、PDF、Excel 或会议纪要，请无需填写本机资料路径。请将资料压缩打包发送给张正泽，并通过企业微信同步任务名称、资料范围、文件数量、重点说明和需要特别关注的问题。</span>
+        </div>
+        <label class="opp-field">
+          <span>资料路径 / 行研库行业名称 / 资料包说明</span>
+          <textarea id="oppReqMaterialPath" rows="4" placeholder="A 可留空；B 可写“已将研报资料包发送给张正泽，并通过企业微信同步说明”；C 填写可参考行业，如：半导体材料、液冷、半导体设备、PCB制造。"></textarea>
+          <small>C 类可先打开行研库的“行业”页面查看现有行业名称；这里只读参考，不会污染 A/B 轨数据库。</small>
+        </label>
+        <label class="opp-field">
+          <span>补充说明</span>
+          <textarea id="oppReqMaterialNote" rows="4" placeholder="例如：资料较旧，需要联网补充最新公告、价格、订单和客户验证；公司研报权重需要打折。"></textarea>
+          <small>如有公司研报、专家纪要或二级市场材料，请说明可能偏乐观或时效滞后，要求系统独立搜索和复核。</small>
+        </label>
+      </section>
+
+      <section class="opp-request-section">
+        <div class="opp-request-section-head">
+          <span>必填 3</span>
+          <h2>证据策略</h2>
+        </div>
+        <div class="opp-radio-grid opp-radio-grid-compact" role="radiogroup" aria-label="证据策略">
+          <label><input type="radio" name="oppReqPolicy" value="A"> <b>A. 时效优先</b><small>适合机会侦察和早期信号。</small></label>
+          <label><input type="radio" name="oppReqPolicy" value="B" checked> <b>B. 平衡</b><small>默认投研模式。</small></label>
+          <label><input type="radio" name="oppReqPolicy" value="C"> <b>C. 准确优先</b><small>适合正式复核和严谨预期。</small></label>
+        </div>
+      </section>
+
+      <section class="opp-request-section">
+        <div class="opp-request-section-head">
+          <span>选填 1</span>
+          <h2>时间窗口</h2>
+        </div>
+        <div class="opp-inline-choice">
+          <label><input type="radio" name="oppReqTimeDefault" value="是" checked> 使用默认</label>
+          <label><input type="radio" name="oppReqTimeDefault" value="否"> 自定义</label>
+        </div>
+        <div class="opp-request-two">
+          <label class="opp-field">
+            <span>核心窗口</span>
+            <input id="oppReqCoreWindow" type="text" placeholder="默认：未来 12 个月">
+            <small>关注最可能影响判断和市场预期的时间段，例如未来 3-6 个月、未来 12 个月。</small>
+          </label>
+          <label class="opp-field">
+            <span>长期背景</span>
+            <input id="oppReqLongWindow" type="text" placeholder="默认：未来 3 年">
+            <small>用于解释中长期行业空间、供给格局、技术路线和周期位置。</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="opp-request-section">
+        <div class="opp-request-section-head">
+          <span>选填 2</span>
+          <h2>研究范围</h2>
+        </div>
+        <div class="opp-inline-choice">
+          <label><input type="radio" name="oppReqScopeDefault" value="是" checked> 使用默认</label>
+          <label><input type="radio" name="oppReqScopeDefault" value="否"> 自定义</label>
+        </div>
+        <label class="opp-field">
+          <span>地理范围</span>
+          <input id="oppReqGeo" type="text" placeholder="例如：全球，重点中国、美国、日本、韩国">
+          <small>如果问题涉及海外供应链、客户或竞争对手，建议明确要求覆盖英文、日文、韩文等来源。</small>
+        </label>
+        <label class="opp-field">
+          <span>行业 / 环节</span>
+          <textarea id="oppReqSegments" rows="5" placeholder="可放宽写出所有可能方向：数据中心热管理、CDU 架构、工业泵、流体控制、服务器系统、云厂商 capex、机房建设、泵控可靠性、运维成本、能耗/PUE、冷却液材料、供应链认证等。"></textarea>
+          <small>专业细分行业公开资料可能很少，应鼓励发散搜索和独立判断：先确认发散方向，再按方向并行搜资料，不只沿着单一概念股路线找。</small>
+        </label>
+        <label class="opp-field">
+          <span>公司 / 材料候选</span>
+          <textarea id="oppReqCandidates" rows="4" placeholder="列候选公司、材料、产品或交易工具；也可以写“不预设候选池，系统自行发现”。"></textarea>
+          <small>候选只是搜索起点，不代表已经确认具备收入、客户、订单或投资价值。</small>
+        </label>
+        <div class="opp-request-two">
+          <label class="opp-field">
+            <span>必须包含</span>
+            <textarea id="oppReqMustInclude" rows="5" placeholder="例如：产品定义和边界、市场空间测算、价格体系、客户验证矩阵、头部公司对比、收入利润情景、正反方证据、验证债、后续事件日历。"></textarea>
+            <small>写必须回答的内容、必须覆盖的数据和必须输出的表格/图表，防止研究停在泛泛行业描述。</small>
+          </label>
+          <label class="opp-field">
+            <span>必须排除</span>
+            <textarea id="oppReqMustExclude" rows="5" placeholder="例如：排除把汽车/储能/普通工业口径直接套用到 AI 数据中心；排除无来源传闻；排除只输出公司排序但不展示证据链。"></textarea>
+            <small>写清容易污染口径的行业、公司、价格、数据或结论，避免把不相关资料当核心证据。</small>
+          </label>
+        </div>
+      </section>
+
+      <section class="opp-request-section">
+        <div class="opp-request-section-head">
+          <span>选填 3</span>
+          <h2>特殊约束</h2>
+        </div>
+        <div class="opp-inline-choice">
+          <label><input type="radio" name="oppReqConstraintDefault" value="是" checked> 使用默认</label>
+          <label><input type="radio" name="oppReqConstraintDefault" value="否"> 自定义</label>
+        </div>
+        <label class="opp-field">
+          <span>特殊约束</span>
+          <textarea id="oppReqConstraints" rows="5" placeholder="例如：KOL/论坛只作线索；必须单独列出反方证据；覆盖率不足不得输出强结论。"></textarea>
+          <small>可以写来源等级、反方证据、灰源处理、禁止模板化、必须联网补证等研究规则。</small>
+        </label>
+        <label class="opp-field">
+          <span>必须收集的信息 / 数据</span>
+          <textarea id="oppReqRequiredData" rows="4" placeholder="例如：价格、产能、出货、订单、客户认证、收入利润、capex、库存、交期、市场份额、政策约束、反方数据。"></textarea>
+          <small>把你认为必须拿到的数据项写出来，系统后续会按这些项目做缺口检查。</small>
+        </label>
+        <div class="opp-request-two">
+          <label class="opp-field">
+            <span>可信数据点最低要求</span>
+            <input id="oppReqMinDataPoints" type="text" placeholder="例如：至少 100 个可信平行数据点；重要实体至少 20 个。">
+            <small>数据点是平行证据单位，不是同一序列里的多个观测值。</small>
+          </label>
+          <label class="opp-field">
+            <span>分析文字最低要求</span>
+            <input id="oppReqMinWords" type="text" placeholder="例如：总览每段不少于 300 字；重点实体不少于 1800 字。">
+            <small>用于约束研究深度。没有达到时应回到搜索和分析，而不是硬凑结论。</small>
+          </label>
+        </div>
+      </section>
+    </form>
+
+    <aside class="opp-request-guide">
+      <section>
+        <h2>填写口径</h2>
+        <dl>
+          <dt>研究问题</dt>
+          <dd>不要只写行业名，要写清需要回答的问题、时间范围、判断对象和输出用途。</dd>
+          <dt>资料状态 B</dt>
+          <dd>有研报时优先发送资料包，不填写个人电脑路径；路径只适合共享盘或服务器目录。</dd>
+          <dt>资料状态 C</dt>
+          <dd>可去左侧行研库的“行业”入口查看已有行业名称；C 类只读参考，不替代独立搜索。</dd>
+          <dt>证据策略</dt>
+          <dd>找早期机会选时效优先；正式汇报和严谨预期选准确优先；常规研究选平衡。</dd>
+          <dt>范围约束</dt>
+          <dd>候选公司只是搜索起点。必须包含和必须排除用于防止口径污染。</dd>
+        </dl>
+      </section>
+
+      <section>
+        <h2>完整请求案例</h2>
+        <div class="opp-example-list">
+          {% for ex in examples %}
+          <details class="opp-example-card"{% if loop.first %} open{% endif %}>
+            <summary>
+              <span>{{ ex.title }}</span>
+              <small>{{ ex.material_choice }} · {{ ex.material_label }} / {{ ex.policy_choice }} · {{ ex.policy_label }}</small>
+            </summary>
+            <pre>{{ ex.raw_md }}</pre>
+          </details>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+
+  <section class="opp-request-output">
+    <div class="opp-panel-heading">
+      <div>
+        <h2>生成的标准 Markdown Request</h2>
+        <p>确认后复制或下载为 `.md`，再发送给张正泽。此页面只在浏览器内生成文本，不写入数据库。</p>
+      </div>
+      <div class="opp-request-actions">
+        <button type="button" class="btn btn-secondary" data-opp-generate-request>生成 Markdown</button>
+        <button type="button" class="btn btn-secondary" data-opp-copy-request>复制结果</button>
+        <button type="button" class="btn btn-primary" data-opp-download-request>下载 .md</button>
+      </div>
+    </div>
+    <textarea id="oppReqOutput" class="opp-request-output-box" rows="28" spellcheck="false"></textarea>
+    <p class="opp-muted" data-opp-request-status></p>
+  </section>
+</section>
+{% endblock %}

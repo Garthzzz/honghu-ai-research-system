@@ -1,0 +1,870 @@
+{% extends "base.html" %}
+{% block title %}{{ co.name }} · 公司透视{% endblock %}
+{% macro pcb_amount(row) -%}
+{% if not row or row.value is none %}—{% elif row.original_display and row.local_currency not in ['CNY', 'RMB'] %}{{ row.original_display }}{% if row.cny_yi is not none %}（约{{ '%.2f'|format(row.cny_yi) }}亿元人民币{% if row.local_currency != 'USD' and row.usd_yi is not none %}，约{{ '%.2f'|format(row.usd_yi) }}亿美元{% endif %}）{% endif %}{% else %}{{ '%.2f'|format(row.value) }}{{ row.unit or '' }}{% endif %}
+{%- endmacro %}
+{% block content %}
+<style>
+.cp{max-width:1080px;margin:0 auto;min-width:0}
+.cp-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin:10px 0 4px}
+.cp-head>div{min-width:0;max-width:100%}
+.cp-head h1{margin:0;font-size:24px;color:#13203a;display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%}
+.cp-head h1 .tk{font-size:14px;color:#8090a8;font-weight:400}
+.cp-badge{font-size:11px;padding:2px 9px;border-radius:14px;border:1px solid;vertical-align:middle;white-space:nowrap}
+.b-listed{color:#0a6ca8;border-color:#a9d2ee;background:#e9f4fc}.b-leader{color:#b9670c;border-color:#f0cfa0;background:#fdf2e2}
+.cp-sum{font-size:13.5px;color:#33415c;background:linear-gradient(90deg,#eef4fc,#f6faff);border:1px solid #d9e6f5;border-radius:10px;padding:10px 14px;margin:8px 0}
+.cp-sum a{color:#0a6ca8;text-decoration:none;font-weight:650}
+.cp-sum a:hover{text-decoration:underline}
+.cp-tags{display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin:10px 0}
+.cp-tag{font-size:12.5px;padding:3px 11px;border-radius:16px;text-decoration:none;border:1px solid #ccd8ea;background:#fff;color:#33415c}
+.cp-tag:hover{border-color:#0070C0;color:#0070C0}
+.cp-tag .role{color:#8090a8;font-size:11px;margin-left:4px}
+.cp-tag.theme{border-color:#d6cdf0;background:#f4f0fc;color:#5a4eaa}
+.cp-tag.core{font-size:14.5px;font-weight:700;border:1.5px solid #0070C0;background:#eaf3fc;color:#0a558c;padding:4px 14px}
+.cp-tag.core .corelab{font-size:10px;background:#0070C0;color:#fff;border-radius:8px;padding:1px 7px;margin-left:6px;font-weight:500}
+.cp-tag.sub{font-size:11.5px;color:#7e8ba3;padding:2px 9px;background:#f6f8fb;border-color:#e6ebf2}
+.cp-intro{font-size:13.5px;color:#26334d;line-height:1.8;background:#fff;border:1px solid #e3e8f0;border-radius:10px;padding:12px 16px}
+.cp-intro b{color:#13203a}
+.cp-intro .lab{display:inline-block;font-size:11px;color:#0a6ca8;background:#e9f4fc;border-radius:6px;padding:1px 8px;margin-right:6px;font-weight:600;vertical-align:middle}
+.cp-intro .row{margin:3px 0}
+.cp-src{font-size:10.5px;color:#9aa6bb;margin-top:6px}
+.cp-sec{margin:18px 0;min-width:0;max-width:100%}
+.cp-sec h2{font-size:14px;color:#33415c;letter-spacing:.4px;border-left:3px solid #0070C0;padding-left:9px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.cp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.cp-core-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.cp-core-metric{position:relative;min-height:142px;padding:15px 16px;border:1px solid #dce5f1;border-radius:14px;background:linear-gradient(145deg,#fff 0%,#f7faff 100%);box-shadow:0 8px 22px rgba(37,72,120,.07)}
+.cp-core-metric::before{content:'';position:absolute;left:0;top:16px;bottom:16px;width:3px;border-radius:3px;background:#2470b8}
+.cp-core-metric.missing::before{background:#b8c2d1}
+.cp-core-head{display:flex;justify-content:space-between;gap:8px;align-items:center;color:#42516c;font-size:12px;font-weight:700;letter-spacing:.02em}
+.cp-core-value{font-size:25px;font-weight:750;color:#13203a;font-variant-numeric:tabular-nums;margin:12px 0 8px;line-height:1.15}
+.cp-core-metric.missing .cp-core-value{font-size:14px;color:#7e8ba3;line-height:1.4}
+.cp-core-formula{font-size:11px;line-height:1.45;color:#62718a;min-height:32px}
+.cp-core-meta{font-size:10px;color:#95a1b4;margin-top:7px;display:flex;gap:8px;flex-wrap:wrap}
+.cp-core-src{color:#0a6ca8;text-decoration:none;font-weight:650}
+.cp-provider-badge{display:inline-flex;align-items:center;padding:2px 7px;border:1px solid #b9d3e8;border-radius:999px;background:#edf6fc;color:#0a6196;font-size:10px;font-weight:700;line-height:1.2}
+.cp-fin-chart{height:330px;border:1px solid #e6ebf2;border-radius:12px;background:#fff;overflow:hidden}
+.cp-method{background:#f7faff;border:1px solid #dce6f3;border-radius:12px;padding:13px 15px;color:#33415c;line-height:1.7;font-size:12.5px}
+.cp-method code{background:#e8f0fa;color:#183b65;padding:2px 5px;border-radius:4px}
+.cp-return-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.cp-model-note{font-size:11.5px;color:#62718a;line-height:1.65;margin-top:7px}
+.cp-route{display:grid;grid-template-columns:minmax(180px,.7fr) minmax(0,2.3fr);gap:12px;margin-top:10px}
+.cp-route-main{border:1px solid #cddced;border-radius:12px;padding:14px;background:linear-gradient(145deg,#eef6ff,#fff)}
+.cp-route-main b{display:block;color:#13203a;font-size:20px;margin:5px 0 8px}
+.cp-route-main span{font-size:11.5px;color:#66758d;line-height:1.55}
+.cp-route-basis{border:1px solid #e1e7f0;border-radius:12px;padding:13px 15px;background:#fff;color:#33415c;font-size:12.5px;line-height:1.75}
+.cp-research-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.cp-research-tag{border:1px solid #d7e1ee;background:#f7faff;border-radius:10px;padding:8px 10px;max-width:340px}
+.cp-research-tag b{display:block;color:#264c73;font-size:12px}.cp-research-tag span{display:block;color:#718097;font-size:10.5px;line-height:1.5;margin-top:2px}
+.cp-band-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.cp-band{border:1px solid #e2e8f1;border-radius:10px;padding:10px 12px;background:#fff}
+.cp-band b{display:block;font-size:17px;color:#182844}.cp-band span{font-size:10.5px;color:#75839a}
+.cp-quality-conclusion{margin-top:10px;padding:10px 13px;border-left:3px solid #0f8270;background:#eef8f5;color:#294c49;font-size:12px;line-height:1.65}
+.cp-workbench{border:1px solid #dbe5f1;border-radius:14px;background:#fbfdff;padding:14px}
+.cp-workbench-head{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.cp-mode-tabs{display:inline-flex;border:1px solid #c9d8e9;border-radius:9px;overflow:hidden}
+.cp-mode-tab{border:0;background:#fff;color:#52627b;padding:6px 13px;cursor:pointer;font-size:12px}
+.cp-mode-tab.on{background:#1f6fb2;color:#fff}
+.cp-workbench-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin-top:12px}
+.cp-field{background:#fff;border:1px solid #e2e8f1;border-radius:9px;padding:8px}
+.cp-field label{display:block;color:#64738a;font-size:10.5px;margin-bottom:4px}
+.cp-field input,.cp-field select{width:100%;box-sizing:border-box;border:1px solid #ccd8e7;border-radius:6px;padding:6px;color:#1e2e48;background:#fff}
+.cp-workbench-actions{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.cp-btn{border:1px solid #bacbdd;background:#fff;color:#264c73;border-radius:7px;padding:6px 10px;cursor:pointer;font-size:11.5px}
+.cp-btn.primary{background:#1f6fb2;color:#fff;border-color:#1f6fb2}
+.cp-scenario-results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}
+.cp-scenario-result{border:1px solid #dfe7f1;border-radius:9px;background:#fff;padding:9px 10px}
+.cp-scenario-result b{display:block;color:#14243e;font-size:17px}.cp-scenario-result span{font-size:10.5px;color:#77849a}
+.cp-saved-scenarios{font-size:11px;color:#62718a;margin-top:9px;line-height:1.6}
+.cp-hidden{display:none!important}
+.cp-valuation-summary{border:1px solid #bfd5e9;border-radius:14px;background:linear-gradient(145deg,#eef6ff 0%,#fbfdff 70%);padding:0;box-shadow:0 8px 24px rgba(37,72,120,.08);min-width:0;max-width:100%;box-sizing:border-box}
+.cp-valuation-summary>summary{cursor:pointer;list-style:none;padding:14px 16px;color:#173c63;font-size:14px;font-weight:750;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.cp-valuation-summary>summary::-webkit-details-marker{display:none}
+.cp-valuation-summary>summary::after{content:'收起';font-size:10.5px;color:#58728e;font-weight:600}
+.cp-valuation-summary:not([open])>summary::after{content:'展开'}
+.cp-valuation-summary-body{padding:0 16px 15px;min-width:0;max-width:100%;box-sizing:border-box}
+.cp-summary-lead{font-size:13.5px;line-height:1.75;color:#243b57;background:rgba(255,255,255,.78);border-left:3px solid #2470b8;border-radius:8px;padding:10px 12px}
+.cp-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}
+.cp-summary-card{border:1px solid #dce6f1;border-radius:10px;background:#fff;padding:9px 10px}
+.cp-summary-card b{display:block;color:#162a46;font-size:16px}.cp-summary-card span{font-size:10.5px;color:#75839a}
+.cp-summary-block{margin-top:10px;border:1px solid #dae5f0;border-radius:10px;background:rgba(255,255,255,.82);padding:10px 12px;color:#33415c;font-size:12px;line-height:1.7;min-width:0;max-width:100%;box-sizing:border-box}
+.cp-summary-block h3{font-size:12px;color:#244d75;margin:0 0 5px}
+.cp-deep-grid,.cp-trade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+.cp-deep-card,.cp-trade-card{border:1px solid #d6e3ef;border-radius:11px;background:rgba(255,255,255,.9);padding:11px 12px;color:#33415c;font-size:12px;line-height:1.75}
+.cp-deep-card h3,.cp-trade-card h3{font-size:12px;color:#244d75;margin:0 0 6px}
+.cp-trade-card.buy{border-color:#b9ddcd;background:#f3fbf7}.cp-trade-card.buy h3{color:#23674d}
+.cp-trade-card.sell{border-color:#edc9c4;background:#fff7f5}.cp-trade-card.sell h3{color:#8a4038}
+.cp-summary-sources{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.cp-summary-compare-table{min-width:760px}
+.cp-summary-zone-table{min-width:820px}
+.cp-band-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:10px}
+@media(max-width:820px){.cp-summary-grid,.cp-band-charts,.cp-deep-grid,.cp-trade-grid{grid-template-columns:1fr}.cp-valuation-summary>summary{align-items:flex-start;flex-wrap:wrap}}
+@media(max-width:820px){.cp-route{grid-template-columns:1fr}.cp-workbench-grid,.cp-scenario-results{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.cp-band-grid,.cp-workbench-grid,.cp-scenario-results{grid-template-columns:1fr}}
+@media(max-width:760px){.cp-return-grid{grid-template-columns:1fr}}
+@media(max-width:860px){.cp-core-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:520px){.cp-core-grid{grid-template-columns:1fr}.cp-core-metric{min-height:128px}}
+.cp-stat{background:#fff;border:1px solid #e3e8f0;border-radius:10px;padding:10px 13px}
+.cp-stat b{font-size:20px;color:#13203a;font-variant-numeric:tabular-nums;display:block;line-height:1.2}
+.cp-stat span{font-size:11.5px;color:#7e8ba3}
+.cp-stat .as{font-size:10px;color:#9aa6bb;display:block;margin-top:2px}
+.cp-tab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.cp-table-scroll{display:block;width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;border-radius:8px;box-sizing:border-box}
+.cp-table-scroll:focus{outline:2px solid #8ebadd;outline-offset:2px}
+.cp-tab td,.cp-tab th{padding:5px 10px;border-bottom:1px solid #eef1f6;text-align:right;color:#33415c}
+.cp-tab th{color:#8090a8;font-weight:500}.cp-tab th:first-child,.cp-tab td:first-child{text-align:left;color:#1f2a44}
+.cp-valuation-table{min-width:920px}.cp-valuation-table th:nth-child(1),.cp-valuation-table td:nth-child(1){min-width:220px}.cp-valuation-table th:nth-child(5),.cp-valuation-table td:nth-child(5){min-width:320px;white-space:normal;line-height:1.5;vertical-align:top}
+.cp-implied-table{min-width:1080px}.cp-implied-table th:nth-child(1),.cp-implied-table td:nth-child(1){min-width:220px}.cp-implied-table th:nth-child(4),.cp-implied-table td:nth-child(4){min-width:210px}.cp-implied-table th:nth-child(6),.cp-implied-table td:nth-child(6){min-width:360px;white-space:normal;line-height:1.5}
+@media(max-width:520px){
+  .cp-summary-compare-table{min-width:700px;width:700px;table-layout:fixed}
+  .cp-summary-compare-table th:nth-child(6),.cp-summary-compare-table td:nth-child(6){width:190px;overflow-wrap:anywhere;word-break:break-word}
+  .cp-summary-zone-table{min-width:820px;width:820px;table-layout:fixed}
+  .cp-summary-zone-table th:nth-child(1),.cp-summary-zone-table td:nth-child(1){width:110px}
+  .cp-summary-zone-table th:nth-child(2),.cp-summary-zone-table td:nth-child(2),
+  .cp-summary-zone-table th:nth-child(3),.cp-summary-zone-table td:nth-child(3),
+  .cp-summary-zone-table th:nth-child(4),.cp-summary-zone-table td:nth-child(4){width:115px}
+  .cp-summary-zone-table th:nth-child(5),.cp-summary-zone-table td:nth-child(5){width:145px}
+  .cp-summary-zone-table th:nth-child(6),.cp-summary-zone-table td:nth-child(6){width:200px;overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+  .cp-implied-table{min-width:900px;width:900px;table-layout:fixed}
+  .cp-implied-table th:nth-child(1),.cp-implied-table td:nth-child(1){min-width:0;width:180px}
+  .cp-implied-table th:nth-child(4),.cp-implied-table td:nth-child(4){min-width:0;width:140px}
+  .cp-implied-table th:nth-child(6),.cp-implied-table td:nth-child(6){min-width:0;width:240px;overflow-wrap:anywhere;word-break:break-word}
+  .cp-model-detail .cp-tab{min-width:760px;width:760px;table-layout:fixed}
+  .cp-model-detail .cp-tab th:last-child,.cp-model-detail .cp-tab td:last-child{width:220px;overflow-wrap:anywhere;word-break:break-word;white-space:normal}
+}
+.cp-peer-return-table{min-width:760px}.cp-peer-return-table th{white-space:nowrap}
+.cp-kv{font-size:13px;color:#33415c;line-height:1.9}
+.cp-kv b{color:#1f2a44}
+.cp-model-ledgers{display:grid;gap:8px;margin-top:10px;min-width:0;max-width:100%}.cp-model-detail{border:1px solid #dfe6f0;border-radius:10px;background:#fff;padding:8px 10px;transition:background .16s ease,border-color .16s ease,box-shadow .16s ease;min-width:0;max-width:100%;box-sizing:border-box}.cp-model-detail[open]{background:#f2f7fc;border-color:#b8cfe5;box-shadow:inset 0 0 0 1px rgba(36,112,184,.04)}.cp-model-detail summary{cursor:pointer;color:#264c73;font-weight:650;font-size:12.5px;display:flex;justify-content:space-between;gap:10px;align-items:center;list-style:none;padding:2px 0}.cp-model-detail summary::-webkit-details-marker{display:none}.cp-model-detail summary::after{content:'展开';font-size:10px;color:#7a8ba1;font-weight:600}.cp-model-detail[open] summary::after{content:'收起'}.cp-model-detail .cp-tab{min-width:760px}.cp-detail-collapse{display:block;margin:10px 0 2px auto;border:1px solid #b9cadc;background:#fff;color:#345b80;border-radius:7px;padding:5px 10px;cursor:pointer;font-size:11px}
+.cp-list{font-size:13px;color:#33415c;line-height:1.7;margin:0;padding-left:18px}
+.cp-list .maj{color:#b9670c;font-weight:600}
+.cp-todo{font-size:12.5px;color:#8090a8;background:#f7f9fc;border:1px dashed #cdd8e8;border-radius:9px;padding:10px 14px}
+/* 公司情报新闻时间线 */
+.cp-tl{border-left:2px solid #e0e6f0;margin-left:6px;padding-left:16px}
+.cp-tlitem{position:relative;padding:9px 0;border-bottom:1px solid #eef1f6}
+.cp-tlitem::before{content:'';position:absolute;left:-22px;top:14px;width:9px;height:9px;border-radius:50%;background:#0070C0}
+.cp-tlitem.s-pos::before{background:#d23a30}.cp-tlitem.s-neg::before{background:#138a5e}
+.cp-tlh{font-size:14px;font-weight:500;color:#1f2a44}
+.cp-tlh a{color:inherit;text-decoration:none}.cp-tlh a:hover{color:#0070C0}
+.cp-tlm{font-size:12px;color:#6b7891;display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:3px}
+.cp-tlsum{font-size:12.5px;color:#33415c;margin-top:4px;background:#f3f7fc;border-radius:6px;padding:5px 9px}
+.cp-bdg{font-size:11px;padding:1px 8px;border-radius:12px;border:1px solid}
+.cp-bdg.pos{color:#d23a30;border-color:#f3b6b1;background:#fdeceb}
+.cp-bdg.neg{color:#138a5e;border-color:#a8dcc6;background:#e8f7f0}
+.cp-bdg.neu{color:#6b7891;border-color:#d6deea;background:#f2f5f9}
+.cp-bdg.mat{color:#5a4eaa;border-color:#ccc6ee;background:#f0eefb}
+/* 情绪深色块 */
+.cp-senti{background:#0b1322;border:1px solid #1f3050;border-radius:14px;padding:14px 16px 8px;margin-top:10px}
+.cp-senti h2{color:#eaf2ff;border-left-color:#7cc4ff}
+.cp-scards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.cp-scards{grid-template-columns:1fr}}
+.cp-scard{background:#0c1424;border:1px solid #20304a;border-radius:12px;padding:10px 12px}
+.cp-scard.r{border-top:3px solid #7cc4ff}.cp-scard.n{border-top:3px solid #ffc24b}.cp-scard.h{border-top:3px solid #6eaaff}
+.cp-scard h3{font-size:13px;color:#dbe7fb;margin:0 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.cp-scard h3 .v{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+.v.pos{color:#ff7a70}.v.neg{color:#34d29a}.v.flat{color:#9fb3d6}
+.cp-chart{width:100%;min-height:90px}
+.cp-empty{font-size:12px;color:#8aa0c4;padding:18px;text-align:center;border:1px dashed #2a3d5e;border-radius:9px;background:rgba(120,150,210,.04)}
+.cp-panel{background:#0c1424;border:1px solid #20304a;border-radius:12px;padding:8px 12px 4px;margin-bottom:14px}
+.cp-panel.r{border-top:3px solid #7cc4ff}
+.cp-ptab{display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;flex-wrap:wrap;gap:8px}
+.cp-pname{font-size:13.5px;color:#dbe7fb;font-weight:600}
+.cp-toggle{display:inline-flex;border:1px solid #2a3d5e;border-radius:8px;overflow:hidden}
+.cp-toggle .tg{font-size:12px;padding:3px 14px;background:transparent;color:#9fb3d6;border:none;cursor:pointer;transition:.12s}
+.cp-toggle .tg.on{background:rgba(120,170,255,.22);color:#fff;font-weight:600}
+.cp-panelchart{width:100%;min-height:300px}
+.cp-foot{font-size:11.5px;color:#8090a8;margin:16px 0;border-top:1px solid #e3e8f0;padding-top:10px;line-height:1.7}
+.fresh{font-size:11px;color:#8090a8}
+</style>
+
+<div class="cp">
+<div class="breadcrumb"><a href="{{ url_for('research_home') }}">行研库</a> / <a href="{{ url_for('companies_index') }}">公司</a> / <strong>{{ co.name }}</strong></div>
+
+<div class="cp-head">
+  <div>
+    <h1>{{ co.name }}<span class="tk">{{ co.ticker or '' }}</span>
+      {% if co.listing_status %}<span class="cp-badge b-listed">{{ t(co.listing_status) }}</span>{% endif %}
+      {% if profile and profile.is_china_tech_leader %}<span class="cp-badge b-leader"> 国产技术派</span>{% endif %}
+    </h1>
+    <p class="entity-meta">市场:{{ co.market or '—' }}
+      {% if profile and profile.last_verified_at %}· <span class="fresh">数据校验 {{ profile.last_verified_at[:10] }}</span>{% endif %}</p>
+  </div>
+</div>
+
+{% if profile and profile.summary %}<div class="cp-sum">{{ profile.summary }}</div>
+{% elif co.note %}
+  {% if 'https://' in co.note or 'http://' in co.note %}
+    {% set note_parts = co.note.split('：', 1) %}
+    <div class="cp-sum">{{ note_parts[0] if note_parts|length > 1 else '身份核验来源' }}：<a href="{{ note_parts[1] if note_parts|length > 1 else co.note }}" target="_blank" rel="noopener">公司官方披露</a></div>
+  {% else %}<div class="cp-sum">{{ co.note }}</div>{% endif %}
+{% endif %}
+
+{# ── 主营行业(核心突出)+ 次要行业 + 主题 ── #}
+<div class="cp-tags">
+  {% for i in industries if i.industry_id == core_ind_id %}
+  <a class="cp-tag core" href="{{ url_for('industry_detail', industry_id=i.industry_id) }}">{{ i.industry_name }}<span class="corelab">主营核心</span></a>
+  {% endfor %}
+  {% for i in industries if i.industry_id != core_ind_id %}
+  <a class="cp-tag sub" href="{{ url_for('industry_detail', industry_id=i.industry_id) }}">{{ i.industry_name }}</a>
+  {% endfor %}
+  {% for t in themes %}
+  <a class="cp-tag theme" href="{{ url_for('theme_detail', theme_id=t.theme_id) }}">{{ t.theme_name }}</a>
+  {% endfor %}
+  {% if not industries and not themes %}<span class="cp-todo">尚无行业/主题 tag。</span>{% endif %}
+</div>
+
+{# ── 公司简介(主营/地位/核心竞争力,多源查证)── #}
+<div class="cp-sec">
+  <h2>公司简介 <span style="font-size:11px;color:#8090a8;font-weight:400">· 主营业务 / 行业地位 / 核心竞争力(多源查证,不臆造)</span></h2>
+  {% if co.brief_intro %}
+  <div class="cp-intro">{{ co.brief_intro|safe }}{% if co.brief_intro_src %}<div class="cp-src">来源:{{ co.brief_intro_src }}</div>{% endif %}</div>
+  {% elif profile and profile.main_products %}
+  <div class="cp-intro"><div class="row"><span class="lab">主营产品</span>{{ profile.main_products }}</div>{% if profile.main_customers %}<div class="row"><span class="lab">主要客户</span>{{ profile.main_customers }}</div>{% endif %}<div class="cp-src">公司画像随行业研究与可核验来源更新；动态财务、市场估值和研究冻结模型见下方独立财务模块。</div></div>
+  {% else %}
+  <div class="cp-todo">公司简介(主营/地位/核心竞争力)多源查证补充中 —— 绝不臆造,查证不到如实留空。</div>
+  {% endif %}
+</div>
+
+{# ── 六项核心指标：固定展示公式、时点和缺失原因 ── #}
+<div class="cp-sec">
+  <h2>核心估值与盈利指标 <span class="fresh">· 实际值，不以预测 EPS 替代</span></h2>
+  <div class="cp-core-grid" aria-label="PE、PB、ROE、ROA、EPS、BPS 六项核心指标">
+    {% for m in metric_cards %}
+    <article class="cp-core-metric {{ 'missing' if not m.display else '' }}">
+      <div class="cp-core-head"><span>{{ m.label }}</span>{% if m.provider_label %}<span class="cp-provider-badge" title="{{ m.source_title or m.source_ref }}">{{ m.provider_label }}</span>{% endif %}</div>
+      <div class="cp-core-value">{{ m.display or m.reason }}</div>
+      <div class="cp-core-formula">{{ m.formula }}</div>
+      <div class="cp-core-meta">{% if m.as_of %}<span>时点 {{ m.as_of[:10] }}</span>{% endif %}{% if not m.display %}<span>未用旧值伪装更新</span>{% endif %}</div>
+    </article>
+    {% endfor %}
+  </div>
+  {% set cap_cny = financial_summary.get('market_cap_cny') if financial_summary else none %}
+  {% set cap_usd = financial_summary.get('market_cap_usd') if financial_summary else none %}
+  {% if cap_cny or co.market_cap_cny is not none %}<div class="cp-sum" style="margin-top:12px">市值 {{ '{:,.2f}'.format(cap_cny.value_num if cap_cny else co.market_cap_cny) }} 亿元人民币{% if cap_usd or co.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(cap_usd.value_num if cap_usd else co.market_cap_usd) }} 亿美元）{% endif %} · 市场时点 {{ ((cap_cny.as_of_date if cap_cny else co.valuation_as_of) or '—')[:10] }}</div>{% endif %}
+</div>
+
+{# ── 公司页专属：综合估值与交易观察总结，默认展开 ── #}
+<div class="cp-sec">
+  {% set vs = financial_bundle.valuation_summary if financial_bundle else none %}
+  {% if vs and vs.ready %}
+  <details class="cp-valuation-summary" open>
+    <summary>综合估值判断与交易观察区 <span class="fresh">· 独立研究模型 + 最新市场数据</span></summary>
+    <div class="cp-valuation-summary-body">
+      <div class="cp-summary-lead"><b>结论：</b>{{ vs.conclusion }}</div>
+      {% if vs.current_snapshot %}
+      <div class="cp-summary-grid">
+        {% for item in vs.current_snapshot %}
+        <div class="cp-summary-card"><b>{{ '%.2f'|format(item.value_num) }}{{ item.unit }}</b><span>{{ item.label }} · {{ item.provider }} · {{ item.as_of_date }}</span></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if vs.comparison_rows %}
+      <div class="cp-summary-block">
+        <h3>我们的盈利路径与市场一致预期</h3>
+        <div class="cp-table-scroll" tabindex="0" role="region" aria-label="内部盈利预测与市场一致预期对账，可横向滚动">
+          <table class="cp-tab cp-summary-compare-table"><thead><tr><th>期间</th><th>指标</th><th>我们的数字</th><th>市场数字</th><th>差异</th><th>市场来源</th></tr></thead><tbody>
+          {% for item in vs.comparison_rows %}<tr>
+            <td>{{ item.period }}</td><td>{{ item.metric_label }}</td>
+            <td>{{ '%.2f'|format(item.our_value) if item.our_value is not none else '—' }} {{ item.unit }}</td>
+            <td>{{ '%.2f'|format(item.market_value) if item.market_value is not none else '—' }} {{ item.unit }}</td>
+            <td>{{ '%+.2f%%'|format(item.difference_pct) if item.difference_pct is not none else '—' }}</td>
+            <td>{% if item.market_provider %}<span class="cp-provider-badge" title="{{ item.market_source_title or '' }}">{{ item.market_provider }}</span> {{ item.market_as_of }}{% else %}—{% endif %}</td>
+          </tr>{% endfor %}
+          </tbody></table>
+        </div>
+        <b>{{ vs.difference_conclusion }}</b>
+        {% if vs.difference_causes %}<ul class="cp-list">{% for reason in vs.difference_causes %}<li>{{ reason }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+      {% endif %}
+      {% if vs.scenario_results %}
+      <div class="cp-summary-block">
+        <h3>2027年经营与估值三情景</h3>
+        <div class="cp-table-scroll" tabindex="0" role="region" aria-label="2027年经营与估值三情景，可横向滚动">
+          <table class="cp-tab cp-company-scenario-table"><thead><tr><th>情景</th><th>营业收入</th><th>归母净利润</th><th>经营现金流</th><th>资本开支</th><th>自由现金流近似值</th><th>目标PE</th><th>目标市值</th><th>对应股价</th><th>成立条件</th></tr></thead><tbody>
+          {% for item in vs.scenario_results %}<tr>
+            <td><b>{{ item.scenario_label }}</b></td>
+            <td>{{ '%.2f'|format(item.revenue) }}亿元</td>
+            <td>{{ '%.2f'|format(item.net_income) }}亿元</td>
+            <td>{% if item.operating_cash_flow is not none %}{{ '%.2f'|format(item.operating_cash_flow) }}亿元{% else %}—{% endif %}</td>
+            <td>{% if item.capex is not none %}{{ '%.2f'|format(item.capex) }}亿元{% else %}—{% endif %}</td>
+            <td>{{ '%.2f'|format(item.free_cash_flow) }}亿元</td>
+            <td>{{ '%.2f'|format(item.target_pe) }}倍</td>
+            <td>{{ '%.2f'|format(item.target_market_cap) }}亿元</td>
+            <td>{{ '%.2f'|format(item.target_price) }}元/股</td>
+            <td>{{ item.condition }}</td>
+          </tr>{% endfor %}
+          </tbody></table>
+        </div>
+        <div class="cp-model-note">三种情景代表可证伪的经营状态，不是发生概率。收入、净利润、自由现金流近似值和估值倍数来自冻结模型；若缺少公司层面可复核的远期资本开支与营运资本计划，经营现金流和资本开支保留为空，不用机械外推制造精确数字。</div>
+      </div>
+      {% endif %}
+      {% if vs.model_reference_values %}
+      <div class="cp-summary-block">
+        <h3>适用估值方法给出的参照</h3>
+        {% for item in vs.model_reference_values %}<div><b>{{ item.output_name }}</b>：{% if item.range_low is not none and item.range_high is not none %}{{ '%.2f'|format(item.range_low) }}—{{ '%.2f'|format(item.range_high) }}{% elif item.value_num is not none %}{{ '%.2f'|format(item.value_num) }}{% else %}—{% endif %} {{ item.unit }}（{{ item.period }}）· {{ item.model_name }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if vs.operating_analysis or vs.valuation_analysis %}
+      <div class="cp-deep-grid">
+        {% if vs.operating_analysis %}<article class="cp-deep-card"><h3>公司经营与财务的补充分析</h3>{{ vs.operating_analysis }}</article>{% endif %}
+        {% if vs.valuation_analysis %}<article class="cp-deep-card"><h3>估值体系的综合判断</h3>{{ vs.valuation_analysis }}</article>{% endif %}
+      </div>
+      {% endif %}
+      {% if vs.trade_zones %}
+      <div class="cp-summary-block">
+        <h3>由历史估值带换算的价格观察区</h3>
+        <div class="cp-table-scroll" tabindex="0" role="region" aria-label="PE和PB历史估值带价格观察区，可横向滚动">
+          <table class="cp-tab cp-summary-zone-table"><thead><tr><th>方法</th><th>偏低观察位（20%分位）</th><th>历史中位</th><th>偏高风险位（80%分位）</th><th>基础数据</th><th>适用性</th></tr></thead><tbody>
+          {% for item in vs.trade_zones %}<tr>
+            <td>{{ item.label }}</td><td>{{ '%.2f'|format(item.q20_price) }}元/股</td><td>{{ '%.2f'|format(item.median_price) }}元/股</td><td>{{ '%.2f'|format(item.q80_price) }}元/股</td>
+            <td>{{ '%.2f'|format(item.basis_value) }} {{ item.basis_unit }} · <span class="cp-provider-badge">{{ item.provider }}</span> {{ item.as_of_date }}</td><td>{{ item.applicability }}</td>
+          </tr>{% endfor %}
+          </tbody></table>
+        </div>
+        <div class="cp-model-note">{{ vs.trade_zone_boundary }}</div>
+      </div>
+      {% endif %}
+      {% if vs.buy_point_analysis or vs.sell_point_analysis %}
+      <div class="cp-trade-grid">
+        {% if vs.buy_point_analysis %}<article class="cp-trade-card buy"><h3>买点：价格与经营条件必须同时成立</h3>{{ vs.buy_point_analysis }}</article>{% endif %}
+        {% if vs.sell_point_analysis %}<article class="cp-trade-card sell"><h3>卖点：估值过度或经营假设被证伪</h3>{{ vs.sell_point_analysis }}</article>{% endif %}
+      </div>
+      {% endif %}
+      <div class="cp-summary-block"><h3>后续验证条件</h3><b>未来分析：</b>{{ vs.future_view }}<br><b>风险收益改善条件：</b>{{ vs.positive_trigger }}<br><b>减仓或回避信号：</b>{{ vs.risk_trigger }}</div>
+      {% if vs.source_index %}<div class="cp-summary-sources" aria-label="市场数据来源索引">{% for source in vs.source_index %}<span class="cp-provider-badge" title="{{ source.source_title or source.source_ref }}">{{ loop.index }} · {{ source.provider }} · {{ source.as_of_date }}</span>{% endfor %}</div>{% endif %}
+    </div>
+  </details>
+  {% else %}<div class="cp-todo">尚无经过冻结研究和多方法估值支持的公司级综合结论，页面不会自动生成买卖观点。</div>{% endif %}
+</div>
+
+{# ── 财务(画像)── #}
+{% if rev or ni %}
+<div class="cp-sec">
+  <h2>财务 {% if profile and profile.financials_as_of %}<span class="fresh">· {{ profile.financials_as_of[:10] }}</span>{% endif %}</h2>
+  {% if financial_figure_json and financial_figure_json != 'null' %}<div id="companyFinancialChart" class="cp-fin-chart" role="img" aria-label="公司营收与净利润趋势图"></div>{% endif %}
+  {% if is_pcb_equipment %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="公司历史财务，可横向滚动">
+  <table class="cp-tab">
+    <thead><tr><th>期间</th>{% for row in financial_rows %}<th>{{ row.period }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><td>营收</td>{% for row in financial_rows %}<td>{{ pcb_amount(row.revenue) }}</td>{% endfor %}</tr>
+      <tr style="color:#7e8ba3"><td>营收同比/状态</td>{% for row in financial_rows %}{% set p = row.revenue %}<td>{% if p and p.yoy is defined and p.yoy is not none %}{{ '%+.2f%%'|format(p.yoy|float) }}{% elif p and p.change_status %}{{ p.change_status }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+      <tr><td>净利润</td>{% for row in financial_rows %}<td>{{ pcb_amount(row.net_income) }}</td>{% endfor %}</tr>
+      <tr style="color:#7e8ba3"><td>净利同比/状态</td>{% for row in financial_rows %}{% set p = row.net_income %}<td>{% if p and p.yoy is defined and p.yoy is not none %}{{ '%+.2f%%'|format(p.yoy|float) }}{% elif p and p.change_status %}{{ p.change_status }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="cp-core-meta">净利率按同期间归母或可归属净利润除以营业收入重算；跨零、亏损与低基数期间直接展示状态，不强算误导性同比。</div>
+  {% else %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="公司历史财务，可横向滚动">
+  <table class="cp-tab">
+    <thead><tr><th>期间</th>{% for p in rev %}<th>{{ p.period }}</th>{% endfor %}</tr></thead>
+    <tbody>
+      <tr><td>营收{% if rev and rev[0].unit %}({{ rev[0].unit }}){% endif %}</td>{% for p in rev %}<td>{{ '%.2f'|format(p.value) if p.value is not none else '—' }}</td>{% endfor %}</tr>
+      <tr style="color:#7e8ba3"><td>营收 YoY</td>{% for p in rev %}<td>{% if p.yoy is defined and p.yoy is not none %}{{ '%+.2f%%'|format(p.yoy|float) }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+      {% if ni %}<tr><td>净利{% if ni and ni[0].unit %}({{ ni[0].unit }}){% endif %}</td>{% for p in ni %}<td>{{ '%.2f'|format(p.value) if p.value is not none else '—' }}</td>{% endfor %}</tr>{% endif %}
+    </tbody>
+  </table>
+  </div>
+  {% endif %}
+  <div class="cp-grid" style="margin-top:8px">
+    {% if profile and profile.gross_margin is not none %}<div class="cp-stat"><b>{{ '%.2f'|format(profile.gross_margin) }}%</b><span>毛利率</span></div>{% endif %}
+    {% if profile and profile.net_margin is not none %}<div class="cp-stat"><b>{{ '%.2f'|format(profile.net_margin) }}%</b><span>净利率</span></div>{% endif %}
+    {% if profile and profile.operating_cash_flow is not none %}<div class="cp-stat"><b>{{ '%.2f'|format(profile.operating_cash_flow) }}<span style="font-size:11px;color:#9aa6bb"> {{ profile.ocf_unit or '' }}</span></b><span>经营现金流</span></div>{% endif %}
+    {% if profile and profile.rd_expense_ratio is not none %}<div class="cp-stat"><b>{{ '%.2f'|format(profile.rd_expense_ratio) }}%</b><span>研发占比</span></div>{% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# ── FY1-FY3 独立预测与外部一致预期 ── #}
+<div class="cp-sec">
+  <h2>未来三年财务基线 <span class="fresh">· 内部独立预测与外部一致预期分列</span></h2>
+  {% set forecasts = financial_bundle.forecast_table if financial_bundle else [] %}
+  {% if forecasts and (forecasts[0].internal or forecasts[0].consensus or forecasts[1].internal or forecasts[1].consensus or forecasts[2].internal or forecasts[2].consensus) %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="未来三年内部预测与一致预期，可横向滚动">
+    <table class="cp-tab">
+      <thead><tr><th>指标与口径</th>{% for f in forecasts %}<th>{{ f.horizon }}</th>{% endfor %}</tr></thead>
+      <tbody>
+      {% for metric,label in [('revenue','收入'),('net_income','归母净利润'),('eps','EPS'),('free_cash_flow','自由现金流')] %}
+        <tr><td>内部独立预测 · {{ label }}</td>{% for f in forecasts %}{% set v=f.internal.get(metric) %}<td>{% if v %}{{ '%.2f'|format(v.value) }} {{ v.unit }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+        <tr style="color:#66758d"><td>外部一致预期 · {{ label }}</td>{% for f in forecasts %}{% set v=f.consensus.get(metric) %}<td>{% if v %}{{ '%.2f'|format(v.value) }} {{ v.unit }}{% else %}—{% endif %}</td>{% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="cp-model-note">内部预测必须先冻结再读取一致预期；空白表示独立财务库目前没有该口径，页面不会用相邻年度或外部预测自动填充。</div>
+  {% else %}
+  <div class="cp-todo">独立财务库目前没有经过冻结的 FY1—FY3 内部预测；已有市场一致预期也不会被冒充为内部判断。</div>
+  {% endif %}
+</div>
+
+{# ── PB-ROE主线、ROA质量与周期路由 ── #}
+<div class="cp-sec" id="asset-return-valuation">
+  <h2>周期属性与估值路由 <span class="fresh">· 先判断方法是否适用，再看数值</span></h2>
+  {% if financial_bundle %}
+  {% set framework=financial_bundle.valuation_framework %}
+  {% set ar=financial_bundle.asset_return %}{% set cur=ar.current %}{% set quality=ar.quality %}
+  <div class="cp-route">
+    <div class="cp-route-main">
+      <span>PB—ROE 在本公司的角色</span>
+      <b>{{ framework.applicability }}</b>
+      <span>{{ framework.cycle_sensitivity }}<br>{{ framework.asset_intensity }}</span>
+    </div>
+    <div class="cp-route-basis">
+      <b>判断依据</b><br>{{ framework.basis }}
+      <br><b>主要价格暴露：</b>{{ framework.price_exposure }}
+      <br><b>主要盈利驱动：</b>{{ framework.profit_driver }}
+    </div>
+  </div>
+  {% if framework.tags %}
+  <div class="cp-research-tags">
+    {% for tag in framework.tags %}
+    {% if tag is mapping %}
+    <div class="cp-research-tag"><b>{{ tag.label }}</b>{% if tag.basis %}<span>{{ tag.basis }}</span>{% endif %}</div>
+    {% else %}
+    <div class="cp-research-tag"><b>{{ tag }}</b></div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h2 style="margin-top:18px">PE / PB Band 与资本回报路径</h2>
+  <div class="cp-method">
+    Wind 风格估值带先计算<code>每期隐含每股基础＝当期收盘价÷当期估值倍数</code>，再计算<code>估值带价格＝每期隐含每股基础×五年估值倍数分位</code>。黑线是实际收盘价，绿色、橙色和红色分别对应历史20%分位、中位和80%分位。估值带只说明历史相对位置，不是目标价；仍要结合ROE、ROA、周期、资产质量和现金流。
+  </div>
+  <div class="cp-grid" style="margin-top:10px">
+    <div class="cp-stat"><b>{{ '%.2f×'|format(cur.pb.value_num) if cur.pb else '—' }}</b><span>当前 PB</span><span class="as">{{ cur.pb.as_of_date if cur.pb else '无直接数据' }}{% if cur.pb_historical_percentile is not none %} · 历史月末分位 {{ '%.0f%%'|format(cur.pb_historical_percentile*100) }}（{{ cur.pb_percentile_sample_size }}期）{% endif %}</span></div>
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(cur.roe.value_num) if cur.roe else '—' }}</b><span>当前滚动 / 最新 ROE</span><span class="as">{{ cur.roe.as_of_date if cur.roe and cur.roe.as_of_date else (cur.roe.period_end if cur.roe else '无直接数据') }}</span></div>
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(ar.roe_history_summary.average) if ar.roe_history_summary.average is not none else '—' }}</b><span>过去五年平均 ROE</span><span class="as">{{ ar.roe_history_summary.sample_size }}个完整年度</span></div>
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(ar.roe_history_summary.minimum) if ar.roe_history_summary.minimum is not none else '—' }}</b><span>过去五年最低 ROE</span><span class="as">仅描述历史，不代表未来下限</span></div>
+  </div>
+  {% if ar.pb_band %}
+  <div class="cp-band-grid">
+    <div class="cp-band"><b>{{ '%.2f—%.2f×'|format(ar.pb_band.minimum,ar.pb_band.q20) }}</b><span>历史偏低区 · 最低至20%分位</span></div>
+    <div class="cp-band"><b>{{ '%.2f—%.2f×'|format(ar.pb_band.q40,ar.pb_band.q60) }}</b><span>历史中枢区 · 40%至60%分位</span></div>
+    <div class="cp-band"><b>{{ '%.2f—%.2f×'|format(ar.pb_band.q80,ar.pb_band.maximum) }}</b><span>历史偏高区 · 80%分位至最高</span></div>
+  </div>
+  <div class="cp-model-note">当前状态：{{ ar.pb_band.historical_status }}。{{ ar.pb_band.boundary }}</div>
+  {% else %}<div class="cp-todo" style="margin-top:10px">独立月末 PB 不足12期，暂不划分历史区间。</div>{% endif %}
+  <div class="cp-band-charts">
+    <div><div id="pbBandChart" class="cp-fin-chart" role="img" aria-label="公司股价与PB历史估值带，横轴为交易日期，纵轴为元每股"></div></div>
+    <div><div id="peBandChart" class="cp-fin-chart" role="img" aria-label="公司股价与PE历史估值带，横轴为交易日期，纵轴为元每股"></div></div>
+  </div>
+  <div id="roePathChart" class="cp-fin-chart" role="img" aria-label="公司历史与预测ROE路径，横轴为报告年度，纵轴为ROE百分比" style="margin-top:12px"></div>
+  {% set forecasts=financial_bundle.forecast_table %}
+  {% set roe_display=ar.roe_history_display if ar.roe_history_display else ar.roe_history %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="历史与预测ROE对照，可横向滚动" style="margin-top:10px">
+    <table class="cp-tab">
+      <thead><tr><th>口径</th>{% for row in roe_display %}<th>{{ row.fiscal_year }}</th>{% endfor %}{% for f in forecasts %}<th>{{ f.horizon }}</th>{% endfor %}</tr></thead>
+      <tbody>
+        <tr><td>历史实际 ROE</td>{% for row in roe_display %}<td>{% if row.value_num is not none %}{{ '%.2f%%'|format(row.value_num) }}{% else %}{{ row.value_text or '不适用' }}{% endif %}</td>{% endfor %}{% for f in forecasts %}<td>—</td>{% endfor %}</tr>
+        <tr><td>内部预测 ROE</td>{% for row in roe_display %}<td>—</td>{% endfor %}{% for f in forecasts %}{% set v=f.internal.get('roe') %}<td>{{ '%.2f%%'|format(v.value) if v else '—' }}</td>{% endfor %}</tr>
+        <tr><td>Wind 一致预期 ROE</td>{% for row in roe_display %}<td>—</td>{% endfor %}{% for f in forecasts %}{% set v=f.consensus.get('roe') %}<td>{{ '%.2f%%'|format(v.value) if v else '—' }}</td>{% endfor %}</tr>
+      </tbody>
+    </table>
+  </div>
+  {% if ar.roe_history_excluded_count %}<div class="cp-model-note">标为“不适用”的年度不纳入历史平均、趋势图或 PB—ROE 回归；通常因为期初或期末权益非正，ROE分母已失去可比性。</div>{% endif %}
+
+  <h2 style="margin-top:18px">ROA、杠杆与现金流质量</h2>
+  <div class="cp-grid">
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(cur.roe.value_num) if cur.roe else '—' }}</b><span>ROE</span></div>
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(cur.roa.value_num) if cur.roa else '—' }}</b><span>ROA</span></div>
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(cur.roic.value_num) if cur.roic else '—' }}</b><span>ROIC</span><span class="as">{{ '直接数据' if cur.roic else '当前数据源未提供' }}</span></div>
+    <div class="cp-stat"><b>{{ '%.2f×'|format(quality.equity_multiplier) if quality.equity_multiplier else '—' }}</b><span>权益乘数</span></div>
+    <div class="cp-stat"><b>{{ '%.2f%%'|format(quality.debt_ratio) if quality.debt_ratio is not none else '—' }}</b><span>资产负债率</span><span class="as">尚不能完整拆分有息与经营性负债</span></div>
+    <div class="cp-stat"><b>{{ '%.2f×'|format(quality.ocf_to_net_income) if quality.ocf_to_net_income is not none else '—' }}</b><span>经营现金流 / 净利润</span></div>
+    <div class="cp-stat"><b>{{ '%.2f×'|format(quality.ocf_to_capex) if quality.ocf_to_capex is not none else '—' }}</b><span>经营现金流 / 资本开支</span></div>
+    {% set fcf=quality.metrics.free_cash_flow %}
+    <div class="cp-stat"><b>{{ '%.2f'|format(fcf.value_num) if fcf else '—' }}</b><span>简化自由现金流（亿元）</span><span class="as">经营现金流减购建长期资产支出</span></div>
+  </div>
+  <div class="cp-quality-conclusion">{{ quality.roe_quality_conclusion }} 现有结构化字段不足时，页面保留空白并说明边界，不把总负债机械解释为有息杠杆。</div>
+
+  <details class="cp-model-detail" style="margin-top:12px"><summary>展开历史 PB—ROE / PB—ROA 映射和同行诊断</summary>
+    <div class="cp-return-grid" style="margin-top:10px">
+      <div>
+        <div id="pbRoeChart" class="cp-fin-chart" role="img" aria-label="PB与ROE历史配对关系"></div>
+        {% if asset_return.pb_roe_model %}<div class="cp-model-note">按财务披露日后的首个可得月末 PB 配对，共 {{ asset_return.pb_roe_model.sample_size }} 个独立报告期。历史关系对应 PB={{ '%.2f'|format(asset_return.pb_roe_model.reasonable_pb) }}×，仅作诊断；实际 ROE 并不等于当时市场预期。</div>{% else %}<div class="cp-model-note">可审计披露日配对点不足3个，不输出伪回归。</div>{% endif %}
+      </div>
+      <div>
+        <div id="pbRoaChart" class="cp-fin-chart" role="img" aria-label="PB与ROA历史配对关系"></div>
+        {% if asset_return.pb_roa_model %}<div class="cp-model-note">ROA 映射共 {{ asset_return.pb_roa_model.sample_size }} 个独立报告期，用于识别资产效率与杠杆差异，不单独给目标价。</div>{% else %}<div class="cp-model-note">可审计披露日配对点不足3个，PB—ROA只保留质量诊断。</div>{% endif %}
+      </div>
+    </div>
+    {% if asset_return_peer_summary %}
+    <div class="cp-quality-conclusion" style="margin-top:10px">
+      <b>同行诊断（{{ asset_return_peer_summary.scope }}，{{ asset_return_peer_summary.peer_count }}家公司）：</b>
+      {{ asset_return_peer_summary.text }}
+    </div>
+    {% endif %}
+    <div class="cp-model-note"><b>样本口径：</b>{{ asset_return_peer_note }}</div>
+    {% if asset_return_peers %}
+    <div class="cp-table-scroll" tabindex="0" role="region" aria-label="同行PB与资产回报比较，可横向滚动">
+      <table class="cp-tab cp-peer-return-table"><thead><tr><th>公司</th><th>PB</th><th>ROE</th><th>ROA</th><th>ROIC</th><th>权益乘数</th><th>资产负债率</th><th>最新时点</th></tr></thead>
+      <tbody>{% for p in asset_return_peers %}<tr{% if p.research_company_id == co.id %} style="font-weight:650;background:#f2f7fc"{% endif %}>
+        <td>{% if p.research_company_id %}<a href="{{ url_for('company_tag',company_id=p.research_company_id) }}">{{ p.canonical_name }}</a>{% else %}{{ p.canonical_name }}{% endif %}{% if p.research_company_id == co.id %}（本公司）{% endif %}<br><span class="fresh">{{ p.ticker or '代码未核验' }}</span></td>
+        <td>{{ '%.2f×'|format(p.pb.value_num) if p.pb else '—' }}</td><td>{{ '%.2f%%'|format(p.roe.value_num) if p.roe else '—' }}</td><td>{{ '%.2f%%'|format(p.roa.value_num) if p.roa else '—' }}</td><td>{{ '%.2f%%'|format(p.roic.value_num) if p.roic else '—' }}</td><td>{{ '%.2f×'|format(p.equity_multiplier) if p.equity_multiplier else '—' }}</td><td>{{ '%.2f%%'|format(p.debt_ratio.value_num) if p.debt_ratio else '—' }}</td><td>{{ p.latest_as_of_date or '—' }}</td>
+      </tr>{% endfor %}</tbody></table>
+    </div>
+    {% endif %}
+  </details>
+  {% else %}<div class="cp-todo">独立财务数据库尚未建立该公司记录，页面不从普通研究数据点临时拼接估值模型。</div>{% endif %}
+</div>
+
+<div class="cp-sec" id="pb-scenario-workbench">
+  <h2>研究员情景实验台 <span class="fresh">· 本地保存，不覆盖 AI 原始结论</span>{% if lithium_calculator_ready %}<a class="cp-btn primary" style="margin-left:auto;text-decoration:none" href="{{ url_for('lithium_calculator',company_id=co.id) }}">进入碳酸锂项目计算器</a>{% endif %}</h2>
+  {% if financial_bundle and financial_bundle.scenario_workbench.simple_ready %}
+  {% set wb=financial_bundle.scenario_workbench %}
+  <div class="cp-workbench">
+    <div class="cp-workbench-head">
+      <div><b>默认使用简化模式</b><div class="cp-model-note">{{ wb.reason }}</div></div>
+      <div class="cp-mode-tabs" role="tablist" aria-label="情景实验台模式">
+        <button type="button" class="cp-mode-tab on" data-mode="simple" aria-selected="true">简化模式</button>
+        <button type="button" class="cp-mode-tab" data-mode="detailed" aria-selected="false">详细模式</button>
+      </div>
+    </div>
+    <div id="wbSimple">
+      <div class="cp-workbench-grid">
+        <div class="cp-field"><label>期初归母净资产（亿元）</label><input id="wbOpeningBook" type="number" step="0.01"></div>
+        <div class="cp-field"><label>目标 PB（倍）</label><input id="wbTargetPb" type="number" min="0.01" step="0.01"></div>
+        {% for year in wb.simple.years %}
+        <div class="cp-field"><label>{{ year.fiscal_year }}年归母净利润（亿元）</label><input class="wb-profit" data-year="{{ year.fiscal_year }}" type="number" step="0.01"></div>
+        <div class="cp-field"><label>{{ year.fiscal_year }}年分红率（%）</label><input class="wb-payout" data-year="{{ year.fiscal_year }}" type="number" min="0" max="100" step="0.1"></div>
+        {% endfor %}
+      </div>
+      <div class="cp-model-note">目标 PB 默认保持当前 PB，不自动把历史中位数当作合理价值。可用历史20%分位、中位数和80%分位做压力情景。</div>
+      <div class="cp-workbench-actions">
+        <button type="button" class="cp-btn" data-pb-preset="historical_q20">历史20%分位</button>
+        <button type="button" class="cp-btn" data-pb-preset="historical_median">历史中位</button>
+        <button type="button" class="cp-btn" data-pb-preset="historical_q80">历史80%分位</button>
+        <button type="button" class="cp-btn" data-pb-preset="current">当前PB</button>
+      </div>
+    </div>
+    <div id="wbDetailed" class="cp-hidden">
+      {% if wb.detailed_ready %}
+      <div class="cp-model-note">详细模式已通过未来资产、杠杆和现金流字段门槛。</div>
+      {% else %}
+      <div class="cp-todo">详细模式暂不生成正式结果。当前可得：{{ wb.detailed.available_fields|join('、') }}；仍缺：{{ wb.detailed.missing_required_fields|join('、') }}。研究员可先用简化模式，不能用空字段伪装完整三表模型。</div>
+      {% endif %}
+    </div>
+    <div class="cp-scenario-results" aria-live="polite">
+      <div class="cp-scenario-result"><b id="wbEndingBook">—</b><span>FY3期末净资产（亿元）</span></div>
+      <div class="cp-scenario-result"><b id="wbEndingRoe">—</b><span>FY3推导 ROE</span></div>
+      <div class="cp-scenario-result"><b id="wbTargetValue">—</b><span>FY3情景市值（亿元）</span></div>
+      <div class="cp-scenario-result"><b id="wbTotalChange">—</b><span>相对当前市值变化</span></div>
+      <div class="cp-scenario-result"><b id="wbBookContribution">—</b><span>净资产增长贡献（亿元）</span></div>
+      <div class="cp-scenario-result"><b id="wbPbContribution">—</b><span>PB重估贡献（亿元）</span></div>
+    </div>
+    <div class="cp-workbench-actions">
+      <input id="wbScenarioName" type="text" maxlength="30" placeholder="情景名称" style="border:1px solid #ccd8e7;border-radius:7px;padding:6px">
+      <button type="button" class="cp-btn primary" id="wbSave">保存当前情景</button>
+      <button type="button" class="cp-btn" id="wbReset">恢复AI默认值</button>
+      <select id="wbSavedSelect" class="cp-btn" aria-label="已保存情景"></select>
+      <button type="button" class="cp-btn" id="wbLoad">载入比较</button>
+      <button type="button" class="cp-btn" id="wbDelete">删除本地情景</button>
+    </div>
+    <div class="cp-saved-scenarios" id="wbMessage">研究员情景保存在当前浏览器，不写入数据库，也不会覆盖冻结模型。</div>
+  </div>
+  {% else %}<div class="cp-todo">{{ financial_bundle.scenario_workbench.reason if financial_bundle else '独立财务库尚无该公司的情景输入。' }}</div>{% endif %}
+</div>
+
+<div class="cp-sec">
+  <h2>多方法估值结果</h2>
+  {% if financial_bundle and financial_bundle.valuation_model_runs %}
+  {% set role_labels={'primary':'主方法','core':'核心估值','validation':'交叉验证','reference':'有效参考','diagnostic':'诊断方法','not_applicable':'不适用'} %}
+  {% set status_labels={'draft':'草稿','frozen_independent':'独立结果已冻结','reconciled':'已完成外部对账','reviewed':'已复核','superseded':'已被更新版本替代'} %}
+  {% set input_type_labels={'direct_fact':'已披露事实','derived_fact':'由已披露数据推导','external_consensus':'外部一致预期','company_guidance':'公司指引','expert_assumption':'内部研究假设','objectively_unavailable':'客观不可得'} %}
+  {% set benchmark_type_labels={'consensus':'市场一致预期','guidance':'公司指引','market_implied':'市场隐含预期','peer':'同行估值','historical':'历史区间'} %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="公司多方法估值结果，可横向滚动">
+    <table class="cp-tab cp-valuation-table"><thead><tr><th>方法</th><th>角色</th><th>状态</th><th>估值日</th><th>核心结果</th><th>外部对账</th></tr></thead><tbody>
+    {% for run in financial_bundle.valuation_model_runs[:12] %}<tr>
+      <td>{{ run.model_name }}</td><td>{{ role_labels.get(run.model_role,run.model_role) }}</td><td>{{ status_labels.get(run.status,run.status) }}</td><td>{{ run.valuation_date or '—' }}</td>
+      <td>{% for out in run.outputs[:4] %}{{ out.output_name }}：{% if out.range_low is not none and out.range_high is not none %}{{ '%.2f'|format(out.range_low) }}—{{ '%.2f'|format(out.range_high) }}{% elif out.value_num is not none %}{{ '%.2f'|format(out.value_num) }}{% else %}{{ out.value_text or '—' }}{% endif %} {{ out.unit }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
+      <td>{{ run.reconciliations|length }} 项</td>
+    </tr>{% endfor %}
+    </tbody></table>
+  </div>
+  <div class="cp-model-note">不同方法先识别是否依赖同一组经营假设，再解释核心区间；页面不对高度相关的 PE、DCF、PB 结果机械平均。</div>
+  <div class="cp-model-ledgers">
+  {% for run in financial_bundle.valuation_model_runs[:12] %}
+    <details class="cp-model-detail"><summary>{{ run.model_name }}：公式、输入与外部对账</summary>
+      <div class="cp-method">估值日：{{ run.valuation_date or '未设置' }}；预测区间：{{ run.forecast_start or '—' }} 至 {{ run.forecast_end or '—' }}。{{ run.limitations or '未另列方法限制。' }}</div>
+      {% if run.inputs %}<div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ run.model_name }}模型输入，可横向滚动"><table class="cp-tab"><thead><tr><th>输入</th><th>数值/区间</th><th>期间</th><th>类型</th><th>来源</th><th>方法与限制</th></tr></thead><tbody>
+      {% for item in run.inputs %}<tr><td>{{ item.input_name }}</td><td>{% if item.value_num is not none %}{{ '%.4g'|format(item.value_num) }}{% else %}{{ item.value_text or '—' }}{% endif %}{% if item.range_low is not none or item.range_high is not none %}<br>{{ item.range_low if item.range_low is not none else '—' }}—{{ item.range_high if item.range_high is not none else '—' }}{% endif %} {{ item.unit }}</td><td>{{ item.period_or_as_of_date }}</td><td>{{ input_type_labels.get(item.input_type,item.input_type) }}</td><td>{{ item.source_label or '已冻结模型底稿' }}</td><td>{{ item.formula_or_method or '直接读取' }}{% if item.limitation_note %}<br>{{ item.limitation_note }}{% endif %}</td></tr>{% endfor %}
+      </tbody></table></div>{% endif %}
+      {% for out in run.outputs %}<div class="cp-model-note"><b>{{ out.output_name }}</b>：{{ out.formula }}；代入：{{ out.substitution }}。{% if out.conclusion %}{{ out.conclusion }}{% endif %}</div>{% endfor %}
+      {% if run.reconciliations %}<div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ run.model_name }}外部对账，可横向滚动"><table class="cp-tab"><thead><tr><th>对账对象</th><th>指标/期间</th><th>内部结果</th><th>外部结果</th><th>差异</th><th>结论</th></tr></thead><tbody>{% for item in run.reconciliations %}<tr><td>{{ benchmark_type_labels.get(item.benchmark_type,item.benchmark_type) }}{% if item.benchmark_source_label %} · {{ item.benchmark_source_label }}{% endif %}</td><td>{{ item.metric_name }} · {{ item.period }}</td><td>{{ item.independent_value if item.independent_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.benchmark_value if item.benchmark_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.difference_value if item.difference_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.conclusion }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+    </details>
+  {% endfor %}
+  </div>
+  {% else %}<div class="cp-todo">暂无通过独立预测冻结和外部对账的正式估值模型；当前市场倍数只作为观察值，不等同于合理价值。</div>{% endif %}
+</div>
+
+<div class="cp-sec">
+  <h2>当前市场隐含预期</h2>
+  {% if financial_bundle and financial_bundle.implied_expectations %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="市场隐含预期，可横向滚动"><table class="cp-tab cp-implied-table"><thead><tr><th>指标</th><th>隐含值</th><th>期间</th><th>情景或口径</th><th>估值截面</th><th>反推方法</th></tr></thead><tbody>{% for item in financial_bundle.implied_expectations %}<tr><td>{{ item.metric_label or item.metric_name }}</td><td>{% if item.value_num is not none %}{{ '%.4g'|format(item.value_num) }}{% else %}{{ item.value_text or '—' }}{% endif %} {{ item.unit }}</td><td>{{ item.period }}</td><td>{{ item.scenario_name or '—' }}</td><td>{{ item.as_of_date }}</td><td>{{ item.formula or '模型账本未提供公式' }}</td></tr>{% endfor %}</tbody></table></div>
+  {% else %}<div class="cp-todo">目前没有经过反向估值写入的市场隐含结果；页面不从当前倍数自动猜测增长或利润。</div>{% endif %}
+</div>
+
+<div class="cp-sec" id="opportunity-lens-links">
+  <h2>相关 Opportunity Lens 研究</h2>
+  {% if opportunity_links %}<div class="cp-kv">{% for item in opportunity_links %}<div><a href="{{ url_for('opportunity_lens.opportunity_run',run_id=item.run_id) }}"><b>{{ item.title }}</b></a> · {{ item.entity_name }} · {{ item.updated_at[:10] if item.updated_at else '日期未记录' }}</div>{% endfor %}</div>
+  {% else %}<div class="cp-todo">当前没有通过公司主体或证券代码关联的 Opportunity Lens 研究。</div>{% endif %}
+</div>
+
+{# ── 市场地位 + 业务结构(画像)── #}
+{% if profile and (profile.global_share is not none or profile.china_share is not none or profile.main_products or shares) %}
+<div class="cp-sec">
+  <h2>市场地位与业务</h2>
+  <div class="cp-grid">
+    {% if profile.global_share is not none %}<div class="cp-stat"><b>{{ profile.global_share|fnum(1) }}%</b><span>全球份额{% if profile.global_rank %} · 第{{ profile.global_rank }}{% endif %}</span><span class="as">{{ profile.global_share_as_of or '' }}</span></div>{% endif %}
+    {% if profile.china_share is not none %}<div class="cp-stat"><b>{{ profile.china_share|fnum(1) }}%</b><span>中国份额{% if profile.china_rank %} · 第{{ profile.china_rank }}{% endif %}</span><span class="as">{{ profile.china_share_as_of or '' }}</span></div>{% endif %}
+    {% if profile.customer_concentration is not none %}<div class="cp-stat"><b>{{ profile.customer_concentration|fnum(0) }}%</b><span>客户集中度</span></div>{% endif %}
+    {% if profile.tech_node %}<div class="cp-stat"><b style="font-size:13px;line-height:1.4">{{ profile.tech_node[:40] }}</b><span>技术节点</span></div>{% endif %}
+  </div>
+  {% if profile.main_products or profile.main_customers %}
+  <div class="cp-kv" style="margin-top:8px">
+    {% if profile.main_products %}<div> <b>主要产品</b>:{{ profile.main_products }}</div>{% endif %}
+    {% if profile.main_customers %}<div> <b>主要客户</b>:{{ profile.main_customers }}</div>{% endif %}
+  </div>{% endif %}
+  {% if shares %}
+  <table class="cp-tab" style="margin-top:8px">
+    <thead><tr><th>细分市场</th><th>地域</th><th>份额</th><th>排名</th><th>时点</th></tr></thead>
+    <tbody>{% for s in shares %}<tr><td>{{ s.sub_market }}</td><td>{{ s.geo or '—' }}</td><td>{{ (s.share|fnum(1) ~ '%') if s.share is not none else '—' }}</td><td>{{ s.rank or '—' }}</td><td>{{ s.share_as_of or '—' }}</td></tr>{% endfor %}</tbody>
+  </table>{% endif %}
+</div>
+{% endif %}
+
+{% if not profile %}
+<div class="cp-sec"><div class="cp-todo">深度画像（份额 / 产品 / 客户 / 技术节点 / 财务序列）回填中。API 不可得字段如实留空；当前仍展示可验证的核心指标、行业标签和散户情绪。</div></div>
+{% endif %}
+
+{# ── 公司定向情报新闻(cninfo 公告/新闻 + DeepSeek 正负面打分 + 简评)── #}
+<div class="cp-sec">
+  <h2>公司情报新闻 <span style="font-size:11px;color:#8090a8;font-weight:400">· cninfo 公告/新闻 · DeepSeek 正负面研判 + 简评(tier≤2,AI)· 本页:近3月「高」+ 近1月「中」</span></h2>
+  {% if news %}
+  <div class="cp-tl">
+    {% for e in news %}
+    <div class="cp-tlitem {{ 's-pos' if e.sentiment=='正面' else 's-neg' if e.sentiment=='负面' else '' }}">
+      <div class="cp-tlh">{% if e.url %}<a href="{{ e.url }}" target="_blank" rel="noopener">{{ e.title }} ↗</a>{% else %}{{ e.title }}{% endif %}</div>
+      <div class="cp-tlm">
+        <span>{{ (e.published_at or '')[:10] }}</span>
+        {% if e.source %}<span>{{ e.source }}</span>{% endif %}
+        {% if e.materiality %}<span class="cp-bdg mat">重要性 {{ e.materiality }}</span>{% endif %}
+        {% if e.sentiment %}<span class="cp-bdg {{ 'pos' if e.sentiment=='正面' else 'neg' if e.sentiment=='负面' else 'neu' }}">{{ e.sentiment }}</span>{% endif %}
+        {% if not e.materiality and not e.sentiment %}<span class="cp-bdg neu">待研判</span>{% endif %}
+      </div>
+      {% if e.summary_ai %}<div class="cp-tlsum">AI {{ e.summary_ai }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% elif news_more %}<p class="cp-todo">近 3 月无「高」重要性、近 1 月无「中」重要性新闻。点下方查看全部。</p>
+  {% else %}<p class="cp-todo">暂无公司定向新闻（cninfo 公告工作日 10:30 抓取，周末静默；覆盖不足时不造数）。</p>{% endif %}
+  {% if news_more %}<div style="text-align:right;margin-top:8px"><a href="{{ url_for('company_news_all', company_id=co.id) }}" style="color:#0070C0;font-weight:600;text-decoration:none">查看全部 {{ news_more + (news|length) }} 条公司新闻 →</a></div>{% endif %}
+</div>
+
+{# ── 股价 + 散户情绪 + 散户发帖量；新闻情绪图已退役 ── #}
+<div class="cp-sec cp-senti">
+  <h2 style="color:#eaf2ff">股价 · 散户情绪 · 发帖量</h2>
+  <div class="cp-panel r">
+    <div class="cp-ptab">
+      <span class="cp-pname">散户净情绪
+        <span class="v {{ 'pos' if (senti_summ.retail_latest or 0)>0.05 else 'neg' if (senti_summ.retail_latest or 0)<-0.05 else 'flat' }}">{{ '%+.2f'|format(senti_summ.retail_latest) if senti_summ.retail_latest is not none else '—' }}</span>
+        {% if senti_summ.retail_latest is not none and senti_summ.retail_quality_label %}<small>{{ senti_summ.retail_quality_label }}</small>{% endif %}</span>
+      <span class="cp-toggle" data-target="Retail" role="tablist" aria-label="情绪图时间粒度"><button type="button" role="tab" aria-selected="true" class="tg on" data-f="window">交易窗口</button><button type="button" role="tab" aria-selected="false" class="tg" data-f="d">日线</button></span>
+    </div>
+    <div id="pRetail" class="cp-panelchart"></div>
+    <div class="cp-core-meta">交易窗口：盘前 / 早盘 / 午后；周末不采集。黄色虚线空心点表示未完成或低样本，仅供观察。情绪 MA5 与发帖量 MA5 默认隐藏，可在图例中点击显示。</div>
+  </div>
+  <div style="text-align:right;margin-top:4px"><a href="{{ url_for('monitor3', company_id=co.id) }}" style="color:#7cc4ff;font-size:12px;text-decoration:none">查看散户情绪详情 →</a></div>
+</div>
+
+<div class="cp-foot">
+  页面分别标注结构化财务、市场快照、一致预期、研究模型和情绪数据的来源与时点；不同口径不会互相覆盖。
+  {% if not senti_summ.has_price %}<br> 本股价格数据客观不可得或本轮刷新失败，页面不以旧时点冒充最新。{% endif %}
+</div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script>
+const PANELS = {{ panels_json|safe }};
+const FINANCIAL_FIG = {{ financial_figure_json|safe }};
+const PB_ROE_FIG = {{ pb_roe_figure_json|safe }};
+const PB_ROA_FIG = {{ pb_roa_figure_json|safe }};
+const PB_BAND_FIG = {{ pb_band_figure_json|safe }};
+const PE_BAND_FIG = {{ pe_band_figure_json|safe }};
+const PB_BAND_NOTE = {{ (asset_return.pb_price_band_availability.message if asset_return and asset_return.pb_price_band_availability else 'PB历史估值带所需数据不足。')|tojson }};
+const PE_BAND_NOTE = {{ (asset_return.pe_price_band_availability.message if asset_return and asset_return.pe_price_band_availability else 'PE历史估值带所需数据不足。')|tojson }};
+const ROE_PATH_FIG = {{ roe_path_figure_json|safe }};
+const WORKBENCH = {{ scenario_workbench_json|safe }};
+const CFG={responsive:true,displaylogo:false,scrollZoom:true,modeBarButtonsToRemove:['select2d','lasso2d','autoScale2d']};
+function drawPanel(divId, fig){
+  const el=document.getElementById(divId); if(!el) return;
+  if(!fig||!fig.data){ el.innerHTML='<div class="cp-empty">该粒度暂无数据(覆盖弱/价待回填)</div>'; return; }
+  Plotly.newPlot(divId, fig.data, fig.layout, CFG);
+}
+function setFreq(target, f){
+  drawPanel('p'+target, PANELS[f==='window'?'retail_window':'retail_d']);
+}
+setFreq('Retail','window');
+if(FINANCIAL_FIG && FINANCIAL_FIG.data){ Plotly.newPlot('companyFinancialChart', FINANCIAL_FIG.data, FINANCIAL_FIG.layout, CFG); }
+if(PB_BAND_FIG && PB_BAND_FIG.data){ Plotly.newPlot('pbBandChart', PB_BAND_FIG.data, PB_BAND_FIG.layout, CFG); }
+else { const e=document.getElementById('pbBandChart'); if(e){ const d=document.createElement('div'); d.className='cp-empty'; d.textContent=PB_BAND_NOTE; e.replaceChildren(d); } }
+if(PE_BAND_FIG && PE_BAND_FIG.data){ Plotly.newPlot('peBandChart', PE_BAND_FIG.data, PE_BAND_FIG.layout, CFG); }
+else { const e=document.getElementById('peBandChart'); if(e){ const d=document.createElement('div'); d.className='cp-empty'; d.textContent=PE_BAND_NOTE; e.replaceChildren(d); } }
+if(ROE_PATH_FIG && ROE_PATH_FIG.data){ Plotly.newPlot('roePathChart', ROE_PATH_FIG.data, ROE_PATH_FIG.layout, CFG); }
+else { const e=document.getElementById('roePathChart'); if(e) e.innerHTML='<div class="cp-empty">历史或预测ROE不足，暂不绘制路径</div>'; }
+document.querySelectorAll('.cp-toggle').forEach(tg=>{
+  const target=tg.getAttribute('data-target');
+  tg.querySelectorAll('.tg').forEach(b=>b.addEventListener('click',()=>{
+    tg.querySelectorAll('.tg').forEach(x=>x.classList.remove('on'));
+    tg.querySelectorAll('.tg').forEach(x=>x.setAttribute('aria-selected','false'));
+    b.classList.add('on'); b.setAttribute('aria-selected','true'); setFreq(target, b.getAttribute('data-f'));
+  }));
+});
+
+function initDetailModules(){
+  document.querySelectorAll('details.cp-model-detail').forEach(detail=>{
+    const summary=detail.querySelector(':scope > summary');
+    if(!summary) return;
+    const collapse=document.createElement('button');
+    collapse.type='button';
+    collapse.className='cp-detail-collapse';
+    collapse.textContent='收起本模块';
+    collapse.addEventListener('click',()=>{
+      detail.open=false;
+      summary.focus({preventScroll:true});
+      summary.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    detail.appendChild(collapse);
+    detail.addEventListener('toggle',()=>{
+      if(!detail.open) return;
+      if(detail.contains(document.getElementById('pbRoeChart'))){
+        if(PB_ROE_FIG && PB_ROE_FIG.data){
+          Plotly.newPlot('pbRoeChart',PB_ROE_FIG.data,PB_ROE_FIG.layout,CFG);
+        }else{
+          const e=document.getElementById('pbRoeChart');
+          if(e)e.innerHTML='<div class="cp-empty">历史配对数据不足，暂不绘制关系线</div>';
+        }
+        if(PB_ROA_FIG && PB_ROA_FIG.data){
+          Plotly.newPlot('pbRoaChart',PB_ROA_FIG.data,PB_ROA_FIG.layout,CFG);
+        }else{
+          const e=document.getElementById('pbRoaChart');
+          if(e)e.innerHTML='<div class="cp-empty">历史配对数据不足，暂不绘制关系线</div>';
+        }
+      }
+    });
+  });
+}
+initDetailModules();
+
+function initPbWorkbench(){
+  if(!WORKBENCH || !WORKBENCH.simple_ready || !WORKBENCH.simple) return;
+  const simple=WORKBENCH.simple;
+  const opening=document.getElementById('wbOpeningBook');
+  const targetPb=document.getElementById('wbTargetPb');
+  if(!opening || !targetPb) return;
+  const profitInputs=[...document.querySelectorAll('.wb-profit')];
+  const payoutInputs=[...document.querySelectorAll('.wb-payout')];
+  const storageKey='industry-demo:pb-workbench:company-{{ co.id }}';
+  const message=document.getElementById('wbMessage');
+  const select=document.getElementById('wbSavedSelect');
+  const defaults={
+    openingBook:Number(simple.opening_book_value_cny_100m),
+    targetPb:Number(simple.target_pb),
+    profits:Object.fromEntries((simple.years||[]).map(row=>[String(row.fiscal_year),Number(row.net_income_cny_100m)])),
+    payouts:Object.fromEntries((simple.years||[]).map(row=>[String(row.fiscal_year),Number(row.payout_ratio_pct)]))
+  };
+  function numeric(el){ const value=Number(el.value); return Number.isFinite(value)?value:0; }
+  function setScenario(row){
+    opening.value=Number(row.openingBook).toFixed(2);
+    targetPb.value=Number(row.targetPb).toFixed(2);
+    profitInputs.forEach(el=>{ el.value=Number(row.profits[el.dataset.year]??0).toFixed(2); });
+    payoutInputs.forEach(el=>{ el.value=Number(row.payouts[el.dataset.year]??0).toFixed(1); });
+    calculate();
+  }
+  function currentScenario(){
+    return {
+      openingBook:numeric(opening),targetPb:numeric(targetPb),
+      profits:Object.fromEntries(profitInputs.map(el=>[el.dataset.year,numeric(el)])),
+      payouts:Object.fromEntries(payoutInputs.map(el=>[el.dataset.year,numeric(el)]))
+    };
+  }
+  function calculate(){
+    const row=currentScenario();
+    let book=row.openingBook,lastRoe=0;
+    [...simple.years].sort((a,b)=>a.fiscal_year-b.fiscal_year).forEach(year=>{
+      const profit=row.profits[String(year.fiscal_year)]||0;
+      const payout=Math.min(100,Math.max(0,row.payouts[String(year.fiscal_year)]||0))/100;
+      const closing=book+profit*(1-payout);
+      const average=(book+closing)/2;
+      lastRoe=average>0?profit/average*100:0;
+      book=closing;
+    });
+    const currentPb=Number(simple.current_pb);
+    const currentValue=row.openingBook*currentPb;
+    const bookOnlyValue=book*currentPb;
+    const targetValue=book*row.targetPb;
+    const totalPct=currentValue?((targetValue/currentValue)-1)*100:0;
+    const put=(id,value)=>{ const el=document.getElementById(id); if(el) el.textContent=value; };
+    put('wbEndingBook',book.toFixed(2));
+    put('wbEndingRoe',lastRoe.toFixed(2)+'%');
+    put('wbTargetValue',targetValue.toFixed(2));
+    put('wbTotalChange',(totalPct>=0?'+':'')+totalPct.toFixed(1)+'%');
+    put('wbBookContribution',(bookOnlyValue-currentValue).toFixed(2));
+    put('wbPbContribution',(targetValue-bookOnlyValue).toFixed(2));
+  }
+  function loadSaved(){
+    try{
+      const rows=JSON.parse(localStorage.getItem(storageKey)||'[]');
+      return Array.isArray(rows)?rows:[];
+    }catch(_){ return []; }
+  }
+  function refreshSaved(){
+    if(!select) return;
+    const rows=loadSaved();
+    select.replaceChildren();
+    const placeholder=document.createElement('option');
+    placeholder.value=''; placeholder.textContent=rows.length?'选择已保存情景':'尚无本地情景';
+    select.appendChild(placeholder);
+    rows.forEach((row,index)=>{
+      const option=document.createElement('option');
+      option.value=String(index); option.textContent=row.name;
+      select.appendChild(option);
+    });
+  }
+  document.querySelectorAll('.cp-mode-tab').forEach(button=>button.addEventListener('click',()=>{
+    document.querySelectorAll('.cp-mode-tab').forEach(item=>{item.classList.remove('on');item.setAttribute('aria-selected','false');});
+    button.classList.add('on');button.setAttribute('aria-selected','true');
+    document.getElementById('wbSimple').classList.toggle('cp-hidden',button.dataset.mode!=='simple');
+    document.getElementById('wbDetailed').classList.toggle('cp-hidden',button.dataset.mode!=='detailed');
+  }));
+  document.querySelectorAll('[data-pb-preset]').forEach(button=>button.addEventListener('click',()=>{
+    const value=Number((simple.pb_presets||{})[button.dataset.pbPreset]);
+    if(Number.isFinite(value)){ targetPb.value=value.toFixed(2); calculate(); }
+  }));
+  [opening,targetPb,...profitInputs,...payoutInputs].forEach(el=>el.addEventListener('input',calculate));
+  document.getElementById('wbReset')?.addEventListener('click',()=>{
+    setScenario(defaults); if(message) message.textContent='已恢复冻结模型的默认输入。';
+  });
+  document.getElementById('wbSave')?.addEventListener('click',()=>{
+    const name=(document.getElementById('wbScenarioName')?.value||'').trim();
+    if(!name){ if(message) message.textContent='请先填写情景名称。'; return; }
+    const rows=loadSaved().filter(row=>row.name!==name);
+    rows.push({name,createdAt:new Date().toISOString(),...currentScenario()});
+    try{ localStorage.setItem(storageKey,JSON.stringify(rows)); refreshSaved(); if(message) message.textContent='情景已保存在当前浏览器，AI原始结论未被修改。'; }
+    catch(_){ if(message) message.textContent='浏览器未允许本地保存；当前计算仍可继续使用。'; }
+  });
+  document.getElementById('wbLoad')?.addEventListener('click',()=>{
+    const index=Number(select?.value);
+    const rows=loadSaved();
+    if(Number.isInteger(index)&&rows[index]){setScenario(rows[index]);if(message)message.textContent='已载入“'+rows[index].name+'”，可与AI默认值比较。';}
+  });
+  document.getElementById('wbDelete')?.addEventListener('click',()=>{
+    const index=Number(select?.value),rows=loadSaved();
+    if(Number.isInteger(index)&&rows[index]){const name=rows[index].name;rows.splice(index,1);localStorage.setItem(storageKey,JSON.stringify(rows));refreshSaved();if(message)message.textContent='已删除本地情景“'+name+'”。';}
+  });
+  setScenario(defaults); refreshSaved();
+}
+initPbWorkbench();
+</script>
+{% endblock %}

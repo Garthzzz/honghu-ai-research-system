@@ -1,0 +1,913 @@
+{% extends "base.html" %}
+{% block title %}{{ '碳酸锂行业比较与情景分析' if comparison_mode else '碳酸锂项目与估值计算器' }}{% endblock %}
+{% block head_extra %}
+<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>
+{% endblock %}
+{% block content %}
+<style>
+.lc{max-width:1480px;margin:0 auto;color:#1e2d42}.lc *{box-sizing:border-box}
+.lc-head{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin:8px 0 18px;flex-wrap:wrap}
+.lc-head h1{margin:0 0 7px;font-size:27px;text-wrap:balance}.lc-sub{max-width:930px;color:#5c6d82;line-height:1.72;font-size:13px}
+.lc-badge{display:inline-flex;align-items:center;border:1px solid #e1bbb6;background:#fff5f3;color:#8f3029;border-radius:18px;padding:5px 11px;font-size:11px}
+.lc-panel{border:1px solid #dce5ef;background:#fff;border-radius:14px;padding:16px;margin:14px 0;box-shadow:0 7px 22px rgba(36,65,105,.06);min-width:0}
+.lc-panel h2{font-size:16px;margin:0 0 12px;border-left:3px solid #b5362e;padding-left:9px;text-wrap:balance}
+.lc-panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:11px}.lc-panel-head h2{margin:0}
+.lc-toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.lc-toolbar label{font-size:12px;color:#607087}
+.lc-select,.lc-input,.lc-btn{border:1px solid #c9d6e4;border-radius:8px;background:#fff;color:#24354a;padding:7px 10px;font:inherit}
+.lc :where(button,a,input,select,textarea):focus-visible,.lc-scroll:focus-visible{outline:3px solid #2b78b5;outline-offset:2px}.lc button,.lc a{touch-action:manipulation}
+.lc-select{min-width:225px}.lc-input{width:122px}.lc-btn{cursor:pointer;font-size:12px}.lc-btn:hover{border-color:#b5362e;color:#8f3029}.lc-btn.primary{background:#a62f28;color:#fff;border-color:#a62f28}.lc-btn.danger{color:#a73737;border-color:#e1bcbc}
+.lc-mode{display:inline-flex;border:1px solid #cbd8e5;border-radius:9px;overflow:hidden}.lc-mode button{border:0;border-right:1px solid #cbd8e5;border-radius:0;background:#fff;padding:8px 13px}.lc-mode button:last-child{border-right:0}.lc-mode button.on{background:#fff0ed;color:#963129;font-weight:700}
+.lc-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.lc-field{border:1px solid #e0e7ef;border-radius:10px;background:#f8fbfe;padding:10px}.lc-field label{display:block;font-size:11px;color:#65768c;margin-bottom:6px}.lc-field input{width:100%}
+.lc-results{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}.lc-result{border:1px solid #eadbd9;border-radius:11px;background:linear-gradient(145deg,#fff8f6,#fff);padding:12px;min-width:0}.lc-result b{display:block;font-size:19px;color:#8f3029;overflow-wrap:anywhere}.lc-result span{display:block;font-size:11px;color:#66788c;margin-top:5px;line-height:1.4}
+.lc-scroll{overflow:auto;max-width:100%;border:1px solid #d7e1eb;border-radius:0 0 10px 10px;overscroll-behavior-x:contain;background:#fff;scrollbar-gutter:stable}.lc-scroll-top{overflow-x:auto;overflow-y:hidden;max-width:100%;height:17px;border:1px solid #d7e1eb;border-bottom:0;border-radius:10px 10px 0 0;background:#f5f8fb;overscroll-behavior-x:contain;scrollbar-gutter:stable}.lc-scroll-top>div{height:1px}.lc-scroll-top.is-idle{height:0;border:0;overflow:hidden}.lc-table{border-collapse:separate;border-spacing:0;width:100%;min-width:1080px;font-size:12px;font-variant-numeric:tabular-nums}.lc-table th,.lc-table td{padding:9px 10px;border-bottom:1px solid #e3eaf1;border-right:1px solid #e7edf3;text-align:right;white-space:nowrap;vertical-align:top}.lc-table th{background:#eaf1f7;color:#425a73;position:sticky;top:0;z-index:2;font-weight:700}.lc-table thead tr:nth-child(2) th{top:34px}.lc-table th:first-child,.lc-table td:first-child{text-align:left}.lc-table tbody tr:nth-child(even) td{background:#f9fbfd}.lc-table tbody tr:hover td{background:#fff7f4}.lc-table tr:last-child td{border-bottom:0}.lc-table td:last-child,.lc-table th:last-child{border-right:0}
+.lc-table .sticky-name{position:sticky;left:0;z-index:1;background:#fff;min-width:205px;max-width:245px;box-shadow:5px 0 9px -9px #20364f}.lc-table tbody tr:nth-child(even) .sticky-name{background:#f9fbfd}.lc-table tbody tr:hover .sticky-name{background:#fff7f4}.lc-table th.sticky-name{z-index:4;background:#eaf1f7}.lc-table a{font-weight:700}.lc-table td input,.lc-table td select,.lc-table td textarea{width:100%;min-width:86px;padding:6px 7px;border:1px solid #bdcddd;border-radius:6px;background:#fff;font:inherit}.lc-table td textarea{min-width:230px;min-height:68px;resize:vertical;white-space:normal;line-height:1.45}.lc-table .project-name{min-width:205px}.lc-table .project-status{min-width:270px}.lc-table .project-status textarea{min-width:250px;min-height:58px}.lc-table .ownership-column{min-width:150px}.lc-inline-unit{display:grid;grid-template-columns:minmax(100px,1fr) auto;gap:7px;align-items:center;min-width:132px}.lc-inline-unit span{color:#51667c;font-weight:700}.lc-table .year-input{min-width:146px}.lc-year-box{display:grid;grid-template-columns:1fr 1fr;gap:5px;min-width:185px}.lc-year-box label{font-size:9px;color:#718096;text-align:left}.lc-year-box input{min-width:82px!important}.lc-year-box small{grid-column:1/-1;text-align:left;color:#67798d;white-space:normal}
+.lc-workbook-notes{display:grid;gap:8px;margin-top:14px}.lc-workbook-note{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:12px;padding:10px 12px;border:1px solid #d7e2ec;border-radius:9px;background:#f8fbfd;font-size:12px;line-height:1.55}.lc-workbook-note b{color:#324d68}.lc-workbook-note span{color:#536a80}.lc-workbook-note code{font-size:10px;color:#8494a5;background:transparent}
+.lc-note{font-size:12px;line-height:1.72;color:#607087;margin:9px 0}.lc-note strong{color:#8f3029}.lc-formula{background:#f7f9fc;border:1px solid #dbe5ef;border-radius:10px;padding:12px;line-height:1.85;font-size:13px}
+.lc-two{display:grid;grid-template-columns:minmax(0,1.12fr) minmax(0,.88fr);gap:14px}.lc-list{margin:0;padding-left:18px;color:#42546b;font-size:12px;line-height:1.8}
+.lc-chart{height:280px;border:1px solid #e1e8ef;border-radius:10px;background:#fbfdff;padding:4px;min-width:0}.lc-hidden{display:none!important}.lc-message{font-size:12px;color:#587087;min-height:20px}.lc-source{font-size:11px;color:#6c7b8d}.lc-kicker{font-size:11px;color:#8f3029;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.lc-summary-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.lc-summary-controls .lc-select{min-width:118px}.lc-summary-controls .lc-input{width:112px}
+.lc-note-cell{width:280px;min-width:280px;max-width:280px;white-space:normal!important}.lc-note-cell textarea{min-width:250px!important}.lc-action{width:92px;min-width:92px;max-width:92px;text-align:center!important;background:#eaf1f7!important}.lc-action-cell{width:92px;min-width:92px;max-width:92px;text-align:center!important}.lc-action-cell .lc-btn{width:100%}.lc-live-link{display:inline-block;margin-left:8px;color:#8f3029;font-weight:700}
+.lc-valuation-table{min-width:1420px}.lc-valuation-table td{white-space:normal;line-height:1.58;text-align:left}.lc-valuation-table .lc-value{white-space:nowrap;text-align:right;font-weight:700;color:#8f3029}.lc-valuation-table .lc-method{min-width:145px}.lc-valuation-table .lc-basis{min-width:360px;max-width:460px}.lc-role{display:inline-block;margin-top:4px;padding:2px 7px;border-radius:12px;background:#edf3f8;color:#4b6178;font-size:10px}
+.lc-year-box{grid-template-columns:1fr 1fr 1fr;min-width:270px}.lc-year-box small{grid-column:1/-1}
+.lc-financial-table{min-width:1320px}.lc-financial-table td:first-child{min-width:180px;font-weight:700}.lc-live{display:block;margin-top:5px;color:#5d7187;font-size:10px;line-height:1.35;white-space:normal}.lc-live b{color:#206a61}.lc-live.pos{color:#206a61}.lc-live.neg{color:#a83a32}.lc-computed{display:block;min-width:95px;color:#255c80;font-weight:750}.lc-valuation-dynamic{min-width:1540px}.lc-valuation-dynamic td{white-space:normal;line-height:1.5}.lc-valuation-dynamic input{min-width:105px!important}.lc-pb-inputs,.lc-dcf-inputs{display:grid;grid-template-columns:1fr;gap:5px;min-width:138px}.lc-pb-inputs label,.lc-dcf-inputs label{display:grid;grid-template-columns:58px 1fr;gap:6px;align-items:center;font-size:10px;color:#61758a}.lc-compare-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.lc-compare-controls .lc-select{min-width:135px}.lc-sortable{cursor:pointer}.lc-compare-charts{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:13px}.lc-compare-chart{height:360px;border:1px solid #e1e8ef;border-radius:10px;background:#fbfdff}.lc-comparison-mode .lc-single-panel{display:none!important}.lc:not(.lc-comparison-mode) .lc-comparison-panel{display:none!important}
+.lc-table input[type="number"]{text-align:right;font-variant-numeric:tabular-nums}.lc-financial-chart{width:100%;max-width:960px;height:360px;margin:14px auto 0;border:1px solid #dce5ed;border-radius:11px;background:#fbfdff}.lc-compare-kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:13px}.lc-compare-kpi{min-width:0;padding:12px;border:1px solid #dce5ed;border-radius:11px;background:linear-gradient(145deg,#fff,#f5f9fb)}.lc-compare-kpi b{display:block;color:#273f58;font-size:18px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}.lc-compare-kpi span{display:block;margin-top:5px;color:#66798c;font-size:10px;line-height:1.4}.lc-checks{display:flex;gap:7px;flex-wrap:wrap}.lc-check{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border:1px solid #d5e0e9;border-radius:16px;background:#fff;font-size:11px}.lc-check input{margin:0}.lc-comparison-mode .lc-two{grid-template-columns:1fr}.lc-comparison-mode .lc-chart{height:340px}
+@media(max-width:1100px){.lc-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.lc-results{grid-template-columns:repeat(3,minmax(0,1fr))}.lc-two{grid-template-columns:1fr}.lc-compare-kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.lc-grid{grid-template-columns:1fr}.lc-results{grid-template-columns:repeat(2,minmax(0,1fr))}.lc-panel{padding:12px}.lc-select{min-width:0;width:100%}.lc-toolbar>*{max-width:100%}.lc-head h1{font-size:23px}.lc-table .sticky-name{min-width:128px;max-width:148px}.lc-summary-controls{align-items:stretch}.lc-summary-controls>*{width:100%!important}.lc-workbook-note{grid-template-columns:1fr}.lc-valuation-table .lc-basis{width:220px;min-width:220px;max-width:220px;overflow-wrap:anywhere}.lc-compare-charts,.lc-compare-kpis{grid-template-columns:1fr}}
+</style>
+
+<div class="lc {{ 'lc-comparison-mode' if comparison_mode else '' }}">
+  <div class="lc-head">
+    <div>
+      <div class="lc-kicker">工具 · 锂行业</div>
+      <h1>{{ '碳酸锂行业比较与情景分析' if comparison_mode else '碳酸锂项目与估值计算器' }}</h1>
+      <div class="lc-sub">{% if comparison_mode %}统一调整锂价、年份和排序口径，在同一页面比较各公司的资源量、利润、现金流、长期增长与估值；可筛选公司，并保存和恢复整组跨公司情景。{% else %}基于经校验的逐项目资源底稿，展示公司权益、2025—2030 年产量路径、成本与经营备注，并形成可动态复算的经营、现金流与多方法估值。新增项目会立即进入权益产量、利润、现金流、估值和跨公司比较；所有修改只保存在当前浏览器，不覆盖冻结研究模型。{% endif %}</div>
+    </div>
+    <div class="lc-toolbar"><a class="lc-btn" href="{{ '/tools/lithium-calculator' if comparison_mode else '/industry/lithium/comparison' }}">{{ '返回单公司计算器' if comparison_mode else '进入跨公司比较' }}</a><span class="lc-badge">模型截止 {{ model_as_of }} · 项目底稿已校验</span></div>
+  </div>
+
+  <section class="lc-panel">
+    <div class="lc-toolbar">
+      <label for="lcCompany">公司</label>
+      <select id="lcCompany" class="lc-select"></select>
+      <div class="lc-mode lc-single-panel" role="tablist" aria-label="计算器模式">
+        <button type="button" role="tab" class="lc-btn" data-mode="simple" aria-controls="lcSimplePanel" aria-selected="false">简化模式</button>
+        <button type="button" role="tab" class="lc-btn on" data-mode="detailed" aria-controls="lcDetailedPanel" aria-selected="true">锂矿项目明细</button>
+      </div>
+      <input id="lcScenarioName" class="lc-input" maxlength="40" aria-label="情景名称" placeholder="情景名称" autocomplete="off" name="scenario_name">
+      <button type="button" class="lc-btn primary" id="lcSave">保存情景</button>
+      <button type="button" class="lc-btn" id="lcCopy">复制情景</button>
+      <select id="lcSaved" class="lc-select" aria-label="已保存情景"></select>
+      <button type="button" class="lc-btn" id="lcLoad">载入</button>
+      <button type="button" class="lc-btn danger" id="lcDeleteSaved">删除</button>
+      <button type="button" class="lc-btn" id="lcReset">恢复冻结默认值</button>
+      <button type="button" class="lc-btn" id="lcExport">导出 JSON</button>
+    </div>
+    <div class="lc-note" id="lcCompanyMeta"></div>
+    <div class="lc-message" id="lcMessage" aria-live="polite"></div>
+  </section>
+
+  <section class="lc-panel lc-single-panel">
+    <h2>价格、所得税与估值假设</h2>
+    <div class="lc-grid">
+      <div class="lc-field"><label for="lcPrice2025">2025 含税碳酸锂价格（万元/吨）</label><input id="lcPrice2025" class="lc-input" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcPrice2026">2026 含税碳酸锂价格（万元/吨）</label><input id="lcPrice2026" class="lc-input" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcPriceTerminal">2027—2030 含税价格（万元/吨）</label><input id="lcPriceTerminal" class="lc-input" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcIncomeTaxRate">企业所得税率（%）</label><input id="lcIncomeTaxRate" class="lc-input" type="number" min="0" max="100" step="0.01"></div>
+      <div class="lc-field"><label for="lcTargetPeLow">目标 PE 下限（倍）</label><input id="lcTargetPeLow" class="lc-input" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcTargetPeHigh">目标 PE 上限（倍）</label><input id="lcTargetPeHigh" class="lc-input" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcMarketCap">当前市值（亿元，只读）</label><input id="lcMarketCap" class="lc-input" type="number" readonly></div>
+      <div class="lc-field"><label for="lcCurrentPrice">当前股价（元/股，只读）</label><input id="lcCurrentPrice" class="lc-input" type="number" readonly></div>
+      <div class="lc-field"><label>模型口径</label><div id="lcModelType" style="font-size:12px;line-height:1.55"></div></div>
+    </div>
+  </section>
+
+  <section class="lc-panel lc-single-panel lc-hidden" id="lcSimplePanel">
+    <h2>简化输入：2030 年经营状态</h2>
+    <div class="lc-grid">
+      <div class="lc-field"><label for="lcSimpleResourceVolume">权益资源产量（万吨 LCE）</label><input id="lcSimpleResourceVolume" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcSimpleCost">权益产量加权含税完全成本（万元/吨）</label><input id="lcSimpleCost" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcSimpleProcessingVolume">权益口径外购加工量（万吨 LCE）</label><input id="lcSimpleProcessingVolume" type="number" min="0" step="0.01"></div>
+      <div class="lc-field"><label for="lcSimpleMargin">加权单位加工利润（万元/吨）</label><input id="lcSimpleMargin" type="number" step="0.01"></div>
+      <div class="lc-field"><label for="lcSimpleOther">其他业务与权益法利润（亿元）</label><input id="lcSimpleOther" type="number" step="0.01"></div>
+      <div class="lc-field"><label for="lcSimpleCorporate">公司层费用/少数股东影响（亿元）</label><input id="lcSimpleCorporate" type="number" step="0.01"></div>
+    </div>
+    <div class="lc-note">简化模式按比例调整现有项目的 2030 年产量，并同步更新项目明细；有完整逐矿数据时可切换到明细模式逐项修改。</div>
+  </section>
+
+  <section class="lc-panel lc-single-panel" id="lcDetailedPanel">
+    <div class="lc-panel-head">
+      <div>
+        <h2>公司锂矿/盐湖项目表</h2>
+        <div class="lc-note">默认完整展示项目级资源与业务明细。每个年度单元格依次为产量或固定利润、资源成本或加工利润、增量资本开支；下方自动显示权益后数量。修改项目、新增项目或调整权益后，收入桥、利润、现金流、估值和跨公司比较会立即重算。“模型权益计入起点”按第一年非零权益产量识别，不等同于法律收购日。</div>
+      </div>
+      <button type="button" class="lc-btn primary" id="lcAddProject">新增项目或业务</button>
+    </div>
+    <div class="lc-scroll" tabindex="0" role="region" aria-label="逐矿山和业务明细，可横向滚动">
+      <table class="lc-table" style="min-width:2480px">
+        <thead id="lcProjectHead"></thead>
+        <tbody id="lcProjectRows"></tbody>
+      </table>
+    </div>
+    <div class="lc-note"><strong>新增项目会实时进入下方两张跨公司汇总表。</strong>项目默认属于“研究员手动值”，可停用或删除；源底稿中错引其他项目权益单元格的记录已按项目自身权益重算并保留提示。</div>
+    <div class="lc-workbook-notes" id="lcWorkbookNotes" aria-label="公司经营与项目备注"></div>
+  </section>
+
+  <section class="lc-panel lc-single-panel">
+    <h2>核心结果</h2>
+    <div class="lc-results">
+      <div class="lc-result"><b id="lcTerminalProfit">—</b><span>2030 年归母净利润（亿元）</span></div>
+      <div class="lc-result"><b id="lcVs2025">—</b><span>相对 2025 实际归母利润</span></div>
+      <div class="lc-result"><b id="lcVs2026">—</b><span>相对独立模型 2026 利润</span></div>
+      <div class="lc-result"><b id="lcImpliedPe">—</b><span>当前市值对应 2030 年 PE</span></div>
+      <div class="lc-result"><b id="lcTargetCap">—</b><span>目标 PE 对应市值区间（亿元）</span></div>
+      <div class="lc-result"><b id="lcTargetPrice">—</b><span>目标 PE 对应股价区间（元/股）</span></div>
+    </div>
+    <div class="lc-scroll" style="margin-top:12px" tabindex="0" role="region" aria-label="历史、预测与2030年利润比较">
+      <table class="lc-table" style="min-width:820px">
+        <thead><tr><th>口径</th><th>2025 实际</th><th>2025 项目重建</th><th>2026 独立模型</th><th>2026 市场一致预期</th><th>2026 项目重建</th><th>2030 项目模型</th></tr></thead>
+        <tbody><tr><td>归母净利润（亿元）</td><td id="lcActual2025">—</td><td id="lcRebuilt2025">—</td><td id="lcIndependent2026">—</td><td id="lcConsensus2026">—</td><td id="lcRebuilt2026">—</td><td id="lcTerminalTableProfit">—</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="lc-panel lc-single-panel">
+    <div class="lc-panel-head">
+      <div>
+        <h2>经营、盈利、现金流与股东回报</h2>
+        <div class="lc-note">白色输入框是冻结模型或明确标注的桥接基准；蓝色结果随锂价、项目产量、权益、成本、增量资本开支和财务输入即时变化。</div>
+      </div>
+      <div class="lc-field" style="min-width:220px"><label for="lcCashConversion">增量利润转经营现金流系数</label><input id="lcCashConversion" type="number" min="0" step="0.01"></div>
+    </div>
+    <div class="lc-scroll" tabindex="0" role="region" aria-label="经营盈利现金流与股东回报，可横向滚动">
+      <table class="lc-table lc-financial-table">
+        <thead id="lcFinancialHead"></thead>
+        <tbody id="lcFinancialRows"></tbody>
+      </table>
+    </div>
+    <div id="lcFinancialChart" class="lc-financial-chart" role="img" aria-label="营业收入、归母净利润、经营现金流、自由现金流与股东现金回报趋势"></div>
+    <div class="lc-note" id="lcFinancialNote"></div>
+  </section>
+
+  <section class="lc-panel lc-single-panel">
+    <div class="lc-panel-head">
+      <div>
+        <h2>多方法估值与当前市场对照</h2>
+        <div class="lc-note">PE、PB—ROE与股权现金流折现均使用当前网页情景结果；上下限参数可以调整，方法之间不机械平均。</div>
+      </div>
+    </div>
+    <div class="lc-results" id="lcDynamicValuationKpis"></div>
+    <div class="lc-scroll" style="margin-top:12px" tabindex="0" role="region" aria-label="动态多方法估值，可横向滚动">
+      <table class="lc-table lc-valuation-dynamic">
+        <thead><tr><th>估值方法</th><th>角色</th><th>情景估值基准</th><th>下限参数</th><th>上限参数</th><th>情景估值下限</th><th>情景估值上限</th><th>当前市值</th><th>相对当前市值</th><th>公式与使用边界</th></tr></thead>
+        <tbody id="lcDynamicValuationRows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="lc-panel lc-single-panel">
+    <h2>冻结估值对账</h2>
+    <div class="lc-scroll" tabindex="0" role="region" aria-label="冻结估值方法上下限与参数依据，可横向滚动">
+      <table class="lc-table lc-valuation-table">
+        <thead><tr><th>估值方法</th><th>计算基准</th><th>估值下限</th><th>估值上限</th><th>相对当前市值</th><th>公式与参数依据</th></tr></thead>
+        <tbody id="lcValuationAuditRows"></tbody>
+      </table>
+    </div>
+    <div class="lc-note"><strong>冻结对账只保留研究完成时的输入与结果，不随网页情景改变。</strong>它用于解释动态结果为何变化，不能与实时情景再次平均。</div>
+  </section>
+
+  <section class="lc-panel lc-comparison-panel">
+    <div class="lc-panel-head">
+      <div><div class="lc-kicker">INDUSTRY COMPARISON</div><h2>比较范围与核心结果</h2></div>
+      <div class="lc-note">下方所有表格和图表使用同一组公司筛选。取消勾选只影响比较展示，不删除公司的项目或财务情景。</div>
+    </div>
+    <div class="lc-compare-kpis" id="lcCompareKpis"></div>
+    <div class="lc-checks" id="lcCompareChecks" aria-label="选择参与比较的公司"></div>
+  </section>
+
+  <section class="lc-panel lc-comparison-panel">
+    <div class="lc-panel-head">
+      <h2>锂价敏感性与估值</h2>
+      <div class="lc-compare-controls"><label for="lcSensitivityPrices">含税锂价序列（万元/吨）</label><input id="lcSensitivityPrices" class="lc-input" style="width:260px" value="8,10,12,15,18,20"></div>
+    </div>
+    <div class="lc-two">
+      <div class="lc-scroll" tabindex="0" role="region" aria-label="锂价敏感性矩阵">
+        <table class="lc-table" style="min-width:760px">
+          <thead><tr><th>2030 含税锂价</th><th>资源利润</th><th>加工利润</th><th>其他净利润</th><th>归母净利润</th><th>当前市值/利润</th><th>目标市值区间</th></tr></thead>
+          <tbody id="lcSensitivityRows"></tbody>
+        </table>
+      </div>
+      <div class="lc-chart" id="lcSensitivityChart" role="img" aria-label="锂价与2030年归母净利润敏感性折线图"></div>
+    </div>
+  </section>
+
+  <section class="lc-panel lc-comparison-panel">
+    <div class="lc-panel-head">
+      <div>
+        <div class="lc-kicker">公司资源与利润汇总</div>
+        <h2>公司资源、利润与估值总览</h2>
+      </div>
+      <div class="lc-summary-controls">
+        <label for="lcSummaryYear">年份</label>
+        <select id="lcSummaryYear" class="lc-select">{% for year in calculator_years %}<option value="{{ year }}"{{ ' selected' if year == 2030 else '' }}>{{ year }}</option>{% endfor %}</select>
+        <label for="lcSummaryPrice">统一含税锂价</label>
+        <input id="lcSummaryPrice" class="lc-input" type="number" value="15.00" min="0" step="0.01">
+        <label for="lcSummarySort">排序</label>
+        <select id="lcSummarySort" class="lc-select"><option value="profit">模型利润</option><option value="attributable">权益资源产量</option><option value="marketCap">当前市值</option><option value="resourcePe">资源端隐含PE</option><option value="targetMid">目标市值中点</option></select>
+        <select id="lcSummaryDirection" class="lc-select" aria-label="排序方向"><option value="desc">从高到低</option><option value="asc">从低到高</option></select>
+      </div>
+    </div>
+    <div class="lc-scroll" tabindex="0" role="region" aria-label="公司资源利润与估值总览，可横向滚动">
+      <table class="lc-table" style="min-width:1540px">
+        <thead><tr><th class="sticky-name">公司</th><th>当前市值</th><th>项目总产量</th><th>权益资源产量</th><th>资源利润</th><th>加工利润</th><th>其他业务净利润</th><th>模型合计利润</th><th>非资源业务估值</th><th>资源端隐含市值</th><th>资源端隐含 PE</th><th>目标市值区间</th></tr></thead>
+        <tbody id="lcCompanySummaryRows"></tbody>
+      </table>
+    </div>
+    <div class="lc-compare-charts"><div class="lc-compare-chart" id="lcCompanyProfitChart" role="img" aria-label="各公司权益资源产量与归母净利润比较"></div><div class="lc-compare-chart" id="lcCompanyValuationChart" role="img" aria-label="各公司当前市值与目标市值比较"></div></div>
+    <div class="lc-note">非资源业务估值＝（加工利润＋其他业务净利润）×目标 PE 区间中点，最低按 0 处理；资源端隐含市值＝当前市值－非资源业务估值。目标市值按 PE 下限和上限分别计算。该拆分是网页可复算诊断，不把历史底稿中的旧市值和旧倍数继续当成当前事实。</div>
+  </section>
+
+  <section class="lc-panel lc-comparison-panel">
+    <div class="lc-panel-head">
+      <div><div class="lc-kicker">跨公司资源与业绩增长</div><h2>公司资源增长与长期业绩比较</h2></div>
+      <div class="lc-compare-controls"><label for="lcGrowthSort">排序</label><select id="lcGrowthSort" class="lc-select"><option value="terminalProfit">2030归母净利润</option><option value="attrCagr">权益产量CAGR</option><option value="grossCagr">总产量CAGR</option><option value="growthVs2025">2030/2025业绩</option></select><select id="lcGrowthDirection" class="lc-select" aria-label="长期比较排序方向"><option value="desc">从高到低</option><option value="asc">从低到高</option></select></div>
+    </div>
+    <div class="lc-scroll" tabindex="0" role="region" aria-label="公司资源增长与长期业绩比较，可横向滚动">
+      <table class="lc-table" style="min-width:2820px">
+        <thead id="lcGrowthHead"></thead>
+        <tbody id="lcGrowthSummaryRows"></tbody>
+      </table>
+    </div>
+    <div class="lc-note">2024 年为项目资源基准参考值；2025—2030 年全部从当前逐项目记录实时汇总。业绩均指归母净利润：2025 年取已披露实际值，2026 年取冻结的独立模型值，2030 年取当前项目模型实时结果。新增项目、修改权益或产量后，增长率、2030 年业绩与目标估值会同步变化。</div>
+  </section>
+
+  <section class="lc-panel lc-comparison-panel">
+    <div class="lc-panel-head"><div><h2>跨公司情景快照</h2><div class="lc-note">一次保存当前所有公司的项目、价格、现金流与估值参数，以及比较页的年份、统一锂价、排序和敏感性序列。</div></div></div>
+    <div class="lc-toolbar">
+      <input id="lcCompareScenarioName" class="lc-input" style="width:220px" maxlength="40" placeholder="跨公司情景名称">
+      <button type="button" class="lc-btn primary" id="lcCompareSave">保存整组快照</button>
+      <select id="lcCompareSaved" class="lc-select" aria-label="已保存跨公司快照"></select>
+      <button type="button" class="lc-btn" id="lcCompareLoad">载入</button>
+      <button type="button" class="lc-btn danger" id="lcCompareDelete">删除</button>
+    </div>
+    <div class="lc-message" id="lcCompareMessage" aria-live="polite"></div>
+  </section>
+
+  <section class="lc-panel lc-two lc-single-panel">
+    <div>
+      <h2>计算方法</h2>
+      <div class="lc-formula">
+        <b>项目权益产量</b>＝项目产量 × 公司权益比例。<br>
+        <b>资源税前利润（亿元）</b>＝Σ[项目总产量（万吨 LCE）×利润归属比例×（含税锂价÷1.13－含税完全成本÷1.13）]。<br>
+        <b>资源税后利润（亿元）</b>＝资源税前利润合计×（1－企业所得税率）；冻结默认所得税率为 15%。<br>
+        <b>加工税后利润（亿元）</b>＝Σ[权益加工量（万吨 LCE）×含税单位加工利润÷1.13]×（1－企业所得税率）。<br>
+        <b>公司归母净利润</b>＝资源税后利润＋加工税后利润＋已经按净利润口径录入的其他业务/权益法利润－公司层费用与少数股东影响。<br>
+        <b>目标市值区间</b>＝归母净利润×目标 PE 下限/上限；目标股价区间按当前总股本近似换算。
+      </div>
+      <div class="lc-note">价格和项目完全成本都按含 13% 增值税口径输入，二者分别除以 1.13 后计算项目税前利润，再对公司全部资源项目的税前利润合计统一扣除企业所得税。负资源利润不会自动截断为零。项目分成或政府收益安排通过“利润归属比例”单独表达，不与企业所得税混用；其他业务和公司层调整已按净利润口径录入，不重复扣税。</div>
+    </div>
+    <div>
+      <h2>项目证据与边界</h2>
+      <ul class="lc-list" id="lcEvidence"></ul>
+      <div class="lc-source" id="lcFreeze"></div>
+    </div>
+  </section>
+</div>
+
+<script id="lcData" type="application/json">{{ calculator_companies_json|safe }}</script>
+<script>
+(function(){
+  'use strict';
+  const YEARS=JSON.parse({{ calculator_years_json|tojson }});
+  const COMPARISON_MODE={{ comparison_mode|tojson }};
+  const companies=JSON.parse(document.getElementById('lcData').textContent||'[]');
+  const byId=new Map(companies.map(c=>[String(c.companyKey),c]));
+  const initialId=String({{ selected_company_key|tojson }});
+  const $=id=>document.getElementById(id);
+  const deep=v=>JSON.parse(JSON.stringify(v));
+  const num=(v,d=0)=>{const n=Number(v);return Number.isFinite(n)?n:d};
+  const nullable=v=>v===null||v===undefined||v===''?null:(Number.isFinite(Number(v))?Number(v):null);
+  const fmt=(v,d=2)=>Number.isFinite(v)?v.toLocaleString('zh-CN',{minimumFractionDigits:d,maximumFractionDigits:d}):'—';
+  const pct=v=>Number.isFinite(v)?fmt(v*100,2)+'%':'—';
+  const esc=v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const storageKey='industry_demo_lithium_calculator_scenarios_v1';
+  const comparisonStorageKey='industry_demo_lithium_comparison_scenarios_v1';
+  const companySelect=$('lcCompany'),rowsBody=$('lcProjectRows');
+  const visibleCompanyKeys=new Set(companies.map(c=>String(c.companyKey)));
+  const scrollMirrors=[];
+  let state=null,mode='detailed',dirty=false,simpleSyncing=false,plotRetries=0,scrollResizeObserver=null;
+
+  function refreshScrollMirrors(){
+    window.requestAnimationFrame(()=>scrollMirrors.forEach(({top,body,spacer})=>{
+      spacer.style.width=Math.max(body.scrollWidth,body.clientWidth)+'px';
+      top.classList.toggle('is-idle',body.scrollWidth<=body.clientWidth+1);
+      if(Math.abs(top.scrollLeft-body.scrollLeft)>1)top.scrollLeft=body.scrollLeft;
+    }));
+  }
+  function enhanceScrollbars(){
+    document.querySelectorAll('.lc-scroll').forEach((body,index)=>{
+      if(body.dataset.topScrollbar==='ready')return;
+      const top=document.createElement('div'),spacer=document.createElement('div');
+      top.className='lc-scroll-top';top.tabIndex=0;top.setAttribute('role','region');
+      top.setAttribute('aria-label',`${body.getAttribute('aria-label')||`表格 ${index+1}`}上方横向滚动条`);
+      top.appendChild(spacer);body.before(top);body.dataset.topScrollbar='ready';
+      let syncing=false;
+      top.addEventListener('scroll',()=>{if(syncing)return;syncing=true;body.scrollLeft=top.scrollLeft;syncing=false},{passive:true});
+      body.addEventListener('scroll',()=>{if(syncing)return;syncing=true;top.scrollLeft=body.scrollLeft;syncing=false},{passive:true});
+      scrollMirrors.push({top,body,spacer});
+      if(window.ResizeObserver){
+        scrollResizeObserver=scrollResizeObserver||new ResizeObserver(refreshScrollMirrors);
+        scrollResizeObserver.observe(body);
+        const table=body.querySelector('table');if(table)scrollResizeObserver.observe(table);
+      }
+    });
+    refreshScrollMirrors();
+  }
+
+  function normalizeProject(raw){
+    const p=deep(raw||{}),lastYear=String(YEARS[YEARS.length-1]);
+    p.name=p.name||'未命名项目';p.type=p.type||'resource';p.enabled=p.enabled!==false;
+    p.status=p.status||'研究员待确认';p.origin=p.origin||'研究员手动值';p.note=p.note||'';
+    p.ownershipPct=num(p.ownershipPct,100);
+    p.profitAttributionPct=num(p.profitAttributionPct,p.ownershipPct);
+    if(p.profitAttributionFollowsOwnership===undefined){
+      p.profitAttributionFollowsOwnership=Math.abs(p.profitAttributionPct-p.ownershipPct)<1e-9;
+    }else{
+      p.profitAttributionFollowsOwnership=p.profitAttributionFollowsOwnership!==false;
+    }
+    p.volumeByYear=p.volumeByYear||{};
+    p.costByYear=p.costByYear||{};
+    p.processingMarginByYear=p.processingMarginByYear||{};
+    p.fixedProfitByYear=p.fixedProfitByYear||{};
+    p.incrementalCapexByYear=p.incrementalCapexByYear||{};
+    YEARS.forEach((year,index)=>{
+      const key=String(year),previous=String(YEARS[Math.max(0,index-1)]);
+      if(p.volumeByYear[key]===undefined){
+        if(year===2025)p.volumeByYear[key]=num(p.volume2025);
+        else if(year===2026)p.volumeByYear[key]=num(p.volume2026,p.volumeByYear[previous]);
+        else p.volumeByYear[key]=num(p.volumeTerminal,p.volumeByYear[previous]);
+      }
+      if(p.costByYear[key]===undefined)p.costByYear[key]=num(p.cost,p.costByYear[previous]);
+      if(p.processingMarginByYear[key]===undefined)p.processingMarginByYear[key]=num(p.processingMargin,p.processingMarginByYear[previous]);
+      if(p.fixedProfitByYear[key]===undefined){
+        if(year===2025)p.fixedProfitByYear[key]=num(p.fixedProfit2025);
+        else if(year===2026)p.fixedProfitByYear[key]=num(p.fixedProfit2026,p.fixedProfitByYear[previous]);
+        else p.fixedProfitByYear[key]=num(p.fixedProfitTerminal,p.fixedProfitByYear[previous]);
+      }
+      if(p.incrementalCapexByYear[key]===undefined)p.incrementalCapexByYear[key]=num(p.incrementalCapex,p.incrementalCapexByYear[previous]);
+    });
+    p.volumeTerminal=num(p.volumeByYear[lastYear]);p.cost=num(p.costByYear[lastYear]);
+    p.processingMargin=num(p.processingMarginByYear[lastYear]);p.fixedProfitTerminal=num(p.fixedProfitByYear[lastYear]);
+    return p;
+  }
+  function defaultState(c){
+    return {companyId:c.companyId,companyKey:String(c.companyKey),companyName:c.name,ticker:c.ticker,
+      price2025:8,price2026:15,priceTerminal:c.defaultPrice,incomeTaxRatePct:num(c.incomeTaxRatePct,15),
+      targetPe:c.targetPe,targetPeLow:c.targetPeLow??c.targetPe,targetPeHigh:c.targetPeHigh??c.targetPe,
+      financials:deep(c.financials||{}),cashConversion:num(c.cashConversion,1),
+      payoutByYear:deep(c.payoutByYear||{}),valuationInputs:deep(c.valuationMethods||[]),
+      projects:(c.projects||[]).map(normalizeProject),valuationModelHash:c.valuationModelHash,
+      origin:'冻结研究默认值',savedAt:null};
+  }
+  function normalizeState(raw,c){
+    const s={...defaultState(c),...deep(raw||{})};
+    s.companyKey=String(c.companyKey);s.companyId=c.companyId;s.companyName=c.name;s.ticker=c.ticker;
+    const sameModel=raw?.valuationModelHash&&raw.valuationModelHash===c.valuationModelHash;
+    // 旧情景中的 taxFactor 同时混入税率、少数股东和归母折损，
+    // 不能迁移为企业所得税率；统一回到当前冻结的明确税率。
+    if(raw?.incomeTaxRatePct===undefined)s.incomeTaxRatePct=num(c.incomeTaxRatePct,15);
+    delete s.taxFactor;
+    const legacyPe=num(s.targetPe,c.targetPe);
+    if(!sameModel||raw?.targetPeLow===undefined)s.targetPeLow=num(c.targetPeLow,legacyPe);
+    if(!sameModel||raw?.targetPeHigh===undefined)s.targetPeHigh=num(c.targetPeHigh,legacyPe);
+    s.targetPe=(num(s.targetPeLow)+num(s.targetPeHigh))/2;
+    s.financials=s.financials||deep(c.financials||{});
+    s.cashConversion=num(s.cashConversion,c.cashConversion??1);
+    s.payoutByYear={...deep(c.payoutByYear||{}),...(s.payoutByYear||{})};
+    if(!sameModel||!Array.isArray(s.valuationInputs))s.valuationInputs=deep(c.valuationMethods||[]);
+    s.valuationModelHash=c.valuationModelHash;
+    const frozenProjects=new Map(
+      (c.projects||[]).map(p=>[String(p.name||''),p])
+    );
+    s.projects=(s.projects||[]).map(p=>{
+      const frozen=frozenProjects.get(String(p.name||''));
+      if(p.profitAttributionPct===undefined&&frozen?.profitAttributionPct!==undefined){
+        p.profitAttributionPct=frozen.profitAttributionPct;
+      }
+      if(p.profitAttributionFollowsOwnership===undefined&&frozen?.profitAttributionFollowsOwnership!==undefined){
+        p.profitAttributionFollowsOwnership=frozen.profitAttributionFollowsOwnership;
+      }
+      return normalizeProject(p);
+    });return s;
+  }
+  const states=new Map(companies.map(c=>[String(c.companyKey),defaultState(c)]));
+  const sourceCompany=()=>byId.get(String(state.companyKey));
+  const savedAll=()=>{try{return JSON.parse(localStorage.getItem(storageKey)||'{}')}catch(e){return{}}};
+  const setSaved=o=>{try{localStorage.setItem(storageKey,JSON.stringify(o));return true}catch(e){return false}};
+  const mapValue=(p,map,year)=>num((p[map]||{})[String(year)]);
+  const ownership=p=>num(p.ownershipPct,100)/100;
+  const priceFor=(s,year)=>year===2025?num(s.price2025):year===2026?num(s.price2026):num(s.priceTerminal);
+  const peRange=s=>[Math.max(0,num(s.targetPeLow,s.targetPe)),Math.max(0,num(s.targetPeHigh,s.targetPe))].sort((a,b)=>a-b);
+
+  function calculateYear(s,year,priceOverride){
+    const price=priceOverride===undefined?priceFor(s,year):num(priceOverride);
+    const incomeTaxRate=Math.min(1,Math.max(0,num(s.incomeTaxRatePct,15)/100));
+    const afterIncomeTax=1-incomeTaxRate;
+    let resourcePreTax=0,processingPreTax=0,other=0,grossResource=0,attributableResource=0,processingVolume=0,revenueProxy=0,incrementalCapex=0;
+    s.projects.forEach(p=>{
+      if(!p.enabled)return;
+      const own=ownership(p);
+      incrementalCapex+=mapValue(p,'incrementalCapexByYear',year);
+      if(p.type==='resource'){
+        const volume=mapValue(p,'volumeByYear',year),eq=volume*own,cost=mapValue(p,'costByYear',year);
+        const profitVolume=volume*num(p.profitAttributionPct,p.ownershipPct)/100;
+        grossResource+=volume;attributableResource+=eq;revenueProxy+=eq*price/1.13;
+        resourcePreTax+=profitVolume*(price/1.13-cost/1.13);
+      }else if(p.type==='processing'){
+        const volume=mapValue(p,'volumeByYear',year)*own,margin=mapValue(p,'processingMarginByYear',year);
+        processingVolume+=volume;revenueProxy+=volume*price/1.13;processingPreTax+=volume*margin/1.13;
+      }else{
+        other+=mapValue(p,'fixedProfitByYear',year)*own;
+      }
+    });
+    const resource=resourcePreTax*afterIncomeTax,processing=processingPreTax*afterIncomeTax;
+    return {year,price,resourcePreTax,processingPreTax,incomeTaxRate,resource,processing,other,total:resource+processing+other,grossResource,attributableResource,processingVolume,revenueProxy,incrementalCapex};
+  }
+  function scenarioYear(s,year){
+    const c=byId.get(String(s.companyKey)),key=String(year),working=(s.financials||{})[key]||{},current=calculateYear(s,year);
+    const frozenState=defaultState(c),frozen=calculateYear(frozenState,year);
+    if(year===2025){
+      const revenue=num(working.revenue),netIncome=num(working.netIncome),ocf=num(working.ocf),capex=num(working.capex),equity=nullable(working.equity),fcf=ocf-capex,dividend=Math.max(0,netIncome*num((s.payoutByYear||{})[key])/100),buyback=Math.max(0,num(working.buyback));
+      return {year,revenue,netIncome,netMargin:revenue?netIncome/revenue:null,ocf,ocfConversion:netIncome?ocf/netIncome:null,capex,fcf,equity,roe:equity?netIncome/equity:null,dividend,buyback,cashReturn:dividend+buyback,project:current,revenueDelta:0,netIncomeDelta:0};
+    }
+    const revenueDelta=current.revenueProxy-frozen.revenueProxy,netIncomeDelta=current.total-frozen.total;
+    const revenue=Math.max(0,num(working.revenue)+revenueDelta),netIncome=num(working.netIncome)+netIncomeDelta;
+    const ocf=num(working.ocf)+netIncomeDelta*num(s.cashConversion,1);
+    const capex=Math.max(0,num(working.capex)+current.incrementalCapex-frozen.incrementalCapex),fcf=ocf-capex,equity=nullable(working.equity);
+    const dividend=Math.max(0,netIncome*num((s.payoutByYear||{})[key])/100),buyback=Math.max(0,num(working.buyback));
+    return {year,revenue,netIncome,netMargin:revenue?netIncome/revenue:null,ocf,ocfConversion:netIncome?ocf/netIncome:null,capex,fcf,equity,roe:equity?netIncome/equity:null,dividend,buyback,cashReturn:dividend+buyback,project:current,revenueDelta,netIncomeDelta};
+  }
+  const financeRows=[
+    ['revenue','营业收入','input'],['netIncome','归母净利润','input'],['netMargin','情景净利率','computed'],
+    ['ocf','经营现金流','input'],['ocfConversion','经营现金流/净利润','computed'],['capex','资本开支','input'],
+    ['fcf','自由现金流','computed'],['equity','期末归母净资产','equity'],['roe','情景ROE','computed'],
+    ['payout','分红支付率','payout'],['dividend','预计分红现金','computed'],['buyback','回购现金','input'],
+    ['cashReturn','分红＋回购','computed'],['fcfYield','自由现金流收益率','computed']
+  ];
+  function financialValue(result,key){
+    if(key==='fcfYield'){const c=byId.get(String(state.companyKey)),cap=nullable(c.marketCapYi);return cap?result.fcf/cap:null}
+    return result[key];
+  }
+  function financialDisplay(value,key){
+    return ['fcfYield','roe','netMargin','ocfConversion'].includes(key)?pct(value):fmt(value);
+  }
+  function renderFinancial(){
+    $('lcFinancialHead').innerHTML=`<tr><th>指标</th>${YEARS.map(y=>`<th>${y}${y===2025?'A':'E'}<br><small>亿元</small></th>`).join('')}</tr>`;
+    $('lcFinancialRows').innerHTML=financeRows.map(([key,label,type])=>`<tr><td>${label}</td>${YEARS.map(y=>{
+      const base=(state.financials||{})[String(y)]||{};
+      if(type==='input')return `<td><input data-finance="${key}" data-year="${y}" aria-label="${label}${y}经营基准" type="number" step=".01" value="${num(base[key]).toFixed(2)}"><small class="lc-live" data-financial-live="${key}:${y}">情景结果 <b data-financial-output="${key}:${y}">—</b><span data-financial-delta="${key}:${y}"></span></small></td>`;
+      if(type==='equity')return `<td>${base[key]===null||base[key]===undefined?'<span class="lc-computed">—</span>':`<input data-finance="${key}" data-year="${y}" aria-label="${label}${y}经营基准" type="number" min="0" step=".01" value="${num(base[key]).toFixed(2)}"><small class="lc-live">情景结果 <b data-financial-output="${key}:${y}">—</b></small>`}</td>`;
+      if(type==='payout')return `<td><div class="lc-inline-unit"><input data-payout="${y}" aria-label="${label}${y}" type="number" min="0" max="100" step=".01" value="${num((state.payoutByYear||{})[String(y)]).toFixed(2)}"><span>%</span></div></td>`;
+      return `<td><span class="lc-computed" data-financial-output="${key}:${y}">—</span></td>`;
+    }).join('')}</tr>`).join('');
+    $('lcFinancialRows').querySelectorAll('input').forEach((el,i)=>{el.name=`lithium_financial_${i}`;el.setAttribute('autocomplete','off')});
+    updateFinancialOutputs();refreshScrollMirrors();
+  }
+  function updateFinancialOutputs(){
+    financeRows.forEach(([key,,type])=>YEARS.forEach(y=>{
+      if(type==='payout')return;
+      const result=scenarioYear(state,y),value=financialValue(result,key),output=document.querySelector(`[data-financial-output="${key}:${y}"]`);
+      if(output)output.textContent=financialDisplay(value,key);
+      const live=document.querySelector(`[data-financial-live="${key}:${y}"]`);
+      if(live){
+        const base=num(((state.financials||{})[String(y)]||{})[key]),delta=num(value)-base;
+        live.classList.toggle('pos',delta>.004);live.classList.toggle('neg',delta<-.004);
+        const node=document.querySelector(`[data-financial-delta="${key}:${y}"]`);if(node)node.textContent=` · ${delta>=0?'+':''}${fmt(delta)}`;
+      }
+    }));
+    drawFinancialChart();
+  }
+  function drawFinancialChart(){
+    if(COMPARISON_MODE)return;
+    const box=$('lcFinancialChart');if(!box)return;
+    if(!window.Plotly){if(plotRetries++<80)setTimeout(drawFinancialChart,60);return}
+    const rows=YEARS.map(year=>scenarioYear(state,year));
+    const periodCount=Math.max(1,YEARS.length),seriesCount=5;
+    const preferredWidth=Math.min(960,Math.max(680,500+periodCount*75));
+    const preferredHeight=Math.min(420,Math.max(340,300+periodCount*10+Math.max(0,seriesCount-4)*8));
+    box.style.maxWidth=`${preferredWidth}px`;box.style.height=`${preferredHeight}px`;
+    box.dataset.periodCount=String(periodCount);box.dataset.seriesCount=String(seriesCount);box.dataset.preferredWidth=String(preferredWidth);box.dataset.preferredHeight=String(preferredHeight);
+    Plotly.react(box,[
+      {type:'bar',name:'营业收入',x:YEARS,y:rows.map(row=>row.revenue),marker:{color:'#4d718f'}},
+      {type:'scatter',mode:'lines+markers',name:'归母净利润',x:YEARS,y:rows.map(row=>row.netIncome),yaxis:'y2',line:{color:'#a43d35',width:3}},
+      {type:'scatter',mode:'lines+markers',name:'经营现金流',x:YEARS,y:rows.map(row=>row.ocf),yaxis:'y2',line:{color:'#d07a36',width:2.5}},
+      {type:'scatter',mode:'lines+markers',name:'自由现金流',x:YEARS,y:rows.map(row=>row.fcf),yaxis:'y2',line:{color:'#39715d',width:3}},
+      {type:'scatter',mode:'lines+markers',name:'分红＋回购',x:YEARS,y:rows.map(row=>row.cashReturn),yaxis:'y2',line:{color:'#6b56a1',width:2.5,dash:'dot'}}
+    ],{margin:{l:62,r:68,t:88,b:48},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdff',hovermode:'x unified',legend:{orientation:'h',x:0,y:1.16,yanchor:'bottom',font:{size:11}},xaxis:{title:'年度',dtick:1,automargin:true},yaxis:{title:'营业收入（亿元）',gridcolor:'#e4ebf1',automargin:true},yaxis2:{title:'利润与现金流（亿元）',overlaying:'y',side:'right',showgrid:false,zeroline:true,automargin:true}},{responsive:true,displaylogo:false,modeBarButtonsToRemove:['lasso2d','select2d']});
+  }
+  function dcfValue(s,forecastYears,costOfEquityPct,terminalGrowthPct){
+    const ke=num(costOfEquityPct)/100,g=num(terminalGrowthPct)/100;
+    if(!(ke>g&&g>=0))return null;
+    const flows=(forecastYears||[]).map(y=>num(scenarioYear(s,num(y)).fcf));
+    if(!flows.length)return null;
+    const explicit=flows.reduce((sum,value,index)=>sum+value/Math.pow(1+ke,index+1),0);
+    return explicit+flows[flows.length-1]*(1+g)/(ke-g)/Math.pow(1+ke,flows.length);
+  }
+  function pbRoeValue(s,cfg,side){
+    const result=scenarioYear(s,num(cfg.year,2027)),params=cfg[side+'Value']||{},equity=nullable(result.equity),roe=num(result.roe),factor=Math.max(0,num(params.roeFactor,1)),ke=num(params.costOfEquityPct)/100,g=num(params.terminalGrowthPct)/100,sustainable=roe*factor;
+    if(equity===null||!(ke>g&&g>=0))return {value:null,pb:null,sustainable};
+    const pb=Math.max(0,(sustainable-g)/(ke-g));
+    return {value:equity*pb,pb,sustainable};
+  }
+  function adjustedValuations(){
+    return (state.valuationInputs||[]).map((cfg,index)=>{
+      if(cfg.kind==='multiple'){
+        const result=scenarioYear(state,num(cfg.year,2027)),basis=num(result[cfg.driver||'netIncome']),p1=Math.max(0,num(cfg.lowParameter)),p2=Math.max(0,num(cfg.highParameter));
+        return {...cfg,index,basis,low:basis*Math.min(p1,p2),high:basis*Math.max(p1,p2)};
+      }
+      if(cfg.kind==='pb_roe'){
+        const lowResult=pbRoeValue(state,cfg,'low'),highResult=pbRoeValue(state,cfg,'high'),values=[lowResult.value,highResult.value].filter(Number.isFinite);
+        return {...cfg,index,basis:scenarioYear(state,num(cfg.year,2027)),lowResult,highResult,low:values.length?Math.min(...values):null,high:values.length?Math.max(...values):null};
+      }
+      if(cfg.kind==='fcfe_dcf'){
+        const lowValue=dcfValue(state,cfg.forecastYears,cfg.lowValue?.costOfEquityPct,cfg.lowValue?.terminalGrowthPct),highValue=dcfValue(state,cfg.forecastYears,cfg.highValue?.costOfEquityPct,cfg.highValue?.terminalGrowthPct),values=[lowValue,highValue].filter(Number.isFinite);
+        return {...cfg,index,basis:(cfg.forecastYears||[]).map(y=>scenarioYear(state,num(y)).fcf),low:values.length?Math.min(...values):null,high:values.length?Math.max(...values):null};
+      }
+      return {...cfg,index,basis:null,low:nullable(cfg.low),high:nullable(cfg.high)};
+    });
+  }
+  function valuationParameterCell(v,side){
+    if(v.kind==='multiple'){
+      const key=side==='low'?'lowParameter':'highParameter';
+      return `<input data-valuation-multiple="${v.index}:${side}" aria-label="${esc(v.method)}${side==='low'?'下限':'上限'}参数" type="number" min="0" step=".01" value="${num(v[key]).toFixed(2)}"><small>${esc(v.parameterLabel||'倍数')}</small>`;
+    }
+    if(v.kind==='pb_roe'){
+      const p=v[side+'Value']||{};
+      return `<div class="lc-pb-inputs"><label>ROE系数<input data-valuation-pb-factor="${v.index}:${side}" type="number" min="0" step=".01" value="${num(p.roeFactor,1).toFixed(2)}"></label><label>Ke %<input data-valuation-pb-ke="${v.index}:${side}" type="number" min="0" step=".01" value="${num(p.costOfEquityPct).toFixed(2)}"></label><label>g %<input data-valuation-pb-g="${v.index}:${side}" type="number" min="0" step=".01" value="${num(p.terminalGrowthPct).toFixed(2)}"></label></div>`;
+    }
+    if(v.kind==='fcfe_dcf'){
+      const p=v[side+'Value']||{};
+      return `<div class="lc-dcf-inputs"><label>Ke %<input data-valuation-dcf-ke="${v.index}:${side}" type="number" min="0" step=".01" value="${num(p.costOfEquityPct).toFixed(2)}"></label><label>g %<input data-valuation-dcf-g="${v.index}:${side}" type="number" min="0" step=".01" value="${num(p.terminalGrowthPct).toFixed(2)}"></label></div>`;
+    }
+    return '<span>冻结对照</span>';
+  }
+  function valuationBasis(v){
+    if(v.kind==='multiple')return `${v.year}E ${esc(v.basisLabel||'归母净利润')}<br><b>${fmt(v.basis)}亿元</b>`;
+    if(v.kind==='pb_roe')return `${v.year}E 归母权益 ${fmt(v.basis.equity)}亿元；情景ROE ${pct(v.basis.roe)}<br><b>对应PB ${v.lowResult?.pb===null?'—':fmt(v.lowResult.pb)}—${v.highResult?.pb===null?'—':fmt(v.highResult.pb)}倍</b>`;
+    if(v.kind==='fcfe_dcf')return `${esc(v.basisLabel||'自由现金流')}<br><b>${(v.forecastYears||[]).map((y,i)=>`${y}E ${fmt(v.basis[i])}`).join('；')}亿元</b>`;
+    return esc(v.basisLabel||'冻结条件估值');
+  }
+  function renderDynamicValuation(){
+    const rows=adjustedValuations(),c=sourceCompany(),market=nullable(c.marketCapYi);
+    $('lcDynamicValuationRows').innerHTML=rows.map(v=>{
+      const relative=market&&Number.isFinite(v.low)&&Number.isFinite(v.high)?`${fmt((v.low/market-1)*100)}% 至 ${fmt((v.high/market-1)*100)}%`:'—';
+      return `<tr><td><b>${esc(v.method)}</b></td><td><span class="lc-role">${esc(v.role||'')}</span></td><td data-lc-valuation-basis="${v.index}">${valuationBasis(v)}</td><td>${valuationParameterCell(v,'low')}</td><td>${valuationParameterCell(v,'high')}</td><td><b data-lc-valuation-low="${v.index}">${v.low===null?'—':fmt(v.low)+'亿元'}</b></td><td><b data-lc-valuation-high="${v.index}">${v.high===null?'—':fmt(v.high)+'亿元'}</b></td><td>${market===null?'—':fmt(market)+'亿元'}</td><td data-lc-valuation-relative="${v.index}">${relative}</td><td><b>${esc(v.formula||'')}</b><br>${esc(v.note||'')}</td></tr>`;
+    }).join('');
+    const core=rows.filter(v=>['核心','核心参考','有效参考'].includes(v.role)&&Number.isFinite(v.low)&&Number.isFinite(v.high)),lows=core.map(v=>v.low),highs=core.map(v=>v.high),low=lows.length?Math.min(...lows):null,high=highs.length?Math.max(...highs):null,r2028=scenarioYear(state,2028);
+    $('lcDynamicValuationKpis').innerHTML=`<div class="lc-result"><b>${low===null?'—':fmt(low)+'—'+fmt(high)}</b><span>核心方法情景市值区间（亿元）</span></div><div class="lc-result"><b>${market===null?'—':fmt(market)}</b><span>当前市值（亿元）</span></div><div class="lc-result"><b>${fmt(r2028.netIncome)}</b><span>2028E情景归母净利润（亿元）</span></div><div class="lc-result"><b>${fmt(r2028.fcf)}</b><span>2028E自由现金流（亿元）</span></div>`;
+    $('lcDynamicValuationRows').querySelectorAll('input').forEach((el,i)=>{el.name=`lithium_valuation_${i}`;el.setAttribute('autocomplete','off')});
+    refreshScrollMirrors();
+  }
+  function updateDynamicValuationOutputsOnly(){
+    const rows=adjustedValuations(),market=nullable(sourceCompany().marketCapYi);
+    rows.forEach(v=>{
+      const low=$('lcDynamicValuationRows').querySelector(`[data-lc-valuation-low="${v.index}"]`),high=$('lcDynamicValuationRows').querySelector(`[data-lc-valuation-high="${v.index}"]`),basis=$('lcDynamicValuationRows').querySelector(`[data-lc-valuation-basis="${v.index}"]`),relative=$('lcDynamicValuationRows').querySelector(`[data-lc-valuation-relative="${v.index}"]`);
+      if(low)low.textContent=v.low===null?'—':fmt(v.low)+'亿元';if(high)high.textContent=v.high===null?'—':fmt(v.high)+'亿元';if(basis)basis.innerHTML=valuationBasis(v);
+      if(relative)relative.textContent=market&&Number.isFinite(v.low)&&Number.isFinite(v.high)?`${fmt((v.low/market-1)*100)}% 至 ${fmt((v.high/market-1)*100)}%`:'—';
+    });
+    const core=rows.filter(v=>['核心','核心参考','有效参考'].includes(v.role)&&Number.isFinite(v.low)&&Number.isFinite(v.high)),low=core.length?Math.min(...core.map(v=>v.low)):null,high=core.length?Math.max(...core.map(v=>v.high)):null,r2028=scenarioYear(state,2028);
+    $('lcDynamicValuationKpis').innerHTML=`<div class="lc-result"><b>${low===null?'—':fmt(low)+'—'+fmt(high)}</b><span>核心方法情景市值区间（亿元）</span></div><div class="lc-result"><b>${market===null?'—':fmt(market)}</b><span>当前市值（亿元）</span></div><div class="lc-result"><b>${fmt(r2028.netIncome)}</b><span>2028E情景归母净利润（亿元）</span></div><div class="lc-result"><b>${fmt(r2028.fcf)}</b><span>2028E自由现金流（亿元）</span></div>`;
+  }
+  function addProject(type='resource',name='新增资源项目'){
+    const p=normalizeProject({name,type,enabled:true,status:'研究员待确认',origin:'研究员手动值',note:'',ownershipPct:100,profitAttributionPct:100,profitAttributionFollowsOwnership:true,
+      volumeByYear:Object.fromEntries(YEARS.map(y=>[String(y),0])),
+      costByYear:Object.fromEntries(YEARS.map(y=>[String(y),type==='resource'?6:0])),
+      processingMarginByYear:Object.fromEntries(YEARS.map(y=>[String(y),0])),
+      fixedProfitByYear:Object.fromEntries(YEARS.map(y=>[String(y),0])),
+      incrementalCapexByYear:Object.fromEntries(YEARS.map(y=>[String(y),0]))});
+    state.projects.push(p);return p;
+  }
+
+  function buildProjectHead(){
+    $('lcProjectHead').innerHTML=`<tr><th class="sticky-name">锂矿/盐湖项目与地区</th><th>启用</th><th>类型</th><th>模型权益计入起点 / 项目状态</th><th class="ownership-column">公司权益</th><th class="ownership-column">资源利润归属</th>${YEARS.map(y=>`<th>${y}<br><span style="font-size:9px">产量/利润 · 含税完全成本/含税加工利润 · 增量CapEx</span></th>`).join('')}<th class="lc-note-cell">研究备注</th><th class="lc-action">操作</th></tr>`;
+  }
+  function annualCell(p,i,year){
+    const isOther=p.type==='other',value=isOther?mapValue(p,'fixedProfitByYear',year):mapValue(p,'volumeByYear',year);
+    const unit=p.type==='resource'?mapValue(p,'costByYear',year):(p.type==='processing'?mapValue(p,'processingMarginByYear',year):null);
+    const capex=mapValue(p,'incrementalCapexByYear',year);
+    const valueLabel=isOther?'固定利润(亿)':'产量(万吨)';
+    const unitLabel=p.type==='resource'?'含税完全成本(万/吨)':(p.type==='processing'?'含税加工利润(万/吨)':'不使用');
+    const eq=value*ownership(p);
+    const profitVolume=p.type==='resource'?value*num(p.profitAttributionPct,p.ownershipPct)/100:null;
+    return `<td class="year-input"><div class="lc-year-box"><label>${valueLabel}</label><label>${unitLabel}</label><label>增量CapEx(亿)</label>
+      <input data-i="${i}" data-series="${isOther?'fixedProfitByYear':'volumeByYear'}" data-year="${year}" type="number" step=".01" value="${value.toFixed(2)}">
+      ${unit===null?'<input value="—" disabled>':`<input data-i="${i}" data-series="${p.type==='resource'?'costByYear':'processingMarginByYear'}" data-year="${year}" type="number" step=".01" value="${unit.toFixed(2)}">`}
+      <input data-i="${i}" data-series="incrementalCapexByYear" data-year="${year}" type="number" min="0" step=".01" value="${capex.toFixed(2)}">
+      <small data-equity="${i}:${year}">权益后：${fmt(eq,2)}${isOther?' 亿元':' 万吨'}${profitVolume===null?'':`；利润计量量：${fmt(profitVolume,2)} 万吨`}</small></div></td>`;
+  }
+  function renderProjects(){
+    rowsBody.innerHTML='';
+    state.projects.forEach((p,i)=>{
+      const tr=document.createElement('tr'),label=esc(p.name||('第'+(i+1)+'项'));
+      tr.innerHTML=`<td class="sticky-name project-name"><input data-i="${i}" data-k="name" aria-label="${label}名称" value="${esc(p.name)}"></td>
+        <td><input data-i="${i}" data-k="enabled" aria-label="${label}是否启用" type="checkbox" ${p.enabled?'checked':''}></td>
+        <td><select data-i="${i}" data-k="type" aria-label="${label}业务类型"><option value="resource">资源项目</option><option value="processing">加工业务</option><option value="other">其他业务</option></select></td>
+        <td class="project-status"><textarea data-i="${i}" data-k="status" rows="2" aria-label="${label}状态或权益时点">${esc(p.status)}</textarea></td>
+        <td class="ownership-column"><div class="lc-inline-unit"><input data-i="${i}" data-k="ownershipPct" aria-label="${label}公司权益比例" type="number" min="0" max="100" step=".01" value="${num(p.ownershipPct,100).toFixed(2)}"><span aria-hidden="true">%</span></div></td>
+        <td class="ownership-column"><div class="lc-inline-unit">${p.type==='resource'?`<input data-i="${i}" data-k="profitAttributionPct" aria-label="${label}资源利润归属比例" type="number" min="0" max="100" step=".01" value="${num(p.profitAttributionPct,p.ownershipPct).toFixed(2)}"><span aria-hidden="true">%</span>`:'<span>—</span>'}</div><small>${p.type==='resource'?esc(p.profitAttributionBasis||'默认等于公司权益'):''}</small></td>
+        ${YEARS.map(y=>annualCell(p,i,y)).join('')}
+        <td class="lc-note-cell"><textarea data-i="${i}" data-k="note" aria-label="${label}备注">${esc(p.note)}</textarea></td>
+        <td class="lc-action-cell"><button class="lc-btn danger" data-remove="${i}" type="button">删除</button></td>`;
+      tr.querySelector('select').value=p.type;rowsBody.appendChild(tr);
+      tr.querySelectorAll('input,select,textarea').forEach((el,j)=>{el.name='project_'+i+'_'+(el.dataset.k||el.dataset.series||j);el.setAttribute('autocomplete','off')});
+    });
+    refreshScrollMirrors();
+  }
+  function renderWorkbookNotes(c){
+    const rows=c.workbookNotes||[],box=$('lcWorkbookNotes');
+    if(!rows.length){
+      box.innerHTML='<div class="lc-note"><strong>公司经营与项目备注：</strong>该公司的源项目底稿没有其他可恢复的文字备注；项目行备注仍保留在上表。</div>';
+      return;
+    }
+    box.innerHTML='<div class="lc-note"><strong>公司经营与项目备注（共 '+rows.length+' 条）：</strong>以下按源项目底稿的业务位置展示，避免把属于其他业务或经营假设的说明误挂到某一座矿山。</div>'+
+      rows.map(row=>`<div class="lc-workbook-note"><b>${esc(row.context||('第 '+row.row+' 行'))}<br><code>${esc(row.cell||'')}</code></b><span>${esc(row.text||'')}</span></div>`).join('');
+  }
+  function renderValuationAudit(c){
+    const rows=c.valuationRows||[],body=$('lcValuationAuditRows');
+    if(!rows.length){
+      body.innerHTML='<tr><td colspan="6">该扩展公司只有项目级计算底稿，尚未形成可复核的公司层冻结估值；网页只允许研究员自行设置情景PE，不把默认值当作研究结论。</td></tr>';
+      return;
+    }
+    body.innerHTML=rows.map(row=>{
+      const relative=row.relativeLow===null||row.relativeHigh===null?'当前市值不可比':`${pct(row.relativeLow)}—${pct(row.relativeHigh)}`;
+      const basis=[row.formula,row.parameterBasis,row.limitation?`局限：${row.limitation}`:''].filter(Boolean).map(esc).join('<br>');
+      return `<tr><td class="lc-method"><b>${esc(row.method)}</b><br><span class="lc-role">${esc(row.role||'')}</span></td>
+        <td>${esc(row.inputSummary||'公开资料不足以形成可复算输入')}</td>
+        <td class="lc-value">${row.lowYi===null?'—':fmt(row.lowYi)+' 亿元'}</td>
+        <td class="lc-value">${row.highYi===null?'—':fmt(row.highYi)+' 亿元'}</td>
+        <td class="lc-value">${relative}</td><td class="lc-basis">${basis}</td></tr>`;
+    }).join('');
+    refreshScrollMirrors();
+  }
+  function updateEquityLabels(){
+    state.projects.forEach((p,i)=>YEARS.forEach(year=>{
+      const node=document.querySelector(`[data-equity="${i}:${year}"]`);if(!node)return;
+      const v=p.type==='other'?mapValue(p,'fixedProfitByYear',year):mapValue(p,'volumeByYear',year);
+      const profitVolume=p.type==='resource'?v*num(p.profitAttributionPct,p.ownershipPct)/100:null;
+      node.textContent=`权益后：${fmt(v*ownership(p),2)}${p.type==='other'?' 亿元':' 万吨'}${profitVolume===null?'':`；利润计量量：${fmt(profitVolume,2)} 万吨`}`;
+    }));
+  }
+
+  function activeOf(type,filter=()=>true){return state.projects.filter(p=>p.enabled&&p.type===type&&filter(p))}
+  function weighted(rows,valueMap,weightMap,year){
+    const denominator=rows.reduce((s,p)=>s+mapValue(p,weightMap,year)*ownership(p),0);
+    return denominator?rows.reduce((s,p)=>s+mapValue(p,valueMap,year)*mapValue(p,weightMap,year)*ownership(p),0)/denominator:0;
+  }
+  function syncSimpleFromState(){
+    simpleSyncing=true;
+    const y=YEARS[YEARS.length-1],resources=activeOf('resource'),processing=activeOf('processing'),others=activeOf('other',p=>mapValue(p,'fixedProfitByYear',y)>=0),costs=activeOf('other',p=>mapValue(p,'fixedProfitByYear',y)<0);
+    $('lcSimpleResourceVolume').value=resources.reduce((s,p)=>s+mapValue(p,'volumeByYear',y)*ownership(p),0).toFixed(2);
+    $('lcSimpleCost').value=weighted(resources,'costByYear','volumeByYear',y).toFixed(2);
+    $('lcSimpleProcessingVolume').value=processing.reduce((s,p)=>s+mapValue(p,'volumeByYear',y)*ownership(p),0).toFixed(2);
+    $('lcSimpleMargin').value=weighted(processing,'processingMarginByYear','volumeByYear',y).toFixed(2);
+    $('lcSimpleOther').value=others.reduce((s,p)=>s+mapValue(p,'fixedProfitByYear',y)*ownership(p),0).toFixed(2);
+    $('lcSimpleCorporate').value=Math.abs(costs.reduce((s,p)=>s+mapValue(p,'fixedProfitByYear',y)*ownership(p),0)).toFixed(2);
+    simpleSyncing=false;
+  }
+  function scaleEquityVolume(rows,target,year){
+    if(!rows.length)rows.push(addProject('resource','简化模式新增资源组合'));
+    const current=rows.reduce((s,p)=>s+mapValue(p,'volumeByYear',year)*ownership(p),0);
+    if(current>0){const factor=target/current;rows.forEach(p=>p.volumeByYear[String(year)]=mapValue(p,'volumeByYear',year)*factor)}
+    else{const p=rows[0];p.volumeByYear[String(year)]=target/Math.max(ownership(p),.000001)}
+  }
+  function setOtherTotal(rows,target,year,name){
+    if(!rows.length)rows.push(addProject('other',name));
+    rows.forEach((p,i)=>p.fixedProfitByYear[String(year)]=i?0:target/Math.max(ownership(p),.000001));
+  }
+  function syncStateFromSimple(){
+    if(simpleSyncing)return;
+    const y=YEARS[YEARS.length-1],key=String(y);
+    let resources=activeOf('resource');scaleEquityVolume(resources,num($('lcSimpleResourceVolume').value),y);resources.forEach(p=>p.costByYear[key]=num($('lcSimpleCost').value));
+    let processing=activeOf('processing');
+    if(!processing.length)processing=[addProject('processing','简化模式外购加工组合')];
+    scaleEquityVolume(processing,num($('lcSimpleProcessingVolume').value),y);processing.forEach(p=>p.processingMarginByYear[key]=num($('lcSimpleMargin').value));
+    let others=activeOf('other',p=>mapValue(p,'fixedProfitByYear',y)>=0),costs=activeOf('other',p=>mapValue(p,'fixedProfitByYear',y)<0);
+    setOtherTotal(others,num($('lcSimpleOther').value),y,'简化模式其他业务');
+    setOtherTotal(costs,-Math.abs(num($('lcSimpleCorporate').value)),y,'简化模式公司层费用');
+  }
+
+  function companyLink(c){return c.companyId?`<a href="/company/${c.companyId}?industry_id=28">${esc(c.name)}</a>`:esc(c.name)}
+  function visibleCompanies(){return companies.filter(c=>visibleCompanyKeys.has(String(c.companyKey)))}
+  function renderCompareChecks(){
+    $('lcCompareChecks').innerHTML=companies.map(c=>`<label class="lc-check"><input type="checkbox" data-compare-company="${esc(c.companyKey)}" ${visibleCompanyKeys.has(String(c.companyKey))?'checked':''}>${esc(c.name)}</label>`).join('');
+  }
+  function renderCompareKpis(rows,year){
+    const sum=key=>rows.reduce((total,row)=>total+num(row[key]),0),markets=rows.map(row=>row.marketCap).filter(Number.isFinite),targets=rows.map(row=>row.targetMid).filter(Number.isFinite);
+    const cards=[
+      [String(rows.length),'参与比较公司'],
+      [fmt(sum('attributable'))+' 万吨',`${year}E权益资源产量`],
+      [fmt(sum('profit'))+' 亿元',`${year}E模型归母净利润`],
+      [fmt(markets.reduce((a,b)=>a+b,0))+' 亿元','当前市值合计'],
+      [fmt(targets.reduce((a,b)=>a+b,0))+' 亿元','目标市值中点合计'],
+      [rows.filter(row=>row.profit>0).length+' 家','模型利润为正']
+    ];
+    $('lcCompareKpis').innerHTML=cards.map(([value,label])=>`<div class="lc-compare-kpi"><b>${value}</b><span>${label}</span></div>`).join('');
+  }
+  function compareSort(rows,key,direction){
+    const sign=direction==='asc'?1:-1;
+    return rows.sort((a,b)=>{
+      const av=a[key],bv=b[key],an=Number.isFinite(av),bn=Number.isFinite(bv);
+      if(an&&!bn)return -1;if(!an&&bn)return 1;if(!an&&!bn)return String(a.name).localeCompare(String(b.name),'zh-CN');
+      return (av-bv)*sign;
+    });
+  }
+  function drawCompanyCharts(rows){
+    if(!COMPARISON_MODE)return;
+    const profitBox=$('lcCompanyProfitChart'),valuationBox=$('lcCompanyValuationChart');
+    if(!window.Plotly){if(plotRetries++<80)setTimeout(()=>drawCompanyCharts(rows),60);return}
+    const names=rows.map(x=>x.name);
+    Plotly.react(profitBox,[
+      {type:'bar',name:'权益资源产量',x:names,y:rows.map(x=>x.attributable),marker:{color:'#447aa3'},hovertemplate:'%{x}<br>权益资源产量 %{y:.2f} 万吨<extra></extra>'},
+      {type:'scatter',mode:'lines+markers',name:'模型归母净利润',x:names,y:rows.map(x=>x.profit),yaxis:'y2',line:{color:'#b5362e',width:2.5},marker:{size:7},hovertemplate:'%{x}<br>归母净利润 %{y:.2f} 亿元<extra></extra>'}
+    ],{margin:{l:58,r:58,t:28,b:90},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdff',font:{family:'Arial,Microsoft YaHei,sans-serif',size:10,color:'#52667e'},xaxis:{tickangle:-35},yaxis:{title:'权益产量（万吨）',gridcolor:'#e6edf3'},yaxis2:{title:'归母净利润（亿元）',overlaying:'y',side:'right',showgrid:false},legend:{orientation:'h',y:1.13}},{responsive:true,displayModeBar:false});
+    Plotly.react(valuationBox,[
+      {type:'bar',name:'当前市值',x:names,y:rows.map(x=>x.marketCap),marker:{color:'#95a8b8'},hovertemplate:'%{x}<br>当前市值 %{y:.2f} 亿元<extra></extra>'},
+      {type:'bar',name:'目标市值中点',x:names,y:rows.map(x=>x.targetMid),marker:{color:'#b85a51'},hovertemplate:'%{x}<br>目标市值中点 %{y:.2f} 亿元<extra></extra>'}
+    ],{barmode:'group',margin:{l:58,r:20,t:28,b:90},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdff',font:{family:'Arial,Microsoft YaHei,sans-serif',size:10,color:'#52667e'},xaxis:{tickangle:-35},yaxis:{title:'亿元',gridcolor:'#e6edf3'},legend:{orientation:'h',y:1.13}},{responsive:true,displayModeBar:false});
+  }
+  function renderCompanySummary(){
+    const year=Number($('lcSummaryYear').value),price=num($('lcSummaryPrice').value,15);
+    const rows=visibleCompanies().map(c=>{
+      const s=states.get(String(c.companyKey)),r=calculateYear(s,year,price),cap=nullable(c.marketCapYi),nonResource=r.processing+r.other,[peLow,peHigh]=peRange(s),peMid=(peLow+peHigh)/2;
+      const nonResourceValue=Math.max(0,nonResource*peMid),resourceValue=cap===null?null:cap-nonResourceValue,resourcePe=resourceValue!==null&&r.resource>0?resourceValue/r.resource:null,targetLow=Math.max(0,r.total*peLow),targetHigh=Math.max(0,r.total*peHigh);
+      return {c,name:c.name,marketCap:cap,gross:r.grossResource,attributable:r.attributableResource,resource:r.resource,processing:r.processing,other:r.other,profit:r.total,nonResourceValue,resourceValue,resourcePe,targetLow,targetHigh,targetMid:(targetLow+targetHigh)/2};
+    });
+    compareSort(rows,$('lcSummarySort').value,$('lcSummaryDirection').value);
+    $('lcCompanySummaryRows').innerHTML=rows.map(x=>`<tr><td class="sticky-name">${companyLink(x.c)}<br><small>${esc(x.c.ticker||'')}</small></td><td>${x.marketCap===null?'—':fmt(x.marketCap)}</td><td>${fmt(x.gross)}</td><td>${fmt(x.attributable)}</td><td>${fmt(x.resource)}</td><td>${fmt(x.processing)}</td><td>${fmt(x.other)}</td><td><b>${fmt(x.profit)}</b></td><td>${fmt(x.nonResourceValue)}</td><td>${x.resourceValue===null?'—':fmt(x.resourceValue)}</td><td>${x.resourcePe===null?'不适用':fmt(x.resourcePe)+'×'}</td><td>${fmt(x.targetLow)}—${fmt(x.targetHigh)}</td></tr>`).join('');
+    renderCompareKpis(rows,year);drawCompanyCharts(rows);
+  }
+  function buildGrowthHead(){
+    const yearLabels=[2024,...YEARS];
+    $('lcGrowthHead').innerHTML=`<tr><th class="sticky-name">公司</th><th>当前市值</th>${yearLabels.map(y=>`<th>权益产量<br>${y}${y===2024?'参考':''}</th>`).join('')}<th>权益产量<br>2025—30 CAGR</th>${yearLabels.map(y=>`<th>项目总产量<br>${y}${y===2024?'参考':''}</th>`).join('')}<th>总产量<br>2025—30 CAGR</th><th>2030 归母净利润</th><th>2030年业绩/2026年业绩<br>（归母净利润）</th><th>2030年业绩/2025年业绩<br>（归母净利润）</th><th>目标市值区间</th></tr>`;
+  }
+  function cagr(start,end){return start>0&&end>=0?Math.pow(end/start,1/5)-1:null}
+  function renderGrowthSummary(){
+    const rows=visibleCompanies().map(c=>{
+      const s=states.get(String(c.companyKey)),rows=Object.fromEntries(YEARS.map(y=>[y,calculateYear(s,y)])),base=c.sheet1Baseline2024||{},cap=nullable(c.marketCapYi),terminal=rows[2030],profit2026=nullable(c.independent2026ProfitYi),profit2025=nullable(c.actual2025ProfitYi),growthVs2026=profit2026!==null&&Math.abs(profit2026)>1e-9?terminal.total/profit2026:null,growthVs2025=profit2025!==null&&Math.abs(profit2025)>1e-9?terminal.total/profit2025:null,[peLow,peHigh]=peRange(s),targetLow=Math.max(0,terminal.total*peLow),targetHigh=Math.max(0,terminal.total*peHigh);
+      const attr=[nullable(base.attributable),...YEARS.map(y=>rows[y].attributableResource)],gross=[nullable(base.gross),...YEARS.map(y=>rows[y].grossResource)];
+      const attrCagr=cagr(rows[2025].attributableResource,rows[2030].attributableResource),grossCagr=cagr(rows[2025].grossResource,rows[2030].grossResource);
+      return {c,name:c.name,cap,attr,gross,attrCagr,grossCagr,terminalProfit:terminal.total,growthVs2026,growthVs2025,targetLow,targetHigh};
+    });
+    compareSort(rows,$('lcGrowthSort').value,$('lcGrowthDirection').value);
+    $('lcGrowthSummaryRows').innerHTML=rows.map(x=>`<tr><td class="sticky-name">${companyLink(x.c)}<br><small>${esc(x.c.ticker||'')}</small></td><td>${x.cap===null?'—':fmt(x.cap)}</td>${x.attr.map(v=>`<td>${v===null?'—':fmt(v)}</td>`).join('')}<td>${x.attrCagr===null?'基数为0':pct(x.attrCagr)}</td>${x.gross.map(v=>`<td>${v===null?'—':fmt(v)}</td>`).join('')}<td>${x.grossCagr===null?'基数为0':pct(x.grossCagr)}</td><td><b>${fmt(x.terminalProfit)}</b></td><td>${x.growthVs2026===null?'不适用':fmt(x.growthVs2026)+'×'}</td><td>${x.growthVs2025===null?'不适用':fmt(x.growthVs2025)+'×'}</td><td>${fmt(x.targetLow)}—${fmt(x.targetHigh)}</td></tr>`).join('');
+  }
+  function drawSensitivity(points){
+    const box=$('lcSensitivityChart');if(!box)return;
+    if(!window.Plotly){if(plotRetries++<80)setTimeout(()=>drawSensitivity(points),60);return}
+    Plotly.react(box,[{type:'scatter',mode:'lines+markers',x:points.map(p=>p.x),y:points.map(p=>p.y),line:{color:'#b5362e',width:3},marker:{color:'#b5362e',size:7},hovertemplate:'含税锂价 %{x:.1f} 万元/吨<br>归母利润 %{y:.2f} 亿元<extra></extra>'}],{margin:{l:62,r:18,t:18,b:52},paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'#fbfdff',font:{family:'Arial,Microsoft YaHei,sans-serif',size:11,color:'#52667e'},xaxis:{title:'含税碳酸锂价格（万元/吨）',gridcolor:'#e7edf3',zeroline:false},yaxis:{title:'2030归母利润（亿元）',gridcolor:'#e7edf3',zerolinecolor:'#aab7c4'},showlegend:false},{responsive:true,displayModeBar:false,scrollZoom:false});
+  }
+  function renderSensitivity(){
+    const prices=String($('lcSensitivityPrices').value||'').split(/[,，\s]+/).map(Number).filter(v=>Number.isFinite(v)&&v>=0).filter((v,i,a)=>a.indexOf(v)===i).sort((a,b)=>a-b),c=sourceCompany(),cap=nullable(c.marketCapYi),points=[];
+    $('lcSensitivityRows').innerHTML=prices.map(price=>{
+      const r=calculateYear(state,2030,price),pe=cap!==null&&r.total>0?cap/r.total:null,[peLow,peHigh]=peRange(state),targetLow=Math.max(0,r.total*peLow),targetHigh=Math.max(0,r.total*peHigh);points.push({x:price,y:r.total});
+      return `<tr><td>${fmt(price,2)} 万元/吨</td><td>${fmt(r.resource)}</td><td>${fmt(r.processing)}</td><td>${fmt(r.other)}</td><td><b>${fmt(r.total)}</b></td><td>${pe===null?'不适用':fmt(pe)+'×'}</td><td>${fmt(targetLow)}—${fmt(targetHigh)} 亿元</td></tr>`;
+    }).join('');drawSensitivity(points);
+  }
+  function recalc(){
+    state.price2025=num($('lcPrice2025').value);state.price2026=num($('lcPrice2026').value);state.priceTerminal=num($('lcPriceTerminal').value);state.incomeTaxRatePct=num($('lcIncomeTaxRate').value,15);state.targetPeLow=num($('lcTargetPeLow').value);state.targetPeHigh=num($('lcTargetPeHigh').value);state.targetPe=(state.targetPeLow+state.targetPeHigh)/2;
+    state.cashConversion=num($('lcCashConversion').value,1);
+    if(mode==='simple')syncStateFromSimple();
+    states.set(String(state.companyKey),state);
+    const c=sourceCompany(),r25=calculateYear(state,2025),r26=calculateYear(state,2026),rt=calculateYear(state,2030),cap=nullable(c.marketCapYi),currentPrice=nullable(c.currentPrice);
+    const shares=cap!==null&&currentPrice?cap/currentPrice:null,[peLow,peHigh]=peRange(state),targetLow=Math.max(0,rt.total*peLow),targetHigh=Math.max(0,rt.total*peHigh),targetPriceLow=shares?targetLow/shares:null,targetPriceHigh=shares?targetHigh/shares:null;
+    $('lcTerminalProfit').textContent=fmt(rt.total)+' 亿元';$('lcVs2025').textContent=c.actual2025ProfitYi?fmt(rt.total/c.actual2025ProfitYi,2)+'×':'不适用';$('lcVs2026').textContent=c.independent2026ProfitYi?fmt(rt.total/c.independent2026ProfitYi,2)+'×':'不适用';
+    $('lcImpliedPe').textContent=cap!==null&&rt.total>0?fmt(cap/rt.total)+'×':'不适用';$('lcTargetCap').textContent=`${fmt(targetLow)}—${fmt(targetHigh)}`;$('lcTargetPrice').textContent=targetPriceLow===null?'—':`${fmt(targetPriceLow)}—${fmt(targetPriceHigh)}`;
+    $('lcActual2025').textContent=fmt(c.actual2025ProfitYi);$('lcRebuilt2025').textContent=fmt(r25.total);$('lcIndependent2026').textContent=fmt(c.independent2026ProfitYi);$('lcConsensus2026').textContent=c.consensus2026ProfitYi===null?'—':fmt(c.consensus2026ProfitYi);$('lcRebuilt2026').textContent=fmt(r26.total);$('lcTerminalTableProfit').textContent=fmt(rt.total);
+    updateEquityLabels();updateFinancialOutputs();renderDynamicValuation();renderSensitivity();renderCompanySummary();renderGrowthSummary();refreshScrollMirrors();
+  }
+  function renderSaved(){
+    const list=savedAll()[String(state.companyKey)]||[];
+    $('lcSaved').innerHTML='<option value="">已保存情景</option>'+list.map((x,i)=>`<option value="${i}">${esc(x.name)} · ${esc((x.savedAt||'').slice(0,10))}</option>`).join('');
+  }
+  function compareSavedAll(){try{return JSON.parse(localStorage.getItem(comparisonStorageKey)||'[]')}catch(e){return[]}}
+  function setCompareSaved(rows){try{localStorage.setItem(comparisonStorageKey,JSON.stringify(rows));return true}catch(e){return false}}
+  function renderCompareSaved(){
+    const rows=compareSavedAll();$('lcCompareSaved').innerHTML='<option value="">已保存跨公司快照</option>'+rows.map((x,i)=>`<option value="${i}">${esc(x.name)} · ${esc((x.savedAt||'').slice(0,10))}</option>`).join('');
+  }
+  function comparisonViewState(){
+    return {summaryYear:$('lcSummaryYear').value,summaryPrice:$('lcSummaryPrice').value,summarySort:$('lcSummarySort').value,summaryDirection:$('lcSummaryDirection').value,growthSort:$('lcGrowthSort').value,growthDirection:$('lcGrowthDirection').value,sensitivityPrices:$('lcSensitivityPrices').value,visible:[...visibleCompanyKeys],selectedCompany:companySelect.value};
+  }
+  function applyComparisonView(view){
+    const values=view||{};['summaryYear','summaryPrice','summarySort','summaryDirection','growthSort','growthDirection','sensitivityPrices'].forEach(key=>{const id='lc'+key.charAt(0).toUpperCase()+key.slice(1),node=$(id);if(node&&values[key]!==undefined)node.value=values[key]});
+    visibleCompanyKeys.clear();(values.visible||companies.map(c=>String(c.companyKey))).forEach(key=>visibleCompanyKeys.add(String(key)));renderCompareChecks();
+  }
+  function loadCompany(id,reset=false){
+    const c=byId.get(String(id))||companies[0];if(!c)return;
+    if(reset)states.set(String(c.companyKey),defaultState(c));
+    state=states.get(String(c.companyKey))||defaultState(c);companySelect.value=String(c.companyKey);
+    const marketCap=nullable(c.marketCapYi),currentPrice=nullable(c.currentPrice);
+    $('lcPrice2025').value=num(state.price2025).toFixed(2);$('lcPrice2026').value=num(state.price2026).toFixed(2);$('lcPriceTerminal').value=num(state.priceTerminal).toFixed(2);$('lcIncomeTaxRate').value=num(state.incomeTaxRatePct,15).toFixed(2);$('lcTargetPeLow').value=num(state.targetPeLow).toFixed(2);$('lcTargetPeHigh').value=num(state.targetPeHigh).toFixed(2);
+    $('lcCashConversion').value=num(state.cashConversion,1).toFixed(2);
+    $('lcMarketCap').value=marketCap===null?'':marketCap.toFixed(2);$('lcCurrentPrice').value=currentPrice===null?'':currentPrice.toFixed(2);$('lcModelType').textContent=c.modelType||'—';
+    $('lcCompanyMeta').innerHTML=`<b>${esc(c.name)} ${esc(c.ticker)}</b> · ${c.workbookProjectLedger?`已载入 ${c.workbookProjectCount} 个项目级资源/业务记录及 ${(c.workbookNotes||[]).length} 条公司经营备注`:'当前使用公司级回退模型，可继续新增项目'} · 2025 实际利润 ${fmt(c.actual2025ProfitYi)} 亿元 · 2026 独立模型 ${fmt(c.independent2026ProfitYi)} 亿元${c.consensus2026ProfitYi===null?'':' · Wind一致预期 '+fmt(c.consensus2026ProfitYi)+' 亿元'}`;
+    $('lcEvidence').innerHTML=(c.evidence||[]).map(x=>`<li>${esc(x)}</li>`).join('')+(c.limitation||[]).map(x=>`<li><b>边界：</b>${esc(x)}</li>`).join('');
+    $('lcFreeze').textContent=c.modelFrozenBeforeReconciliation?'独立模型输入与结果已在读取外部一致预期前冻结；网页情景不会写回研究库或财务库。':'网页情景只保存在当前浏览器，不会写回研究库或财务库。';
+    $('lcFinancialNote').innerHTML=`<strong>现金流口径：</strong>${esc(c.financialBridgeNote||'当前公司没有可复核的未来现金流拆分，需由研究员补充。')} 项目增量资本开支只影响网页情景，不会写回冻结模型。`;
+    syncSimpleFromState();renderProjects();renderWorkbookNotes(c);renderFinancial();renderDynamicValuation();renderValuationAudit(c);renderSaved();recalc();
+  }
+
+  buildProjectHead();buildGrowthHead();enhanceScrollbars();
+  companies.forEach(c=>companySelect.insertAdjacentHTML('beforeend',`<option value="${esc(c.companyKey)}">${esc(c.name)} · ${esc(c.ticker)}</option>`));
+  document.querySelectorAll('input,select,textarea').forEach((el,i)=>{if(!el.name)el.name=el.id||('calculator_field_'+i);if(!el.hasAttribute('autocomplete'))el.setAttribute('autocomplete','off')});
+  document.querySelectorAll('[data-mode]').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.mode;document.querySelectorAll('[data-mode]').forEach(b=>{b.classList.toggle('on',b===btn);b.setAttribute('aria-selected',b===btn?'true':'false')});$('lcSimplePanel').classList.toggle('lc-hidden',mode!=='simple');$('lcDetailedPanel').classList.toggle('lc-hidden',mode!=='detailed');if(mode==='simple')syncSimpleFromState();else renderProjects();recalc()}));
+  companySelect.addEventListener('change',()=>{loadCompany(companySelect.value);dirty=false;$('lcMessage').textContent='已切换公司；当前会话中的其他公司修改仍保留，刷新页面前请保存重要情景。'});
+  ['lcPrice2025','lcPrice2026','lcPriceTerminal','lcIncomeTaxRate','lcTargetPeLow','lcTargetPeHigh','lcCashConversion'].forEach(id=>$(id).addEventListener('input',()=>{dirty=true;recalc()}));
+  ['lcPrice2025','lcPrice2026','lcPriceTerminal','lcIncomeTaxRate','lcTargetPeLow','lcTargetPeHigh','lcCashConversion'].forEach(id=>$(id).addEventListener('change',e=>{e.target.value=num(e.target.value).toFixed(2)}));
+  ['lcSimpleResourceVolume','lcSimpleCost','lcSimpleProcessingVolume','lcSimpleMargin','lcSimpleOther','lcSimpleCorporate'].forEach(id=>$(id).addEventListener('input',()=>{dirty=true;syncStateFromSimple();renderProjects();recalc()}));
+  ['lcSimpleResourceVolume','lcSimpleCost','lcSimpleProcessingVolume','lcSimpleMargin','lcSimpleOther','lcSimpleCorporate'].forEach(id=>$(id).addEventListener('change',e=>{e.target.value=num(e.target.value).toFixed(2)}));
+  $('lcSummaryYear').addEventListener('change',renderCompanySummary);$('lcSummaryPrice').addEventListener('input',renderCompanySummary);$('lcSummaryPrice').addEventListener('change',e=>{e.target.value=num(e.target.value).toFixed(2)});
+  ['lcSummarySort','lcSummaryDirection'].forEach(id=>$(id).addEventListener('change',renderCompanySummary));
+  ['lcGrowthSort','lcGrowthDirection'].forEach(id=>$(id).addEventListener('change',renderGrowthSummary));
+  $('lcCompareChecks').addEventListener('change',e=>{const key=e.target.dataset.compareCompany;if(!key)return;e.target.checked?visibleCompanyKeys.add(String(key)):visibleCompanyKeys.delete(String(key));renderCompanySummary();renderGrowthSummary()});
+  $('lcSensitivityPrices').addEventListener('input',renderSensitivity);
+  $('lcFinancialRows').addEventListener('input',e=>{
+    const el=e.target,year=String(el.dataset.year||el.dataset.payout||'');dirty=true;
+    if(el.dataset.finance){state.financials[year]=state.financials[year]||{};state.financials[year][el.dataset.finance]=num(el.value)}
+    if(el.dataset.payout){state.payoutByYear[year]=num(el.value)}
+    recalc();
+  });
+  $('lcFinancialRows').addEventListener('change',e=>{if(e.target.type==='number')e.target.value=num(e.target.value).toFixed(2)});
+  $('lcDynamicValuationRows').addEventListener('input',e=>{
+    const el=e.target,parse=v=>{const [index,side]=String(v||'').split(':');return [Number(index),side]},setSide=(attr,key)=>{const [i,side]=parse(attr);if(!Number.isInteger(i)||!state.valuationInputs[i])return;state.valuationInputs[i][side+'Value']=state.valuationInputs[i][side+'Value']||{};state.valuationInputs[i][side+'Value'][key]=num(el.value)};
+    dirty=true;
+    if(el.dataset.valuationMultiple){const [i,side]=parse(el.dataset.valuationMultiple);if(Number.isInteger(i)&&state.valuationInputs[i])state.valuationInputs[i][side==='low'?'lowParameter':'highParameter']=num(el.value)}
+    else if(el.dataset.valuationPbFactor)setSide(el.dataset.valuationPbFactor,'roeFactor');
+    else if(el.dataset.valuationPbKe)setSide(el.dataset.valuationPbKe,'costOfEquityPct');
+    else if(el.dataset.valuationPbG)setSide(el.dataset.valuationPbG,'terminalGrowthPct');
+    else if(el.dataset.valuationDcfKe)setSide(el.dataset.valuationDcfKe,'costOfEquityPct');
+    else if(el.dataset.valuationDcfG)setSide(el.dataset.valuationDcfG,'terminalGrowthPct');
+    updateDynamicValuationOutputsOnly();
+  });
+  $('lcDynamicValuationRows').addEventListener('change',e=>{if(e.target.type==='number')e.target.value=num(e.target.value).toFixed(2)});
+  function handleProjectInput(el){
+    const i=Number(el.dataset.i);if(!Number.isInteger(i)||!state.projects[i])return;
+    const p=state.projects[i];dirty=true;
+    if(el.dataset.series){p[el.dataset.series][String(el.dataset.year)]=num(el.value)}
+    else if(el.dataset.k){p[el.dataset.k]=el.type==='checkbox'?el.checked:(el.type==='number'?num(el.value):el.value)}
+    if(el.dataset.k==='ownershipPct'&&p.profitAttributionFollowsOwnership){
+      p.profitAttributionPct=p.ownershipPct;
+    }
+    if(el.dataset.k==='profitAttributionPct'){
+      p.profitAttributionFollowsOwnership=false;
+      p.profitAttributionBasis='研究员手动利润归属';
+    }
+    if(el.dataset.k==='type'){renderProjects()}else{updateEquityLabels()}
+    syncSimpleFromState();recalc();
+  }
+  rowsBody.addEventListener('input',e=>handleProjectInput(e.target));
+  rowsBody.addEventListener('change',e=>{if(e.target.type==='number')e.target.value=num(e.target.value).toFixed(2);if(e.target.matches('select,input[type=checkbox]'))handleProjectInput(e.target)});
+  rowsBody.addEventListener('click',e=>{const i=e.target.dataset.remove;if(i===undefined)return;if(!window.confirm('确定删除这个项目或业务吗？'))return;dirty=true;state.projects.splice(Number(i),1);renderProjects();syncSimpleFromState();recalc()});
+  $('lcAddProject').addEventListener('click',()=>{dirty=true;addProject();renderProjects();syncSimpleFromState();recalc()});
+  $('lcSave').addEventListener('click',()=>{const name=$('lcScenarioName').value.trim()||('情景 '+new Date().toLocaleString('zh-CN'));const all=savedAll(),key=String(state.companyKey);all[key]=all[key]||[];const copy=deep(state);copy.name=name;copy.savedAt=new Date().toISOString();copy.origin='研究员手动值';all[key].push(copy);setSaved(all);dirty=false;renderSaved();$('lcMessage').textContent='已保存“'+name+'”；冻结默认值未被覆盖。'});
+  $('lcCopy').addEventListener('click',()=>{$('lcScenarioName').value=(($('lcScenarioName').value||sourceCompany().name)+' 副本');$('lcMessage').textContent='已复制当前参数，点击“保存情景”完成保存。'});
+  $('lcLoad').addEventListener('click',()=>{const i=Number($('lcSaved').value),list=(savedAll()[String(state.companyKey)]||[]);if(!Number.isInteger(i)||!list[i])return;if(dirty&&!window.confirm('当前参数尚未保存，仍要载入已保存情景吗？'))return;state=normalizeState(list[i],sourceCompany());states.set(String(state.companyKey),state);dirty=false;loadCompany(state.companyKey);$('lcMessage').textContent='已载入“'+list[i].name+'”。'});
+  $('lcDeleteSaved').addEventListener('click',()=>{const i=Number($('lcSaved').value),all=savedAll(),key=String(state.companyKey),list=all[key]||[];if(!Number.isInteger(i)||!list[i])return;const name=list[i].name;if(!window.confirm('确定删除已保存情景“'+name+'”吗？'))return;list.splice(i,1);all[key]=list;setSaved(all);renderSaved();$('lcMessage').textContent='已删除本地情景“'+name+'”。'});
+  $('lcCompareSave').addEventListener('click',()=>{
+    const name=$('lcCompareScenarioName').value.trim()||('跨公司情景 '+new Date().toLocaleString('zh-CN')),rows=compareSavedAll();
+    rows.push({name,savedAt:new Date().toISOString(),modelHash:companies[0]?.valuationModelHash||null,states:Object.fromEntries([...states.entries()].map(([key,value])=>[key,deep(value)])),view:comparisonViewState()});
+    setCompareSaved(rows);renderCompareSaved();$('lcCompareMessage').textContent='已保存整组快照“'+name+'”。';
+  });
+  $('lcCompareLoad').addEventListener('click',()=>{
+    const i=Number($('lcCompareSaved').value),row=compareSavedAll()[i];if(!Number.isInteger(i)||!row)return;
+    companies.forEach(c=>{const raw=(row.states||{})[String(c.companyKey)];states.set(String(c.companyKey),normalizeState(raw,c))});
+    applyComparisonView(row.view);const selected=String(row.view?.selectedCompany||state.companyKey);state=states.get(selected)||states.values().next().value;loadCompany(state.companyKey);renderCompanySummary();renderGrowthSummary();renderSensitivity();$('lcCompareMessage').textContent='已载入整组快照“'+row.name+'”。';
+  });
+  $('lcCompareDelete').addEventListener('click',()=>{
+    const i=Number($('lcCompareSaved').value),rows=compareSavedAll();if(!Number.isInteger(i)||!rows[i])return;const name=rows[i].name;if(!window.confirm('确定删除跨公司快照“'+name+'”吗？'))return;rows.splice(i,1);setCompareSaved(rows);renderCompareSaved();$('lcCompareMessage').textContent='已删除“'+name+'”。';
+  });
+  $('lcReset').addEventListener('click',()=>{if(dirty&&!window.confirm('确定放弃当前公司的会话修改并恢复冻结默认值吗？'))return;loadCompany(state.companyKey,true);dirty=false;$('lcMessage').textContent='已恢复冻结研究默认值。'});
+  $('lcExport').addEventListener('click',()=>{
+    const sensitivityPrices=parsePriceList($('lcSensitivityPrices').value);
+    const payload={
+      schema_version:'lithium_calculator_scenario.v3',
+      exported_at:new Date().toISOString(),
+      ...state,
+      results:{
+        project_by_year:Object.fromEntries(YEARS.map(y=>[String(y),calculateYear(state,y)])),
+        financial_by_year:Object.fromEntries(YEARS.map(y=>[String(y),scenarioYear(state,y)])),
+        valuation_methods:adjustedValuations(),
+        sensitivity:sensitivityPrices.map(p=>calculateYear(state,2030,p))
+      }
+    };
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}));
+    a.download=`${state.companyName}_${$('lcScenarioName').value.trim()||'情景'}_碳酸锂计算器.json`;
+    a.click();
+    URL.revokeObjectURL(a.href)
+  });
+  window.addEventListener('beforeunload',e=>{if(!dirty)return;e.preventDefault();e.returnValue=''});
+  window.addEventListener('resize',refreshScrollMirrors,{passive:true});
+  renderCompareSaved();renderCompareChecks();
+  loadCompany(byId.has(initialId)?initialId:String(companies[0]?.companyKey||''));
+})();
+</script>
+{% endblock %}

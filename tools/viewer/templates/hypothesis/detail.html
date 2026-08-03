@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}{{ h.title }} · 研究员观点{% endblock %}
+{% macro src_sup(sid) %}{% if sid %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endif %}{% endmacro %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('hypotheses_index') }}">研究员观点</a> /
+  <strong>{{ h.title }}</strong>
+</div>
+
+<header class="entity-header hyp-detail-head hyp-st-border-{{ h.status }}">
+  <div>
+    <h1>{{ h.title }}</h1>
+    <div class="hyp-detail-badges">
+      <span class="hyp-dir hyp-dir-{{ h.thesis_type }}">{{ hl(h.thesis_type) }}</span>
+      {% if h.conviction_level %}<span class="hyp-conv">信心 L{{ h.conviction_level }}/5</span>{% endif %}
+      <span class="hyp-st hyp-st-{{ h.status }}">{{ hl(h.status) }}</span>
+      {% if h.is_draft %}<span class="hyp-draft">草稿</span>{% endif %}
+      {% for i in h.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}
+      {% for c in h.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}
+      {% if h.horizon_months %}<span class="hyp-meta-pill">持有 {{ h.horizon_months }}</span>{% endif %}
+    </div>
+    <div class="hyp-detail-meta">
+      研究员:<a href="{{ url_for('researcher_profile', rid=h.researcher_id) }}">{{ h.researcher_name }}</a>
+      · 创建 {{ (h.created_at or '')[:16] }}{% if h.last_updated_at %} · 最近更新 {{ h.last_updated_at[:16] }}{% endif %}
+    </div>
+  </div>
+  <div class="entity-header-actions">
+    <a class="btn btn-secondary" href="{{ url_for('hypothesis_edit', hid=h.id) }}"> 编辑</a>
+  </div>
+</header>
+
+<!-- 假说陈述 -->
+<section class="panel">
+  <h3 class="panel-title">🧪 假说陈述</h3>
+  <div class="md-body hyp-text" style="box-shadow:none; padding:0;">{{ h.text_html | safe }}</div>
+</section>
+
+<!-- 引用材料(复用 trace modal)-->
+{% if cites.sources or cites.news or cites.voices or cites.events %}
+<section class="panel">
+  <h3 class="panel-title">📎 引用材料</h3>
+  {% if cites.sources %}<div class="hyp-cite-block"><span class="hyp-cite-label">研报</span>
+    {% for s in cites.sources %}<span class="hyp-cite-item trace-btn" data-source-id="{{ s.id }}" role="button" tabindex="0"><span class="tier-badge tier-{{ s.quality_tier }}">T{{ s.quality_tier }}</span> {{ s.title }} {{ src_sup(s.id) }}</span>{% endfor %}
+  </div>{% endif %}
+  {% if cites.news %}<div class="hyp-cite-block"><span class="hyp-cite-label">新闻</span>
+    {% for n in cites.news %}<a class="hyp-cite-item" href="{{ n.url }}" target="_blank" rel="noopener">{{ n.title }} <span class="hyp-cite-sub">· {{ n.source_publisher }} {{ (n.publish_date or '')[:10] }} ↗</span></a>{% endfor %}
+  </div>{% endif %}
+  {% if cites.voices %}<div class="hyp-cite-block"><span class="hyp-cite-label">意见领袖</span>
+    {% for v in cites.voices %}<a class="hyp-cite-item" href="{{ v.post_url }}" target="_blank" rel="noopener">{{ v.leader_name }}:{{ (v.content_text or '')[:50] }}… ↗</a>{% endfor %}
+  </div>{% endif %}
+  {% if cites.events %}<div class="hyp-cite-block"><span class="hyp-cite-label">事件</span>
+    {% for e in cites.events %}<a class="hyp-cite-item" href="{{ url_for('event_detail', event_id=e.id) }}">{{ e.title }} <span class="hyp-cite-sub">· {{ e.scheduled_date }}</span></a>{% endfor %}
+  </div>{% endif %}
+</section>
+{% endif %}
+
+<!-- 监控信号 -->
+<section class="panel">
+  <h3 class="panel-title">📡 监控信号(证伪条件 / 确认信号 / 中性观察)</h3>
+  {% if signals %}
+  <div class="hyp-signals">
+    {% for s in signals %}
+    <div class="hyp-signal hyp-sig-{{ s.signal_type }}" data-sid="{{ s.id }}">
+      <div class="hyp-signal-head">
+        <span class="hyp-sig-type hyp-sig-type-{{ s.signal_type }}">{{ hl(s.signal_type) }}</span>
+        <span class="hyp-sig-status hyp-sig-st-{{ s.current_status }}">{{ hl(s.current_status) }}</span>
+        {% if s.observation_target %}<span class="hyp-sig-target">关联:{{ s.observation_target }}</span>{% endif %}
+      </div>
+      <div class="hyp-signal-desc">{{ s.description }}</div>
+      {% if s.kw_list %}<div class="hyp-sig-kw">AI 关键词:{% for k in s.kw_list %}<span class="hyp-kw">{{ k }}</span>{% endfor %}</div>{% endif %}
+      {% if s.last_check_note %}<div class="hyp-sig-note">最近检查({{ (s.last_check_at or '')[:10] }}):{{ s.last_check_note }}</div>{% endif %}
+      <details class="hyp-sig-check">
+        <summary> 更新状态</summary>
+        <div class="hyp-sig-check-form">
+          <select class="hyp-sig-status-sel">
+            <option value="not_triggered">未触发</option>
+            <option value="partially_triggered">部分触发</option>
+            <option value="triggered">已触发</option>
+            <option value="contradicted">被反驳</option>
+          </select>
+          <input type="text" class="hyp-sig-note-in" placeholder="检查说明(如:Oracle Q3 现金流持平,未明显改善)">
+          <button class="btn btn-xs hyp-sig-save" data-sid="{{ s.id }}">保存</button>
+          <span class="hyp-sig-msg"></span>
+        </div>
+      </details>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="hyp-empty">暂无监控信号。</p>{% endif %}
+
+  <details class="hyp-add-box">
+    <summary>+ 添加监控信号</summary>
+    <div class="hyp-add-form">
+      <select id="add-sig-type">
+        <option value="falsification">证伪条件</option>
+        <option value="confirmation">确认信号</option>
+        <option value="monitor">中性观察</option>
+      </select>
+      <input type="text" id="add-sig-desc" placeholder="信号描述(如:Oracle 后续财报现金流明显改善)">
+      <input type="text" id="add-sig-target" placeholder="关联(可选,如 event:Oracle 财报)">
+      <input type="text" id="add-sig-kw" placeholder="AI 检测关键词(逗号分隔,如:Oracle 现金流,云收入)">
+      <button class="btn btn-xs" id="add-sig-btn">添加信号</button>
+      <span id="add-sig-msg"></span>
+    </div>
+  </details>
+</section>
+
+<!-- 交易方案 -->
+<section class="panel">
+  <h3 class="panel-title">📈 交易方案</h3>
+  <div class="hyp-trade-panels">
+    {% for scen, label, icon in [('primary','正向交易(基于假说)',''), ('falsification_reverse','证伪后反向交易','')] %}
+    <div class="hyp-trade-panel hyp-trade-panel-{{ scen }}">
+      <div class="hyp-trade-panel-title">{{ icon }} {{ label }}</div>
+      {% set ts = trades | selectattr('trade_scenario','equalto',scen) | list %}
+      {% if ts %}
+        {% for tr in ts %}
+        <div class="hyp-trade-item">
+          <div class="hyp-trade-dir"><span class="hyp-dir hyp-dir-tt-{{ tr.direction }}">{{ hl(tr.direction) }}</span>
+            <span class="hyp-trade-status">{{ trade_status_label(tr.status) }}</span></div>
+          <div class="hyp-trade-desc">{{ tr.target_description }}</div>
+          {% if tr.industries or tr.companies %}<div class="hyp-trade-tags">标的:
+            {% for i in tr.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}
+            {% for c in tr.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}
+          </div>{% endif %}
+          <div class="hyp-trade-cfg">
+            {% if tr.position_sizing %}<span>仓位:{{ tr.position_sizing }}</span>{% endif %}
+            {% if tr.entry_trigger %}<span>入场:{{ tr.entry_trigger }}</span>{% endif %}
+            {% if tr.exit_trigger %}<span>出场:{{ tr.exit_trigger }}</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}<p class="hyp-empty">暂无{{ label }}。</p>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- AI 辅助监控( 只标红推送,不判断,不给买卖建议)-->
+<section class="panel hyp-ai-panel">
+  <h3 class="panel-title">AI 系统提示(AI 辅助 · 不做买卖建议)</h3>
+  <p class="hyp-ai-hint">扫描近期 news / 意见领袖发言中命中本假说监控关键词的条目。<strong>仅标红推送,是否真触发由研究员人工判断。</strong></p>
+  <button class="btn btn-secondary btn-xs" id="ai-monitor-btn" data-hid="{{ h.id }}">运行 AI 辅助监控(近 7 天)</button>
+  <div id="ai-monitor-result"></div>
+</section>
+
+<!-- 更新日志 -->
+<section class="panel">
+  <h3 class="panel-title">🧾 更新日志(append-only · 版本化)</h3>
+  {% if updates %}
+  <ul class="hyp-timeline">
+    {% for u in updates %}
+    <li class="hyp-tl-item">
+      <span class="hyp-tl-date">{{ (u.created_at or '')[:16] }}</span>
+      <span class="hyp-tl-type hyp-tl-{{ u.update_type }}">{{ {'create':'创建','edit_text':'改文本','status_change':'改状态','signal_update':'信号','trade_update':'交易','cite_add':'引用'}.get(u.update_type, u.update_type) }}</span>
+      <span class="hyp-tl-by">{{ u.by_name or u.by_raw or '' }}</span>
+      {% if u.update_note %}<span class="hyp-tl-note">{{ u.update_note }}</span>{% endif %}
+      {% if u.snapshot_status and u.update_type=='status_change' %}<span class="hyp-tl-snap">(原状态:{{ hl(u.snapshot_status) }})</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}<p class="hyp-empty">暂无更新记录。</p>{% endif %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const HID = {{ h.id }};
+  async function postJSON(url, body){
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    return {ok: r.ok, data: await r.json().catch(()=>({}))};
+  }
+  // 信号状态更新
+  document.querySelectorAll('.hyp-sig-save').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const box = btn.closest('.hyp-signal');
+      const sid = btn.dataset.sid;
+      const status = box.querySelector('.hyp-sig-status-sel').value;
+      const note = box.querySelector('.hyp-sig-note-in').value;
+      const msg = box.querySelector('.hyp-sig-msg');
+      msg.textContent = '保存中…';
+      const {ok, data} = await postJSON(`/api/hypothesis/${HID}/signal/${sid}/check`, {current_status: status, last_check_note: note});
+      if(ok && data.ok){ msg.textContent = '已保存,刷新查看'; setTimeout(()=>location.reload(), 600); }
+      else { msg.textContent = '失败:' + (data.error||''); }
+    });
+  });
+  // 添加信号
+  const addBtn = document.getElementById('add-sig-btn');
+  if(addBtn) addBtn.addEventListener('click', async ()=>{
+    const msg = document.getElementById('add-sig-msg');
+    const desc = document.getElementById('add-sig-desc').value.trim();
+    if(!desc){ msg.textContent='描述必填'; return; }
+    msg.textContent='添加中…';
+    const {ok, data} = await postJSON(`/api/hypothesis/${HID}/signal`, {
+      signal_type: document.getElementById('add-sig-type').value,
+      description: desc,
+      observation_target: document.getElementById('add-sig-target').value,
+      ai_check_keywords: document.getElementById('add-sig-kw').value
+    });
+    if(ok && data.ok){ msg.textContent='已添加'; setTimeout(()=>location.reload(), 500); }
+    else { msg.textContent='失败:' + (data.error||''); }
+  });
+  // AI 辅助监控
+  const aiBtn = document.getElementById('ai-monitor-btn');
+  if(aiBtn) aiBtn.addEventListener('click', async ()=>{
+    const box = document.getElementById('ai-monitor-result');
+    box.innerHTML = '<p class="hyp-ai-hint">扫描中…</p>';
+    const r = await fetch(`/api/hypothesis/${HID}/ai-monitor?days=7`);
+    const data = await r.json().catch(()=>({}));
+    if(!data.ok){ box.innerHTML = '<p class="hyp-ai-hint">出错</p>'; return; }
+    let html = '';
+    if(data.note){ html += `<p class="hyp-ai-hint">${data.note}</p>`; }
+    if(data.hits && data.hits.length){
+      html += `<div class="hyp-ai-disclaimer">${data.disclaimer}</div><ul class="hyp-ai-hits">`;
+      data.hits.forEach(hit=>{
+        const tag = hit.type==='news' ? '' : '';
+        const kw = (hit.matched||[]).map(k=>`<span class="hyp-ai-kw">${k}</span>`).join('');
+        const link = hit.url ? `<a href="${hit.url}" target="_blank" rel="noopener">${hit.title} ↗</a>` : (hit.title||'');
+        html += `<li class="hyp-ai-hit">${tag} ${link} <span class="hyp-ai-when">${hit.when||''}${hit.leader?(' · '+hit.leader):''}${hit.publisher?(' · '+hit.publisher):''}</span> ${kw}</li>`;
+      });
+      html += '</ul>';
+    } else if(!data.note){
+      html += `<p class="hyp-ai-hint">近 ${data.scanned_days||7} 天未命中监控关键词。</p><div class="hyp-ai-disclaimer">${data.disclaimer||''}</div>`;
+    }
+    box.innerHTML = html;
+  });
+})();
+</script>
+{% endblock %}

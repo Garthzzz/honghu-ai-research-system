@@ -1,0 +1,23 @@
+# industry_demo 活动 Python 依赖
+# SQLite 为标准库。版本是兼容下限，不是完整 lockfile。
+
+# Viewer / Markdown / config
+Flask>=3.0
+markdown>=3.5
+python-frontmatter>=1.0
+PyYAML>=6.0
+
+# HTTP 与市场/财务数据
+requests>=2.31
+yfinance>=0.2.40
+pandas>=2.1
+
+# 图表和真实浏览器验收
+plotly>=5.20
+Pillow>=10.0
+playwright>=1.45
+keyring>=25.0
+
+# 数据源政策：新增市场、估值、财务和 K 线只允许 Tushare HTTP 接口与 yfinance。
+# 不安装或调用 Wind/Akshare 作为新数据源。Playwright 默认复用本机 Chrome；
+# 如需 bundled browser，应由环境管理员显式执行 playwright install。

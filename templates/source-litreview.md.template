@@ -1,0 +1,81 @@
+---
+entity_type: source-litreview
+entity_id: <对应 source.id,该 source 的 source_type='claude_lit_review'>
+name: <例:光模块-800G量产节奏分析>
+status: 跟踪
+last_updated: 2026-05-27
+author: claude_lit_review     # 必须是此值
+ai_synthesized: true          # 必须 true!前端会显示明显边框 + 顶部 banner
+quality_tier: 2               # claude_lit_review 默认 2,不可手动改 1(db CHECK 也卡)
+linked_industries: []
+linked_themes: []
+research_question: <一句话回答的问题>
+search_queries:               # 留痕:本次 lit review 用了哪些 web_search query
+  - <query 1>
+  - <query 2>
+  - <query 3>
+source_urls:                  # 综合的原始 url(供 verify)
+  - <url 1>
+  - <url 2>
+core_synthesis: <一句话综合结论>
+---
+
+<!-- ============================================================
+  AI 综合产出 — 视觉强警示模板
+  按当前研究工作流的来源可追溯与反模板要求：
+  - frontmatter ai_synthesized 必须 true
+  - quality_tier 默认 2 且不允许提升到 1
+  - 不进入「结论」区域(只进信息流)
+  - 引用必须能 trace 回具体 url 或具体 source
+  ============================================================ -->
+
+# AI 综合 · <研究问题>
+
+> ⚠️ **本文档为 AI(Claude)自主综合产出,非一手研究。**
+> tier=2 不可提升。请勿当作一手数据引用。
+> 前端会用边框 + banner 视觉警示。
+
+## 0. 研究问题与边界
+- **回答的问题**:<...>
+- **不回答的问题**:<列出未覆盖的相关问题>
+- **使用的检索策略**:见 frontmatter `search_queries`
+
+## 1. 搜集到的关键信息(逐条标 url 来源)
+
+### 1.1 信息点 A
+- 内容:<...>
+- 来源:[url 1]
+- 原文摘录(<200 字,逐字):
+  > <quote>
+
+### 1.2 信息点 B
+- 内容:<...>
+- 来源:[url 2]
+- 原文摘录:
+  > <quote>
+
+(...更多信息点...)
+
+## 2. 综合判断(明确标注 AI 综合)
+
+> 以下是 AI 基于上述信息点的综合,**不是 AI 的独立信源,不享受一手数据待遇**。
+
+- **综合结论 1**:<...>(基于信息点 A + C)
+- **综合结论 2**:<...>(基于信息点 B + D)
+
+## 3. AI 已识别的不确定性
+
+- <某信息点存疑,原因:数据互相矛盾 / 来源不可靠 / 时效过期>
+- <某综合判断的置信度低,原因:...>
+
+## 4. 推荐人工后续 verify 的具体动作
+
+- <例:去 wind 拉某具体数据交叉验证>
+- <例:看某具体一手公告或业绩说明会原文>
+- <例:对比某头部卖方深度报告>
+
+---
+
+## 引用 url 一览
+- [url 1] <title> @ <site> <date>
+- [url 2] ...

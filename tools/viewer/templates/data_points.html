@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}数据点全览 · 行研工具系统{% endblock %}
+{% block head_extra %}<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / <strong>数据点全览</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>数据点全览</h1>
+    <p class="entity-meta">全库 <code>industry_data_point</code> 记录,按行业分组。每条数据点都可溯源回 source 原文摘录(抗 slop 工程防线)。</p>
+  </div>
+</header>
+
+{% if overview_charts %}
+<div class="chart-grid" style="margin:16px 0;">
+  <section class="chart-card">
+    <div class="chart-card-title">数据来源构成 · extraction_method</div>
+    <div class="chart-card-note">全库 {{ total }} 条按抽取方式分布 —— 数据 provenance 透明化(模板估 = 降级,未标 = 待回溯)。</div>
+    {% if overview_charts.em %}<div class="rx-plotly">{{ overview_charts.em|safe }}</div>{% endif %}
+    <div class="explainer" style="margin:8px 0 0;">
+      <span class="ex-row"><b>What:</b> 每条数据点的来源方式(原文精读 / 网搜 / 推算 / 模板估 / 未标)。</span>
+      <span class="ex-row"><b>Logic:</b> <b style="color:var(--up-text);">原文精读</b>=实读 PDF;<b style="color:var(--warn-text);">模板估</b>自动降 tier;占比越偏向绿色,数据质量越硬。</span>
+    </div>
+  </section>
+  <section class="chart-card">
+    <div class="chart-card-title">各行业数据点数</div>
+    <div class="chart-card-note">深度跟踪行业的结构化数据点累计量(全库)。</div>
+    {% if overview_charts.by_ind %}<div class="rx-plotly">{{ overview_charts.by_ind|safe }}</div>{% endif %}
+  </section>
+</div>
+{% endif %}
+
+<div class="cf-toolbar">
+  <input type="text" class="cf-search" data-cf-search="dp" value="{{ filter_metric or '' }}" placeholder=" 搜索指标 / source 标题…">
+  <span class="cf-hint">点击列头 <span class="cf-funnel-demo">⏷</span> 多选筛选 · <span class="cf-funnel-demo">↕</span> 排序</span>
+  <a class="btn btn-secondary cf-clearall" href="#" data-cf-clearall="dp">清空所有筛选</a>
+  <span class="filter-stat">共 {{ total }} 条</span>
+</div>
+<div class="cf-chipbar" data-cf-chips="dp" style="display:none;"></div>
+
+{% if all_metrics %}
+<section class="panel" style="padding:6px 14px;">
+  <details class="metrics-collapse">
+    <summary><strong>已用指标</strong> <span style="color:#94a3b8;font-weight:normal;">({{ all_metrics|length }} 个,点击展开)</span></summary>
+    <div class="metrics-cloud">
+      {% for m in all_metrics %}
+        <a href="{{ url_for('data_points_index', metric=m, tier=filter_tier, forecast=filter_forecast, sentiment=filter_sentiment) }}"
+           class="metric-chip">{{ m }}</a>
+      {% endfor %}
+    </div>
+  </details>
+</section>
+{% endif %}
+
+{% if grouped %}
+  {% for industry_name, rows in grouped.items() %}
+  <section class="panel">
+    <h3 class="panel-title">{{ industry_name }} <span style="font-weight:normal;color:#64748b;font-size:12px;margin-left:6px;">{{ rows|length }} 条</span></h3>
+    <table class="data-table data-points-table colfilter" data-cf-group="dp">
+      <colgroup>
+        <col style="width: 15%"><col style="width: 8%"><col style="width: 10%">
+        <col style="width: 11%"><col style="width: 6%"><col style="width: 7%">
+        <col style="width: 17%"><col style="width: 21%"><col style="width: 5%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th data-cf-sort="text">指标</th>
+          <th data-cf-sort="date">时点</th>
+          <th data-cf-sort="num">数值</th>
+          <th data-cf-filter="consensus" data-cf-filter2="em">共识 / 抽取</th>
+          <th data-cf-filter="forecast">性质</th>
+          <th data-cf-filter="sentiment">倾向</th>
+          <th data-cf-filter="tier">source(tier)</th>
+          <th>原文摘录</th>
+          <th>溯源</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in rows %}
+        <tr class="{% if d.source_tier == 3 %}row-tier-3{% endif %} {% if d.is_forecast %}row-forecast{% endif %}"
+            data-cf-consensus="{{ d.consensus_status or '未评估' }}"
+            data-cf-em="{% if d.extraction_method=='pdf_direct' %}原文{% elif d.extraction_method=='web_fetch' %}网搜{% elif d.extraction_method=='template_estimate' %}模板估{% elif d.extraction_method=='inferred' %}推算{% else %}未标{% endif %}"
+            data-cf-forecast="{{ '前瞻' if d.is_forecast else '实际' }}"
+            data-cf-sentiment="{{ d.sentiment if d.sentiment in ['看涨','看跌','中性'] else '不适用' }}"
+            data-cf-tier="{{ d.source_tier if d.source_tier else '未标' }}"
+            data-cf-text="{{ (d.metric ~ ' ' ~ (d.source_title or ''))|lower }}"
+            data-cf-sortkey-text="{{ d.metric }}"
+            data-cf-sortkey-date="{{ d.as_of_date or d.period or '' }}"
+            data-cf-sortkey-num="{{ d.value_num if d.value_num is not none else '' }}">
+          <td>
+            {% if d.value_num is not none and d.industry_id and (d.as_of_date or d.period) %}
+              <a href="{{ url_for('metric_detail', industry_id=d.industry_id, metric=d.metric, as_of=(d.as_of_date or d.period), is_forecast=d.is_forecast) }}">{{ d.metric }}</a>
+            {% else %}{{ d.metric }}{% endif %}
+          </td>
+          <td>
+            <div class="cell-period">{{ d.period }}</div>
+            {% if d.as_of_date and d.as_of_date != d.period %}<div class="cell-as-of">@{{ d.as_of_date }}</div>{% endif %}
+          </td>
+          <td class="cell-value">
+            {% if d.value_num is not none %}{{ d.value_num }}{{ d.unit }}{% else %}{{ d.value_text }}{% if d.unit %} {{ d.unit }}{% endif %}{% endif %}
+          </td>
+          <td>
+            {% if d.consensus_status == '共识' %}<span class="consensus-pill consensus-共识">共识</span>
+            {% elif d.consensus_status == '主流' %}<span class="consensus-pill consensus-主流">主流</span>
+            {% elif d.consensus_status == '次主流' %}<span class="consensus-pill consensus-次主流">次主流</span>
+            {% elif d.consensus_status == '离群' %}<span class="consensus-pill consensus-离群" title="偏离中位 {{ '{:+.0%}'.format(d.deviation_from_median) if d.deviation_from_median is not none else '' }}">离群</span>
+            {% elif d.consensus_status == '孤证' %}<span class="consensus-pill consensus-孤证">孤证</span>
+            {% else %}<span class="consensus-pill consensus-unevaluated">—</span>{% endif %}
+            <br>
+            {% if d.extraction_method == 'pdf_direct' %}<span class="em-pill em-pill-pdf_direct em-inline" title="该 source 的 PDF 实质内容直接抽出">原文</span>
+            {% elif d.extraction_method == 'web_fetch' %}<span class="em-pill em-pill-web_fetch em-inline" title="通过 web 搜索/fetch 抽出">网搜</span>
+            {% elif d.extraction_method == 'template_estimate' %}<span class="em-pill em-pill-template_estimate em-inline" title="模板估值,从其他 source 推断,可信度较低"> 模板估</span>
+            {% elif d.extraction_method == 'inferred' %}<span class="em-pill em-pill-inferred em-inline" title="从已有数据计算得出">推算</span>
+            {% else %}<span class="em-pill em-pill-unknown em-inline" title="未标注抽取方法">未标</span>{% endif %}
+          </td>
+          <td>
+            {% if d.is_forecast %}<span class="forecast-tag tag-forecast">前瞻</span>
+            {% else %}<span class="actual-tag tag-actual">实际</span>{% endif %}
+          </td>
+          <td>
+            {% if d.sentiment == '看涨' %}<span class="sentiment-dot sentiment-bull">●</span><span class="sentiment-label-bull">看涨</span>
+            {% elif d.sentiment == '看跌' %}<span class="sentiment-dot sentiment-bear">●</span><span class="sentiment-label-bear">看跌</span>
+            {% elif d.sentiment == '中性' %}<span class="sentiment-dot sentiment-neutral">●</span><span class="sentiment-label-neutral">中性</span>
+            {% else %}<span class="sentiment-na">—</span>{% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('source_detail', source_id=d.source_id) }}">{{ (d.source_title or '')[:30] }}{% if (d.source_title or '')|length > 30 %}…{% endif %}</a>
+            {% if d.source_tier %}<span class="tier-badge tier-{{ d.source_tier }}">{{ d.source_tier }}</span>{% endif %}
+          </td>
+          <td class="cell-excerpt" title="{{ d.source_excerpt }}">{{ d.source_excerpt[:60] }}{% if d.source_excerpt|length > 60 %}…{% endif %}</td>
+          <td>
+            <button class="trace-btn"
+                    data-source-id="{{ d.source_id }}"
+                    data-excerpt="{{ d.source_excerpt|e }}"></button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    {% if filter_tier or filter_metric or filter_forecast or filter_sentiment %}
+      当前筛选条件下无数据点。<a href="{{ url_for('data_points_index') }}">清空筛选</a>
+    {% else %}
+      尚无数据点。阶段 2 SCIENTIST 角色处理光模块 source 时会批量入库。
+    {% endif %}
+  </div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='colfilter.js') }}"></script>
+{% endblock %}

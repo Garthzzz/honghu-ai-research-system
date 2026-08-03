@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ q }} · {{ q_title }} · 跨行业横向{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / 研究维度 / <strong>{{ q }} {{ q_title }}</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ q }} · {{ q_title }}</h1>
+    <p class="entity-meta">跨行业横向对比 — 覆盖所有深度跟踪行业的 {{ q }} 切片。{% if q == 'Q5' %} 综述是给老板看的最终产出。{% endif %}</p>
+  </div>
+</header>
+
+{% if docs %}
+<div class="q-horizontal-grid">
+  {% for item in docs %}
+  <article class="q-col q-col-{{ q|lower }} {% if item.doc.meta and item.doc.meta.get('ai_synthesized') %}ai-synth-frame{% endif %}">
+    <div class="q-col-header">
+      <h2><a href="{{ url_for('industry_detail', industry_id=item.industry.id) }}#tab-{{ q }}">{{ item.industry.name }}</a></h2>
+      <div class="q-col-meta">
+        <span class="tier-badge tier-{{ item.industry.tier }}">tier {{ item.industry.tier }}</span>
+        <span>维度:{{ q }} {{ q_title }}</span>
+        {% if item.doc.meta and item.doc.meta.get('ai_synthesized') %}
+          <span class="ai-synth-tag"> AI 综合</span>
+        {% endif %}
+        {% if item.doc.meta and item.doc.meta.get('last_updated') %}
+          <span class="meta-date">更新 {{ item.doc.meta.last_updated }}</span>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if item.has_md and item.doc.exists %}
+      {% if item.doc.meta.get('core_dynamic') %}
+        <blockquote class="core-judgment">{{ item.doc.meta.core_dynamic }}</blockquote>
+      {% endif %}
+      <div class="md-body q-md q-md-{{ q|lower }}">
+        {{ item.doc.html|safe }}
+      </div>
+    {% else %}
+      <div class="empty-state">
+        本行业尚无 {{ q }} 独立 md。<br>
+        预期路径:<code>docs/industries/{{ item.industry.name }}_{{ q }}_{{ q_short }}.md</code>
+      </div>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  尚无深度跟踪行业。本 PoC 阶段 2 将注入光模块行业。
+</div>
+{% endif %}
+
+{% endblock %}

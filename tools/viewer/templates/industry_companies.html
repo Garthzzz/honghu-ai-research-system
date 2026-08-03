@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+{% block title %}{{ ind.name }} · 公司透视{% endblock %}
+{% block head_extra %}<script defer src="{{ url_for('static', filename='vendor/plotly.min.js') }}" charset="utf-8"></script>{% endblock %}
+
+{% macro fresh_dot(f) -%}
+<span class="fresh-dot fresh-{{ f.color }}" title="新鲜度:{{ f.label }}{% if f.days %}({{ f.days }} 天前){% endif %}"></span>
+{%- endmacro %}
+
+{% macro listing_badge(ls) -%}
+{% if ls %}<span class="listing-badge listing-{{ ls }}">{{ t(ls) }}</span>{% endif %}
+{%- endmacro %}
+
+{# cell 级溯源上标:优先用字段专属 src,缺则回退到画像 source 池首个(2c-F 任务 E)#}
+{% macro src_sup(sid) -%}
+{% if sid %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endif %}
+{%- endmacro %}
+
+{% macro pcb_amount(row) -%}
+{% if not row or row.value is none %}—{% elif row.original_display and row.local_currency not in ['CNY', 'RMB'] %}{{ row.original_display }}{% if row.cny_yi is not none %}（约{{ '%.2f'|format(row.cny_yi) }}亿元人民币{% if row.local_currency != 'USD' and row.usd_yi is not none %}，约{{ '%.2f'|format(row.usd_yi) }}亿美元{% endif %}）{% endif %}{% else %}{{ row.value }}{{ row.unit or '' }}{% endif %}
+{%- endmacro %}
+
+{% block content %}
+<style>
+.cp-landscape-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.cp-landscape-chart{min-height:390px;border:1px solid #e3e8f0;border-radius:12px;background:#fff;overflow:hidden}
+.cp-six{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:7px}.cp-six-item{border:1px solid #e5eaf2;border-radius:8px;padding:7px;background:#fbfdff;min-width:0}.cp-six-item b{display:block;color:#17253d;font-size:13px;font-variant-numeric:tabular-nums}.cp-six-item span{font-size:10px;color:#6f7d93}.cp-six-item small{display:block;color:#9aa6b7;font-size:8.5px;line-height:1.3;margin-top:3px}
+.cp-research-report{border-color:#d8e1ee;background:#fbfcff}.cp-research-report .panel-title{margin-bottom:10px}.cp-report-scroll{max-width:100%;overflow:visible;padding:2px 2px 8px}.cp-report-scroll:focus{outline:2px solid #4f7fbd;outline-offset:2px}
+@media(max-width:900px){.cp-landscape-grid{grid-template-columns:1fr}}@media(max-width:520px){.cp-six{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('industry_detail', industry_id=ind.id) }}">{{ ind.name }}</a> /
+  <strong>公司透视</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>{{ ind.name }} · 公司透视
+      <span class="tier-badge tier-{{ ind.tier }}">tier {{ ind.tier }}</span>
+    </h1>
+    <p class="entity-meta">
+      与 Q1 竞争格局平行 · 全球玩家 / 中国玩家 / 中国本土技术派 三视角 · 每个数据点可溯源
+    </p>
+  </div>
+  <div class="entity-header-actions">
+    {% if ind.name in ['锂', '碳酸锂'] %}
+    <a class="btn" href="{{ url_for('lithium_calculator') }}">碳酸锂项目计算器 →</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{{ url_for('industry_detail', industry_id=ind.id) }}#tab-Q1">← 返回 Q1 竞争格局</a>
+  </div>
+</header>
+
+<!-- Q 维度导航:打通公司透视与 Q0-Q5(公司透视=Q1.5,当前页高亮);与 industry.html tab 体系互通 -->
+<div class="tabs">
+  <a class="tab-btn" href="{{ url_for('industry_detail', industry_id=ind.id) }}#tab-main">主文档</a>
+  {% for q, short, full in q_dimensions %}
+    <a class="tab-btn tab-btn-{{ q|lower }}" href="{{ url_for('industry_detail', industry_id=ind.id) }}#tab-{{ q }}">{{ q }} {{ short }}</a>
+    {% if q == 'Q1' %}
+    <span class="tab-btn tab-btn-companies active" title="公司透视(当前页 · Q1.5)">公司透视</span>
+    <a class="tab-btn tab-btn-valuation" href="{{ url_for('industry_valuation', industry_id=ind.id) }}" title="估值对比(Q1.6)">估值对比 →</a>
+    {% endif %}
+  {% endfor %}
+</div>
+
+<!-- 顶部工具栏:刷新 + 新鲜度指示 -->
+<div class="cp-toolbar">
+  <div class="cp-toolbar-left">
+    <span class="cp-refresh-time">上次刷新:{{ last_refresh or '— (待阶段2回填)' }}</span>
+  </div>
+  <div class="cp-toolbar-right">
+    <span class="cp-fresh-indicator">
+      <span class="fresh-dot fresh-green"></span> {{ fresh_counts.green }} 最新
+      <span class="fresh-dot fresh-yellow"></span> {{ fresh_counts.yellow }} 较新
+      <span class="fresh-dot fresh-orange"></span> {{ fresh_counts.orange }} 偏旧
+      <span class="fresh-dot fresh-red"></span> {{ fresh_counts.red }} 过期
+    </span>
+    <span class="cp-refresh-status">公司财务由统一后台刷新任务更新；页面 GET 不触发外部抓取。</span>
+  </div>
+</div>
+
+{% if is_pcb_equipment %}
+<div class="explainer">
+  <span class="ex-row"><b>财务口径：</b>净利率按同期间归母或可归属净利润除以营业收入重算；毛利率保留公司报表或财务数据源口径。跨零、亏损及低基数期间直接展示状态，不强算误导性同比。</span>
+</div>
+{% endif %}
+
+{% if not profiles %}
+<div class="empty-state cp-empty">
+  <p> <strong>公司透视数据待回填(阶段 2)</strong></p>
+  <p>本阶段(架构升级)已就绪:db 表 <code>company_profile</code> / 三张表渲染 / 网搜溯源协议 / 四色新鲜度 / 第五道防线。</p>
+  <p>阶段 2 将按 <code>CLAUDE_COMPANY_PROFILE.md</code> 协议,用 web_fetch + Tushare/yfinance 回填本行业公司画像。</p>
+</div>
+{% endif %}
+
+{% if company_report and company_report.exists %}
+<section class="panel cp-research-report" id="company-research-report">
+  <h2 class="panel-title">公司竞争与重点公司透视
+    <span class="panel-sub">跨主体竞争位置、财务模型与估值结论；下方结构化卡片展示当前财务数据</span>
+  </h2>
+  <div class="cp-report-scroll" tabindex="0" aria-label="{{ ind.name }}公司透视研究报告横向滚动区域">
+    <div class="md-body company-perspective-body" id="companyPerspectiveBody">{{ company_report.html|safe }}</div>
+  </div>
+</section>
+{% endif %}
+
+{% if profiles and not is_pcb_equipment %}
+<section class="panel">
+  <h3 class="panel-title">公司格局可视化 <span class="panel-sub">份额口径与盈利结构分开呈现；气泡大小代表市值，精确值仍以表格和来源为准</span></h3>
+  <div class="cp-landscape-grid">
+    <div><h4>全球 / 中国份额对照</h4><div id="companyShareChart" class="cp-landscape-chart" role="img" aria-label="公司全球和中国份额对照图"></div></div>
+    <div>
+      <h4>毛利率 / 净利率结构</h4>
+      <div id="companyProfitChart" class="cp-landscape-chart" role="img" aria-label="公司盈利结构散点图"></div>
+      {% if missing_gross_margin_names %}
+      <p class="panel-sub">
+        {{ missing_gross_margin_names|join('、') }}当前结构化财务库没有可比毛利率，
+        因而不进入双轴散点；其净利率和现金流仍在下方公司卡片中展示。
+      </p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% if sub_market_groups %}
+<section class="panel cp-submarket-panel">
+  <h3 class="panel-title">{% if is_pcb_equipment %}公开可比市场份额{% else %}子市场份额{% endif %} <span class="panel-sub">每个子市场使用独立分母，不能跨子市场加总或直接比较；点击来源编号可查看证据</span></h3>
+  {% for g in sub_market_groups %}
+  <div class="cp-submarket">
+    <div class="cp-submarket-head">
+      <strong>{{ g.sub_market }}</strong> <span class="cp-geo">[{{ '全球' if g.geo=='global' else '中国' }}]</span>
+      <span class="cp-sum {{ 'cp-sum-ok' if g.sum_ok else 'cp-sum-partial' }}">已披露公司合计 {{ g.total }}%{{ '（接近完整覆盖）' if g.sum_ok else '（仅为公开部分）' }}</span>
+      {% if g.has_unverified %}<span class="cp-unverified-tag">含尚未交叉核验的来源</span>{% endif %}
+    </div>
+    <div class="cp-table-scroll" tabindex="0" aria-label="子市场份额真分表横向滚动">
+    <table class="data-table cp-table cp-table-submarket">
+      <thead><tr><th>排名</th><th>公司</th><th>份额</th><th>时点</th><th>溯源 ^src</th></tr></thead>
+      <tbody>
+      {% for r in g.rows %}
+      <tr class="{% if r.credibility == 'unverified' %}cp-row-unverified{% endif %}">
+        <td>{{ r.rank or '—' }}</td>
+        <td><a href="#company-{{ r.company_id }}">{{ r.company_name }}</a></td>
+        <td>{% if r.share is not none %}{% if r.credibility == 'estimated' %}≈{% endif %}{{ '%.2f'|format(r.share) }}{% if 'ARR' in g.sub_market %} $十亿{% else %}%{% endif %}{% else %}—{% endif %}{% if r.credibility == 'unverified' %} <span class="cp-unverified-dot" title="灰源未核实,需多源印证">灰源</span>{% elif r.credibility == 'estimated' %} <span class="cp-est-dot" title="推算值±5%(段营收/市场规模)">≈推算</span>{% endif %}</td>
+        <td>{{ r.share_as_of or '—' }}</td>
+        <td>{% for sid in r.source_ids_list %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endfor %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% if g.rows and g.rows[0].source_excerpt_ref %}<div class="cp-submarket-note">溯源摘录:{{ g.rows[0].source_excerpt_ref }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+<!-- 三张取数表 -->
+{% macro company_table(title, sub, rows, kind) %}
+<section class="panel cp-table-panel">
+  <h3 class="panel-title">{{ title }} <span class="panel-sub">{{ sub }}</span></h3>
+  {% if rows %}
+  <div class="cp-table-scroll" tabindex="0" aria-label="{{ title }} 横向滚动">
+  <table class="data-table cp-table cp-table-{{ kind }}">
+    <thead>
+      <tr>
+        <th>{% if kind == 'tech' %}技术派 {% else %}子市场内排名{% endif %}</th>
+        <th>公司</th>
+        <th>上市</th>
+        <th>{% if kind == 'china' %}中国份额{% else %}全球份额{% endif %}</th>
+        <th>估值(PE/PB/市值)</th>
+        <th>{% if kind == 'tech' %}技术节点{% else %}主营客户{% endif %}</th>
+        <th>新鲜度</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if kind == 'china' %}{% set rows = (rows|selectattr('china_rank')|list|sort(attribute='china_rank')) + (rows|rejectattr('china_rank')|list) %}{% elif kind == 'global' %}{% set rows = (rows|selectattr('global_rank')|list|sort(attribute='global_rank')) + (rows|rejectattr('global_rank')|list) %}{% endif %}
+      {% for p in rows %}
+      <tr>
+        <td>
+          {% if kind == 'tech' %}
+          {% elif kind == 'china' %}{{ p.china_rank or '—' }}
+          {% else %}{{ p.global_rank or '—' }}{% endif %}
+        </td>
+        <td class="cp-company-cell"><a href="#company-{{ p.company_id }}">{{ p.company_name }}</a>{% if p.ticker %} <span class="cp-ticker">{{ p.ticker }}</span>{% endif %}</td>
+        <td class="cp-listing-cell">{{ listing_badge(p.listing_status) }}</td>
+        <td>
+          {% if kind == 'china' %}{{ '%.2f%%'|format(p.china_share) if p.china_share is not none else '—' }}{% if p.china_share_sub_market %} <small class="cp-sub-tag">({{ p.china_share_sub_market }})</small>{% endif %}
+          {% else %}{{ '%.2f%%'|format(p.global_share) if p.global_share is not none else '—' }}{% if p.global_share_sub_market %} <small class="cp-sub-tag">({{ p.global_share_sub_market }})</small>{% endif %}{% endif %}
+        </td>
+        <td class="cp-val-cell">
+          {% if p.is_unlisted %}
+            <span class="cp-unaudited">未审计</span>
+            {% if p.private_valuation_value is not none %}{{ '%.2f'|format(p.private_valuation_value) }}{{ p.private_valuation_unit or '' }}{{ src_sup(p.source_ids_list[0] if p.source_ids_list else None) }}{% else %}—{% endif %}
+          {% else %}
+            PE {{ p.pe_ttm_display }} ·
+            PB {{ '%.2f'|format(p.pb) if p.pb is not none else '—' }} ·
+            市值 {% if p.market_cap_cny is not none %}{{ '{:,.2f}'.format(p.market_cap_cny) }} 亿元人民币{% if p.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(p.market_cap_usd) }} 亿美元）{% endif %}{% else %}—{% endif %}{{ src_sup(p.valuation_source_id) }}
+          {% endif %}
+        </td>
+        <td class="cell-narrative cp-narrative-cell">
+          {% if kind == 'tech' %}{{ p.tech_node or '—' }}{{ src_sup(p.tech_node_src_id or (p.source_ids_list[0] if (p.tech_node and p.source_ids_list) else None)) }}{% else %}{{ (p.main_customers or '—')[:30] }}{{ src_sup(p.main_customers_src_id or (p.source_ids_list[0] if (p.main_customers and p.source_ids_list) else None)) }}{% endif %}
+        </td>
+        <td>{{ fresh_dot(p.fresh_general) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="empty-state">尚无{{ title }}数据(待阶段 2 回填)。</p>
+  {% endif %}
+</section>
+{% endmacro %}
+
+{% if global_tbl %}{{ company_table('全球各子市场领先玩家', '不同设备子市场使用独立分母，不跨赛道比较份额', global_tbl, 'global') }}{% endif %}
+{% if china_tbl %}{{ company_table('中国各子市场领先玩家', '中国市场份额与全球份额使用不同地域分母', china_tbl, 'china') }}{% endif %}
+{% if tech_tbl %}{{ company_table('中国本土技术代表企业（' ~ (tech_tbl|length) ~ ' 家）', '按公开产品、交付与客户验证筛选，不代表综合排名', tech_tbl, 'tech') }}{% endif %}
+
+<!-- 公司画像卡片瀑布流 -->
+<section class="panel">
+  <h3 class="panel-title">公司画像</h3>
+  {% if profiles %}
+  <div class="cp-card-grid">
+    {% for p in profiles %}
+    <article class="cp-card {% if p.display_mode == 'qualitative_only' %}cp-card-qual{% endif %}" id="company-{{ p.company_id }}">
+      <header class="cp-card-head">
+        <div class="cp-card-titleline">
+          <a class="cp-card-name" href="{{ url_for('company_tag', company_id=p.company_id, industry_id=ind.id) }}">{{ p.company_name }}</a>
+          {% if p.ticker %}<span class="cp-ticker">{{ p.ticker }}</span>{% endif %}
+          {{ listing_badge(p.listing_status) }}
+        </div>
+        <div class="cp-card-flags">
+          {% if p.global_rank %}<span class="cp-flag">全球第 {{ p.global_rank }}</span>{% endif %}
+          {% if p.china_rank %}<span class="cp-flag">中国第 {{ p.china_rank }}</span>{% endif %}
+          {% if p.is_china_tech_leader %}<span class="cp-flag cp-flag-tech"> 国产技术派</span>{% endif %}
+        </div>
+      </header>
+
+      {% if p.display_mode == 'qualitative_only' %}
+      <div class="cp-qual-banner"> 仅定性展示(user 设定),不展示具体财务/估值数字</div>
+      {% elif p.is_unlisted %}
+      <div class="cp-unaudited-banner"> 未上市公司 · 财务/估值为未审计自披露,仅供参考</div>
+      {% endif %}
+
+      {% if p.summary %}<p class="cp-card-summary">{{ p.summary }}</p>{% endif %}
+      {% if p.display_note %}<p class="cp-card-summary">{{ p.display_note }}</p>{% endif %}
+
+      {% if p.display_mode != 'qualitative_only' %}
+      <!-- 历史与最新报告期 -->
+      <div class="cp-block">
+        {% if is_pcb_equipment %}
+        <div class="cp-block-title">历史与最新报告期 {{ fresh_dot(p.fresh_general) }}</div>
+        {% if p.financial_rows %}
+        <div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ p.company_name }}历史财务，可横向滚动">
+        <table class="cp-mini-table">
+          <tr><th>期间</th><th>营收</th><th>营收同比/状态</th><th>净利润</th><th>净利同比/状态</th></tr>
+          {% for row in p.financial_rows %}{% set rev = row.revenue %}{% set ni = row.net_income %}
+          <tr><td>{{ row.period }}</td>
+              <td>{{ pcb_amount(rev) }}</td>
+              <td>{% if rev and rev.yoy is not none %}{{ '%+.1f%%'|format(rev.yoy) }}{% elif rev and rev.change_status %}{{ rev.change_status }}{% else %}—{% endif %}</td>
+              <td>{{ pcb_amount(ni) }}</td>
+              <td>{% if ni and ni.yoy is not none %}{{ '%+.1f%%'|format(ni.yoy) }}{% elif ni and ni.change_status %}{{ ni.change_status }}{% else %}—{% endif %}</td></tr>
+          {% endfor %}
+        </table>
+        </div>
+        <div class="cp-kv">毛利率 {{ '%.2f%%'|format(p.gross_margin) if p.gross_margin is not none else '—' }} · 净利率 {{ '%.2f%%'|format(p.net_margin) if p.net_margin is not none else '—' }} · 经营现金流 {{ '%.2f'|format(p.operating_cash_flow) ~ (p.ocf_unit or '') if p.operating_cash_flow is not none else '—' }} · 画像财务期 {{ p.financials_as_of or '—' }}</div>
+        {% else %}<div class="cp-na">{{ p.financial_absence_label if is_pcb_equipment else '待回填' }}</div>{% endif %}
+        {% if p.public_coverage_note %}<div class="cp-kv">{{ p.public_coverage_note }}</div>{% endif %}
+        {% else %}
+        <div class="cp-block-title">财务三年 {{ fresh_dot(p.fresh_general) }}</div>
+        {% if p.revenue_series_list %}
+        <table class="cp-mini-table">
+          <tr><th>期</th><th>营收</th><th>YoY</th><th>净利</th></tr>
+          {% for yr in p.revenue_series_list %}
+          <tr><td>{{ yr.period }}</td><td>{{ yr.value }}{{ yr.unit or '' }}</td><td>{% if yr.yoy is not none %}{{ '%+.1f%%'|format(yr.yoy) }}{% elif yr.change_status %}{{ yr.change_status }}{% else %}—{% endif %}</td>
+              <td>{% if p.net_income_series_list and loop.index0 < p.net_income_series_list|length %}{% set ni = p.net_income_series_list[loop.index0] %}{{ ni.value }}{{ ni.unit or '' }}{% else %}—{% endif %}</td></tr>
+          {% endfor %}
+        </table>
+        <div class="cp-kv">毛利率 {{ '%.2f%%'|format(p.gross_margin) if p.gross_margin is not none else '—' }} · 净利率 {{ '%.2f%%'|format(p.net_margin) if p.net_margin is not none else '—' }} · 经营现金流 {{ '%.2f'|format(p.operating_cash_flow) ~ (p.ocf_unit or '') if p.operating_cash_flow is not none else '—' }} · 画像财务期 {{ p.financials_as_of or '—' }}</div>
+        {% else %}<div class="cp-na">待回填</div>{% endif %}
+        {% endif %}
+      </div>
+
+      <!-- 估值(详细 PE/PB/ROE/盈利预测见「估值对比」页)-->
+      <div class="cp-block">
+        <div class="cp-block-title">估值 {{ fresh_dot(p.fresh_valuation) }} {% if not p.is_unlisted %}{{ src_sup(p.valuation_source_id) }}{% endif %} <a class="cp-val-link" href="{{ url_for('industry_valuation', industry_id=ind.id) }}#valco-{{ p.company_id }}">详细估值 →</a></div>
+        {% if p.is_unlisted %}
+          <div class="cp-kv">一级市场:{{ '%.2f'|format(p.private_valuation_value) ~ (p.private_valuation_unit or '') if p.private_valuation_value is not none else '—' }} · 轮次 {{ p.private_round or '—' }} · 时点 {{ p.private_valuation_as_of or '—' }}</div>
+        {% else %}
+          <div class="cp-six">
+            {% for m in p.core_metrics %}<div class="cp-six-item"><span>{{ m.label }}</span><b>{{ m.display or m.reason }}</b><small>{{ m.formula }}</small></div>{% endfor %}
+          </div>
+          <div class="cp-kv" style="margin-top:7px">市值 {% if p.market_cap_cny is not none %}{{ '{:,.2f}'.format(p.market_cap_cny) }} 亿元人民币{% if p.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(p.market_cap_usd) }} 亿美元）{% endif %}{% else %}—{% endif %} · 市场时点 {{ p.valuation_as_of or '—' }} · 估值及每股指标财务期 {{ p.financial_metrics_as_of or '—' }}</div>
+        {% endif %}
+      </div>
+
+      <!-- 市场地位(子市场拆分:不同子市场份额不可直接比较/加总)-->
+      <div class="cp-block">
+        <div class="cp-block-title">市场地位 <span class="cp-koujing-hint">· 按子市场,份额不可跨子市场加总</span></div>
+        <div class="cp-kv">全球 {{ '%.2f%%'|format(p.global_share) if p.global_share is not none else '—' }}{% if p.global_share_sub_market %} <span class="cp-koujing" title="子市场口径(不同子市场不可直接比较)">[{{ p.global_share_sub_market }}]</span>{% endif %}{% if p.global_share_as_of %} @{{ p.global_share_as_of }}{% endif %}{% if p.global_rank %} · {{ p.global_share_sub_market or '全球口径' }}第 {{ p.global_rank }}{% endif %} · 中国 {{ '%.2f%%'|format(p.china_share) if p.china_share is not none else '—' }}{% if p.china_share_sub_market %} <span class="cp-koujing" title="子市场口径">[{{ p.china_share_sub_market }}]</span>{% endif %}{% if p.china_share_as_of %} @{{ p.china_share_as_of }}{% endif %}{% if p.china_rank %} · {{ p.china_share_sub_market or '中国口径' }}第 {{ p.china_rank }}{% endif %}{% if p.share_rank_change %} · {{ p.share_rank_change }}{% endif %}</div>
+      </div>
+
+      <!-- 业务结构 + 研发 -->
+      <div class="cp-block">
+        <div class="cp-block-title">业务结构 / 研发</div>
+        <div class="cp-kv">行业占营收 {{ '%.0f%%'|format(p.revenue_share_in_industry) if p.revenue_share_in_industry is not none else '—' }} · 主营 {{ p.main_products or '—' }}</div>
+        <div class="cp-kv">主要客户 {{ p.main_customers or '—' }}{% if p.customer_concentration %}（{{ p.customer_concentration }}）{% endif %}{{ src_sup(p.main_customers_src_id) }}</div>
+        <div class="cp-kv">研发费用率 {{ '%.2f%%'|format(p.rd_expense_ratio) if p.rd_expense_ratio is not none else '—' }} · CapEx {{ '%.2f'|format(p.capex_value) ~ ' ' ~ (p.capex_unit or '') if p.capex_value is not none else '—' }} · 技术节点 {{ p.tech_node or '—' }}{{ src_sup(p.tech_node_src_id) }}</div>
+      </div>
+      {% endif %}
+
+      <!-- 动向(qualitative_only 也展示定性动向)-->
+      {% if p.recent_events_list %}
+      <div class="cp-block">
+        <div class="cp-block-title">{{ '重要公司事件' if is_pcb_equipment else '近期动向' }}</div>
+        <ul class="cp-events">
+          {% for ev in p.recent_events_list %}
+          {% set has_detail = ev.summary and (ev.summary|trim) and (ev.summary|trim != (ev.title or '')|trim) %}
+          <li class="cp-event {% if ev.is_major %}cp-event-major{% endif %}">
+            {% if has_detail %}
+            <details class="cp-event-d">
+              <summary class="cp-event-sum">{% if ev.is_major %} {% endif %}<span class="cp-event-date">{{ ev.date }}</span> <strong class="cp-event-title">{{ ev.title }}</strong>{% if ev.source_ids %}{% for sid in ev.source_ids %}{{ src_sup(sid) }}{% endfor %}{% elif ev.source_id %}{{ src_sup(ev.source_id) }}{% endif %}</summary>
+              <div class="cp-event-detail">{{ ev.summary }}</div>
+            </details>
+            {% else %}
+            <div class="cp-event-line">{% if ev.is_major %} {% endif %}<span class="cp-event-date">{{ ev.date }}</span> <strong class="cp-event-title">{{ ev.title }}</strong>{% if ev.source_ids %}{% for sid in ev.source_ids %}{{ src_sup(sid) }}{% endfor %}{% elif ev.source_id %}{{ src_sup(ev.source_id) }}{% endif %}</div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- 风险(公司特定,反 slop:泛泛风险不入库)-->
+      {% if p.risks_list %}
+      <div class="cp-block">
+        <div class="cp-block-title">风险(公司特定)</div>
+        <ul class="cp-risks">
+          {% for rk in p.risks_list %}
+          {% if rk is mapping %}
+          {% set rl = risk_label(rk) %}
+          <li>{% if rl %}<strong>{{ rl }}:</strong> {% endif %}{{ rk.text or rk.title or '' }}{% if rk.source_id %}{{ src_sup(rk.source_id) }}{% endif %}</li>
+          {% else %}<li>{{ rk }}</li>{% endif %}
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <footer class="cp-card-foot">
+        {% if p.source_ids_list %}<span class="cp-src-count">{{ p.source_ids_list|length }} 源支撑 · 溯源 {% for sid in p.source_ids_list %}<sup class="src-ref" data-source-id="{{ sid }}" tabindex="0" role="button" title="点击溯源 source #{{ sid }}">[{{ sid }}]</sup>{% endfor %}</span>{% endif %}
+      </footer>
+
+      <!-- 研究员补充 / 反共识(2c-G:一致预期 AI 总结 + 研究员反共识,选填不强制)-->
+      <details class="an-editor" data-company-id="{{ p.company_id }}" data-industry-id="{{ ind.id }}">
+        <summary class="an-summary"> 研究员补充 / 反共识·超预期判断</summary>
+
+        <div class="an-thesis">
+          <!-- 研究员手填:反共识 + 监控指标合并(公司级一致预期 = 行业级散文,见行业页)-->
+          <div class="an-block-title">研究员判断(选填)</div>
+          <label>反共识 / 超预期判断<textarea class="an-f" data-f="contrarian_thesis" rows="2" placeholder="你认为市场错在哪 / 超预期点…"></textarea></label>
+          <label>监控指标(证实/证伪信号)<textarea class="an-f" data-f="monitoring_signals" rows="2" placeholder="出现什么数据 = 判断成立 / 推翻(证实与证伪写一起)…"></textarea></label>
+          <label class="an-conv">信心度(1-5)
+            <select class="an-f" data-f="conviction_level">
+              <option value="">—</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option>
+            </select>
+          </label>
+          <button class="btn an-save-thesis">保存</button>
+          <span class="an-thesis-status"></span>
+        </div>
+
+        <div class="an-notes">
+          <div class="an-block-title">自由补充笔记</div>
+          <ul class="an-note-list"><li class="an-loading">展开时加载…</li></ul>
+          <textarea class="an-new-note" rows="2" placeholder="随手记一条(支持简单 markdown)…"></textarea>
+          <button class="btn btn-secondary an-add-note">添加笔记</button>
+          <span class="an-note-status"></span>
+        </div>
+      </details>
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">尚无公司画像(待阶段 2 回填)。</p>
+  {% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function enhanceCompanyPerspective(){
+  const body=document.getElementById('companyPerspectiveBody');
+  if(!body)return;
+  const compact=s=>(s||'').replace(/\s+/g,'').trim();
+  const companyNames=new Set(
+    Array.from(body.querySelectorAll('table a[href^="/company/"]'))
+      .map(link=>compact(link.textContent)).filter(Boolean)
+  );
+  body.querySelectorAll('.md-table-wrap table').forEach((table,index)=>{
+    const headers=Array.from(table.querySelectorAll('thead th, tr:first-child th'))
+      .map(cell=>compact(cell.textContent));
+    table.classList.add('cp-research-table');
+    const wrap=table.closest('.md-table-wrap');
+    if(headers.includes('经营类型')&&headers.some(text=>text.includes('核心资源'))){
+      table.classList.add('cp-research-overview-table');
+      if(wrap)wrap.classList.add('cp-research-overview-wrap');
+    }else if(headers.includes('公司')||headers.some(text=>text.includes('主体'))){
+      table.classList.add('cp-research-company-table');
+      if(wrap)wrap.classList.add('cp-research-company-wrap');
+    }else{
+      table.classList.add('cp-research-analysis-table');
+      if(wrap)wrap.classList.add('cp-research-analysis-wrap');
+    }
+    table.querySelectorAll('thead th, tr:first-child th').forEach(
+      cell=>cell.setAttribute('scope','col')
+    );
+    if(wrap&&headers.length){
+      wrap.setAttribute(
+        'aria-label',
+        `${headers.slice(0,2).join('与')}等指标数据表，可横向滚动`
+      );
+      wrap.dataset.tableIndex=String(index+1);
+    }
+  });
+  body.querySelectorAll('h3').forEach(heading=>{
+    const headingText=compact(heading.textContent);
+    const linkedCompany=heading.querySelector('a[href^="/company/"]');
+    const matchedName=Array.from(companyNames).find(
+      name=>headingText.startsWith(name)
+    );
+    if(!linkedCompany&&!matchedName&&!heading.classList.contains('company-analysis-heading'))return;
+    heading.classList.add('company-analysis-heading');
+    if(!heading.querySelector('.company-analysis-kicker')){
+      const marker=document.createElement('span');
+      marker.className='company-analysis-kicker';
+      marker.textContent='公司';
+      marker.setAttribute('aria-hidden','true');
+      heading.prepend(marker);
+    }
+  });
+}
+enhanceCompanyPerspective();
+
+const LANDSCAPE={{ landscape_figures_json|safe }};
+const PLOT_CFG={responsive:true,displaylogo:false,modeBarButtonsToRemove:['select2d','lasso2d']};
+function drawLandscape(id,fig){const el=document.getElementById(id);if(!el)return;if(!fig||!fig.data){el.innerHTML='<div class="empty-state">当前字段不足，保留精确表格。</div>';return;}Plotly.newPlot(el,fig.data,fig.layout,PLOT_CFG);}
+function whenLandscapePlotly(cb){if(window.Plotly){cb();return;}let n=0;const timer=setInterval(()=>{if(window.Plotly||n++>100){clearInterval(timer);if(window.Plotly)cb();}},50);}
+whenLandscapePlotly(()=>{drawLandscape('companyShareChart',LANDSCAPE.share);drawLandscape('companyProfitChart',LANDSCAPE.profitability);});
+
+// ── 研究员补充 / 反共识(2c-G:AI 一致预期 + 反共识,选填)─────
+function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+// 轻量把 consensus_view(含 ^src:N / **粗体** / - bullet)转可读 HTML;^src 上标走全站 trace 委托
+function srcify(s){
+  let h = esc(s);
+  h = h.replace(/\^src:(\d+)/g, '<sup class="src-ref" data-source-id="$1" tabindex="0" role="button" title="点击溯源 source #$1">[$1]</sup>');
+  h = h.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/^&gt; (.*)$/gm, '<span class="an-quote">$1</span>');
+  h = h.replace(/^- (.*)$/gm, '• $1');
+  h = h.replace(/\n/g, '<br>');
+  return h;
+}
+document.querySelectorAll('.an-editor').forEach(ed => {
+  const cid = ed.dataset.companyId, iid = ed.dataset.industryId;
+  let loaded = false;
+
+  ed.addEventListener('toggle', async () => {
+    if (!ed.open || loaded) return;
+    loaded = true;
+    try {
+      const tr = await (await fetch('/api/company_thesis/' + cid + '?industry_id=' + iid)).json();
+      const th = (tr.ok && tr.thesis) ? tr.thesis : {};
+      ['contrarian_thesis','monitoring_signals','conviction_level'].forEach(k => {
+        const f = ed.querySelector('.an-f[data-f="'+k+'"]');
+        if (f && th[k] != null) f.value = th[k];
+      });
+    } catch (e) {}
+    await reloadNotes(ed, cid);
+  });
+
+  ed.querySelector('.an-save-thesis').addEventListener('click', async () => {
+    const st = ed.querySelector('.an-thesis-status'); st.textContent = '保存中…';
+    const body = { company_id: cid, industry_id: iid };
+    ['contrarian_thesis','monitoring_signals','conviction_level'].forEach(k => {
+      const f = ed.querySelector('.an-f[data-f="'+k+'"]'); if (f) body[k] = f.value;
+    });
+    try {
+      const r = await (await fetch('/api/company_thesis', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      })).json();
+      st.textContent = r.ok ? ' 已保存' : ('失败:' + (r.error||''));
+    } catch (e) { st.textContent = '网络错误'; }
+  });
+
+  ed.querySelector('.an-add-note').addEventListener('click', async () => {
+    const ta = ed.querySelector('.an-new-note'), st = ed.querySelector('.an-note-status');
+    const content = ta.value.trim();
+    if (!content) { st.textContent = '内容为空'; return; }
+    st.textContent = '提交中…';
+    try {
+      const r = await (await fetch('/api/analyst_note', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ entity_type:'company', entity_id: cid, content })
+      })).json();
+      if (r.ok) { ta.value=''; st.textContent=' 已添加'; await reloadNotes(ed, cid); }
+      else st.textContent = '失败:' + (r.error||'');
+    } catch (e) { st.textContent = '网络错误'; }
+  });
+});
+
+async function reloadNotes(ed, cid) {
+  const ul = ed.querySelector('.an-note-list');
+  try {
+    const r = await (await fetch('/api/analyst_note/company/' + cid)).json();
+    if (r.ok && r.notes.length) {
+      ul.innerHTML = r.notes.map(n =>
+        '<li><span class="an-note-meta">' + esc(n.created_at) + ' · ' + esc(n.author) +
+        '</span><span class="an-note-body">' + esc(n.content) + '</span></li>').join('');
+    } else { ul.innerHTML = '<li class="an-empty">暂无笔记</li>'; }
+  } catch (e) { ul.innerHTML = '<li class="an-empty">加载失败</li>'; }
+}
+</script>
+{% endblock %}

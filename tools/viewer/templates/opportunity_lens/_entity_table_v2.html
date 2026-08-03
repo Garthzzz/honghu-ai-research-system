@@ -1,0 +1,15 @@
+{% if entities %}
+<table class="opp-table opp-entity-table">
+  <thead><tr><th>研究对象</th><th>本页回答什么</th></tr></thead>
+  <tbody>
+  {% for e in entities %}
+  <tr>
+    <td><a href="/opportunity-lens/entity/{{ e.entity_id }}">{{ e.display_name or e.canonical_name }}</a></td>
+    <td>{% if e.entity_research_mode == "theory_research" %}查看研究方法、证据、分析和结论{% else %}查看公司进展、风险及对相关标的的含义{% endif %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="opp-empty">当前还没有可展示的研究对象。</div>
+{% endif %}

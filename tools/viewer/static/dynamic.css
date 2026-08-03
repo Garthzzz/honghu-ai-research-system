@@ -1,0 +1,299 @@
+/* ============================================================
+   ? dynamic.css — 动态情报/观点世界:干净白底 + 蓝色点缀 + 板块分明
+   仅作用于 body.world-dynamic(首页·研究员观点·新闻·事件·意见领袖)
+   在 styles.css + v4.css 之后加载,末层覆盖;移除本 <link> 即整体回滚。
+   设计:白/浅灰背景,卡片白底+细边+柔和阴影,蓝色作强调(区别研究世界的 teal)。
+   reference2 信息流组件(观点卡/快评/统计/月历)在此重皮为浅色。
+   ============================================================ */
+
+/* ── 1. 蓝色强调 token(背景走浅,不再蓝底)── */
+body.world-dynamic{
+  --brand:#0070C0; --brand-strong:#005a9e; --brand-50:#eff6fc; --brand-100:#d6e9f8; --brand-200:#a9cdee;
+  --lx-accent:#0070C0; --lx-accent-d:#005a9e;
+  --blue:#0070C0; --dark-blue:#005a9e;
+  --gtext:#1e293b; --gtext-2:#475569; --gtext-3:#64748b;
+  --dcard:#ffffff; --dline:#e7eaf0; --dline-2:#eef1f6;
+  --del-1:0 1px 2px rgba(16,32,64,.05); --del-2:0 2px 10px rgba(16,32,64,.06); --del-3:0 6px 22px rgba(16,32,64,.09);
+  background:#f3f5f9;
+}
+
+/* ── 2. 内容容器统一白卡(板块分明)── */
+body.world-dynamic .panel,
+body.world-dynamic .card,
+body.world-dynamic .entity-header,
+body.world-dynamic .dh-panel,
+body.world-dynamic .vc-post,
+body.world-dynamic .vc-lcard,
+body.world-dynamic .nf-item,
+body.world-dynamic .hyp-card{
+  background:var(--dcard); border:1px solid var(--dline); border-radius:12px;
+  box-shadow:var(--del-1);
+}
+body.world-dynamic .panel:hover,
+body.world-dynamic .dh-panel:hover,
+body.world-dynamic .vc-post:hover,
+body.world-dynamic .nf-item:hover,
+body.world-dynamic .hyp-card:hover,
+body.world-dynamic .vc-lcard:hover{ box-shadow:var(--del-2); border-color:#dce1ea; }
+body.world-dynamic .panel-title{ color:#0f2747; border-bottom-color:var(--dline-2); }
+body.world-dynamic .entity-header h1{ color:#0f2747; }
+
+/* ── 3. page-hero:白卡 + 角落淡蓝光晕(非蓝底)── */
+body.world-dynamic .page-hero{
+  background:var(--dcard); border:1px solid var(--dline); border-radius:14px;
+  box-shadow:var(--del-2); position:relative; overflow:hidden; color:var(--gtext);
+}
+body.world-dynamic .page-hero::before{
+  content:""; position:absolute; right:-90px; top:-110px; width:320px; height:320px;
+  background:radial-gradient(circle, rgba(0,112,192,.12), transparent 70%); pointer-events:none;
+}
+body.world-dynamic .page-hero-eyebrow{ color:var(--blue); background:var(--brand-50); border:1px solid var(--brand-100); }
+body.world-dynamic .page-hero-title{ color:#0f2747; }
+body.world-dynamic .page-hero-tagline{ color:var(--gtext-2); }
+body.world-dynamic .page-hero-stats b{ color:#0f2747; }
+body.world-dynamic .page-hero-stats span{ color:var(--gtext-3); }
+body.world-dynamic .page-hero .btn{ background:var(--blue); color:#fff; }
+body.world-dynamic .page-hero .btn:hover{ background:var(--dark-blue); }
+body.world-dynamic .page-hero .btn-secondary{ background:#fff; color:var(--blue); border:1px solid var(--brand-100); }
+body.world-dynamic .page-hero .btn-secondary:hover{ background:var(--brand-50); }
+
+/* ── 4. 筛选 chip(修复白字不可见:非 tag-industry 走浅色)── */
+body.world-dynamic .filter-bar{ color:var(--gtext-2); }
+body.world-dynamic .dp-filter-label{ color:var(--gtext-3); }
+body.world-dynamic .fsep{ color:#cbd3df; }
+body.world-dynamic .fchip:not(.tag-industry){ background:#fff; border:1px solid #e2e7ef; color:var(--gtext-2); }
+body.world-dynamic .fchip:not(.tag-industry):hover{ border-color:var(--blue); color:var(--blue); }
+body.world-dynamic .fchip.active:not(.tag-industry),
+body.world-dynamic .fchip.fchip-on:not(.tag-industry){ background:var(--blue); color:#fff; border-color:var(--blue); }
+/* tag-industry 板块 chip:保留各自 5 色(关键:不覆盖其 color);选中加蓝环 */
+body.world-dynamic .fchip.tag-industry.fchip-on{ box-shadow:0 0 0 2px var(--blue); }
+body.world-dynamic .empty-state{ color:var(--gtext-2); }
+
+/* ============================================================
+    5. 首页 reference2 组件(浅色版,高密度信息流)
+   ============================================================ */
+
+/* 5.1 KPI 统计卡:白底 + 彩色顶边(板块分明)*/
+.rx-statrow{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; margin:0 0 16px; }
+.rx-stat{
+  position:relative; display:flex; flex-direction:column; gap:2px; overflow:hidden;
+  background:#fff; border:1px solid var(--dline); border-radius:12px; padding:15px 17px;
+  box-shadow:var(--del-1); transition:transform .18s var(--ease-out,ease), box-shadow .18s;
+}
+.rx-stat::before{ content:""; position:absolute; left:0; right:0; top:0; height:3px; background:#94a3b8; }
+.rx-stat:hover{ transform:translateY(-2px); box-shadow:var(--del-2); }
+.rx-stat-ico{ width:36px; height:36px; border-radius:10px; display:grid; place-items:center; font-size:17px; margin-bottom:5px; }
+.rx-stat-val{ font-size:29px; font-weight:800; line-height:1; letter-spacing:-.02em; font-variant-numeric:tabular-nums; color:#0f2747; }
+.rx-stat-lbl{ font-size:12.5px; color:var(--gtext-2); font-weight:600; }
+.rx-stat-sub{ font-size:11px; color:var(--gtext-3); margin-top:3px; }
+.rx-stat.c-blue::before{ background:#0070C0; }   .rx-stat.c-blue   .rx-stat-ico{ background:rgba(0,112,192,.1); color:#0070C0; }   .rx-stat.c-blue   .rx-stat-val{ color:#0070C0; }
+.rx-stat.c-green::before{ background:#16A34A; }  .rx-stat.c-green  .rx-stat-ico{ background:rgba(22,163,74,.1); color:#16A34A; }  .rx-stat.c-green  .rx-stat-val{ color:#15803d; }
+.rx-stat.c-amber::before{ background:#D97706; }  .rx-stat.c-amber  .rx-stat-ico{ background:rgba(217,119,6,.1); color:#D97706; }  .rx-stat.c-amber  .rx-stat-val{ color:#b45309; }
+.rx-stat.c-violet::before{ background:#7C3AED; } .rx-stat.c-violet .rx-stat-ico{ background:rgba(124,58,237,.1); color:#7C3AED; } .rx-stat.c-violet .rx-stat-val{ color:#6d28d9; }
+.rx-stat.c-rose::before{ background:#DC2626; }   .rx-stat.c-rose   .rx-stat-ico{ background:rgba(220,38,38,.1); color:#DC2626; }   .rx-stat.c-rose   .rx-stat-val{ color:#b91c1c; }
+
+/* 5.2 板块筛选条:浅色卡片 + 浅色 pill */
+.rx-sector{
+  display:flex; align-items:center; gap:.5rem; flex-wrap:wrap;
+  padding:10px 14px; margin:0 0 16px;
+  background:#fff; border:1px solid var(--dline); border-radius:12px; box-shadow:var(--del-1);
+}
+.rx-sector-lbl{ font-size:12px; font-weight:700; color:var(--gtext-3); white-space:nowrap; }
+.rx-sbtn{
+  padding:.28rem .8rem; border-radius:8px; font-size:12.5px; font-weight:500;
+  border:1px solid #e2e7ef; background:#fff; color:var(--gtext-2); white-space:nowrap; transition:all .15s;
+}
+.rx-sbtn:hover{ border-color:var(--blue); color:var(--blue); text-decoration:none; }
+.rx-sbtn.on{ background:var(--brand-50); color:var(--dark-blue); border-color:var(--brand-100); font-weight:600; }
+.rx-sbtn .rx-sdot{ display:inline-block; width:6px; height:6px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+
+/* 5.3 双栏布局 */
+.rx-cols{ display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; }
+.rx-cols.lean{ grid-template-columns:1.5fr 1fr; }
+@media (max-width:1100px){ .rx-cols, .rx-cols.lean{ grid-template-columns:1fr; } }
+.rx-col{ display:flex; flex-direction:column; gap:16px; min-width:0; }
+
+/* 5.4 玻璃→白色面板(首页用)*/
+.rx-panel{
+  background:#fff; border:1px solid var(--dline); border-radius:12px; box-shadow:var(--del-1);
+  overflow:hidden; transition:box-shadow .2s;
+}
+.rx-panel:hover{ box-shadow:var(--del-2); }
+.rx-phead{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:12px 16px; border-bottom:1px solid var(--dline-2); background:#fcfdfe;
+}
+.rx-phead h3{ margin:0; font-size:14.5px; font-weight:700; color:#0f2747; display:flex; align-items:center; gap:7px; }
+.rx-phead .rx-more{ font-size:12.5px; color:var(--blue); font-weight:500; white-space:nowrap; }
+.rx-pbody{ padding:6px 8px; }
+.rx-pbody.scroll{ max-height:430px; overflow-y:auto; }
+
+/* 5.5 观点信息流卡(op-feed-card)*/
+.rx-feed{ display:flex; flex-direction:column; }
+.rx-fcard{ padding:11px 12px; margin:5px; border-radius:9px; border:1px solid transparent; transition:background .15s, border-color .15s; }
+.rx-fcard:hover{ background:#f7f9fc; border-color:var(--dline-2); }
+.rx-fcard-top{ display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-bottom:.4rem; }
+.rx-fcard-title{ font-size:14px; font-weight:650; color:#0f2747; line-height:1.5; }
+.rx-fcard-title a{ color:#0f2747; }
+.rx-fcard-title a:hover{ color:var(--blue); text-decoration:none; }
+.rx-fcard-body{ font-size:13px; line-height:1.6; color:var(--gtext-2); }
+.rx-fcard-meta{ display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; margin-top:.4rem; font-size:11.5px; color:var(--gtext-3); }
+.rx-fcard-meta a{ color:var(--gtext-2); }
+.rx-fcard-tags{ display:flex; flex-wrap:wrap; gap:4px; margin-top:6px; }
+
+/* 5.6 快评卡(cm-item)*/
+.rx-cm{ padding:11px 12px; border-bottom:1px solid var(--dline-2); }
+.rx-cm:last-child{ border-bottom:none; }
+.rx-cm-head{ display:flex; align-items:center; gap:.45rem; flex-wrap:wrap; margin-bottom:.3rem; }
+.rx-cm-av{ width:26px; height:26px; border-radius:8px; display:grid; place-items:center; color:#fff; font-weight:700; font-size:11px; flex:0 0 26px; background:linear-gradient(135deg,#0070C0,#3b82f6); }
+.rx-cm-name{ font-size:13px; font-weight:650; color:#0f2747; }
+.rx-cm-time{ font-size:11px; color:var(--gtext-3); margin-left:auto; }
+.rx-cm-body{ font-size:12.5px; line-height:1.6; color:var(--gtext-2); background:#f7f9fc; border-radius:8px; padding:8px 10px; }
+.rx-cm-body a{ color:var(--blue); }
+.rx-cm-tags{ display:flex; gap:.25rem; flex-wrap:wrap; margin-top:.35rem; }
+
+/* 5.7 徽章 */
+.badge-rx{ display:inline-flex; align-items:center; gap:3px; font-size:11px; font-weight:600; padding:2px 8px; border-radius:6px; }
+.badge-rx.b-blue { background:rgba(0,112,192,.1);  color:#0070C0; }
+.badge-rx.b-amber{ background:rgba(217,119,6,.12); color:#B45309; }
+.badge-rx.b-rose { background:rgba(220,38,38,.1);  color:#B91C1C; }
+.badge-rx.b-slate{ background:rgba(100,116,139,.12); color:#475569; }
+.rx-time-tag{ font-size:11px; color:var(--gtext-3); }
+
+/* 5.8 紧凑信息行(新闻/事件)*/
+.rx-evrow{ display:flex; align-items:flex-start; gap:.5rem; padding:9px 12px; border-bottom:1px solid var(--dline-2); font-size:12.5px; }
+.rx-evrow:last-child{ border-bottom:none; }
+.rx-evdate{ font-family:"JetBrains Mono",monospace; font-size:11px; color:var(--blue); font-weight:600; flex:0 0 auto; min-width:42px; }
+.rx-evrow a{ color:#1f3a5f; }
+.rx-evrow a:hover{ color:var(--blue); }
+
+/* 5.9 发布观点 CTA(浅蓝强调卡,非蓝底)*/
+.rx-cta{
+  display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;
+  padding:16px 20px; margin-top:2px; border-radius:12px;
+  background:linear-gradient(135deg, #f0f7fd, #eaf3fb); border:1px solid var(--brand-100); box-shadow:var(--del-1);
+}
+.rx-cta-txt strong{ font-size:15px; font-weight:700; color:#0f2747; }
+.rx-cta-txt div{ font-size:12.5px; color:var(--gtext-2); margin-top:2px; }
+.rx-cta .btn{ background:var(--blue); color:#fff; font-weight:600; white-space:nowrap; }
+.rx-cta .btn:hover{ background:var(--dark-blue); }
+
+/* ── 6. 月历(真·日历,紧凑)── */
+.rx-cal-panel{ overflow:hidden; }
+.rx-cal-panel .rx-pbody{ padding:0; }
+.rx-cal{ display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--dline); }
+.rx-cal-wd{ background:#fcfdfe; text-align:center; font-size:11px; font-weight:700; color:var(--gtext-3); padding:6px 0; }
+.rx-cal-cell{ background:#fff; min-height:62px; padding:4px 5px; display:flex; flex-direction:column; gap:2px; }
+.rx-cal-cell.out{ background:#fafbfd; }
+.rx-cal-cell.out .rx-cal-day{ opacity:.4; }
+.rx-cal-cell.today{ background:var(--brand-50); box-shadow:inset 0 0 0 2px var(--blue); }
+.rx-cal-day{ font-size:11.5px; font-weight:700; color:#334155; font-variant-numeric:tabular-nums; }
+.rx-cal-cell.today .rx-cal-day{ color:var(--blue); }
+.rx-cal-ev{ display:block; font-size:10px; line-height:1.3; padding:1px 4px; border-radius:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; background:rgba(100,116,139,.12); color:#475569; border-left:2px solid #94a3b8; }
+.rx-cal-ev:hover{ filter:brightness(.97); text-decoration:none; }
+.rx-cal-ev.imp-1{ background:rgba(220,38,38,.1); color:#b91c1c; border-left-color:#dc2626; }
+.rx-cal-ev.imp-2{ background:rgba(217,119,6,.12); color:#b45309; border-left-color:#f59e0b; }
+.rx-cal-ev.imp-3{ background:rgba(100,116,139,.12); color:#475569; border-left-color:#94a3b8; }
+.rx-cal-more{ font-size:9.5px; color:var(--gtext-3); }
+@media (max-width:760px){ .rx-cal-cell{ min-height:46px; } .rx-cal-ev{ display:none; } }
+
+/* ── 7. 现有动态页文字微调(白底)── */
+body.world-dynamic .vc-name, body.world-dynamic .nf-title, body.world-dynamic .nf-title:visited{ color:#0f2747; }
+body.world-dynamic .nf-title:hover{ color:var(--blue); }
+body.world-dynamic .vc-body, body.world-dynamic .nf-summary{ color:var(--gtext-2); }
+body.world-dynamic .hyp-card-title{ color:#0f2747; }
+body.world-dynamic .hyp-card-title:hover{ color:var(--blue); }
+body.world-dynamic .vc-lcard-bio, body.world-dynamic .vc-lcard-foot{ color:var(--gtext-3); }
+
+/* ── 8. AI 综合摘要视觉标记(抗 slop:DeepSeek 产出物明显区分,tier≤2)── */
+.ai-badge{ display:inline-block; font-size:11px; font-weight:700; color:#fff;
+  background:var(--brand,#0070C0); border-radius:4px; padding:1px 6px; margin-right:6px; vertical-align:middle; }
+body.world-dynamic .nf-ai{ border-left:3px solid var(--brand); padding-left:10px;
+  background:linear-gradient(90deg,#eef6fd,transparent 70%); border-radius:0 6px 6px 0; }
+body.world-dynamic .vc-summary{ border-left:3px solid var(--brand); padding:4px 10px; margin-top:6px;
+  background:linear-gradient(90deg,#eef6fd,transparent 70%); border-radius:0 6px 6px 0;
+  color:var(--gtext-2); font-size:13px; }
+body.world-dynamic .rx-fcard-sum{ margin-top:5px; font-size:12px; color:var(--gtext-2); line-height:1.5; }
+
+/* ── 9. 意见领袖观点流:页面收窄 + 精选索引 + 个人页头(2026-06-09)── */
+/* 9.1 观点流页宽度:单列(每帖够宽、好读)+ 适中宽度(不半屏窄、不满屏长行)。
+   1100px 是 880(半屏窄)与满屏(长行)之间的折中。要再宽/再窄改这一个数即可。 */
+.vc-wrap{ max-width:1100px; margin:0 auto; }
+.vc-wrap .vc-post{ padding:14px 18px; }                 /* 评价卡片略宽松 */
+.vc-wrap .vc-body{ font-size:14px; line-height:1.7; }
+.vc-feed{ display:grid; grid-template-columns:1fr; gap:12px; align-items:start; }  /* 单列,带间距 */
+
+/* 9.2 精选索引头部 + 展开/收起 */
+.vc-cards-head{ display:flex; align-items:center; justify-content:space-between; margin:14px 0 6px; }
+.vc-cards-lbl{ font-size:12px; font-weight:600; color:var(--gtext-2); }
+.vc-toggle{ font-size:12px; color:var(--blue); text-decoration:none; padding:2px 8px; border:1px solid #d6e2f2;
+  border-radius:14px; background:#f3f8fe; }
+.vc-toggle:hover{ background:#e7f1fc; }
+.vc-featured-dot,
+.vc-verified{
+  font-size:11px;
+  font-weight:700;
+  line-height:1;
+  padding:3px 6px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+.vc-featured-dot{ color:#9a6700; background:#fff7d6; margin-left:auto; }
+.vc-verified{ color:#0f766e; background:#dcfce7; }
+.vc-lcard-head{ display:flex; align-items:center; gap:.3rem; }
+
+/* 9.3 领袖跳转下拉 */
+.vc-leader-select{ font-size:12px; padding:3px 8px; border:1px solid #d6e2f2; border-radius:14px;
+  background:#fff; color:var(--gtext-2); max-width:170px; }
+
+/* 9.4 个人页头(点单个领袖时:他是谁 + 擅长什么)*/
+.vc-profile{ display:flex; gap:14px; align-items:flex-start; padding:16px 18px; margin:8px 0 4px;
+  background:linear-gradient(135deg,#f3f8fe,#fff); border:1px solid #dce7f5; border-radius:14px; }
+.vc-profile-av{ width:52px; height:52px; flex:0 0 52px; border-radius:14px; display:grid; place-items:center;
+  color:#fff; font-weight:700; font-size:22px; background:linear-gradient(135deg,#0070C0,#3b82f6); }
+.vc-profile-main{ flex:1; min-width:0; }
+.vc-profile-top{ display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+.vc-profile-top h2{ margin:0; font-size:18px; color:#0f2747; }
+.vc-featured{ font-size:11px; font-weight:700; color:#9a6a00; background:#fff3d6; border-radius:4px; padding:1px 7px; }
+.vc-profile-bio{ margin:6px 0; font-size:13px; color:var(--gtext-2); line-height:1.6; }
+.vc-profile-tags{ display:flex; gap:.3rem; flex-wrap:wrap; }
+.vc-profile-foot{ margin-top:8px; font-size:12px; color:var(--gtext-3); }
+.vc-profile-foot a{ color:var(--blue); }
+
+/* 9.5 首页:意见领袖评价卡片列略宽 + 卡片更舒展 */
+.rx-cols.rx-voicewide{ grid-template-columns:1fr 1.18fr; }
+@media (max-width:1100px){ .rx-cols.rx-voicewide{ grid-template-columns:1fr; } }
+.rx-voicewide .rx-cm{ padding:12px 14px; }
+.rx-voicewide .rx-cm-body{ font-size:13px; line-height:1.65; }
+
+/* 9.6 首页第一排两栏等高(今日要闻 ↔ 意见领袖观点流):消除右栏短、左栏长的外部空挡。
+   做法:grid align-items:stretch 让两个【面板边框】拉到同高,内容自然从顶部排列,
+   较短一侧底部留白在面板内(白底带框,不是页面空挡)。
+    关键教训:不要用 flex-basis:0 撑高 —— 那会让 grid 轨道塌缩成只剩标题高度,
+     内容被 overflow 裁成 0(表现为"0 条")。这里纯靠 block 拉伸,绝不塌缩。 */
+.rx-cols.rx-voicewide{ align-items:stretch; }
+.rx-voicewide .rx-pbody.scroll{ max-height:none; }   /* 解除 430 硬顶,16 条自然展开 */
+
+/* ══════════════════════════════════════════════════════════════════════
+   world-senti:情绪事件系统【浅色白底主题 + 高对比】(V1 — 用户要白底,仅K线面板深色)
+   亮色卡片 + 深字,脱离灰墓;语义色 红=涨/看涨、绿=跌/看跌。共享令牌见各页 .se-* / .mo-* / .sc-*。
+   ══════════════════════════════════════════════════════════════════════ */
+body.world-senti{ background:#f4f6fb; }
+body.world-senti .app-main .container{ color:#1f2a44; }
+body.world-senti .entity-header h1,
+body.world-senti h1, body.world-senti h2, body.world-senti h3{ color:#13203a; }
+body.world-senti .entity-meta{ color:#5b6a85; }
+body.world-senti .breadcrumb,
+body.world-senti .breadcrumb strong{ color:#5b6a85; }
+body.world-senti .breadcrumb a,
+body.world-senti a{ color:#0070C0; }
+body.world-senti a:hover{ color:#005a9e; }
+body.world-senti code{ color:#0a558c; background:#e8f0fb; padding:1px 5px; border-radius:4px; }
+body.world-senti .empty-state{ color:#5b6a85; background:#fff; border:1px solid #e3e8f0; border-radius:10px; padding:14px 16px; }
+/* 共享浅色卡片/徽章令牌(senti 各页复用)*/
+.sw-card{ background:#fff; border:1px solid #e3e8f0; border-radius:12px; box-shadow:0 1px 3px rgba(16,32,64,.05); }
+.sw-muted{ color:#6b7891; }
+.sw-pos{ color:#d23a30; }   /* 看涨/涨=红 */
+.sw-neg{ color:#138a5e; }   /* 看跌/跌=绿 */
+/* K线面板:唯一深色块(用户允许)*/
+.sw-chartdark{ background:#0c1320; border:1px solid #20304a; border-radius:12px; }

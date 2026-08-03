@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}泓湖 AI 行研 · 动态情报{% endblock %}
+{% block content %}
+{# ============================================================
+   动态情报首页(reference2 投研观点平台风格 · 白底版,高密度多信息流)
+   顺序:hero → KPI → 板块 → [今日要闻 | 意见领袖] → [研究员观点 | 行业新闻] → 月历 → 发布观点
+   数据全部来自 index() 路由,0 mock
+   ============================================================ #}
+
+<!-- HERO -->
+<section class="page-hero dh-hero">
+  <div class="page-hero-eyebrow">实时动态情报</div>
+  <h1 class="page-hero-title">📡 动态情报中心</h1>
+  <p class="page-hero-tagline">今日要闻 · 意见领袖 · 研究员观点 · 前瞻事件 —— 多源汇聚 · 灰源标注 · AI 仅辅助不构成买卖建议</p>
+  <div class="page-hero-actions">
+    <a class="btn" href="{{ url_for('hypotheses_index') }}">研究员观点 →</a>
+    <a class="btn btn-secondary" href="{{ url_for('research_home') }}">深度行研库 →</a>
+  </div>
+</section>
+
+<!-- KPI 统计行 -->
+<div class="rx-statrow">
+  <a class="rx-stat c-green" href="{{ url_for('dynamic_news') }}">
+    <div class="rx-stat-ico" aria-hidden="true">📰</div>
+    <div class="rx-stat-val">{{ totals.news }}</div>
+    <div class="rx-stat-lbl">行业新闻</div>
+    <div class="rx-stat-sub">白名单 + Google News</div>
+  </a>
+  <a class="rx-stat c-blue" href="{{ url_for('dynamic_voices') }}">
+    <div class="rx-stat-ico" aria-hidden="true">🗣️</div>
+    <div class="rx-stat-val">{{ totals.voices }}</div>
+    <div class="rx-stat-lbl">意见领袖观点</div>
+    <div class="rx-stat-sub">雪球 / 微博 / X · tier 3</div>
+  </a>
+  <a class="rx-stat c-blue" href="{{ url_for('dynamic_sentiment') }}">
+    <div class="rx-stat-ico" aria-hidden="true">情</div>
+    <div class="rx-stat-val">{{ totals.sentiment }}</div>
+    <div class="rx-stat-lbl">散户情绪</div>
+    <div class="rx-stat-sub">工作日盘前 / 早盘 / 午后</div>
+  </a>
+  <a class="rx-stat c-violet" href="{{ url_for('hypotheses_index') }}">
+    <div class="rx-stat-ico" aria-hidden="true">🧪</div>
+    <div class="rx-stat-val">{{ totals.hyps }}</div>
+    <div class="rx-stat-lbl">研究员假说</div>
+    <div class="rx-stat-sub">以人为标签 · 含证伪条件</div>
+  </a>
+  <a class="rx-stat c-amber" href="{{ url_for('events_index') }}">
+    <div class="rx-stat-ico" aria-hidden="true">📅</div>
+    <div class="rx-stat-val">{{ totals.events }}</div>
+    <div class="rx-stat-lbl">未来事件</div>
+    <div class="rx-stat-sub">财报 / 大会 / 政策</div>
+  </a>
+</div>
+
+<!-- 板块导航条 -->
+{% if nav_industries %}
+<nav class="rx-sector" aria-label="板块">
+  <span class="rx-sector-lbl">覆盖行业</span>
+  {% for ind in nav_industries %}
+  <a class="rx-sbtn{{ ' on' if ind.status=='深度跟踪' else '' }}" href="{{ url_for('industry_detail', industry_id=ind.id) }}">
+    <span class="rx-sdot tier-dot tier-{{ ind.tier or 3 }}"></span>{{ ind.name }}
+  </a>
+  {% endfor %}
+</nav>
+{% endif %}
+
+<!-- 第一排:今日要闻 | 意见领袖观点流(置顶)-->
+<div class="rx-cols rx-voicewide no-katex">
+  <section class="rx-panel">
+    <div class="rx-phead">
+      <h3>📰 今日要闻</h3>
+      <a class="rx-more" href="{{ url_for('dynamic_news') }}">全部新闻 →</a>
+    </div>
+    <div class="rx-pbody">
+      {% if headlines %}
+      <div class="rx-feed">
+        {% for h in headlines %}
+        <div class="rx-fcard">
+          <div class="rx-fcard-title">
+            {% if h.is_breaking %}<span class="badge-rx b-rose">⚡ 突发</span> {% endif %}{% if h.is_gray %}<span class="badge-rx b-amber">⚠️ 灰源</span> {% endif %}
+            <a href="{{ h.url }}" target="_blank" rel="noopener">{{ h.title_zh or h.title }}</a>
+          </div>
+          <div class="rx-fcard-meta"><span>{{ h.source_publisher }}</span><span>· {{ h.when }}</span></div>
+          {% if h.ai_summary %}<div class="rx-fcard-sum"><span class="ai-badge">AI摘要</span>{{ h.ai_summary[:96] }}</div>{% endif %}
+          {% if h.industries %}<div class="rx-fcard-tags">{% for i in h.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}{% for c in h.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<p style="padding:14px;color:var(--gtext-3);font-size:13px;">暂无要闻。</p>{% endif %}
+    </div>
+  </section>
+
+  <section class="rx-panel">
+    <div class="rx-phead">
+      <h3>🗣️ 意见领袖观点流</h3>
+      <a class="rx-more" href="{{ url_for('dynamic_voices') }}">完整观点流 →</a>
+    </div>
+    <div class="rx-pbody scroll">
+      {% if voices %}
+        {% for v in voices %}
+        <div class="rx-cm">
+          <div class="rx-cm-head">
+            <span class="rx-cm-av">{{ (v.leader_name or '·')[:1] }}</span>
+            <span class="rx-cm-name">{{ v.leader_name }}</span>
+            {% if v.verified_kol %}<span class="badge-rx b-blue">🏅 认证</span>{% endif %}
+            <span class="rx-cm-time">{{ '雪球' if v.platform=='xueqiu' else '微博' if v.platform=='weibo' else 'X' }} · {{ (v.posted_at or '')[:10] }}</span>
+          </div>
+          <div class="rx-cm-body">{{ (v.content_text or '(无文本)')[:120] }}{% if (v.content_text or '')|length > 120 %}…{% endif %}{% if v.post_url %} <a href="{{ v.post_url }}" target="_blank" rel="noopener">↗</a>{% endif %}</div>
+        </div>
+        {% endfor %}
+      {% else %}<p style="padding:14px;color:var(--gtext-3);font-size:13px;">暂无观点(雪球/微博需 cookie)。</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+<!-- 第二排:研究员观点 | 行业新闻 -->
+<div class="rx-cols no-katex" style="margin-top:16px;">
+  <section class="rx-panel">
+    <div class="rx-phead">
+      <h3>🧪 研究员观点</h3>
+      <a class="rx-more" href="{{ url_for('hypotheses_index') }}">全部假说 →</a>
+    </div>
+    <div class="rx-pbody">
+      {% if hyp_latest %}
+      <div class="rx-feed">
+        {% for h in hyp_latest %}
+        <div class="rx-fcard">
+          <div class="rx-fcard-top">
+            <span class="hyp-dir hyp-dir-{{ h.thesis_type }}">{{ hl(h.thesis_type) }}</span>
+            <span class="hyp-st hyp-st-{{ h.status }}">{{ hl(h.status) }}</span>
+            {% if h.is_new %}<span class="badge-rx b-rose">新</span>{% endif %}
+          </div>
+          <div class="rx-fcard-title"><a href="{{ url_for('hypothesis_detail', hid=h.id) }}">{{ h.title }}</a></div>
+          <div class="rx-fcard-meta">
+            <a href="{{ url_for('researcher_profile', rid=h.researcher_id) }}">{{ h.researcher_name or h.researcher_raw }}</a>
+            <span>· {{ (h.last_updated_at or h.created_at or '')[:10] }}</span>
+          </div>
+          {% if h.industries %}<div class="rx-fcard-tags">{% for i in h.industries %}{% if i.id %}<a class="tag-industry {{ industry_color_class(i.name) }}" href="{{ url_for('industry_detail', industry_id=i.id) }}">#{{ i.name }}</a>{% else %}<span class="tag-industry {{ industry_color_class(i.name) }}">#{{ i.name }}</span>{% endif %}{% endfor %}{% for c in h.companies %}<span class="tag-company">{{ c.name }}</span>{% endfor %}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="padding:14px;color:var(--gtext-3);font-size:13px;">暂无假说 —— 研究员可<a href="{{ url_for('hypothesis_new') }}" style="color:var(--blue);">新建假说</a>(含证伪条件 + 双向交易预案)。</p>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="rx-panel">
+    <div class="rx-phead">
+      <h3>🏭 行业新闻</h3>
+      <a class="rx-more" href="{{ url_for('dynamic_news') }}">新闻流 →</a>
+    </div>
+    <div class="rx-pbody">
+      {% if news %}
+        {% for n in news[:8] %}
+        <div class="rx-evrow">
+          {% if n.is_breaking %}<span class="badge-rx b-rose">⚡ 突发</span>{% elif n.is_gray %}<span class="badge-rx b-amber">⚠️ 灰源</span>{% endif %}
+          {% set nt = n.title_zh or n.title %}
+          <a href="{{ n.url }}" target="_blank" rel="noopener">{{ nt[:48] }}{% if nt|length > 48 %}…{% endif %}</a>
+        </div>
+        {% endfor %}
+      {% else %}<p style="padding:14px;color:var(--gtext-3);font-size:13px;">暂无新闻。</p>{% endif %}
+    </div>
+  </section>
+</div>
+
+<!-- 月历(紧凑)-->
+<section class="rx-panel rx-cal-panel" style="margin-top:16px;">
+  <div class="rx-phead">
+    <h3>📅 事件日历 · {{ cal_month_label }}</h3>
+    <a class="rx-more" href="{{ url_for('events_index') }}">完整日历 →</a>
+  </div>
+  <div class="rx-cal">
+    <div class="rx-cal-wd">一</div><div class="rx-cal-wd">二</div><div class="rx-cal-wd">三</div>
+    <div class="rx-cal-wd">四</div><div class="rx-cal-wd">五</div><div class="rx-cal-wd">六</div><div class="rx-cal-wd">日</div>
+    {% for wk in cal_grid %}{% for c in wk %}
+      <div class="rx-cal-cell{{ ' out' if not c.in_month }}{{ ' today' if c.is_today }}">
+        <div class="rx-cal-day">{{ c.day }}</div>
+        {% for e in c.events[:2] %}
+          <a class="rx-cal-ev imp-{{ e.importance }}" href="{{ url_for('event_detail', event_id=e.id) }}" title="{{ e.title }}">{{ e.title }}</a>
+        {% endfor %}
+        {% if c.events|length > 2 %}<div class="rx-cal-more">+{{ c.events|length - 2 }}</div>{% endif %}
+      </div>
+    {% endfor %}{% endfor %}
+  </div>
+</section>
+
+<!-- 发布观点 CTA -->
+<div class="rx-cta" style="margin-top:16px;">
+  <div class="rx-cta-txt">
+    <strong>✍️ 发布研究观点</strong>
+    <div>以人为标签 · 含证伪条件 · 交易方案选填 · 引用材料可溯源</div>
+  </div>
+  <a class="btn" href="{{ url_for('hypothesis_new') }}">+ 新建假说</a>
+</div>
+{% endblock %}

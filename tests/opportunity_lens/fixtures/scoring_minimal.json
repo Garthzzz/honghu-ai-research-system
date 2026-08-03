@@ -1,0 +1,11 @@
+{
+  "description": "合成评分 fixture 元数据。可执行 fixture 由 tools.opportunity_lens.fixture_loader 加载。",
+  "run_id": 1,
+  "entity_ids": [1, 2, 3],
+  "score_rule_version": "C_SCORING_V08_1",
+  "expected": {
+    "current_score_batch_count": 1,
+    "veto_codes_per_scored_entity": 5,
+    "pdf_export": "deferred_failure_manifest"
+  }
+}

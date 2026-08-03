@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}增量更新 · 行研工具系统{% endblock %}
+
+{% block content %}
+
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> / <strong>增量更新</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>增量更新</h1>
+    <p class="entity-meta">
+      行研更新快(月 / 季度级别),不可能每次新增几份研报就重跑完整 5-step pipeline。
+      本页展示已记录的增量快照(<code>source_snapshot</code>)+ 待 review 的 md 章节(<code>md_section_version.review_pending=1</code>)。
+    </p>
+  </div>
+</header>
+
+<section class="panel">
+  <h3 class="panel-title">快照历史(每次 incremental_update.py 跑完留痕)</h3>
+  {% if snapshots %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>时间</th><th>行业</th><th>当时 source 数</th><th>当时数据点</th><th>新增 source ID</th><th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in snapshots %}
+      <tr>
+        <td>{{ s.snapshot_date }}</td>
+        <td>{% if s.industry_name %}<a href="{{ url_for('industry_detail', industry_id=s.industry_id) }}">{{ s.industry_name }}</a>{% else %}—{% endif %}</td>
+        <td>{{ s.source_count or '—' }}</td>
+        <td>{{ s.data_point_count or '—' }}</td>
+        <td>
+          {% if s.new_source_ids_list %}
+            {% for sid in s.new_source_ids_list %}
+              <a href="{{ url_for('source_detail', source_id=sid) }}">#{{ sid }}</a>{% if not loop.last %},{% endif %}
+            {% endfor %}
+          {% else %}—{% endif %}
+        </td>
+        <td class="cell-narrative">{{ s.note or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">尚无快照。首次跑 <code>tools/pipeline/incremental_update.py</code> 后会留痕。</div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">待 review 的 md 章节</h3>
+  <p class="entity-meta" style="margin-bottom: 12px;">
+    新 source 入库时,系统自动反查 md_section_version 表,把"涉及相同指标 / 实体的旧 section"标 review_pending=1。
+    用户 review 后人工决定是否更新该 section,再清 flag。
+  </p>
+  {% if pending %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>md 路径</th><th>锚点</th><th>上次更新</th><th>涉及指标</th><th>支撑 source</th><th>摘要</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pending %}
+      <tr>
+        <td><code>{{ p.md_path }}</code></td>
+        <td>{{ p.section_anchor or '—' }}</td>
+        <td>{{ p.last_updated }}</td>
+        <td>{{ p.metrics_covered or '—' }}</td>
+        <td>{{ p.last_source_ids or '—' }}</td>
+        <td class="cell-narrative">{{ p.summary or '' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">所有 md 章节均为最新,无待 review 项。</div>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <h3 class="panel-title">增量更新协议</h3>
+  <ol style="padding-left: 24px; font-size: 13px; color: #475569;">
+    <li>用户把新 PDF 放到 <code>papers/&lt;industry&gt;/</code> 或 Claude 通过 web search 下载到 <code>auto_downloaded/</code></li>
+    <li>进入行业详情页 → 点 "扫描新增 source" → 列出未入库的新文件</li>
+    <li>开 fresh SCIENTIST session,只处理新 source(不重读旧的),按 value_layer 走对应抽取协议</li>
+    <li>抽出的 claim / data_point 入 db,自动反查 <code>md_section_version</code>,把受影响 section 标 review_pending=1</li>
+    <li>SCIENTIST 仅入 db,不动 md 文件;在 <code>docs/incremental/&lt;date&gt;_review.md</code> 生成"建议 review 的 section 列表"</li>
+    <li>用户 review 后,跑第二个 SCIENTIST session,只更新指定 section</li>
+  </ol>
+  <p class="entity-meta">
+    硬规则:不重读旧 source、不重写 Q0-Q5 完整 md、不重跑 adversarial review、不触发 thesis 重审(除非阈值触发)。
+    保证一次增量在一个 CC session 内可跑完。
+  </p>
+</section>
+
+{% endblock %}

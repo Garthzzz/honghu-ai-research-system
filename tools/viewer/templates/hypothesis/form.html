@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑假说' if mode=='edit' else '新建假说' }} · 研究员观点{% endblock %}
+{% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('index') }}">首页</a> /
+  <a href="{{ url_for('hypotheses_index') }}">研究员观点</a> /
+  <strong>{{ '编辑假说' if mode=='edit' else '新建假说' }}</strong>
+</div>
+
+<header class="entity-header">
+  <div>
+    <h1>✍️ {{ '编辑假说' if mode=='edit' else '新建假说' }}</h1>
+    <p class="entity-meta">系统只搭骨架,内容由研究员本人填写。每条假说须含 ≥1 证伪条件;交易方案(正向/反向)选填。</p>
+  </div>
+</header>
+
+<!-- 预填数据(edit 模式)+ 全量 company 池供 picker 标签回显 -->
+<script id="hyp-prefill" type="application/json">{{ prefill | tojson }}</script>
+<script id="hyp-companies" type="application/json">{{ companies | tojson }}</script>
+
+<form id="hyp-form" class="hyp-form" data-mode="{{ mode }}" data-id="{{ h.id if h else '' }}">
+
+  <!-- 1. 基本信息 -->
+  <section class="panel hyp-form-sec">
+    <h3 class="panel-title">1 · 基本信息</h3>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">研究员 *</label>
+      <select id="f-researcher" class="hyp-f-input">
+        <option value="">— 选择研究员 —</option>
+        {% for r in researchers %}<option value="{{ r.id }}">{{ r.display_name or r.name }}</option>{% endfor %}
+        <option value="__other__">+ 其他研究员(手填姓名)</option>
+        <option value="__intern__">+ 实习生(手填姓名)</option>
+      </select>
+      <input type="text" id="f-researcher-name" class="hyp-f-input" style="display:none;margin-top:6px;"
+             placeholder="填写姓名(记为该研究员 / 实习生)" maxlength="40">
+    </div>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">标题 *</label>
+      <input type="text" id="f-title" class="hyp-f-input" placeholder="短标题,如:AI 硬件估值过高假说" maxlength="120">
+    </div>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">方向 *</label>
+      <div class="hyp-f-radios" id="f-thesis-type">
+        {% for v in ['bullish','bearish','neutral','contrarian'] %}
+        <label class="hyp-radio hyp-dir-{{ v }}"><input type="radio" name="thesis_type" value="{{ v }}"> {{ hl(v) }}</label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">信心</label>
+      <div class="hyp-f-radios" id="f-conviction">
+        {% for n in [1,2,3,4,5] %}<label class="hyp-radio"><input type="radio" name="conviction" value="{{ n }}"> L{{ n }}</label>{% endfor %}
+      </div>
+    </div>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">持有周期</label>
+      <select id="f-horizon" class="hyp-f-input hyp-f-narrow">
+        <option value="">—</option>
+        <option value="周度">周度</option>
+        <option value="半月">半月</option>
+        <option value="月度">月度</option>
+        <option value="季度">季度</option>
+        <option value="半年">半年</option>
+        <option value="年度">年度</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- 2. 板块 / 公司 tag -->
+  <section class="panel hyp-form-sec">
+    <h3 class="panel-title">2 · 板块 / 公司标签</h3>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">板块</label>
+      <div class="hyp-chip-toggle" id="f-boards">
+        {% for b in boards %}<span class="fchip tag-industry {{ industry_color_class(b.name) }}" data-id="{{ b.id }}">#{{ b.name }}</span>{% endfor %}
+      </div>
+    </div>
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">公司</label>
+      <div class="hyp-picker" data-kind="company" data-target="f-companies">
+        <input type="text" class="hyp-picker-search" placeholder="搜索公司名 / ticker…">
+        <div class="hyp-picker-results"></div>
+        <div class="hyp-picker-chips" id="f-companies"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 假说陈述 -->
+  <section class="panel hyp-form-sec">
+    <h3 class="panel-title">3 · 假说陈述 *</h3>
+    <textarea id="f-text" class="hyp-f-textarea" rows="8"
+      placeholder="描述你的核心判断、推理链条、关键假设。例(示例,请替换为你自己的判断):当前 AI 数据中心投入隐含了过高的乐观预期,若云厂商资本开支与 AI 收入剪刀差扩大……。不需要给出具体目标价(那是 PM 的工作)。"></textarea>
+    <div class="hyp-f-hint">支持 <code>^src:N</code> 行内溯源(N=source.id);提交后可点击溯源原文。</div>
+  </section>
+
+  <!-- 4. 引用材料 -->
+  <section class="panel hyp-form-sec">
+    <h3 class="panel-title">4 · 引用材料(可选;id 须 db 真实存在,否则拒绝入库)</h3>
+    {% for kind, label in [('source','研报'),('news','新闻'),('voice','意见领袖发言'),('event','事件')] %}
+    <div class="hyp-f-row">
+      <label class="hyp-f-label">{{ label }}</label>
+      <div class="hyp-picker" data-kind="{{ kind }}" data-target="f-cite-{{ kind }}">
+        <input type="text" class="hyp-picker-search" placeholder="搜索{{ label }}…">
+        <div class="hyp-picker-results"></div>
+        <div class="hyp-picker-chips" id="f-cite-{{ kind }}"></div>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <!-- 5. 监控信号 -->
+  <section class="panel hyp-form-sec">
+    <h3 class="panel-title">5 · 监控信号( 至少 1 个证伪条件)</h3>
+    <div id="signals-container"></div>
+    <button type="button" class="btn btn-secondary btn-xs" id="add-signal">+ 添加监控信号</button>
+  </section>
+
+  <!-- 6. 交易方案 -->
+  <section class="panel hyp-form-sec">
+    <h3 class="panel-title">6 · 交易方案(选填:正向 / 证伪后反向)</h3>
+    <div class="hyp-trade-group">
+      <div class="hyp-trade-group-title"> 正向交易(基于假说)</div>
+      <div id="primary-container"></div>
+      <button type="button" class="btn btn-secondary btn-xs add-trade" data-scenario="primary">+ 添加正向交易</button>
+    </div>
+    <div class="hyp-trade-group hyp-trade-group-reverse">
+      <div class="hyp-trade-group-title"> 证伪后反向交易</div>
+      <div id="reverse-container"></div>
+      <button type="button" class="btn btn-secondary btn-xs add-trade" data-scenario="falsification_reverse">+ 添加反向交易</button>
+    </div>
+  </section>
+
+  <div class="hyp-form-actions">
+    <a class="btn btn-secondary" href="{{ url_for('hypotheses_index') }}">取消</a>
+    {% if mode != 'edit' %}<button type="button" class="btn btn-secondary" id="save-draft">保存草稿</button>{% endif %}
+    <button type="button" class="btn" id="save-hyp">{{ '保存修改' if mode=='edit' else '保存假说' }}</button>
+    <span id="hyp-form-msg"></span>
+  </div>
+</form>
+
+<!-- 信号行模板 -->
+<template id="tpl-signal">
+  <div class="hyp-srow">
+    <select class="srow-type">
+      <option value="falsification">证伪条件</option>
+      <option value="confirmation">确认信号</option>
+      <option value="monitor">中性观察</option>
+    </select>
+    <input type="text" class="srow-desc" placeholder="信号描述 *(如:Oracle 后续财报现金流明显改善)">
+    <input type="text" class="srow-target" placeholder="关联(可选:event:xxx / company:xxx / metric:xxx)">
+    <input type="text" class="srow-kw" placeholder="AI 检测关键词,逗号分隔(可选)">
+    <button type="button" class="hyp-row-del" title="删除" aria-label="删除">删除</button>
+  </div>
+</template>
+
+<!-- 交易行模板 -->
+<template id="tpl-trade">
+  <div class="hyp-trow">
+    <div class="trow-line1">
+      <select class="trow-dir">
+        <option value="long">做多</option><option value="short">做空</option>
+        <option value="neutral">中性</option><option value="pair">配对</option>
+      </select>
+      <button type="button" class="hyp-row-del" title="删除" aria-label="删除">删除</button>
+    </div>
+    <textarea class="trow-desc" rows="2" placeholder="标的描述 *(如:做空议价权弱、扩产快、竞争格局差的硬件环节)"></textarea>
+    <div class="trow-tags">
+      <label>标的板块</label>
+      <select class="trow-boards" multiple size="3">
+        {% for b in boards %}<option value="{{ b.id }}">{{ b.name }}</option>{% endfor %}
+      </select>
+      <div class="hyp-picker trow-company-picker" data-kind="company">
+        <input type="text" class="hyp-picker-search" placeholder="标的公司(可选)…">
+        <div class="hyp-picker-results"></div>
+        <div class="hyp-picker-chips trow-companies"></div>
+      </div>
+    </div>
+    <div class="trow-cfg">
+      <input type="text" class="trow-pos" placeholder="仓位(如 proposed / 10-20% NAV)">
+      <input type="text" class="trow-entry" placeholder="入场触发(可选)">
+      <input type="text" class="trow-exit" placeholder="出场触发(可选)">
+    </div>
+  </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='hypothesis_form.js') }}"></script>
+{% endblock %}
