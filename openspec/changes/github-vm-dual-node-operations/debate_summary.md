@@ -41,7 +41,7 @@ Codex 再次拒绝。SQLite dev/PG prod 的长期双方言会让生产语义无�
 
 ## 第二次架构审查（本轮追加）
 
-> 日期：2026-08-03  
+> 日期：2026-08-03
 > 实际轮次：2 轮；未进行第三轮，因为两轮都没有提供超出 Codex 草案的有效架构增量。  
 > 发送范围：仅包括 SQLite 回退状态、cutover unit、publisher 并发、expand–contract、runner/存储两轴、稳定身份、单域恢复、RPO/RTO、仓库治理和内容仓库状态的脱敏摘要。
 
@@ -117,3 +117,12 @@ DeepSeek 返回中，以下意见被拒绝：
 - 备份注册表区分 SQLite 历史恢复材料、迁移基线和 PostgreSQL 目标恢复合同。
 
 第二轮后剩余意见要么已由现有合同覆盖，要么源自错误前提，没有新的未闭环矛盾，因此停止在两轮。
+
+## 阶段 1 实施审核
+
+> 日期：2026-08-03
+> DeepSeek 轮次：0。
+
+Codex 先在隔离 clone 中完成 allowlist、staged gate、SQLite ratchet、测试修复、hash-pinned 环境和 CI，并通过远端 fresh clone 复验。本阶段没有调用 DeepSeek：门禁两次真实阻断分别发现 `.git/` 误伤 `.github/` 和受控 artifact 测试污染 clean-clone coverage，随后均由确定性回归测试关闭；继续向外部模型发送抽象摘要没有可识别的信息增量。该选择符合“可以使用、连续无增量即停止”，也避免无必要发送项目结构信息。
+
+这不等于外部模型批准了阶段 1。阶段 1 的证据是 staged/tracked gate、SQLite ratchet、OpenSpec strict、clean environment 安装、compile、clean-clone tests 和远端 commit identity；main ruleset 与人工 HALT 仍由用户完成。

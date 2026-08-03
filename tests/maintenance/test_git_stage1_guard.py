@@ -36,3 +36,18 @@ def test_requirements_input_files_are_tracked_sources(tmp_path: Path) -> None:
     records = {row["path"]: row for row in inventory["records"]}
 
     assert records["requirements.in"]["classification"] == "tracked_source"
+
+
+def test_local_virtual_environment_is_runtime_not_pending_review(tmp_path: Path) -> None:
+    package = tmp_path / ".venv-stage1" / "Lib" / "site-packages" / "sample.py"
+    package.parent.mkdir(parents=True)
+    package.write_text("value = 1\n", encoding="utf-8")
+    inventory = build_inventory(
+        tmp_path,
+        load_policy(ROOT / "config" / "git_tracked_policy.json"),
+    )
+    records = {row["path"]: row for row in inventory["records"]}
+
+    assert records[".venv-stage1/Lib/site-packages/sample.py"]["classification"] == (
+        "runtime"
+    )

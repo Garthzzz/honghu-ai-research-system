@@ -3,11 +3,11 @@
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
 > 当前状态：阶段 0 已获用户批准退出；现仅授权执行阶段 1“安全 Git bootstrap 与 CI”。PostgreSQL、VM、数据库和任务实施均未获授权。
 
-## 0. 已确认事实，不重复执行
+## 0. 阶段 0 启动时已确认的历史事实
 
 - 两个 private GitHub repository 已由用户创建；此前只做过临时 tag push/delete 连通性验证。
-- 当前工作区尚未初始化 Git。
-- 本轮不重新登录、不重新测试远端、不修改仓库。
+- 阶段 0 审计时工作区尚未初始化 Git；阶段 1 已按授权建立安全 bootstrap，不能再把该历史事实当成当前状态。
+- 阶段 0 未重新登录、重复测试远端或修改仓库；阶段 1 只使用既有 GCM 凭据推送批准的 bootstrap branch。
 - 当前四套 SQLite 和 Viewer 可用；测试失败与七个任务异常状态按 `baseline.md` 原样保留。
 
 ## 1. 原百项计划的处置
@@ -60,13 +60,14 @@
 **前置条件**：阶段 0 人工批准。  
 **回滚点**：尚未部署时停止 bootstrap；不改变生产数据和任务。
 
-- [ ] [本阶段必须] 生成 tracked allowlist、ignore policy 和 staged inventory；逐项排除 live DB、WAL/SHM、backup、broadcast、runtime、临时 cache、secrets、个人上下文和未批准大文件。
-- [ ] [本阶段必须] 明确 `AGENTS.md`、活动 OpenSpec、生产/审核 skills、正式 context、migration、测试和 SOP 的 tracked 边界；阶段 1 的 writer inventory 按可审计的 mutation path/write endpoint/writer operation/transaction contract 记录，不把整个进程等同于一个 writer，也不在本阶段构建 cutover unit registry。
-- [ ] [本阶段必须] 运行 secret/path/credential/Windows-path gate，并由人工审查首次 staged inventory。
-- [ ] [本阶段必须] 建立 bootstrap commit/branch；不得把已知测试债务伪装成通过。
-- [ ] [本阶段必须] 在 Git 历史中修复 import-time stdout 副作用和仍活动的 V2 builder 契约失败。
-- [ ] [本阶段必须] 建立可重建 Python 环境、lockfile、标准测试入口和 CI required checks。
-- [ ] [本阶段必须] 启用受保护 main；明确 bootstrap branch、main merge 和 deployable commit 的不同门槛。
+- [x] [本阶段必须] 生成 tracked allowlist、ignore policy 和 staged inventory；逐项排除 live DB、WAL/SHM、backup、broadcast、runtime、临时 cache、secrets、个人上下文和未批准大文件。
+- [x] [本阶段必须] 明确 `AGENTS.md`、活动 OpenSpec、生产/审核 skills、正式 context、migration、测试和 SOP 的 tracked 边界；阶段 1 的 writer inventory 按可审计的 mutation path/write endpoint/writer operation/transaction contract 记录，不把整个进程等同于一个 writer，也不在本阶段构建 cutover unit registry。
+- [x] [本阶段必须] 运行 secret/path/credential/Windows-path gate；首次 staged inventory 已保存审查摘要，完整本地报告保持在 Git 外。
+- [x] [本阶段必须] 建立 bootstrap commit/branch；已知测试债务在首个 commit 中如实保留，随后在隔离 clone 中修复。
+- [x] [本阶段必须] 在 Git 历史中修复 import-time stdout 副作用和仍活动的 V2 builder 契约失败；受控研究产物测试与 clean-clone core 明确分层。
+- [x] [本阶段必须] 建立 Python 3.10 hash-pinned lockfile、标准测试入口、CI workflow 和两个 required-check 候选。
+- [x] [本阶段必须] 已准备 main 的 CI、required-check 名称和治理边界，并明确 bootstrap branch、main merge 和 deployable commit 的不同门槛。
+- [ ] [人工 GitHub gate] 由仓库管理员在 GitHub UI 创建/确认 main，审核 bootstrap 历史和 CI 结果后启用 branch protection/ruleset，并把 `boundary-and-contracts`、`python-clean-environment` 设为 required checks；不得把此操作解释为 production authority 或 VM deployment 授权。
 - [ ] [production gate] 应用仓库在成为 production authority 前，完成公司资产归属或经批准例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
 - [ ] [HALT] 提交 tracked inventory、CI 结果、已知例外和 Git diff，等待人工批准。
 

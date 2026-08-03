@@ -113,6 +113,9 @@ def _under(rel: str, prefixes: Iterable[str]) -> bool:
 def classify(rel: str, policy: Policy) -> tuple[str, str]:
     lower = rel.lower()
     suffix = Path(rel).suffix.lower()
+    parts = PurePosixPath(rel).parts
+    if any(part == "venv" or part.startswith(".venv") for part in parts):
+        return "runtime", "local Python virtual environment"
     if rel == ".git" or rel.startswith(".git/"):
         return "runtime", "Git metadata"
     if rel.startswith("tools/dynamic/secrets/"):
@@ -125,7 +128,7 @@ def classify(rel: str, policy: Policy) -> tuple[str, str]:
         return "broadcast", "deployment package is not source"
     if rel.startswith(("papers/", "funda/")) or suffix in {".pdf", ".ppt", ".pptx", ".xls", ".xlsx"}:
         return "paper_evidence", "paper/evidence or binary research input"
-    if rel.startswith("cache/") or any(part in policy.raw["excluded_name_fragments"] for part in PurePosixPath(rel).parts):
+    if rel.startswith("cache/") or any(part in policy.raw["excluded_name_fragments"] for part in parts):
         return "generated_cache", "runtime/generated cache"
     if rel.startswith("archive/"):
         return "history_archive", "historical archive"
