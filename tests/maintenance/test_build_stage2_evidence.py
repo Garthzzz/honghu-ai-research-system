@@ -16,6 +16,19 @@ class Stage2EvidenceContractTests(unittest.TestCase):
         self.assertIn('"database_hashes_unchanged": before == after', text)
         self.assertNotIn("tools/dynamic/secrets", text)
 
+    def test_ci_invokes_stage2_evidence_as_a_package_module(self):
+        workflow = (ROOT / ".github/workflows/stage1-ci.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "python -m tools.maintenance.build_stage2_evidence",
+            workflow,
+        )
+        self.assertNotIn(
+            "python tools/maintenance/build_stage2_evidence.py",
+            workflow,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

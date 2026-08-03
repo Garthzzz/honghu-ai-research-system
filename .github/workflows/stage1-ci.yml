@@ -63,7 +63,7 @@ jobs:
 
       - name: Build immutable release evidence bound to the checked-out commit
         shell: pwsh
-        run: python tools/maintenance/build_stage2_evidence.py
+        run: python -m tools.maintenance.build_stage2_evidence
 
       - name: Upload exact-commit Stage 1 evidence
         uses: actions/upload-artifact@v4
