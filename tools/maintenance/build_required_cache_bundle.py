@@ -13,6 +13,8 @@ from pathlib import Path
 from typing import Any, Iterable
 from zoneinfo import ZoneInfo
 
+from tools.portable_paths import canonical_path, relative_path
+
 
 ROOT = Path(__file__).resolve().parents[2]
 BEIJING = ZoneInfo("Asia/Shanghai")
@@ -204,17 +206,17 @@ def collect_required_cache(
     builder so a release cannot silently forget cache files referenced by
     configuration or one of the four live databases.
     """
-    root = root.resolve()
+    root = canonical_path(root)
     config_paths = _config_paths(root)
     database_paths, database_value_counts = _database_paths(root)
     durable_paths = _durable_model_paths(root)
     paths = sorted(
         config_paths | database_paths | durable_paths,
-        key=lambda path: path.relative_to(root).as_posix(),
+        key=lambda path: relative_path(path, root).as_posix(),
     )
     records = [
         {
-            "path": path.relative_to(root).as_posix(),
+            "path": relative_path(path, root).as_posix(),
             "size": path.stat().st_size,
             "sha256": _sha256(path),
             "reason": sorted(
@@ -244,8 +246,8 @@ def collect_required_cache(
 
 
 def build(root: Path, output: Path) -> dict[str, object]:
-    root = root.resolve()
-    output = output.resolve()
+    root = canonical_path(root)
+    output = canonical_path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.exists():
         raise FileExistsError(output)
@@ -259,7 +261,7 @@ def build(root: Path, output: Path) -> dict[str, object]:
         allowZip64=True,
     ) as archive:
         for path in paths:
-            relative = path.relative_to(root).as_posix()
+            relative = relative_path(path, root).as_posix()
             archive.write(path, f"industry_demo/{relative}")
         archive.writestr(
             "industry_demo/cache/REQUIRED_CACHE_BUNDLE_MANIFEST.json",

@@ -12,6 +12,8 @@ import os
 import re
 from pathlib import Path
 
+from tools.portable_paths import canonical_path, relative_path
+
 
 MAX_FILENAME_CHARS = 96
 MAX_PROJECT_RELATIVE_PATH_CHARS = 180
@@ -69,7 +71,7 @@ def _bounded_filename_length(
     max_filename_chars: int,
     max_relative_path_chars: int,
 ) -> int:
-    parent_relative = path.parent.absolute().relative_to(project_root.absolute())
+    parent_relative = relative_path(path.parent, project_root)
     relative_prefix_chars = len(parent_relative.as_posix()) + 1
     relative_budget = max_relative_path_chars - relative_prefix_chars
     return max(
@@ -86,10 +88,10 @@ def proposed_paper_path(
     max_relative_path_chars: int = MAX_PROJECT_RELATIVE_PATH_CHARS,
 ) -> Path:
     """Return the deterministic safe path for a paper without touching disk."""
-    source = path.absolute()
-    root = project_root.absolute()
-    papers_root = (root / "papers").absolute()
-    source.relative_to(papers_root)
+    source = canonical_path(path)
+    root = canonical_path(project_root)
+    papers_root = root / "papers"
+    relative_path(source, papers_root)
 
     cleaned_name = sanitize_filename(source.name)
     candidate = source.with_name(cleaned_name)
@@ -99,7 +101,7 @@ def proposed_paper_path(
         max_filename_chars=max_filename_chars,
         max_relative_path_chars=max_relative_path_chars,
     )
-    relative = candidate.relative_to(root).as_posix()
+    relative = relative_path(candidate, root).as_posix()
     if len(cleaned_name) <= limit and len(relative) <= max_relative_path_chars:
         return candidate
 
@@ -107,7 +109,7 @@ def proposed_paper_path(
     # contain ticker-like dots such as "002463.SZ", which are not suffixes.
     extension = source.suffix
     stem = cleaned_name[: -len(extension)] if extension else cleaned_name
-    identity = source.relative_to(root).as_posix()
+    identity = relative_path(source, root).as_posix()
     token = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:HASH_CHARS]
     available = limit - len(extension) - len(token) - 2
     if available < 12:
@@ -123,7 +125,7 @@ def paper_path_violations(
     max_filename_chars: int = MAX_FILENAME_CHARS,
     max_relative_path_chars: int = MAX_PROJECT_RELATIVE_PATH_CHARS,
 ) -> list[Path]:
-    root = project_root.absolute()
+    root = canonical_path(project_root)
     violations: list[Path] = []
     for path in iter_paper_files(papers_root):
         if proposed_paper_path(
@@ -133,7 +135,7 @@ def paper_path_violations(
             max_relative_path_chars=max_relative_path_chars,
         ) != path.absolute():
             violations.append(path.absolute())
-    return sorted(violations, key=lambda item: item.relative_to(root).as_posix())
+    return sorted(violations, key=lambda item: relative_path(item, root).as_posix())
 
 
 def normalize_new_paper_file(
