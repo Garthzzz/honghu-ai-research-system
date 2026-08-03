@@ -28,6 +28,11 @@ class Stage2EvidenceContractTests(unittest.TestCase):
             "python tools/maintenance/build_stage2_evidence.py",
             workflow,
         )
+        clean_job = workflow.split("  python-clean-environment:", 1)[1]
+        self.assertIn(
+            "python -m tools.maintenance.build_stage2_evidence",
+            clean_job,
+        )
 
 
 if __name__ == "__main__":
