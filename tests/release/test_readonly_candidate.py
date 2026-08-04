@@ -124,7 +124,11 @@ print(json.dumps({
             build_dev_fixture(fixture)
             content = fixture / "content"
             pdf = resolve_content_reference(content, "papers/fixture.pdf", default_prefix="papers")
-            self.assertEqual(pdf, content / "papers" / "fixture.pdf")
+            # GitHub's Windows runner may expose the temporary root through an
+            # 8.3 alias while Path.resolve() returns the canonical long name.
+            # Compare the existing file identity, not two textual spellings of
+            # the same Windows path.
+            self.assertTrue(pdf.samefile(content / "papers" / "fixture.pdf"))
             with self.assertRaises(ValueError):
                 resolve_content_reference(content, "../outside.pdf", default_prefix="papers")
             plan = build_representative_plan(fixture / "data", content)
