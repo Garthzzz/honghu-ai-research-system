@@ -1,67 +1,74 @@
 # 阶段 2 实施与验收报告
 
-> 状态：实施中，阶段 2 尚未获人工批准退出。本文只记录已经取得的证据；VM 只读并行候选未完成前，不得勾选阶段 2 HALT，也不得进入阶段 3。
+> 状态：实施修复已完成，VM 18080 人工验收尚未执行，阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
 
-## 1. 授权与隔离
+## 1. 隔离和禁止边界
 
-- 用户已批准阶段 1 退出，只授权阶段 2 的 immutable release、本地 dev/test 边界、health/preflight、代码回滚和不切换生产的 VM 只读候选。
-- 实施分支为 `phase2/repeatable-release`，隔离工作目录为 `D:\quant\industry_demo_stage1`。
-- 活动目录 `D:\quant\industry_demo` 未切换分支、未 reset/clean；四套 live SQLite、七个计划任务和现有 Viewer 均未改动。
-- PostgreSQL、生产数据后端切换、任务迁移、VM production deploy 和 production authority 均不在本阶段。
+- 实施分支：`phase2/repeatable-release`；隔离工作目录：`D:\quant\industry_demo_stage1`。
+- 活动目录 `D:\quant\industry_demo` 未切换分支、未 reset/clean；四套 live SQLite、现有 Viewer、8080 和七个计划任务未修改。
+- 未安装 PostgreSQL，未迁移数据库或任务，未配置 VM deploy credential，未向 Git 提交数据库、papers/evidence、备份、用户内容或 secret。
+- 仓库按用户要求继续 public；这不构成 production authority。
 
-## 2. 已实现结构
+## 2. 本轮重新审计发现的根因
 
-```text
-<deploy-root>/
-├─ releases/<full-commit-sha>/   精确 Git commit 的不可变代码与 manifest
-├─ current                       通过同目录临时文件和 os.replace 更新的 JSON 指针
-└─ runtime/                      deployment ledger、PID、日志和候选证据
+1. 旧候选由 CLI 再启动 Flask 子进程，PID 文件可能只指向外层进程，停止和失败清理存在残留与 PID 复用风险。
+2. VM evidence 中“任务未改、8080 未切换、数据库只读”等部分结论是静态声明，没有部署前后采集证据。
+3. `-Python python` 依赖 VM PATH，不能证明使用受支持的 Python 3.10 和精确 lockfile 环境。
+4. PDF/source 相对路径和锂计算器旧 cache 回退仍可能从 immutable release 根解析，外置 content/state 闭包不完整。
+5. schema fingerprint 被计算但未用于兼容决策，而表存在检查又不足以支持强意义的 schema compatibility。
+6. smoke 只覆盖 health、工具页和一个写 403，不能证明四库、外置 PDF、Opportunity Lens、公司财务与计算器链路。
+7. 原 evidence 绑定旧分支头，不能代表当前 PR head。
+8. 第一轮远端 SHA `b9ce946ea5b74497bdc00befa80e814efef43435` 的 clean test 还暴露了 Windows runner 8.3 短路径与规范长路径的测试误判；真实日志显示仅该断言失败，不是应用回归。
+9. 将代表性 smoke 纳入 exact-commit evidence 后，合成 fixture 首次真实暴露首页、行业、估值和公司页缺少依赖表；这证明旧 smoke/fixture 确实过弱，而不是简单增加测试数量即可。
 
-外部运行闭包：
-├─ data-root/                    四套迁移期 SQLite；候选只读
-├─ content-root/                 docs/industries 与 papers；候选只读
-└─ state-root/                   可恢复 cache 和 runtime；可写但不进入 release
-```
+## 3. 已完成修复
 
-核心实现包括：
+- 候选 CLI 自身直接运行 Flask，记录进程即 listener owner；关闭 reloader，不再保留外层父进程。
+- PID 身份扩展为 PID、启动时间、解释器、命令行 SHA256、launch id、commit、manifest 和端口；停止、重复部署和失败回收均先核验身份，拒绝误停复用 PID。
+- 进程从解释器参数开始使用 `-B`；preflight 报告以 SHA256、commit、manifest、schema contract 和 data/content/state root 绑定给进程，避免启动后再次递归散列 release 和生成 `__pycache__`。
+- VM 部署要求显式 Python 3.10 绝对路径，在候选根按 lockfile hash 创建隔离 venv，以 `--require-hashes` 安装并逐包核验；不碰生产任务环境。
+- VM evidence 分为静态代码保证、部署前状态、部署后状态、实测结果和未验证事项；任务定义 XML hash、8080 health/listener、生产 current/broadcast identity 均前后采集比较。
+- 数据库相对 source/PDF 路径从外置 content root 解析；正式计算器模型来自 release 内 tracked config，旧 cache 只允许从外置 state root 回退；路径逃逸和绝对外部路径被拒绝。
+- schema 合同收窄为“阶段 2 代表性只读路由”，同时增强为 `mode=ro/query_only`、对象类型、必需列、版本范围和只读探针；完整 fingerprint 仅作诊断，不再声称证明全部列、索引、约束、视图和写路径兼容。
+- 代表性 smoke 共 15 项，覆盖 health、首页、行业、行业估值、公司、情绪、Opportunity Lens 列表与 run、外置 PDF、工具首页、锂/铜/锂电池计算器、静态 CSS 和写方法 403。
+- exact-commit CI evidence 现在会真实启动合成候选、核对 health PID、Windows listener PID、15 项 smoke、停止后端口释放、release 无 `__pycache__`，再执行 code-only rollback 和四库 hash 不变检查。
+- Windows 路径测试改为已有文件身份比较，仍保留路径逃逸拒绝；没有 skip、xfail、删除测试或降低合同。
 
-- `config/deployment_policy.json`：部署 allowlist 与外部 artifact closure；
-- `config/release_schema_compatibility.json`：当前 SQLite 过渡期的兼容合同；
-- `tools/release/manager.py` 与 `tools/release/cli.py`：精确 commit 构建、逐文件 SHA256、verify、preflight、activate、health 和 code-only rollback；
-- `tools/runtime_paths.py`：保持历史默认路径，同时允许候选显式外置 data/content/state；
-- `tools/release/dev_fixture.py`：不含生产记录、无需 VM 在线的本地合成 fixture；
-- `tools/release/Deploy-ReadonlyCandidate.ps1`：独立候选根、独立端口、只读 smoke 和 VM 证据；
-- Viewer candidate 全局阻断 `POST/PUT/PATCH/DELETE`，research/sentiment 连接使用 SQLite `mode=ro` 与 `query_only`。
+## 4. 已取得的本地确定性证据
 
-同一 commit 的 manifest 不含构建时钟，使用 commit 元数据，因此不同干净目录构建得到相同 manifest hash。回滚前按目标 release 的 schema compatibility 合同重新检查，不能拿当前 release 的合同替代。
+在实现提交 `3b3778f7c5deada4f4a6fbe849ca390c219467ee` 上：
 
-## 3. 本地和 clean-clone 证据
+- exact-commit manifest：571 个文件、24,549,498 bytes，SHA256 `b6e23e5d03d7655a3b8cdda7a6b11f189aa2bfe9843f79b9ecadb47ee170047d`；禁止资产三项均为 false；
+- preflight、对象/列/只读探针 schema 合同通过；
+- 候选进程 PID 44932、Windows listener PID 44932、health PID 44932 三者一致；
+- 15 项代表性 smoke 全部通过；停止后端口释放；release 内 `__pycache__` 为 0；
+- code-only rollback 实际执行，四个合成数据库 SHA256 前后不变；
+- 完整 core：543 passed、21 个受治理 artifact 测试分层跳过、53 subtests passed；
+- tracked boundary、SQLite ratchet、compile 和 OpenSpec strict 通过。
 
-- 隔离工作目录在最新分支 head 上完整收集 561 项测试；clean-core 实跑得到 540 passed、21 skipped、53 subtests passed。21 项是已登记、需要受控研究 artifact 的集成测试，不属于 clean-clone 核心层。
-- fresh clone `D:\quant\industry_demo_phase2_verify_7c8eca4` 精确检出 `7c8eca4d2d24ecc25c3e7fbae47015483d36ec14`，再次得到 539 passed、21 skipped、53 subtests passed。
-- 本地 exact-commit evidence 对 `0fc2562c5a4c4a3fc0739f0ec2181dd1274e1ceb` 完成 preflight 和一次真实 code-only rollback，四个合成数据库的 SHA256 前后完全一致。
-- staged/tracked boundary、secret/path/credential/large-file gate、Windows path gate、SQLite ratchet 和 `openspec validate --strict` 均通过。
+后续仅修复 Windows 文件身份断言的提交为 `a6b19f2264a266a760688a46937d653f97e43c26`；聚焦回归 4 项通过。该提交的 push Actions 两个 job 已真实绿色，PR Actions 在本文修订时仍在运行。最终可部署 SHA 必须取本分支最后一次 push 与 PR 的两个 Actions job 均绿色的完整 40 位 SHA，不能从本文中的缩写、分支名或 PR 号推断。
 
-## 4. 远端 CI 诊断记录
+## 5. 统一 evidence 绑定合同
 
-第一次 run `30855688524` 在 stage2 evidence 的脚本路径入口失败，真实根因为 `ModuleNotFoundError: tools`；改为 package module 入口，没有跳过测试。
+tracked 报告不能可靠地把“包含它自己的 Git commit SHA”硬编码进自身内容，因为修改 SHA 字段会再次改变 commit。为避免伪精确或永远落后一笔，最终身份采用以下同一提交闭包：
 
-第二次 run `30856246310` 的 clean-environment 通过，boundary job 仍失败。真实根因为该静态边界 job 没有安装应用依赖，而合成正式 schema fixture 需要 PyYAML。release evidence 已移动到按 `requirements.lock.txt` 安装依赖并运行核心测试的 `python-clean-environment` job；静态边界 job 不重复安装整套应用环境。
+1. GitHub PR head 提供 exact `GITHUB_SHA`；
+2. 同 SHA 的两个 required job 必须均为 success；
+3. `python-clean-environment` 生成的 `stage2_evidence.json` 在 `binding.commit_sha` 和 `binding.github_run_id` 写入该 SHA/run；
+4. 同一 artifact 内 release manifest、preflight、candidate lifecycle、rollback 和数据库 hash 证据全部由该 checkout 生成；
+5. VM 脚本的 `requested_commit_sha`、candidate health commit 和 release manifest 必须等于该 exact SHA；
+6. 内网客户端再次核对 18080 health 的 commit。
 
-最新实现提交为 `f6788eb21d7bae6ae749feb07f6b863cbd00d46f`。远端 run `30856809650` 的 `boundary-and-contracts` 与 `python-clean-environment` 均为 success；后者完成 539 passed、21 skipped、53 subtests 后生成并上传 stage2 artifact。
+`release_identity.json` 记录此绑定合同和最近一次已验证实现，而不冒充尚未执行的 VM 证据。VM 验收后再补最终实测记录；在此之前 `vm_readonly_candidate_verified=false`、`phase2_halt_approved=false`。
 
-该 artifact 已重新下载核验：release 包含 567 个文件、24,483,608 bytes，manifest SHA256 为 `f4608e2e73eaa6c095d1b667697d06f9893b821e5b1431711a423786e98d002d`，本地重算一致；绑定的 commit、run id、preflight、rollback ledger 和数据库哈希不变证据相互一致。
+## 6. VM 只读候选仍是阻塞项
 
-阶段报告和公开暴露复核加入后，分支 head 为 `ba1ffabfed5390bef9646a6174fdd2a066094eac`。其 push run `30857992230` 与 PR run `30857995440` 的两个 required job 均为 success，PR #3 状态为 clean/mergeable；main 仍保持受保护且未合并。该 head 的本地 exact-commit evidence 再次得到 567 个文件、24,483,608 bytes，manifest SHA256 为 `b146b7520f1ea560051b85276cd487beeeffd87f8faca6a389056c6efb3a4195`，preflight、code-only rollback 和数据库哈希不变检查均通过。
+Codex 没有替用户执行 VM PowerShell 命令。新的人工步骤见 `stage2/vm_readonly_candidate_runbook.md`，它要求：
 
-## 5. VM 只读候选
+- 先确认 VM 上真实 Python 3.10 绝对路径；没有则 HALT，不从 PATH 猜测；
+- 只检出最终绿色 full SHA；
+- 候选根为 `C:\honghu-ai-research-candidate`，生产根仍为 `C:\industry_demo`，端口只用 18080；
+- VM 本机证据成功后，再从另一台内网客户端验证 18080 commit 和原 8080 可达；
+- VM evidence 和客户端证据交回人工审查。
 
-当前生产 `http://10.5.1.240:8080/api/health` 仍返回成功，release version 仍为既有广播版本；端口 18080 未监听，说明没有偷偷启动候选或切换生产。
-
-本机到 VM 的 SSH、SMB 和 WinRM 管理通道均不可用，现有 Viewer 又没有获批的远程部署写入口。因此 Codex 不能在不绕过权限边界的情况下自行把候选落到 VM。`Deploy-ReadonlyCandidate.ps1` 已准备好，但必须由 VM 上的人工命令执行，或由用户提供已批准的只读候选部署通道。该项不是“已完成”，阶段 2 当前不能退出。
-
-VM 验收必须取得：独立候选根、18080 health、commit/manifest/schema identity、`GET /tools=200`、写请求 `403`、数据库只读、8080 未切换、计划任务未改，以及候选 runtime evidence。
-
-## 6. 当前结论
-
-代码层、本地开发边界、clean clone、preflight、rollback 与远端 CI 已形成可验证实现；VM 只读候选是唯一剩余 gate。阶段 2 HALT 保持未批准，阶段 3 未开始。
+在上述证据完成前，不得宣称阶段 2 完成，不得勾选 VM gate 或 HALT，不得合并 PR #3，也不得进入阶段 3。

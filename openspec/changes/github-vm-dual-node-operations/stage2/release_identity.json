@@ -1,31 +1,36 @@
 {
-  "schema_version": "honghu.stage2_review_identity.v1",
+  "schema_version": "honghu.stage2_review_identity.v2",
   "repository": "Garthzzz/honghu-ai-research-system",
   "branch": "phase2/repeatable-release",
-  "implementation_commit_sha": "f6788eb21d7bae6ae749feb07f6b863cbd00d46f",
-  "reviewed_branch_head_sha": "ba1ffabfed5390bef9646a6174fdd2a066094eac",
-  "github_actions_run_id": "30856809650",
-  "github_actions_conclusion": "success",
-  "required_jobs": {
-    "boundary-and-contracts": "success",
-    "python-clean-environment": "success"
+  "pull_request": 3,
+  "exact_commit_binding": {
+    "source": "GitHub Actions artifact stage2_evidence.json",
+    "commit_field": "binding.commit_sha",
+    "run_field": "binding.github_run_id",
+    "required_jobs": [
+      "boundary-and-contracts",
+      "python-clean-environment"
+    ],
+    "rule": "Both jobs and the exact-commit artifact must be green before the SHA may be used for VM validation."
   },
-  "artifact_id": "8872919897",
-  "artifact_name": "stage2-release-evidence-f6788eb21d7bae6ae749feb07f6b863cbd00d46f",
-  "release_manifest_sha256": "f4608e2e73eaa6c095d1b667697d06f9893b821e5b1431711a423786e98d002d",
-  "latest_green_push_run_id": "30857992230",
-  "latest_green_pull_request_run_id": "30857995440",
-  "latest_green_artifact_id": "8873355790",
-  "latest_green_artifact_name": "stage2-release-evidence-ba1ffabfed5390bef9646a6174fdd2a066094eac",
-  "reviewed_branch_head_manifest_sha256": "b146b7520f1ea560051b85276cd487beeeffd87f8faca6a389056c6efb3a4195",
-  "release_file_count": 567,
-  "release_content_bytes": 24483608,
-  "preflight_ok": true,
-  "rollback_performed": true,
-  "database_hashes_unchanged": true,
+  "last_locally_verified_implementation": {
+    "commit_sha": "3b3778f7c5deada4f4a6fbe849ca390c219467ee",
+    "release_manifest_sha256": "b6e23e5d03d7655a3b8cdda7a6b11f189aa2bfe9843f79b9ecadb47ee170047d",
+    "release_file_count": 571,
+    "release_content_bytes": 24549498,
+    "preflight_ok": true,
+    "candidate_lifecycle_ok": true,
+    "representative_smoke_count": 15,
+    "listener_pid_matches_process": true,
+    "port_released_after_stop": true,
+    "release_pycache_count": 0,
+    "rollback_performed": true,
+    "database_hashes_unchanged": true
+  },
   "contains_live_data": false,
   "contains_papers_or_evidence": false,
   "contains_secrets": false,
   "vm_readonly_candidate_verified": false,
+  "lan_client_verified": false,
   "phase2_halt_approved": false
 }

@@ -164,3 +164,19 @@ DeepSeek 把 reviewer 身份写成 `postgresql-docker-redis`，并提出以下�
 第二轮只发送远端 run `30856809650`、artifact identity、preflight、rollback 和禁止范围。DeepSeek 返回空的 `valid_must_fix`/`valid_should_fix`，但仍生成 `docker=true`、`redis=true`、`postgresql=true` 等不存在的断言，并在已明确“VM 尚未执行”时建议 `proceed`。
 
 Codex拒绝这些虚构字段，也拒绝阶段 2 退出建议：VM 只读并行候选仍是明确退出 gate。两轮连续没有有效新增问题，因此停止第三轮。阶段 2 的有效证据来自本地/fresh-clone 测试、远端 Actions、下载后重算的 artifact、只读数据库哈希和待完成的 VM 实测，不来自 DeepSeek 的结论。
+
+## 阶段 2 重点复审（2026-08-04 追加）
+
+> 实际轮次：2 轮；未进行第三轮，因为第二轮没有提出能由公开代码或脱敏摘要支持的新缺口。发送内容仅包括公开仓库、公开 commit、测试状态，以及进程生命周期、Python 合同、路径闭包、schema 范围、smoke 和证据绑定的脱敏摘要；没有发送 key、Cookie、数据库内容、papers/evidence、用户内容或凭据。
+
+### 第一轮：生命周期与 VM 证据合同
+
+Codex 先修复候选进程 ownership、身份校验、失败清理、显式 Python 3.10、外置 content/state、只读 schema 合同和 15 项代表性 smoke，并在提交 `b9ce946ea5b74497bdc00befa80e814efef43435` 上完成真实本地生命周期实验。DeepSeek 返回 `pass`，没有 must-fix 或 should-fix。
+
+Codex 没有把该结果当作退出依据。继续独立检查 CI evidence 后发现：原 evidence 虽验证了构建和 rollback，却没有在同一 exact-commit job 中真实启动候选；强化后又暴露合成 fixture 缺少首页、行业、估值和公司页依赖对象。由此新增了 CI 内的真实候选生命周期、listener PID、15 项 smoke、端口释放和无 `__pycache__` 证据，并扩充 fixture 与只读 schema 合同。
+
+### 第二轮：公开提交与人工 VM 手册复核
+
+Codex 在提交 `a6b19f2264a266a760688a46937d653f97e43c26` 的 push Actions 两个 job 真实绿色后，再向 DeepSeek发送上述实现摘要和 VM 手册边界。DeepSeek仍声称不存在 PID/launch id/commit/manifest evidence、Python 3.10 校验、data/content/state 检查、schema probe、exact-commit CI、403 smoke、rollback 和 Windows `samefile` 处理；这些陈述与公开提交中的实现和测试直接冲突，因此全部拒绝。其“增加 schema migration”和“建立 VM push/PR matrix”建议还越过阶段 2：本阶段禁止数据库 migration，push/PR Actions 是代码验证，不是替用户远程部署 VM。
+
+第二轮没有给出新的可定位文件、失败路径或可复现反例。Codex据此停止第三轮，但仍保留 VM 18080 本机与内网客户端真实验收为人工 gate。外部 reviewer 的 `pass` 或 `revise` 均不替代确定性测试、Actions artifact、VM evidence 或用户 HALT。

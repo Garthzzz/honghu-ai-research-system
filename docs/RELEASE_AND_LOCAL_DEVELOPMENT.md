@@ -73,9 +73,11 @@ $env:HONGHU_VIEWER_MODE="readonly_candidate"
 python -m flask --app tools.viewer.app:app run --host=127.0.0.1 --port=18080
 ```
 
-该最小 fixture 只保证 release health、工具入口和只读门禁可测试，不伪装成完整研究内容验收。涉及真实行业页面的本地验证，使用另行批准的脱敏/只读开发数据，而不是自动连接 production。
+该合成 fixture 覆盖 health、首页、行业、行业估值、公司、情绪、Opportunity Lens、外置 PDF、三类计算器、静态资源和只读门禁；它只验证这些路由的运行闭包与空数据合同，不伪装成真实研究内容验收。涉及真实行业内容的本地验证，使用另行批准的脱敏/只读开发数据，而不是自动连接 production。
 
 ## 5. VM 只读候选
+
+完整人工步骤、失败停止条件和内网客户端复核见 `openspec/changes/github-vm-dual-node-operations/stage2/vm_readonly_candidate_runbook.md`。以下命令只说明脚本入口，不能替代手册中的 Python 3.10、固定 SHA、证据和清理检查。
 
 VM 上必须显式提供一个真实存在的 Python 3.10 `python.exe` 作为 bootstrap 解释器。脚本不会从 PATH 猜测环境，也不会修改现有生产任务环境；它在候选根下按 `requirements.lock.txt` 的 SHA256 建立隔离 venv，以 `--require-hashes` 安装并逐包核验精确版本，再用这个 venv 构建和运行候选：
 

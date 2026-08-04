@@ -22,6 +22,7 @@ release manifest 另行声明并验证 `contains_live_data=false`、`contains_pa
 - Windows 绝对路径约 85 处、分布于约 41 个 tracked 文件，主要用于部署 SOP、历史兼容脚本、备份注册表和本机运行入口；未发现具名的个人用户目录；
 - Wind、Tushare、DataYes、DeepSeek、星瀚等供应商结构和研究流程在正式代码/文档中可见；
 - 计划任务窗口、SQLite 过渡结构、Viewer 路由和发布/恢复方法属于可推断的运维信息。
+- 阶段 2 新增的候选部署与停止脚本、进程身份字段、18080 验收步骤和路径闭包合同，会进一步暴露 release 运作方式；脚本不含生产凭据、数据库内容或 papers，但公开审查者可以据此理解候选部署边界。
 
 这些信息不是传统 secret，但公开后可帮助外部人员理解供应商依赖、内网拓扑和运维习惯，综合风险评为“中等”。本阶段没有擅自删除它们，因为 Wind 代理、部署说明和项目治理属于正常业务功能或正式项目规则。
 
@@ -34,3 +35,10 @@ release manifest 另行声明并验证 `contains_live_data=false`、`contains_pa
 - 若未来 public 审查价值低于暴露风险，应由用户明确决定是否调整可见性，不由 Codex擅自修改。
 
 当前没有发现需要立即从 Git 历史清除的 secret 或禁止资产；保留风险主要来自已知的业务拓扑和运维元数据公开。
+
+## 4. 本轮复核结论
+
+- tracked boundary gate、release manifest 禁止资产声明和 Git diff 继续作为三条独立检查，不用单一 secret scanner 代替；
+- VM 人工手册中的私网地址沿用既有正式部署事实，未新增凭据或访问能力；
+- 仓库继续 public 是用户明确决定，风险接受不等于仓库获得 production authority；
+- PR #3 未合并，VM deploy credential 未配置，内容仓库仍为 `RESERVED-UNUSED`。
