@@ -86,7 +86,7 @@ powershell -NoProfile -ExecutionPolicy Bypass `
   -BootstrapPythonExe <VM上明确的Python-3.10-python.exe绝对路径>
 ```
 
-候选 Python 进程本身直接持有 18080 listener，不再由外层 CLI 启动无法追踪的 Flask 子进程。进程记录同时绑定 PID、启动时间、解释器、命令行 hash、launch id、commit、manifest 和端口；停止、重复部署及失败清理均先核验完整身份，发现 PID 复用或记录不匹配时拒绝误停。
+候选 Python 进程本身直接持有 18080 listener，不再由外层 CLI 启动无法追踪的 Flask 子进程。进程从启动参数起使用 `-B`，避免在 manifest 已验证后向 immutable release 写入 `__pycache__`。部署前的完整逐文件 preflight 会保存到 runtime，并以报告 SHA256、commit、manifest、schema contract 和四个 runtime root 绑定给候选进程；health 复用该启动快照，避免每次轮询重新散列数百个文件形成请求堆积。进程记录同时绑定 PID、启动时间、解释器、命令行 hash、launch id、commit、manifest 和端口；停止、重复部署及失败清理均先核验完整身份，发现 PID 复用或记录不匹配时拒绝误停。
 
 脚本会实测而不是写死以下证据：计划任务定义的部署前后 hash、生产 8080 health/listener 和生产指针的部署前后状态、候选进程身份、四库只读 schema 合同，以及代表性路由 smoke。代表性路由覆盖首页、行业和估值、公司财务/情绪、Opportunity Lens、外置 PDF、三类计算器、静态资源及写方法 403。VM 本机 smoke 与内网其他客户端的 18080 可达性是两项独立证据；脚本完成后仍会把后者标成待人工验证。
 

@@ -87,6 +87,8 @@ print(json.dumps({
         self.assertIn("Get-HonghuProductionState", script)
         self.assertIn("Stop-HonghuVerifiedCandidate", script)
         self.assertIn("tools.release.readonly_smoke", script)
+        self.assertIn('"-B", "-m", "tools.release.cli"', script)
+        self.assertIn("--preflight-report-sha256", script)
         self.assertNotIn("production_port_untouched = 8080", script)
         self.assertNotIn("scheduled_tasks_modified = $false", script)
         self.assertNotIn("Disable-ScheduledTask", script)

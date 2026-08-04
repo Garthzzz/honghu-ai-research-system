@@ -8,6 +8,7 @@ authorities are attached explicitly during preflight and process launch.
 """
 
 import hashlib
+import copy
 import json
 import os
 import re
@@ -28,6 +29,7 @@ MANIFEST_HASH_NAME = "RELEASE_MANIFEST.sha256"
 CURRENT_POINTER_NAME = "current"
 LEDGER_RELATIVE = Path("runtime/deployment_ledger.jsonl")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_RELEASE_HEALTH_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
 
 class ReleaseError(RuntimeError):
@@ -517,6 +519,85 @@ def resolve_current_release(deploy_root: str | Path) -> tuple[Path, dict[str, An
     return release, pointer
 
 
+def resolve_preflighted_release(
+    deploy_root: str | Path,
+    *,
+    preflight_report: Mapping[str, Any],
+    data_root: str | Path,
+    content_root: str | Path,
+    state_root: str | Path,
+) -> tuple[Path, dict[str, Any]]:
+    """Resolve current without rehashing every file after a bound preflight.
+
+    The deployer performs the expensive exact-file verification immediately
+    before launch and passes its SHA-bound report.  This function rechecks the
+    small immutable identities and runtime roots, preventing the candidate
+    process and health polling from repeatedly hashing hundreds of files.
+    """
+
+    root = Path(deploy_root).resolve()
+    current_path = _current_path(root)
+    pointer = _load_json(current_path)
+    sha = str(pointer.get("commit_sha", "")).lower()
+    if not FULL_SHA_RE.fullmatch(sha):
+        raise ReleaseError("invalid current release pointer")
+    release = (root / "releases" / sha).resolve()
+    if release.parent != (root / "releases").resolve():
+        raise ReleaseError("current release escaped release root")
+    manifest = _load_json(release / MANIFEST_NAME)
+    manifest_sha = _manifest_hash(release)
+    if manifest_sha != pointer.get("manifest_sha256"):
+        raise ReleaseError("current pointer manifest identity mismatch")
+    if manifest.get("commit_sha") != sha:
+        raise ReleaseError("release manifest commit identity mismatch")
+    if not preflight_report.get("ok"):
+        raise ReleaseError("bound preflight did not pass")
+    if preflight_report.get("commit_sha") != sha:
+        raise ReleaseError("bound preflight commit differs from current")
+    if preflight_report.get("manifest_sha256") != manifest_sha:
+        raise ReleaseError("bound preflight manifest differs from current")
+    runtime = preflight_report.get("runtime_closure") or {}
+    expected_roots = {
+        "data_root": str(Path(data_root).resolve()),
+        "content_root": str(Path(content_root).resolve()),
+        "state_root": str(Path(state_root).resolve()),
+    }
+    for key, expected in expected_roots.items():
+        if str(runtime.get(key)) != expected:
+            raise ReleaseError(f"bound preflight {key} differs from launch")
+    schema = preflight_report.get("schema") or {}
+    expected_contract = _compatibility_fingerprint(manifest["schema_compatibility"])
+    if not schema.get("compatible") or schema.get("compatibility_contract_sha256") != expected_contract:
+        raise ReleaseError("bound preflight schema contract is not valid for release")
+    return release, pointer
+
+
+def prime_release_health_cache(
+    deploy_root: str | Path,
+    data_root: str | Path,
+    *,
+    pointer: Mapping[str, Any],
+    preflight_report: Mapping[str, Any],
+) -> None:
+    root = Path(deploy_root).resolve()
+    current_bytes = _current_path(root).read_bytes()
+    payload = {
+        "ok": bool((preflight_report.get("schema") or {}).get("compatible")),
+        "release": {
+            "commit_sha": pointer.get("commit_sha"),
+            "manifest_sha256": pointer.get("manifest_sha256"),
+            "activated_at": pointer.get("activated_at"),
+            "preflight_checked_at": preflight_report.get("checked_at"),
+        },
+        "viewer_mode": "readonly_candidate",
+        "database_contract": preflight_report.get("schema"),
+    }
+    _RELEASE_HEALTH_CACHE[(str(root), str(Path(data_root).resolve()))] = {
+        "current_sha256": _sha256_bytes(current_bytes),
+        "payload": payload,
+    }
+
+
 def _append_ledger(deploy_root: Path, payload: Mapping[str, Any]) -> None:
     path = deploy_root / LEDGER_RELATIVE
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -604,10 +685,17 @@ def release_health_payload(
     *,
     data_root: str | Path,
 ) -> dict[str, Any]:
+    root = Path(deploy_root).resolve()
+    key = (str(root), str(Path(data_root).resolve()))
+    cached = _RELEASE_HEALTH_CACHE.get(key)
+    if cached is not None and _current_path(root).is_file():
+        current_hash = _sha256_file(_current_path(root))
+        if current_hash == cached.get("current_sha256"):
+            return copy.deepcopy(cached["payload"])
     release, pointer = resolve_current_release(deploy_root)
     manifest = verify_release(release)
     schema = inspect_sqlite_contract(data_root, manifest["schema_compatibility"])
-    return {
+    payload = {
         "ok": bool(schema["compatible"]),
         "release": {
             "commit_sha": manifest["commit_sha"],
@@ -617,6 +705,11 @@ def release_health_payload(
         "viewer_mode": "readonly_candidate",
         "database_contract": schema,
     }
+    _RELEASE_HEALTH_CACHE[key] = {
+        "current_sha256": _sha256_file(_current_path(root)),
+        "payload": payload,
+    }
+    return copy.deepcopy(payload)
 
 
 def iter_release_files(release_dir: str | Path) -> Iterable[Path]:

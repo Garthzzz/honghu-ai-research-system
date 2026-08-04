@@ -12,8 +12,10 @@ from .manager import (
     build_release,
     inspect_sqlite_contract,
     preflight_release,
+    prime_release_health_cache,
     release_health_payload,
     resolve_current_release,
+    resolve_preflighted_release,
     rollback_release,
     verify_release,
 )
@@ -32,19 +34,24 @@ def _schema_for_release(release: Path, data_root: Path) -> dict:
 
 
 def _serve(args: argparse.Namespace) -> int:
-    release, pointer = resolve_current_release(args.deploy_root)
-    if str(pointer.get("commit_sha")) != args.expected_commit.lower():
-        raise ReleaseError("current candidate commit differs from expected commit")
-    report = preflight_release(
-        release,
+    report_bytes = args.preflight_report.read_bytes()
+    report_hash = __import__("hashlib").sha256(report_bytes).hexdigest()
+    if report_hash != args.preflight_report_sha256.lower():
+        raise ReleaseError("bound preflight report hash mismatch")
+    report = json.loads(report_bytes.decode("utf-8-sig"))
+    if not isinstance(report, dict):
+        raise ReleaseError("bound preflight report must be a JSON object")
+    release, pointer = resolve_preflighted_release(
+        args.deploy_root,
+        preflight_report=report,
         data_root=args.data_root,
         content_root=args.content_root,
         state_root=args.state_root,
-        require_content=not args.allow_missing_content,
     )
-    if not report["ok"]:
-        _print(report)
-        return 1
+    if str(pointer.get("commit_sha")) != args.expected_commit.lower():
+        raise ReleaseError("current candidate commit differs from expected commit")
+    if args.allow_missing_content:
+        raise ReleaseError("a bound VM candidate may not weaken content preflight")
     if not __import__("re").fullmatch(r"[0-9a-f]{32}", args.launch_id):
         raise ReleaseError("launch id must be 32 lowercase hexadecimal characters")
     if args.port == 8080:
@@ -64,6 +71,12 @@ def _serve(args: argparse.Namespace) -> int:
             "PYTHONUTF8": "1",
             "PYTHONIOENCODING": "utf-8",
         }
+    )
+    prime_release_health_cache(
+        args.deploy_root,
+        args.data_root,
+        pointer=pointer,
+        preflight_report=report,
     )
     os.chdir(release)
     if str(release) not in sys.path:
@@ -102,6 +115,7 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--content-root", type=Path, required=True)
     preflight.add_argument("--state-root", type=Path, required=True)
     preflight.add_argument("--allow-missing-content", action="store_true")
+    preflight.add_argument("--output", type=Path)
 
     activate = sub.add_parser("activate")
     activate.add_argument("--deploy-root", type=Path, required=True)
@@ -131,6 +145,8 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--port", type=int, default=18080)
     serve.add_argument("--launch-id", required=True)
     serve.add_argument("--expected-commit", required=True)
+    serve.add_argument("--preflight-report", type=Path, required=True)
+    serve.add_argument("--preflight-report-sha256", required=True)
     serve.add_argument("--allow-missing-content", action="store_true")
     return parser
 
@@ -151,6 +167,12 @@ def main(argv: list[str] | None = None) -> int:
                 require_content=not args.allow_missing_content,
             )
             _print(result)
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                args.output.write_text(
+                    json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
             return 0 if result["ok"] else 1
         elif args.command == "activate":
             release = args.deploy_root / "releases" / args.commit

@@ -200,8 +200,10 @@ try {
         & $venvPython -m tools.release.cli build --repo-root $source --deploy-root $candidate --commit $resolved
         if ($LASTEXITCODE -ne 0) { throw "Immutable release build failed." }
         $release = Join-Path (Join-Path $candidate "releases") $resolved
-        & $venvPython -m tools.release.cli preflight --release-dir $release --data-root (Join-Path $production "data") --content-root $production --state-root $runtime
+        $preflightPath = Join-Path $runtime "candidate_preflight.json"
+        & $venvPython -m tools.release.cli preflight --release-dir $release --data-root (Join-Path $production "data") --content-root $production --state-root $runtime --output $preflightPath
         if ($LASTEXITCODE -ne 0) { throw "Read-only candidate preflight failed." }
+        $preflightSha = (Get-FileHash -LiteralPath $preflightPath -Algorithm SHA256).Hash.ToLowerInvariant()
     }
     finally { Pop-Location }
 
@@ -226,7 +228,7 @@ try {
 
     $launchId = [guid]::NewGuid().ToString("N")
     $arguments = @(
-        "-m", "tools.release.cli", "serve-readonly-candidate",
+        "-B", "-m", "tools.release.cli", "serve-readonly-candidate",
         "--deploy-root", $candidate,
         "--data-root", (Join-Path $production "data"),
         "--content-root", $production,
@@ -234,7 +236,9 @@ try {
         "--host", "0.0.0.0",
         "--port", [string]$Port,
         "--launch-id", $launchId,
-        "--expected-commit", $resolved
+        "--expected-commit", $resolved,
+        "--preflight-report", $preflightPath,
+        "--preflight-report-sha256", $preflightSha
     )
     $argumentString = ($arguments | ForEach-Object { Quote-HonghuArgument ([string]$_) }) -join " "
     $stdout = Join-Path $runtime "viewer_candidate.stdout.log"

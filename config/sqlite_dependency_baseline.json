@@ -45,6 +45,26 @@
       "sunset_condition": "Remove after all production cutover units use PostgreSQL compatibility inspection."
     },
     {
+      "path": "tools/release/readonly_smoke.py",
+      "domain": "read-only candidate route discovery",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "Phase 2 representative smoke discovers existing industry, company, PDF and Opportunity Lens identities through one explicit SQLite mode=ro connection helper; it never mutates live databases.",
+      "owner": "application release governance",
+      "future_cutover_unit_candidate": "Viewer data-access boundary",
+      "sunset_condition": "Replace with the approved data-access layer when the relevant cutover units leave SQLite."
+    },
+    {
+      "path": "tools/release/readonly_smoke.py",
+      "domain": "read-only candidate route discovery",
+      "rule": "pragma",
+      "max_count": 1,
+      "reason": "The route discovery helper enforces query_only in addition to SQLite URI mode=ro before selecting smoke identities.",
+      "owner": "application release governance",
+      "future_cutover_unit_candidate": "Viewer data-access boundary",
+      "sunset_condition": "Replace with the approved data-access layer when the relevant cutover units leave SQLite."
+    },
+    {
       "path": "tools/viewer/app.py",
       "domain": "read-only parallel Viewer candidate",
       "rule": "sqlite3_connect",
