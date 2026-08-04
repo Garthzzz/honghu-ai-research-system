@@ -7,8 +7,13 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import subprocess
+import sys
 import tempfile
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -22,6 +27,7 @@ from tools.release.manager import (
     resolve_current_release,
     rollback_release,
 )
+from tools.release.readonly_smoke import run_representative_smoke
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -36,6 +42,168 @@ def _git(*args: str) -> str:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _reserve_local_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+def _listener_pid(port: int) -> int | None:
+    if os.name != "nt":
+        return None
+    result = subprocess.run(
+        [
+            "powershell",
+            "-NoProfile",
+            "-Command",
+            (
+                "$row=Get-NetTCPConnection -State Listen -LocalPort "
+                f"{port} -ErrorAction SilentlyContinue|Select-Object -First 1;"
+                "if($null-ne$row){$row.OwningProcess}"
+            ),
+        ],
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    value = result.stdout.strip()
+    return int(value) if result.returncode == 0 and value.isdigit() else None
+
+
+def _port_is_released(port: int) -> bool:
+    for _ in range(30):
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                pass
+        except OSError:
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def _exercise_candidate_lifecycle(
+    *,
+    deploy: Path,
+    fixture: Path,
+    release: Path,
+    current: str,
+    preflight: dict,
+) -> dict:
+    runtime = deploy / "runtime"
+    runtime.mkdir(parents=True, exist_ok=True)
+    preflight_path = runtime / "candidate_preflight.json"
+    preflight_path.write_text(
+        json.dumps(preflight, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    preflight_sha = _sha256(preflight_path)
+    port = _reserve_local_port()
+    launch_id = "c1" * 16
+    stdout_path = runtime / "candidate.stdout.log"
+    stderr_path = runtime / "candidate.stderr.log"
+    command = [
+        sys.executable,
+        "-B",
+        "-m",
+        "tools.release.cli",
+        "serve-readonly-candidate",
+        "--deploy-root",
+        str(deploy),
+        "--data-root",
+        str(fixture / "data"),
+        "--content-root",
+        str(fixture / "content"),
+        "--state-root",
+        str(runtime),
+        "--host",
+        "127.0.0.1",
+        "--port",
+        str(port),
+        "--launch-id",
+        launch_id,
+        "--expected-commit",
+        current,
+        "--preflight-report",
+        str(preflight_path),
+        "--preflight-report-sha256",
+        preflight_sha,
+    ]
+    process: subprocess.Popen[bytes] | None = None
+    smoke: dict | None = None
+    listener_pid: int | None = None
+    with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=release,
+                stdout=stdout,
+                stderr=stderr,
+            )
+            deadline = time.monotonic() + 60
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    break
+                try:
+                    with urllib.request.urlopen(
+                        f"http://127.0.0.1:{port}/api/health", timeout=2
+                    ) as response:
+                        if int(response.status) == 200:
+                            break
+                except (OSError, urllib.error.URLError):
+                    time.sleep(0.25)
+            else:
+                raise RuntimeError("candidate health did not become ready within 60 seconds")
+            if process.poll() is not None:
+                raise RuntimeError(
+                    "candidate exited before health: "
+                    + stderr_path.read_text(encoding="utf-8", errors="replace")[-2000:]
+                )
+            listener_pid = _listener_pid(port)
+            smoke = run_representative_smoke(
+                f"http://127.0.0.1:{port}",
+                fixture / "data",
+                fixture / "content",
+                expected_commit=current,
+                expected_launch_id=launch_id,
+                expected_pid=process.pid,
+            )
+            if not smoke["ok"]:
+                raise RuntimeError(
+                    "representative candidate smoke failed: "
+                    + json.dumps(smoke, ensure_ascii=False, sort_keys=True)
+                )
+        finally:
+            if process is not None and process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=15)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=15)
+    released = _port_is_released(port)
+    pycache_dirs = [
+        path.relative_to(release).as_posix()
+        for path in release.rglob("__pycache__")
+    ]
+    pid_matches_listener = listener_pid is None or listener_pid == process.pid
+    result = {
+        "ok": bool(smoke and smoke["ok"] and released and not pycache_dirs and pid_matches_listener),
+        "process_pid": process.pid if process is not None else None,
+        "listener_pid": listener_pid,
+        "listener_pid_observed": listener_pid is not None,
+        "pid_matches_listener": pid_matches_listener,
+        "port_released_after_stop": released,
+        "release_pycache_dirs": pycache_dirs,
+        "preflight_report_sha256": preflight_sha,
+        "representative_smoke": smoke,
+    }
+    if not result["ok"]:
+        raise RuntimeError(f"candidate lifecycle evidence failed: {result}")
+    return result
 
 
 def _previous_release_capable_commit(current: str) -> str | None:
@@ -106,6 +274,13 @@ def build_stage2_evidence(output_dir: Path) -> dict:
             actor="stage2-evidence",
             schema_report=schema,
         )
+        lifecycle = _exercise_candidate_lifecycle(
+            deploy=deploy,
+            fixture=fixture,
+            release=deploy / "releases" / current,
+            current=current,
+            preflight=preflight,
+        )
         if previous_manifest is not None:
             rollback = rollback_release(
                 deploy,
@@ -149,6 +324,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
         },
         "preflight": preflight,
         "schema_compatibility_scope": schema.get("compatibility_scope"),
+        "candidate_lifecycle": lifecycle,
         "rollback_rehearsal": {
             "previous_release_capable_commit": previous,
             "performed": rollback is not None,
@@ -183,6 +359,7 @@ def main() -> int:
                 "commit_sha": evidence["binding"]["commit_sha"],
                 "manifest_sha256": evidence["release"]["manifest_sha256"],
                 "preflight_ok": evidence["preflight"]["ok"],
+                "candidate_lifecycle_ok": evidence["candidate_lifecycle"]["ok"],
                 "rollback_performed": evidence["rollback_rehearsal"]["performed"],
                 "database_hashes_unchanged": evidence["rollback_rehearsal"][
                     "database_hashes_unchanged"
@@ -191,7 +368,7 @@ def main() -> int:
             ensure_ascii=False,
         )
     )
-    return 0 if evidence["preflight"]["ok"] else 1
+    return 0 if evidence["preflight"]["ok"] and evidence["candidate_lifecycle"]["ok"] else 1
 
 
 if __name__ == "__main__":

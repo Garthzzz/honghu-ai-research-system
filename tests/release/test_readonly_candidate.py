@@ -34,12 +34,26 @@ import json
 from tools.viewer.app import app
 client = app.test_client()
 health = client.get('/api/health')
+home = client.get('/')
+industry = client.get('/industry/1')
+valuation = client.get('/industry/1/valuation')
+company = client.get('/company/1')
+sentiment = client.get('/dynamic/sentiment')
+opportunity = client.get('/opportunity-lens')
+opportunity_run = client.get('/opportunity-lens/run/1')
 tools = client.get('/tools')
 pdf = client.get('/pdf/1')
 blocked = client.post('/api/analyst_note', json={})
 print(json.dumps({
     'health': health.status_code,
     'health_mode': health.get_json().get('viewer_mode'),
+    'home': home.status_code,
+    'industry': industry.status_code,
+    'valuation': valuation.status_code,
+    'company': company.status_code,
+    'sentiment': sentiment.status_code,
+    'opportunity': opportunity.status_code,
+    'opportunity_run': opportunity_run.status_code,
     'tools': tools.status_code,
     'pdf': pdf.status_code,
     'pdf_type': pdf.content_type,
@@ -70,6 +84,11 @@ print(json.dumps({
             outcome = json.loads(result.stdout.strip().splitlines()[-1])
             self.assertEqual(outcome["health"], 200)
             self.assertEqual(outcome["health_mode"], "readonly_candidate")
+            for key in (
+                "home", "industry", "valuation", "company", "sentiment",
+                "opportunity", "opportunity_run",
+            ):
+                self.assertEqual(outcome[key], 200, (key, outcome))
             self.assertEqual(outcome["tools"], 200)
             self.assertEqual(outcome["pdf"], 200)
             self.assertTrue(outcome["pdf_type"].startswith("application/pdf"))

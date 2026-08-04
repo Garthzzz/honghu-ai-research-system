@@ -14,6 +14,9 @@ class Stage2EvidenceContractTests(unittest.TestCase):
         )
         self.assertIn('"validated_by_ci": False', text)
         self.assertIn('"database_hashes_unchanged": before == after', text)
+        self.assertIn('"candidate_lifecycle": lifecycle', text)
+        self.assertIn('"port_released_after_stop": released', text)
+        self.assertIn('"pid_matches_listener": pid_matches_listener', text)
         self.assertNotIn("tools/dynamic/secrets", text)
 
     def test_ci_invokes_stage2_evidence_as_a_package_module(self):
