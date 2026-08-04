@@ -182,3 +182,9 @@ Codex 在提交 `a6b19f2264a266a760688a46937d653f97e43c26` 的 push Actions 两�
 第二轮没有给出新的可定位文件、失败路径或可复现反例。Codex据此停止第三轮，但仍保留 VM 18080 本机与内网客户端真实验收为人工 gate。外部 reviewer 的 `pass` 或 `revise` 均不替代确定性测试、Actions artifact、VM evidence 或用户 HALT。
 
 第二轮后下载真实 Actions artifact 元数据时，Codex又独立发现 GitHub PR workflow 的 `GITHUB_SHA` 是临时 merge commit，而不是分支头。该问题不来自 DeepSeek意见。最终修订因此把 push artifact 定义为可部署分支提交的 exact-commit evidence，把 PR artifact 定义为与 base 的合并结果证据，并要求 PR artifact 中记录的 `pull_request_head_sha` 与 push SHA 一致；PR 临时 merge SHA 明确不得用于 VM 部署。
+
+### 第三轮：push 分支身份与 PR merge 身份
+
+由于第二轮后出现上述实质身份修订，Codex使用最后一轮配额，只请 DeepSeek检查临时 merge SHA、stale PR head 和无 event 的本地 evidence 是否可能被误认成 VM 候选。DeepSeek把“PR merge-result 在 Actions 中测试”错误理解成“PR artifact 必须被拿去部署 VM”，并据此声称 PR 被完全跳过；公开 workflow 实际对 `pull_request` 和 `push` 都运行同一套两个 job，PR merge commit 已经被测试，只是按设计不具备 VM 部署资格。该 must-fix 被拒绝。
+
+DeepSeek关于“artifact 元数据应区分 push 与 PR”的方向已由本轮实现满足：`commit_role`、`event_name`、`pull_request_head_sha`、`pull_request_base_sha` 和 `eligible_as_vm_candidate_sha` 都进入 evidence。关于 PR 合并后 main push 的提醒也不构成缺口：若未来 main push 形成新的 branch commit，它必须重新通过该 SHA 自己的 push evidence；当前阶段仍禁止合并 PR 和 production deployment。第三轮未产生进一步修改，审核至此停止。
