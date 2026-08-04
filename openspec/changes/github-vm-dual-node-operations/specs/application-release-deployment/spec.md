@@ -45,7 +45,23 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: Successful read-only candidate deployment
 - **WHEN** a candidate commit and manifest pass build, preflight, health, and read-only smoke checks
-- **THEN** the VM MAY switch `current` for the approved scope and SHALL record commit and manifest hashes in a deployment ledger
+- **THEN** the VM MAY retain only the isolated candidate `current` for the approved scope and SHALL record commit, manifest, verified process identity, Python lock identity, representative smoke, and observed before/after production evidence; a pointer staged after preflight but before process health SHALL be restored on any later failure
+
+#### Scenario: Candidate process is started, replaced, or stopped
+- **WHEN** the deployer manages the read-only candidate listener
+- **THEN** the listener-owning process SHALL be the recorded process, its identity SHALL include more than a reusable PID, and stop or cleanup SHALL refuse to terminate a process whose start time, executable, command contract, launch identity, commit, and port do not match
+
+#### Scenario: Candidate startup or smoke fails
+- **WHEN** any post-launch health, identity, content, database, or route check fails
+- **THEN** every verifiably started candidate process SHALL be reclaimed, the prior candidate pointer SHALL be restored or the candidate SHALL return to no-current state, failure evidence SHALL be retained, and production 8080 and scheduled tasks SHALL remain untouched
+
+#### Scenario: VM Python is selected
+- **WHEN** a candidate environment is prepared
+- **THEN** deployment SHALL require an explicit Python 3.10 executable, create or reuse only a candidate-local environment bound to the approved lockfile, verify exact locked packages, and SHALL NOT silently select a PATH interpreter or alter the production task environment
+
+#### Scenario: Candidate runtime closure is verified
+- **WHEN** immutable code is attached to external data, content, and state roots
+- **THEN** relative database content references SHALL resolve against the declared external authority and representative smoke SHALL cover research, sentiment, financial, Opportunity Lens, external document, calculator, and static-asset reads without copying those authorities into the release
 
 #### Scenario: Dirty or mutable release
 - **WHEN** the target release differs from its verified manifest or contains an unapproved runtime mutation
@@ -63,7 +79,7 @@ PostgreSQL schema evolution SHALL use expand, migrate/backfill, application tran
 
 #### Scenario: Prior application release is selected
 - **WHEN** an operator attempts code-only rollback
-- **THEN** rollback SHALL proceed only if the current schema is declared compatible with that release; otherwise the system SHALL use the migration-specific forward recovery plan rather than claim application rollback will repair the database
+- **THEN** rollback SHALL proceed only if the current backend passes that release's declared object-type, required-column, version, and read-probe contract; any full schema fingerprint that is only diagnostic SHALL NOT be presented as exhaustive compatibility proof, and failures SHALL use the migration-specific forward recovery plan
 
 #### Scenario: Migration is forward-only
 - **WHEN** a migration cannot be safely reversed

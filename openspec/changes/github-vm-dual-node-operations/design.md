@@ -398,7 +398,11 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 ### 阶段 2：可重复 release 与本地开发基线
 
 目标：建立 immutable release、本地 dev/test 工作流、部署 manifest 和只读 VM 并行验证。  
-退出：干净环境可重建；本地 Viewer 不依赖 VM；VM 候选 release 只读运行；deployment ledger 和 schema compatibility 声明能区分可回滚应用版本与 forward-only migration。  
+候选运行合同：明确的 Python 3.10 仅用于在候选根建立 lockfile 绑定的隔离环境；listener 由被记录的同一进程直接持有，PID 必须与启动时间、解释器、命令行 hash、launch id、commit 和端口共同核验。失败路径先按身份回收进程，再恢复旧候选指针；不得用裸 PID 假定可以安全停止。数据库相对内容路径从外置 content root 解析，正式计算器模型来自 tracked config，迁移期旧 cache 只能从外置 state root 回退。
+
+schema compatibility 只对阶段 2 声明的代表性只读路由负责：门禁检查 SQLite `mode=ro/query_only`、对象类型、必需列、版本范围和只读探针；完整 schema fingerprint 作为诊断记录，除非以后另行批准 accepted set，否则不充当全部 schema 兼容证明。VM evidence 区分静态代码保证、部署前状态、部署后状态、实测 smoke 和未验证事项；计划任务与生产 8080/current 必须采集前后状态，不能写死“未修改”。
+
+退出：干净环境可重建；本地 Viewer 不依赖 VM；VM 候选 release 只读运行；代表性 smoke 覆盖四库、外置文档、计算器和静态资源；VM 本机与另一台内网客户端可达性分别有证据；deployment ledger 和声明范围内的 schema compatibility 能区分可回滚应用版本与 forward-only migration。
 回滚：切回现有广播包/启动路径；不触碰数据库。  
 禁止：开放 VM 写接口、迁移任务或数据库。
 

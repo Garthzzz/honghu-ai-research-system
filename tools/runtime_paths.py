@@ -11,6 +11,7 @@ helpers make that split opt-in and preserve the historical layout by default.
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 @dataclass(frozen=True)
@@ -46,3 +47,36 @@ def resolve_runtime_layout(code_root: str | Path | None = None) -> RuntimeLayout
 
 def readonly_candidate_enabled() -> bool:
     return os.environ.get("HONGHU_VIEWER_MODE", "").strip().lower() == "readonly_candidate"
+
+
+def resolve_content_reference(
+    content_root: str | Path,
+    reference: str,
+    *,
+    default_prefix: str | None = None,
+) -> Path:
+    """Resolve a database content reference below the external content root.
+
+    Historical rows normally store ``papers/...`` relative paths.  Immutable
+    releases must resolve those rows against ``HONGHU_CONTENT_ROOT`` rather
+    than the code release.  Absolute paths, URLs and traversal are rejected;
+    callers may supply ``default_prefix='papers'`` for legacy rows that omit
+    the leading directory.
+    """
+
+    raw = str(reference or "").strip().replace("\\", "/")
+    parsed = urlparse(raw)
+    if not raw or parsed.scheme or parsed.netloc:
+        raise ValueError("content reference must be a non-empty relative path")
+    candidate = Path(raw)
+    if candidate.is_absolute() or candidate.drive or ".." in candidate.parts:
+        raise ValueError("content reference escaped the external content root")
+    if default_prefix and candidate.parts and candidate.parts[0] != default_prefix:
+        candidate = Path(default_prefix) / candidate
+    root = Path(content_root).expanduser().resolve()
+    resolved = (root / candidate).resolve()
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise ValueError("content reference escaped the external content root") from exc
+    return resolved

@@ -26,10 +26,10 @@ import hashlib
 import logging
 import math
 import os
+import sys
 import re
 import sqlite3
 import subprocess
-import sys
 import traceback
 from bisect import bisect_left, bisect_right
 from datetime import datetime
@@ -59,7 +59,11 @@ from tools.financial.read_models import (  # noqa: E402
 )
 from tools.financial.valuation import historical_pb_roa, historical_pb_roe  # noqa: E402
 from tools.viewer.lithium_runtime import resolve_inputs as resolve_lithium_inputs  # noqa: E402
-from tools.runtime_paths import readonly_candidate_enabled, resolve_runtime_layout  # noqa: E402
+from tools.runtime_paths import (  # noqa: E402
+    readonly_candidate_enabled,
+    resolve_content_reference,
+    resolve_runtime_layout,
+)
 
 RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
 DB_PATH    = RUNTIME_LAYOUT.data_root / "research.db"
@@ -2999,7 +3003,10 @@ def _render_lithium_calculator(*, comparison_mode: bool):
     each mine/salar, its stated ownership, 2025-2030 volume, cost and notes.  It
     must not be collapsed back into one company-level resource row.
     """
-    calculator_inputs = resolve_lithium_inputs(ROOT)
+    calculator_inputs = resolve_lithium_inputs(
+        RUNTIME_LAYOUT.code_root,
+        state_root=RUNTIME_LAYOUT.state_root,
+    )
     model_path = calculator_inputs.independent_model
     recon_path = calculator_inputs.reconciliation
     project_ledger_path = calculator_inputs.project_ledger
@@ -4209,7 +4216,15 @@ def serve_pdf(source_id: int):
     if not src or not src.get("file_path"):
         abort(404, "该 source 无 file_path")
     rel = src["file_path"].strip()
-    pdf_abs = (ROOT / rel).resolve()
+    try:
+        pdf_abs = resolve_content_reference(
+            RUNTIME_LAYOUT.content_root,
+            rel,
+            default_prefix="papers",
+        )
+    except ValueError:
+        log.warning("serve_pdf 路径越界: %s", rel)
+        abort(403)
     # 安全校验:必须在 papers/ 内
     try:
         pdf_abs.relative_to(PAPERS_DIR.resolve())
@@ -4502,7 +4517,11 @@ def refresh_industry(industry_id: int):
         "refresh_confirm.html",
         ind=ind,
         last_snap=last_snap,
-        papers_subdir=str(papers_subdir.relative_to(ROOT)) if papers_subdir.exists() else None,
+        papers_subdir=(
+            str(papers_subdir.relative_to(RUNTIME_LAYOUT.content_root))
+            if papers_subdir.exists()
+            else None
+        ),
         paper_files=paper_files,
         new_files=new_files,
     )
@@ -7196,6 +7215,11 @@ def api_health():
                 payload["ok"] = bool(payload["ok"] and release_health["ok"])
                 payload["release"] = release_health["release"]
                 payload["database_contract"] = release_health["database_contract"]
+            payload["candidate_process"] = {
+                "pid": os.getpid(),
+                "launch_id": os.environ.get("HONGHU_CANDIDATE_LAUNCH_ID"),
+                "python_version": ".".join(map(str, sys.version_info[:3])),
+            }
         return jsonify(payload)
     except Exception:
         log.error(f"health error: {traceback.format_exc()}")

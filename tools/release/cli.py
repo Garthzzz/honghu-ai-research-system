@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import subprocess
 import sys
 from pathlib import Path
 
@@ -34,6 +33,8 @@ def _schema_for_release(release: Path, data_root: Path) -> dict:
 
 def _serve(args: argparse.Namespace) -> int:
     release, pointer = resolve_current_release(args.deploy_root)
+    if str(pointer.get("commit_sha")) != args.expected_commit.lower():
+        raise ReleaseError("current candidate commit differs from expected commit")
     report = preflight_release(
         release,
         data_root=args.data_root,
@@ -44,8 +45,11 @@ def _serve(args: argparse.Namespace) -> int:
     if not report["ok"]:
         _print(report)
         return 1
-    env = os.environ.copy()
-    env.update(
+    if not __import__("re").fullmatch(r"[0-9a-f]{32}", args.launch_id):
+        raise ReleaseError("launch id must be 32 lowercase hexadecimal characters")
+    if args.port == 8080:
+        raise ReleaseError("read-only candidate cannot bind the production port 8080")
+    os.environ.update(
         {
             "HONGHU_DATA_ROOT": str(args.data_root.resolve()),
             "HONGHU_CONTENT_ROOT": str(args.content_root.resolve()),
@@ -55,24 +59,29 @@ def _serve(args: argparse.Namespace) -> int:
             "HONGHU_RELEASE_MANIFEST": str(release / "RELEASE_MANIFEST.json"),
             "HONGHU_RELEASE_MANIFEST_SHA256": str(pointer["manifest_sha256"]),
             "HONGHU_DEPLOY_ROOT": str(args.deploy_root.resolve()),
+            "HONGHU_CANDIDATE_LAUNCH_ID": args.launch_id,
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONUTF8": "1",
             "PYTHONIOENCODING": "utf-8",
         }
     )
-    command = [
-        sys.executable,
-        "-m",
-        "flask",
-        "--app",
-        "tools.viewer.app:app",
-        "run",
-        f"--host={args.host}",
-        f"--port={args.port}",
-        "--no-debugger",
-        "--no-reload",
-    ]
-    return subprocess.call(command, cwd=release, env=env)
+    os.chdir(release)
+    if str(release) not in sys.path:
+        sys.path.insert(0, str(release))
+    # Import only after the runtime roots and read-only mode are fixed.  The
+    # CLI process itself owns the listener; there is no outer PID whose child
+    # could survive after a failed smoke or stop operation.
+    from tools.viewer.app import app
+
+    app.run(
+        host=args.host,
+        port=args.port,
+        debug=False,
+        use_debugger=False,
+        use_reloader=False,
+        threaded=True,
+    )
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -120,6 +129,8 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--state-root", type=Path, required=True)
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=18080)
+    serve.add_argument("--launch-id", required=True)
+    serve.add_argument("--expected-commit", required=True)
     serve.add_argument("--allow-missing-content", action="store_true")
     return parser
 

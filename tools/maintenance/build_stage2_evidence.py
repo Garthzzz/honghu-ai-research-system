@@ -85,13 +85,20 @@ def build_stage2_evidence(output_dir: Path) -> dict:
         schema = inspect_sqlite_contract(
             fixture / "data", current_manifest["schema_compatibility"]
         )
+        previous_schema = (
+            inspect_sqlite_contract(
+                fixture / "data", previous_manifest["schema_compatibility"]
+            )
+            if previous_manifest is not None
+            else None
+        )
         rollback = None
         if previous_manifest is not None:
             activate_release(
                 deploy,
                 previous,
                 actor="stage2-evidence",
-                schema_report=schema,
+                schema_report=previous_schema,
             )
         activate_release(
             deploy,
@@ -103,7 +110,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
             rollback = rollback_release(
                 deploy,
                 actor="stage2-evidence",
-                schema_report=schema,
+                schema_report=previous_schema,
                 target_commit=previous,
             )
         _, pointer = resolve_current_release(deploy)
@@ -121,7 +128,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
         ).splitlines()
     inventory = build_inventory(ROOT)
     evidence = {
-        "schema_version": "honghu.stage2_runtime_evidence.v1",
+        "schema_version": "honghu.stage2_runtime_evidence.v2",
         "generated_at": generated_at,
         "binding": {
             "repository": "Garthzzz/honghu-ai-research-system",
@@ -141,6 +148,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
             "contains_secrets": current_manifest["contains_secrets"],
         },
         "preflight": preflight,
+        "schema_compatibility_scope": schema.get("compatibility_scope"),
         "rollback_rehearsal": {
             "previous_release_capable_commit": previous,
             "performed": rollback is not None,

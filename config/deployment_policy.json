@@ -49,6 +49,7 @@
       "authority": "content_root",
       "paths": [
         "docs/industries",
+        "docs/themes",
         "papers"
       ],
       "candidate_access": "read_only",

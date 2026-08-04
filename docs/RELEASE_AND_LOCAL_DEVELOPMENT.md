@@ -36,7 +36,7 @@ python -m tools.release.cli verify `
 
 ## 3. schema compatibility 与代码回滚
 
-当前合同是 `sqlite-transition`，只读核对四库所需表、`PRAGMA user_version` 和 schema fingerprint。`config/release_schema_compatibility.json` 明确当前没有获批的 forward-only migration。
+当前合同是 `sqlite-transition`。门禁以 `mode=ro` 和 `query_only` 打开四库，核对代表性只读页面实际依赖的对象类型、必需列、`PRAGMA user_version` 和只读探针。完整 schema fingerprint 会记录在证据中，但阶段 2 只把它作为诊断值，不把“计算出指纹”误称为已经证明所有列、视图、索引、约束和未来写路径兼容。
 
 ```powershell
 python -m tools.release.cli preflight `
@@ -57,7 +57,7 @@ python -m tools.release.cli rollback `
   --actor <审计身份>
 ```
 
-rollback 只切 `current`，不改数据库、不恢复用户内容。只有目标 release 的 backend 与 required-table contract 仍兼容时才允许。未来出现破坏性或 forward-only migration 后，必须按 expand–migrate–transition–contract 的独立批准方案处理，不能宣称 code-only rollback 能修数据库。
+rollback 只切候选 `current`，不改数据库、不恢复用户内容。只有目标 release 与同一 backend 仍通过声明的对象、列和只读探针合同时才允许。该合同支持阶段 2 的代表性只读候选和代码级回滚判断，不声称覆盖未声明的写路径或全部 schema 语义。未来出现破坏性或 forward-only migration 后，必须按 expand–migrate–transition–contract 的独立批准方案处理，不能宣称 code-only rollback 能修数据库。
 
 ## 4. 本地离线开发
 
@@ -77,16 +77,20 @@ python -m flask --app tools.viewer.app:app run --host=127.0.0.1 --port=18080
 
 ## 5. VM 只读候选
 
-VM 上以管理员审核过的 Python 环境运行：
+VM 上必须显式提供一个真实存在的 Python 3.10 `python.exe` 作为 bootstrap 解释器。脚本不会从 PATH 猜测环境，也不会修改现有生产任务环境；它在候选根下按 `requirements.lock.txt` 的 SHA256 建立隔离 venv，以 `--require-hashes` 安装并逐包核验精确版本，再用这个 venv 构建和运行候选：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File tools\release\Deploy-ReadonlyCandidate.ps1 `
   -CommitSha <full-sha> `
-  -Python <明确的python.exe路径>
+  -BootstrapPythonExe <VM上明确的Python-3.10-python.exe绝对路径>
 ```
 
-脚本固定在独立候选根与端口运行，验证 `/api/health`、`/tools` 和 POST=403，并把结果写入候选 `runtime/vm_readonly_candidate_evidence.json`。它不修改生产 `current`、8080、SQLite、计划任务或 VM deploy credential。候选成功不等于 production deployment，也不授予个人账号仓库 production authority。
+候选 Python 进程本身直接持有 18080 listener，不再由外层 CLI 启动无法追踪的 Flask 子进程。进程记录同时绑定 PID、启动时间、解释器、命令行 hash、launch id、commit、manifest 和端口；停止、重复部署及失败清理均先核验完整身份，发现 PID 复用或记录不匹配时拒绝误停。
+
+脚本会实测而不是写死以下证据：计划任务定义的部署前后 hash、生产 8080 health/listener 和生产指针的部署前后状态、候选进程身份、四库只读 schema 合同，以及代表性路由 smoke。代表性路由覆盖首页、行业和估值、公司财务/情绪、Opportunity Lens、外置 PDF、三类计算器、静态资源及写方法 403。VM 本机 smoke 与内网其他客户端的 18080 可达性是两项独立证据；脚本完成后仍会把后者标成待人工验证。
+
+候选只会改变独立候选根内的 `current`。任何启动或 smoke 失败都要验证并回收候选进程，恢复原候选指针（没有原指针则回到无 `current` 状态），并保存失败证据。脚本不修改生产 `current`、8080、SQLite、计划任务或 VM deploy credential。候选成功不等于 production deployment，也不授予个人账号仓库 production authority。
 
 ## 6. 旧广播包定位
 

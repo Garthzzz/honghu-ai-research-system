@@ -6,15 +6,61 @@
   "code_only_rollback": {
     "allowed": true,
     "requires_same_backend": true,
-    "requires_required_tables": true,
+    "requires_declared_objects_columns_and_probes": true,
     "changes_data_authority": false,
     "changes_user_content": false
   },
-  "required_tables": {
-    "research.db": ["industry", "source", "company"],
-    "sentiment.db": ["senti_raw", "stock_kline", "funda_semi_nodes"],
-    "opportunity_lens.db": ["opportunity_run", "opportunity_source", "opportunity_entity"],
-    "financial.db": ["financial_security", "financial_observation", "financial_model_run"]
+  "compatibility_scope": "readonly_candidate_representative_routes",
+  "databases": {
+    "research.db": {
+      "required_objects": {
+        "industry": {"type": "table", "required_columns": ["id", "name", "tier", "status"]},
+        "source": {"type": "table", "required_columns": ["id", "title", "file_path"]},
+        "company": {"type": "table", "required_columns": ["id", "name", "ticker"]}
+      },
+      "probe_queries": [
+        {"id": "industry-reader", "sql": "SELECT id,name,tier,status FROM industry LIMIT 1"},
+        {"id": "source-reader", "sql": "SELECT id,title,file_path FROM source LIMIT 1"},
+        {"id": "company-reader", "sql": "SELECT id,name,ticker FROM company LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    },
+    "sentiment.db": {
+      "required_objects": {
+        "senti_raw": {"type": "table", "required_columns": ["id", "company_id", "ticker", "publish_time"]},
+        "stock_kline": {"type": "table", "required_columns": ["id", "company_id", "ticker", "freq", "ts", "c"]},
+        "funda_semi_nodes": {"type": "table", "required_columns": ["ticker", "name", "layer"]}
+      },
+      "probe_queries": [
+        {"id": "sentiment-reader", "sql": "SELECT id,company_id,ticker,publish_time FROM senti_raw LIMIT 1"},
+        {"id": "kline-reader", "sql": "SELECT company_id,ticker,freq,ts,c FROM stock_kline LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    },
+    "opportunity_lens.db": {
+      "required_objects": {
+        "opportunity_run": {"type": "table", "required_columns": ["id", "run_status", "display_title", "research_question"]},
+        "opportunity_source": {"type": "table", "required_columns": ["id", "run_id", "title", "evidence_ref_uri"]},
+        "opportunity_entity": {"type": "table", "required_columns": ["id", "entity_type", "canonical_name", "display_name"]}
+      },
+      "probe_queries": [
+        {"id": "run-reader", "sql": "SELECT id,run_status,display_title,research_question FROM opportunity_run LIMIT 1"},
+        {"id": "entity-reader", "sql": "SELECT id,entity_type,canonical_name,display_name FROM opportunity_entity LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    },
+    "financial.db": {
+      "required_objects": {
+        "financial_security": {"type": "table", "required_columns": ["id", "research_company_id", "canonical_name", "ticker", "market"]},
+        "financial_observation": {"type": "table", "required_columns": ["id", "security_id", "metric_name", "fact_type", "as_of_date"]},
+        "financial_model_run": {"type": "table", "required_columns": ["id", "run_key", "security_id", "model_name", "status"]}
+      },
+      "probe_queries": [
+        {"id": "security-reader", "sql": "SELECT id,research_company_id,canonical_name,ticker,market FROM financial_security LIMIT 1"},
+        {"id": "observation-reader", "sql": "SELECT security_id,metric_name,fact_type,as_of_date FROM financial_observation LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    }
   },
-  "contract_policy": "A destructive or forward-only database contract requires a separately approved release. Code-only rollback is valid only while this table contract and backend remain compatible."
+  "contract_policy": "A destructive or forward-only database contract requires a separately approved release. Code-only rollback is allowed only when the same backend passes the declared object, column and read-probe contract. The full schema fingerprint is diagnostic in phase 2 and is not proof of compatibility outside the representative read-only route scope."
 }

@@ -31,6 +31,11 @@ class ReleaseManagerTests(unittest.TestCase):
             "restart_viewer.bat": "@echo off\r\n",
             "WindPy.py": "# fixture\n",
             "config/research_workflow.yaml": "contract_version: test\n",
+            "config/battery_calculator_models/battery_calculator_model_v1.json": "{}\n",
+            "config/copper_calculator_models/copper_calculator_model_v1.json": "{}\n",
+            "config/lithium_calculator_models/lithium_company_independent_models_v1.json": "{}\n",
+            "config/lithium_calculator_models/lithium_external_reconciliation_v1.json": "{}\n",
+            "config/lithium_calculator_project_ledger.json": "{}\n",
             "tools/viewer/app.py": "VALUE = 1\n",
             "tools/viewer/templates/base.html": "fixture\n",
             "tools/viewer/static/app.css": "fixture\n",
@@ -119,6 +124,7 @@ class ReleaseManagerTests(unittest.TestCase):
             state = deploy / "runtime"
             self._make_data(data)
             (content / "docs/industries").mkdir(parents=True)
+            (content / "docs/themes").mkdir(parents=True)
             (content / "papers").mkdir()
 
             first_manifest = build_release(repo, deploy, commit=first)
@@ -161,6 +167,31 @@ class ReleaseManagerTests(unittest.TestCase):
             (release / "tools/viewer/app.py").write_text("tampered\n", encoding="utf-8")
             with self.assertRaises(ReleaseError):
                 verify_release(release)
+
+    def test_schema_contract_rejects_missing_required_column(self):
+        with tempfile.TemporaryDirectory() as temp:
+            data = Path(temp) / "data"
+            self._make_data(data)
+            contract = {
+                "schema_version": "honghu.release_schema_compatibility.v1",
+                "backend": "sqlite-transition",
+                "databases": {
+                    "research.db": {
+                        "required_objects": {
+                            "industry": {
+                                "type": "table",
+                                "required_columns": ["id", "missing_contract_column"],
+                            }
+                        },
+                        "probe_queries": [
+                            {"id": "reader", "sql": "SELECT id FROM industry LIMIT 1"}
+                        ],
+                    }
+                },
+            }
+            report = inspect_sqlite_contract(data, contract)
+            self.assertFalse(report["compatible"])
+            self.assertTrue(any("missing_contract_column" in item for item in report["failures"]))
 
 
 if __name__ == "__main__":

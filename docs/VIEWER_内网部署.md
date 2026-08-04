@@ -103,6 +103,8 @@ python tools\viewer\preflight.py --root C:\industry_demo
 - HTTP：GET/HEAD/OPTIONS 可用，POST/PUT/PATCH/DELETE 全局返回 403；
 - 计划任务：不安装、不禁用、不迁移。
 
-候选部署入口为 `tools/release/Deploy-ReadonlyCandidate.ps1`。它从明确的 full commit SHA 构建 manifest 驱动 release，先做只读 SQLite schema 检查，再启动并验证候选。该脚本只用于人工批准的 Phase 2 候选，不会修改 `restart_viewer.bat`、生产端口或现有任务。
+候选部署入口为 `tools/release/Deploy-ReadonlyCandidate.ps1`。它要求显式的 Python 3.10 绝对路径，在候选根内按 lockfile 建立隔离环境；不从 PATH 猜测 `python`，也不修改现有任务环境。候选进程直接持有 18080，并以 PID、启动时间、解释器、命令行 hash、launch id、commit 和端口核验身份；重复部署、停止和失败路径不得只相信一个裸 PID。
 
-release 不包含 `data/`、`papers/`、backup、broadcast、cache、凭据或用户内容。运行闭包分为 tracked code closure 与 external runtime closure；缺少外部权威时 preflight 必须失败，不能把 live 文件复制进 Git release 充数。完整操作和本地开发命令见 `docs/RELEASE_AND_LOCAL_DEVELOPMENT.md`。
+脚本从明确的 full commit SHA 构建 manifest 驱动 release，执行对象/列/只读探针级 SQLite 合同检查，并对首页、行业、公司、情绪、Opportunity Lens、外置 PDF、计算器和静态资源做代表性 smoke。任务定义和生产 8080/current 在部署前后分别采集后比较；无法采集的事项标为未验证，不写死成功结论。该脚本只用于人工批准的 Phase 2 候选，不会修改 `restart_viewer.bat`、生产端口或现有任务。VM 本机通过后仍须从另一台内网客户端单独验证 18080 可达。
+
+release 不包含 `data/`、`papers/`、backup、broadcast、cache、凭据或用户内容。运行闭包分为 tracked code closure 与 external runtime closure；数据库相对 `file_path` 必须从外置 content root 解析，计算器的正式冻结模型来自 release 内 tracked config，旧 cache 回退只能从外置 state root 解析。缺少外部权威时 preflight 必须失败，不能把 live 文件复制进 Git release 充数。完整操作和本地开发命令见 `docs/RELEASE_AND_LOCAL_DEVELOPMENT.md`。

@@ -38,8 +38,8 @@
       "path": "tools/release/manager.py",
       "domain": "release schema compatibility inspection",
       "rule": "pragma",
-      "max_count": 2,
-      "reason": "Read-only query_only and schema metadata PRAGMAs support compatibility verification without mutating transition databases.",
+      "max_count": 4,
+      "reason": "Read-only query_only, user_version and object-column metadata PRAGMAs enforce the Phase 2 declared compatibility slice without mutating transition databases.",
       "owner": "application release governance",
       "future_cutover_unit_candidate": "central data platform migration governance",
       "sunset_condition": "Remove after all production cutover units use PostgreSQL compatibility inspection."

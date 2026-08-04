@@ -88,6 +88,10 @@
 - [x] [本阶段必须] 将 commit SHA、manifest hash、database schema version 暴露给 health/preflight 审计，但不得泄露凭据。
 - [x] [本阶段必须] 验证 preflight、read-only smoke 和 code-only rollback；应用回滚不得改数据库或人工内容。
 - [x] [本阶段必须] 定义 migration compatibility 声明，验证 code-only rollback 只在旧代码仍兼容当前 schema 时成立；forward-only migration 必须显式标记。
+- [x] [本阶段必须] 修复候选进程生命周期：listener-owning PID 使用启动时间、解释器、命令行 hash、launch id、commit 和端口联合验证；重复部署及所有已识别失败路径执行身份核验后的清理，不使用裸 PID。
+- [x] [本阶段必须] 将 VM evidence 从写死声明改为部署前/后实测，分开记录静态保证、生产 8080/current、计划任务定义、候选进程、只读合同、代表性 smoke 和仍未验证的内网客户端可达性。
+- [x] [本阶段必须] 要求显式 Python 3.10 bootstrap 路径，在候选根按 lockfile 建立隔离环境；不得从 PATH 猜测解释器或修改现有生产任务环境。
+- [x] [本阶段必须] 修复外置 content/state 路径并建立代表性读取闭包；schema compatibility 收窄并增强为对象、列、版本和只读探针门禁，完整 fingerprint 仅作诊断。
 - [x] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
 - [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
 - [x] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。

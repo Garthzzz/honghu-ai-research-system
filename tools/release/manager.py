@@ -274,14 +274,53 @@ def _sqlite_tables(conn: sqlite3.Connection) -> set[str]:
     }
 
 
+def _safe_sqlite_identifier(value: str) -> str:
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", value):
+        raise ReleaseError(f"unsafe SQLite contract identifier: {value!r}")
+    return value
+
+
+def _read_contract_objects(conn: sqlite3.Connection) -> dict[str, str]:
+    return {
+        str(row[0]): str(row[1])
+        for row in conn.execute(
+            "SELECT name,type FROM sqlite_master "
+            "WHERE type IN ('table','view','index','trigger')"
+        )
+    }
+
+
+def _contract_columns(conn: sqlite3.Connection, object_name: str) -> set[str]:
+    name = _safe_sqlite_identifier(object_name)
+    return {str(row[1]) for row in conn.execute(f'PRAGMA table_info("{name}")')}
+
+
+def _run_readonly_probe(conn: sqlite3.Connection, sql: str) -> None:
+    normalized = sql.strip().rstrip(";").strip()
+    if ";" in normalized or not re.match(r"^(SELECT|WITH|PRAGMA)\b", normalized, re.I):
+        raise ReleaseError("schema compatibility probes must be one read-only statement")
+    conn.execute(normalized).fetchone()
+
+
 def inspect_sqlite_contract(
     data_root: str | Path, compatibility: Mapping[str, Any]
 ) -> dict[str, Any]:
     root = Path(data_root).resolve()
     results: dict[str, Any] = {}
     failures: list[str] = []
-    required_map = compatibility.get("required_tables", {})
-    for name, required_values in required_map.items():
+    database_contracts = compatibility.get("databases")
+    if not isinstance(database_contracts, Mapping):
+        database_contracts = {
+            name: {
+                "required_objects": {
+                    str(table): {"type": "table", "required_columns": []}
+                    for table in required_values
+                }
+            }
+            for name, required_values in compatibility.get("required_tables", {}).items()
+        }
+    for name, raw_contract in database_contracts.items():
+        contract = raw_contract if isinstance(raw_contract, Mapping) else {}
         path = root / str(name)
         if not path.is_file():
             failures.append(f"missing database: {name}")
@@ -290,9 +329,57 @@ def inspect_sqlite_contract(
         try:
             conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True, timeout=5)
             conn.execute("PRAGMA query_only=ON")
+            query_only = int(conn.execute("PRAGMA query_only").fetchone()[0]) == 1
+            if not query_only:
+                failures.append(f"{name}: read-only inspection did not enable query_only")
             tables = _sqlite_tables(conn)
-            missing = sorted(set(str(v) for v in required_values) - tables)
+            objects = _read_contract_objects(conn)
+            required_objects = contract.get("required_objects", {})
+            object_failures: list[str] = []
+            checked_objects: dict[str, Any] = {}
+            for object_name, raw_requirement in required_objects.items():
+                requirement = raw_requirement if isinstance(raw_requirement, Mapping) else {}
+                expected_type = str(requirement.get("type", "table"))
+                actual_type = objects.get(str(object_name))
+                required_columns = {
+                    str(column) for column in requirement.get("required_columns", [])
+                }
+                actual_columns = (
+                    _contract_columns(conn, str(object_name)) if actual_type in {"table", "view"} else set()
+                )
+                missing_columns = sorted(required_columns - actual_columns)
+                if actual_type != expected_type:
+                    object_failures.append(
+                        f"{object_name} expected {expected_type}, found {actual_type or 'missing'}"
+                    )
+                if missing_columns:
+                    object_failures.append(
+                        f"{object_name} missing columns {missing_columns}"
+                    )
+                checked_objects[str(object_name)] = {
+                    "expected_type": expected_type,
+                    "actual_type": actual_type,
+                    "required_columns_present": not missing_columns,
+                    "missing_columns": missing_columns,
+                }
             user_version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+            version_range = contract.get("user_version", {})
+            min_version = version_range.get("min") if isinstance(version_range, Mapping) else None
+            max_version = version_range.get("max") if isinstance(version_range, Mapping) else None
+            if min_version is not None and user_version < int(min_version):
+                object_failures.append(f"user_version {user_version} below {min_version}")
+            if max_version is not None and user_version > int(max_version):
+                object_failures.append(f"user_version {user_version} above {max_version}")
+            probe_results: list[dict[str, Any]] = []
+            for index, raw_probe in enumerate(contract.get("probe_queries", []), start=1):
+                probe = raw_probe if isinstance(raw_probe, Mapping) else {"sql": raw_probe}
+                probe_id = str(probe.get("id") or f"probe-{index}")
+                try:
+                    _run_readonly_probe(conn, str(probe.get("sql") or ""))
+                    probe_results.append({"id": probe_id, "ok": True})
+                except Exception as exc:
+                    object_failures.append(f"probe {probe_id} failed: {type(exc).__name__}: {exc}")
+                    probe_results.append({"id": probe_id, "ok": False})
             schema_rows = [
                 f"{row[0]}:{row[1] or ''}"
                 for row in conn.execute(
@@ -300,16 +387,38 @@ def inspect_sqlite_contract(
                     "WHERE type IN ('table','index','view','trigger') ORDER BY type,name"
                 )
             ]
-            if missing:
-                failures.append(f"{name} missing required tables: {missing}")
+            schema_fingerprint = _sha256_bytes(
+                ("\n".join(schema_rows) + "\n").encode("utf-8")
+            )
+            fingerprint_policy = contract.get("schema_fingerprint", {})
+            accepted_fingerprints = {
+                str(value).lower()
+                for value in (
+                    fingerprint_policy.get("accepted", [])
+                    if isinstance(fingerprint_policy, Mapping)
+                    else []
+                )
+            }
+            fingerprint_mode = (
+                str(fingerprint_policy.get("mode", "audit_only"))
+                if isinstance(fingerprint_policy, Mapping)
+                else "audit_only"
+            )
+            if fingerprint_mode == "enforced" and schema_fingerprint not in accepted_fingerprints:
+                object_failures.append("schema fingerprint is not in the accepted set")
+            if object_failures:
+                failures.extend(f"{name}: {message}" for message in object_failures)
             results[str(name)] = {
                 "backend": "sqlite-transition",
+                "connection_mode": "ro",
+                "query_only": query_only,
                 "user_version": user_version,
                 "table_count": len(tables),
-                "required_tables_present": not missing,
-                "schema_fingerprint": _sha256_bytes(
-                    ("\n".join(schema_rows) + "\n").encode("utf-8")
-                ),
+                "required_objects": checked_objects,
+                "probe_queries": probe_results,
+                "schema_fingerprint": schema_fingerprint,
+                "schema_fingerprint_mode": fingerprint_mode,
+                "declared_contract_compatible": not object_failures,
             }
         except Exception as exc:
             failures.append(f"{name} read-only inspection failed: {type(exc).__name__}: {exc}")
@@ -318,6 +427,9 @@ def inspect_sqlite_contract(
                 conn.close()
     return {
         "backend": "sqlite-transition",
+        "compatibility_scope": compatibility.get(
+            "compatibility_scope", "declared_read_contract"
+        ),
         "compatibility_contract_sha256": _compatibility_fingerprint(compatibility),
         "compatible": not failures,
         "databases": results,
@@ -340,6 +452,11 @@ def preflight_release(
     failures = list(schema_report["failures"])
     code_requirements = [
         "config/research_workflow.yaml",
+        "config/battery_calculator_models/battery_calculator_model_v1.json",
+        "config/copper_calculator_models/copper_calculator_model_v1.json",
+        "config/lithium_calculator_models/lithium_company_independent_models_v1.json",
+        "config/lithium_calculator_models/lithium_external_reconciliation_v1.json",
+        "config/lithium_calculator_project_ledger.json",
         "requirements.lock.txt",
         "tools/viewer/app.py",
         "tools/viewer/templates",
@@ -351,7 +468,7 @@ def preflight_release(
             failures.append(f"missing release code path: {relative}")
     content = Path(content_root).resolve()
     if require_content:
-        for relative in ("docs/industries", "papers"):
+        for relative in ("docs/industries", "docs/themes", "papers"):
             if not (content / relative).exists():
                 failures.append(f"missing external content path: {relative}")
     state = Path(state_root).resolve()
@@ -368,6 +485,14 @@ def preflight_release(
         "commit_sha": manifest["commit_sha"],
         "manifest_sha256": manifest["manifest_sha256"],
         "viewer_mode": "readonly_candidate",
+        "runtime_closure": {
+            "code_root": str(release),
+            "data_root": str(Path(data_root).resolve()),
+            "content_root": str(content),
+            "state_root": str(state),
+            "code_requirements": code_requirements,
+            "external_content_requirements": ["docs/industries", "docs/themes", "papers"],
+        },
         "schema": schema_report,
         "failures": failures,
     }
