@@ -4,14 +4,14 @@
   "branch": "phase2/repeatable-release",
   "pull_request": 3,
   "exact_commit_binding": {
-    "source": "GitHub Actions artifact stage2_evidence.json",
+    "source": "push-event GitHub Actions artifact stage2_evidence.json",
     "commit_field": "binding.commit_sha",
     "run_field": "binding.github_run_id",
     "required_jobs": [
       "boundary-and-contracts",
       "python-clean-environment"
     ],
-    "rule": "Both jobs and the exact-commit artifact must be green before the SHA may be used for VM validation."
+    "rule": "The push artifact must bind the branch commit with eligible_as_vm_candidate_sha=true. Both push jobs and both PR merge-result jobs must be green, and the PR artifact pull_request_head_sha must equal the push commit, before that branch commit may be used for VM validation."
   },
   "last_locally_verified_implementation": {
     "commit_sha": "3b3778f7c5deada4f4a6fbe849ca390c219467ee",

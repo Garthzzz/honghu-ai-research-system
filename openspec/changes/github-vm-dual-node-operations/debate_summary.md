@@ -180,3 +180,5 @@ Codex 没有把该结果当作退出依据。继续独立检查 CI evidence 后�
 Codex 在提交 `a6b19f2264a266a760688a46937d653f97e43c26` 的 push Actions 两个 job 真实绿色后，再向 DeepSeek发送上述实现摘要和 VM 手册边界。DeepSeek仍声称不存在 PID/launch id/commit/manifest evidence、Python 3.10 校验、data/content/state 检查、schema probe、exact-commit CI、403 smoke、rollback 和 Windows `samefile` 处理；这些陈述与公开提交中的实现和测试直接冲突，因此全部拒绝。其“增加 schema migration”和“建立 VM push/PR matrix”建议还越过阶段 2：本阶段禁止数据库 migration，push/PR Actions 是代码验证，不是替用户远程部署 VM。
 
 第二轮没有给出新的可定位文件、失败路径或可复现反例。Codex据此停止第三轮，但仍保留 VM 18080 本机与内网客户端真实验收为人工 gate。外部 reviewer 的 `pass` 或 `revise` 均不替代确定性测试、Actions artifact、VM evidence 或用户 HALT。
+
+第二轮后下载真实 Actions artifact 元数据时，Codex又独立发现 GitHub PR workflow 的 `GITHUB_SHA` 是临时 merge commit，而不是分支头。该问题不来自 DeepSeek意见。最终修订因此把 push artifact 定义为可部署分支提交的 exact-commit evidence，把 PR artifact 定义为与 base 的合并结果证据，并要求 PR artifact 中记录的 `pull_request_head_sha` 与 push SHA 一致；PR 临时 merge SHA 明确不得用于 VM 部署。

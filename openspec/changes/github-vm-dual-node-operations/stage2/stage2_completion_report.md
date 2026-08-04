@@ -52,11 +52,11 @@
 
 tracked 报告不能可靠地把“包含它自己的 Git commit SHA”硬编码进自身内容，因为修改 SHA 字段会再次改变 commit。为避免伪精确或永远落后一笔，最终身份采用以下同一提交闭包：
 
-1. GitHub PR head 提供 exact `GITHUB_SHA`；
-2. 同 SHA 的两个 required job 必须均为 success；
-3. `python-clean-environment` 生成的 `stage2_evidence.json` 在 `binding.commit_sha` 和 `binding.github_run_id` 写入该 SHA/run；
-4. 同一 artifact 内 release manifest、preflight、candidate lifecycle、rollback 和数据库 hash 证据全部由该 checkout 生成；
-5. VM 脚本的 `requested_commit_sha`、candidate health commit 和 release manifest 必须等于该 exact SHA；
+1. `push` workflow 的 `GITHUB_SHA` 才是可部署分支头；其两个 job 必须均为 success，且 `stage2_evidence.json` 的 `binding.commit_role=branch_commit`、`eligible_as_vm_candidate_sha=true`；
+2. PR workflow 默认检出 GitHub 临时 merge commit；它用于证明分支头与 base 的合并结果通过 required checks，不得把该临时 merge SHA 当成 VM 部署 SHA；
+3. PR artifact 另外记录 `pull_request_head_sha`，必须与上述 push 分支头一致；
+4. push artifact 在 `binding.commit_sha` 和 `binding.github_run_id` 写入可部署 SHA/run，同一 artifact 内 release manifest、preflight、candidate lifecycle、rollback 和数据库 hash 均由该 checkout 生成；
+5. VM 脚本的 `requested_commit_sha`、candidate health commit 和 release manifest 必须等于该 push exact SHA；
 6. 内网客户端再次核对 18080 health 的 commit。
 
 `release_identity.json` 记录此绑定合同和最近一次已验证实现，而不冒充尚未执行的 VM 证据。VM 验收后再补最终实测记录；在此之前 `vm_readonly_candidate_verified=false`、`phase2_halt_approved=false`。

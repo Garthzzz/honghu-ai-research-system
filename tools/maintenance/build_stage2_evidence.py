@@ -44,6 +44,36 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _github_binding(current: str, branch: str) -> dict:
+    event_name = os.environ.get("GITHUB_EVENT_NAME")
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    event: dict = {}
+    if event_path:
+        path = Path(event_path)
+        if path.is_file():
+            try:
+                event = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                event = {}
+    pull_request = event.get("pull_request") or {}
+    pr_head_sha = ((pull_request.get("head") or {}).get("sha") or None)
+    pr_base_sha = ((pull_request.get("base") or {}).get("sha") or None)
+    commit_role = "pull_request_merge" if event_name == "pull_request" else "branch_commit"
+    return {
+        "repository": "Garthzzz/honghu-ai-research-system",
+        "branch_or_ref": branch or "detached-head",
+        "commit_sha": current,
+        "commit_role": commit_role,
+        "event_name": event_name,
+        "github_ref": os.environ.get("GITHUB_REF"),
+        "pull_request_head_sha": pr_head_sha.lower() if pr_head_sha else None,
+        "pull_request_base_sha": pr_base_sha.lower() if pr_base_sha else None,
+        "eligible_as_vm_candidate_sha": event_name == "push",
+        "github_run_id": os.environ.get("GITHUB_RUN_ID"),
+        "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
+    }
+
+
 def _reserve_local_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         probe.bind(("127.0.0.1", 0))
@@ -305,13 +335,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
     evidence = {
         "schema_version": "honghu.stage2_runtime_evidence.v2",
         "generated_at": generated_at,
-        "binding": {
-            "repository": "Garthzzz/honghu-ai-research-system",
-            "branch_or_ref": branch or "detached-head",
-            "commit_sha": current,
-            "github_run_id": os.environ.get("GITHUB_RUN_ID"),
-            "github_run_attempt": os.environ.get("GITHUB_RUN_ATTEMPT"),
-        },
+        "binding": _github_binding(current, branch),
         "release": {
             "manifest_sha256": current_manifest["manifest_sha256"],
             "file_count": current_manifest["file_count"],

@@ -42,7 +42,7 @@ $Resolved = (git -C $BootstrapRoot rev-parse HEAD).Trim().ToLowerInvariant()
 if ($Resolved -ne $CommitSha.ToLowerInvariant()) { throw '检出提交与批准提交不一致。' }
 ```
 
-不得把分支名或 `main` 当部署身份；必须使用两个 GitHub Actions job 均绿色的完整 40 位 SHA。
+不得把分支名、`main` 或 PR workflow 的临时 merge commit 当部署身份；必须使用 push workflow artifact 中 `eligible_as_vm_candidate_sha=true` 的完整 40 位分支头 SHA，并确认 PR workflow 的 `pull_request_head_sha` 与它相同、两套 workflow 的两个 job 均绿色。
 
 ## 3. 启动独立候选
 
