@@ -84,68 +84,6 @@ function Get-HonghuScheduledTaskSnapshot {
     }
 }
 
-function Get-HonghuFileIdentity {
-    param([Parameter(Mandatory = $true)][string]$Path)
-    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        return [ordered]@{ exists = $false; sha256 = $null }
-    }
-    return [ordered]@{
-        exists = $true
-        sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
-    }
-}
-
-function Get-HonghuProductionState {
-    param([Parameter(Mandatory = $true)][string]$Root)
-    $health = [ordered]@{ reachable = $false; status = $null; identity_sha256 = $null; error = $null }
-    try {
-        $response = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:8080/api/health" -TimeoutSec 10
-        $body = $response.Content | ConvertFrom-Json
-        $identity = [ordered]@{
-            viewer_mode = $body.viewer_mode
-            release_version = $body.release_version
-            release_manifest_sha256 = $body.release_manifest_sha256
-            app_sha256 = $body.app_sha256
-        } | ConvertTo-Json -Compress
-        $health = [ordered]@{
-            reachable = $true
-            status = [int]$response.StatusCode
-            identity_sha256 = Get-HonghuTextSha256 $identity
-            error = $null
-        }
-    }
-    catch {
-        $health.error = $_.Exception.Message
-    }
-    $listeners = @()
-    try {
-        $listeners = @(Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction Stop | Select-Object -ExpandProperty OwningProcess -Unique | Sort-Object)
-    }
-    catch {}
-    return [ordered]@{
-        health = $health
-        listener_pids = $listeners
-        current_pointer = Get-HonghuFileIdentity (Join-Path $Root "current")
-        broadcast_manifest = Get-HonghuFileIdentity (Join-Path $Root "BROADCAST_MANIFEST.json")
-    }
-}
-
-function Test-HonghuProductionUnchanged {
-    param($Before, $After)
-    $reasons = New-Object System.Collections.Generic.List[string]
-    if (-not $Before.health.reachable) { $reasons.Add("production 8080 was not reachable before candidate deployment") }
-    if (-not $After.health.reachable) { $reasons.Add("production 8080 was not reachable after candidate deployment") }
-    if ($Before.health.identity_sha256 -ne $After.health.identity_sha256) { $reasons.Add("production 8080 stable identity changed") }
-    if (($Before.listener_pids -join ',') -ne ($After.listener_pids -join ',')) { $reasons.Add("production 8080 listener PID set changed") }
-    if ($Before.current_pointer.exists -ne $After.current_pointer.exists -or $Before.current_pointer.sha256 -ne $After.current_pointer.sha256) {
-        $reasons.Add("production current pointer changed")
-    }
-    if ($Before.broadcast_manifest.exists -ne $After.broadcast_manifest.exists -or $Before.broadcast_manifest.sha256 -ne $After.broadcast_manifest.sha256) {
-        $reasons.Add("production broadcast manifest changed")
-    }
-    return [ordered]@{ verified = ($reasons.Count -eq 0); reasons = @($reasons) }
-}
-
 $candidate = [System.IO.Path]::GetFullPath($CandidateRoot).TrimEnd('\')
 $production = [System.IO.Path]::GetFullPath($ExistingProductionRoot).TrimEnd('\')
 $bootstrapPython = [System.IO.Path]::GetFullPath($BootstrapPythonExe)
@@ -187,7 +125,7 @@ if ([System.IO.Path]::GetFullPath([string]$pythonVersion.executable) -ne $bootst
 $preTasks = Get-HonghuScheduledTaskSnapshot
 $preProduction = Get-HonghuProductionState -Root $production
 $evidence = [ordered]@{
-    schema_version = "honghu.vm_readonly_candidate_evidence.v3"
+    schema_version = "honghu.vm_readonly_candidate_evidence.v4"
     attempt_id = $attemptId
     started_at = (Get-Date).ToUniversalTime().ToString("o")
     requested_commit_sha = $CommitSha.ToLowerInvariant()
@@ -216,6 +154,7 @@ $evidence = [ordered]@{
     unverified = @("LAN client reachability must be tested from a separate intranet client")
     ok = $false
     error = $null
+    failure = [ordered]@{ primary = $null; cleanup = $null; pointer_recovery = $null }
 }
 
 $launched = $false
@@ -291,10 +230,18 @@ try {
             throw "Existing candidate process record is unreadable; refusing deployment."
         }
     }
+    $priorRecordCommitIdentity = $priorRecordedCommit
     $priorStop = Stop-HonghuVerifiedCandidate -RecordPath $recordPath
+    if ([string](Get-HonghuOptionalProperty $priorStop "status") -eq "stale-record-archived") {
+        # The process/port absence proof has converted the old record into an
+        # audit archive, so it no longer protects the release from an otherwise
+        # valid inactive-release quarantine decision in this same attempt.
+        $priorRecordedCommit = $null
+    }
     $evidence.observed.prior_candidate_cleanup = $priorStop
     $evidence.observed.prior_candidate_release_protection = [ordered]@{
-        recorded_commit_sha = $priorRecordedCommit
+        recorded_commit_sha = $priorRecordCommitIdentity
+        active_protection_commit_sha = $priorRecordedCommit
         automatic_quarantine_allowed_for_requested_sha = (
             [string]::IsNullOrWhiteSpace($priorRecordedCommit) -or
             $priorRecordedCommit.ToLowerInvariant() -ne $resolved
@@ -377,7 +324,7 @@ try {
     $process = Start-Process -FilePath $listenerPython -ArgumentList $argumentString -WorkingDirectory $release -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     $launched = $true
     Start-Sleep -Milliseconds 250
-    $snapshot = Get-HonghuCandidateProcessSnapshot -ProcessId $process.Id
+    $snapshot = Get-HonghuCandidateProcessSnapshot -ProcessId $process.Id -Port $Port
     if ($null -eq $snapshot) { throw "Candidate process exited before identity capture." }
     $record = [ordered]@{
         schema_version = "honghu.candidate_process_identity.v1"
@@ -402,7 +349,15 @@ try {
     for ($attempt = 1; $attempt -le 45; $attempt++) {
         try {
             $health = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/api/health" -TimeoutSec 2
-            if ($health.ok -and $health.viewer_mode -eq "readonly_candidate" -and $health.release.commit_sha -eq $resolved -and [int]$health.candidate_process.pid -eq $process.Id -and $health.candidate_process.launch_id -eq $launchId) {
+            $healthRelease = Get-HonghuOptionalProperty $health "release"
+            $healthProcess = Get-HonghuOptionalProperty $health "candidate_process"
+            if (
+                [bool](Get-HonghuOptionalProperty $health "ok" $false) -and
+                [string](Get-HonghuOptionalProperty $health "viewer_mode") -eq "readonly_candidate" -and
+                [string](Get-HonghuOptionalProperty $healthRelease "commit_sha") -eq $resolved -and
+                [int](Get-HonghuOptionalProperty $healthProcess "pid" -1) -eq $process.Id -and
+                [string](Get-HonghuOptionalProperty $healthProcess "launch_id") -eq $launchId
+            ) {
                 $ready = $true
                 break
             }
@@ -430,9 +385,6 @@ try {
         reason = if (-not $preTasks.verified -or -not $postTasks.verified) { "scheduled task definitions could not be read" } elseif ($preTasks.definitions_sha256 -ne $postTasks.definitions_sha256) { "scheduled task definitions changed" } else { $null }
     }
     $productionUnchanged = Test-HonghuProductionUnchanged -Before $preProduction -After $postProduction
-    if (-not $taskUnchanged.verified) { throw "Scheduled task before/after evidence is not stable." }
-    if (-not $productionUnchanged.verified) { throw "Production 8080/current evidence is not stable." }
-
     $evidence.observed.process_identity = $record
     $evidence.observed.process_identity_verified = $identity
     $evidence.observed.python_environment = Get-Content -LiteralPath $venvMarker -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -442,32 +394,42 @@ try {
     $evidence.observed.scheduled_tasks_unchanged = $taskUnchanged
     $evidence.observed.production_8080_and_pointer_unchanged = $productionUnchanged
     $evidence.post_state = [ordered]@{ scheduled_tasks = $postTasks; production = $postProduction }
+    if (-not $taskUnchanged.verified) { throw "Scheduled task before/after evidence is not stable." }
+    if (-not $productionUnchanged.verified) { throw "Production 8080/current evidence is not stable." }
     $evidence.completed_at = (Get-Date).ToUniversalTime().ToString("o")
     $evidence.ok = $true
     $completed = $true
 }
 catch {
-    $evidence.error = $_.Exception.Message
+    $primaryFailure = $_
+    $evidence.error = $primaryFailure.Exception.Message
+    $evidence.failure.primary = [ordered]@{
+        message = $primaryFailure.Exception.Message
+        category = [string]$primaryFailure.CategoryInfo.Category
+        fully_qualified_error_id = [string]$primaryFailure.FullyQualifiedErrorId
+    }
     if ($launched) {
         try {
             if (Test-Path -LiteralPath $recordPath -PathType Leaf) {
                 $evidence.observed.failure_cleanup = Stop-HonghuVerifiedCandidate -RecordPath $recordPath
             }
             elseif ($null -ne $launchedRecord) {
-                $currentSnapshot = Get-HonghuCandidateProcessSnapshot -ProcessId ([int]$launchedRecord.pid)
+                $cleanupIdentity = $null
+                $currentSnapshot = Get-HonghuCandidateProcessSnapshot -ProcessId ([int]$launchedRecord.pid) -Port ([int]$launchedRecord.port)
                 if ($null -ne $currentSnapshot) {
-                    $cleanupIdentity = Test-HonghuCandidateProcessIdentity -Record $launchedRecord -Snapshot $currentSnapshot
+                    $cleanupIdentity = Test-HonghuCandidateProcessIdentity -Record $launchedRecord -Snapshot $currentSnapshot -RequireStopAuthority
                     if (-not $cleanupIdentity.ok) { throw "Unrecorded candidate process identity mismatch during failure cleanup." }
                     Stop-Process -Id ([int]$launchedRecord.pid) -Force -ErrorAction Stop
                     try { Wait-Process -Id ([int]$launchedRecord.pid) -Timeout 15 -ErrorAction SilentlyContinue } catch {}
                 }
-                $evidence.observed.failure_cleanup = [ordered]@{ ok = $true; status = "verified-unrecorded-candidate-stopped" }
+                $evidence.observed.failure_cleanup = [ordered]@{ ok = $true; status = "verified-unrecorded-candidate-stopped"; identity = $cleanupIdentity }
             }
             else {
                 throw "Candidate launched but no verifiable process identity was captured. Manual port/PID inspection is required."
             }
         }
         catch { $evidence.observed.failure_cleanup = [ordered]@{ ok = $false; error = $_.Exception.Message } }
+        $evidence.failure.cleanup = $evidence.observed.failure_cleanup
     }
     if ($candidateActivated) {
         try {
@@ -486,6 +448,7 @@ catch {
             }
         }
         catch { $evidence.observed.failure_pointer_recovery = [ordered]@{ ok = $false; error = $_.Exception.Message } }
+        $evidence.failure.pointer_recovery = $evidence.observed.failure_pointer_recovery
     }
     if ($null -ne $release -and (Test-Path -LiteralPath $release -PathType Container)) {
         try {
@@ -500,13 +463,19 @@ catch {
         }
         $evidence.observed.immutable_release_integrity = $releaseIntegrity
     }
-    $evidence.post_state = [ordered]@{
-        scheduled_tasks = Get-HonghuScheduledTaskSnapshot
-        production = Get-HonghuProductionState -Root $production
+    $failurePostTasks = Get-HonghuScheduledTaskSnapshot
+    $failurePostProduction = Get-HonghuProductionState -Root $production
+    $failureTaskComparison = [ordered]@{
+        verified = ($preTasks.verified -and $failurePostTasks.verified -and $preTasks.definitions_sha256 -eq $failurePostTasks.definitions_sha256)
+        reason = if (-not $preTasks.verified -or -not $failurePostTasks.verified) { "scheduled task definitions could not be read" } elseif ($preTasks.definitions_sha256 -ne $failurePostTasks.definitions_sha256) { "scheduled task definitions changed" } else { $null }
     }
+    $failureProductionComparison = Test-HonghuProductionUnchanged -Before $preProduction -After $failurePostProduction
+    $evidence.observed.scheduled_tasks_unchanged = $failureTaskComparison
+    $evidence.observed.production_8080_and_pointer_unchanged = $failureProductionComparison
+    $evidence.post_state = [ordered]@{ scheduled_tasks = $failurePostTasks; production = $failurePostProduction }
     $evidence.completed_at = (Get-Date).ToUniversalTime().ToString("o")
     Save-HonghuEvidenceDocument -Evidence $evidence -AttemptPath $attemptEvidencePath -LatestPath $evidencePath
-    throw
+    throw $primaryFailure
 }
 
 if ($completed) {

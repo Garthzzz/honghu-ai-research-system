@@ -22,6 +22,17 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _run_powershell(script: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["powershell", "-NoProfile", "-Command", script],
+        text=True,
+        encoding="utf-8",
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
 class ReadOnlyCandidateTests(unittest.TestCase):
     def test_synthetic_fixture_and_candidate_http_gate_do_not_write_databases(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -315,6 +326,262 @@ print(json.dumps({
             )
             self.assertNotEqual(result.returncode, 0)
             self.assertTrue(record.is_file())
+
+    def test_legacy_production_health_without_viewer_mode_is_reachable_and_stable(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            script = rf"""
+. '{helper}'
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec)
+    [pscustomobject]@{{ StatusCode = 200; Content = '{{"release_version":"legacy-1","app_sha256":"abc"}}' }}
+}}
+function Get-NetTCPConnection {{
+    param($State, $LocalPort, $ErrorAction)
+    [pscustomobject]@{{ OwningProcess = 4321; LocalPort = 8080 }}
+}}
+$before = Get-HonghuProductionState -Root '{temp}'
+$after = Get-HonghuProductionState -Root '{temp}'
+[ordered]@{{ state = $before; comparison = (Test-HonghuProductionUnchanged $before $after) }} | ConvertTo-Json -Depth 12 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        health = payload["state"]["health"]
+        self.assertTrue(health["reachable"])
+        self.assertTrue(health["payload_parsed"])
+        self.assertNotIn("viewer_mode", health["present_identity_fields"])
+        self.assertIn("viewer_mode", health["missing_identity_fields"])
+        self.assertTrue(payload["comparison"]["verified"], payload)
+        self.assertFalse(
+            payload["comparison"]["identity_fields"]["viewer_mode"]["before_present"]
+        )
+
+    def test_production_health_true_outage_and_identity_change_fail_closed(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            changed = rf"""
+. '{helper}'
+$global:healthCall = 0
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec)
+    $global:healthCall += 1
+    $version = if ($global:healthCall -eq 1) {{ 'one' }} else {{ 'two' }}
+    [pscustomobject]@{{ StatusCode = 200; Content = ('{{"release_version":"' + $version + '"}}') }}
+}}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); [pscustomobject]@{{OwningProcess=9;LocalPort=8080}} }}
+$before=Get-HonghuProductionState -Root '{temp}';$after=Get-HonghuProductionState -Root '{temp}'
+Test-HonghuProductionUnchanged $before $after | ConvertTo-Json -Depth 10 -Compress
+"""
+            changed_result = _run_powershell(changed)
+            outage = rf"""
+. '{helper}'
+function Invoke-WebRequest {{ param([switch]$UseBasicParsing,$Uri,$TimeoutSec); throw 'connection refused' }}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); [pscustomobject]@{{OwningProcess=9;LocalPort=8080}} }}
+$before=Get-HonghuProductionState -Root '{temp}';$after=Get-HonghuProductionState -Root '{temp}'
+Test-HonghuProductionUnchanged $before $after | ConvertTo-Json -Depth 10 -Compress
+"""
+            outage_result = _run_powershell(outage)
+        self.assertEqual(changed_result.returncode, 0, changed_result.stderr)
+        changed_payload = json.loads(changed_result.stdout.strip().splitlines()[-1])
+        self.assertFalse(changed_payload["verified"])
+        self.assertTrue(any("release_version" in x for x in changed_payload["reasons"]))
+        self.assertEqual(outage_result.returncode, 0, outage_result.stderr)
+        outage_payload = json.loads(outage_result.stdout.strip().splitlines()[-1])
+        self.assertFalse(outage_payload["verified"])
+        self.assertTrue(any("not reachable" in x for x in outage_payload["reasons"]))
+
+    def test_process_identity_tolerates_missing_optional_cim_path_with_other_evidence(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        command = (
+            "python tools.release.cli serve-readonly-candidate "
+            "launch123 " + "a" * 40 + " 18080"
+        )
+        expected_hash = hashlib.sha256(command.encode()).hexdigest()
+        script = rf"""
+. '{helper}'
+function Get-Process {{ param($Id,$ErrorAction); [pscustomobject]@{{ Id=77; StartTime=[datetime]'2026-08-07T01:02:03Z' }} }}
+function Get-CimInstance {{ param($ClassName,$Filter,$ErrorAction); [pscustomobject]@{{ CommandLine='{command}' }} }}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); [pscustomobject]@{{OwningProcess=77;LocalPort=18080}} }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); [pscustomobject]@{{ok=$true;viewer_mode='readonly_candidate';release=[pscustomobject]@{{commit_sha='{'a' * 40}'}};candidate_process=[pscustomobject]@{{pid=77;launch_id='launch123'}}}} }}
+$record=[pscustomobject]@{{pid=77;start_time_utc='2026-08-07T01:02:03.0000000Z';executable_path=$null;command_line_sha256='{expected_hash}';launch_id='launch123';commit_sha='{'a' * 40}';manifest_sha256='{'b' * 64}';port=18080;candidate_root='D:\candidate'}}
+$snapshot=Get-HonghuCandidateProcessObservation -ProcessId 77 -Port 18080
+[ordered]@{{snapshot=$snapshot;identity=(Test-HonghuCandidateProcessIdentity -Record $record -Snapshot $snapshot -RequireStopAuthority)}} | ConvertTo-Json -Depth 12 -Compress
+"""
+        result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertIsNone(payload["snapshot"]["executable_path"])
+        self.assertTrue(payload["identity"]["ok"], payload)
+        self.assertIn("executable_path", payload["identity"]["unavailable_evidence"])
+        self.assertIn("listener_owner", payload["identity"]["matched_evidence"])
+
+    def test_process_identity_can_use_listener_and_health_when_cim_is_denied(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        executable = str(Path(sys.executable).resolve()).replace("'", "''")
+        script = rf"""
+. '{helper}'
+function Get-Process {{ param($Id,$ErrorAction); [pscustomobject]@{{ Id=88; StartTime=[datetime]'2026-08-07T01:02:03Z'; Path='{executable}' }} }}
+function Get-CimInstance {{ param($ClassName,$Filter,$ErrorAction); throw 'access denied' }}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); [pscustomobject]@{{OwningProcess=88;LocalPort=18080}} }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); [pscustomobject]@{{ok=$true;viewer_mode='readonly_candidate';release=[pscustomobject]@{{commit_sha='{'a' * 40}'}};candidate_process=[pscustomobject]@{{pid=88;launch_id='launch-denied'}}}} }}
+$record=[pscustomobject]@{{pid=88;start_time_utc='2026-08-07T01:02:03.0000000Z';executable_path='{executable}';command_line_sha256=$null;launch_id='launch-denied';commit_sha='{'a' * 40}';manifest_sha256='{'b' * 64}';port=18080;candidate_root='D:\candidate'}}
+$snapshot=Get-HonghuCandidateProcessObservation -ProcessId 88 -Port 18080
+[ordered]@{{snapshot=$snapshot;identity=(Test-HonghuCandidateProcessIdentity -Record $record -Snapshot $snapshot -RequireStopAuthority)}} | ConvertTo-Json -Depth 12 -Compress
+"""
+        result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertFalse(payload["snapshot"]["cim_query"]["query_succeeded"])
+        self.assertTrue(payload["identity"]["ok"], payload)
+        self.assertIn("command_line", payload["identity"]["unavailable_evidence"])
+        self.assertIn("candidate_health", payload["identity"]["matched_evidence"])
+
+    def test_verified_candidate_cleanup_stops_matching_process_and_releases_record(self):
+        if os.name != "nt":
+            self.skipTest("PowerShell process identity contract is Windows-specific")
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        commit = "a" * 40
+        launch = "launch-cleanup"
+        with tempfile.TemporaryDirectory() as temp:
+            record = Path(temp) / "viewer_candidate_process.json"
+            child = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-c",
+                    "import time; time.sleep(60)",
+                    "tools.release.cli",
+                    "serve-readonly-candidate",
+                    launch,
+                    commit,
+                    "18080",
+                ]
+            )
+            try:
+                capture = rf"""
+. '{helper}'
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); return @() }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); throw 'not listening' }}
+Get-HonghuCandidateProcessObservation -ProcessId {child.pid} -Port 18080 | ConvertTo-Json -Depth 12 -Compress
+"""
+                capture_result = _run_powershell(capture)
+                self.assertEqual(
+                    capture_result.returncode,
+                    0,
+                    capture_result.stdout + capture_result.stderr,
+                )
+                snapshot = json.loads(capture_result.stdout.strip().splitlines()[-1])
+                record.write_text(
+                    json.dumps(
+                        {
+                            "pid": child.pid,
+                            "start_time_utc": snapshot["start_time_utc"],
+                            "executable_path": snapshot["executable_path"],
+                            "command_line_sha256": snapshot["command_line_sha256"],
+                            "launch_id": launch,
+                            "commit_sha": commit,
+                            "manifest_sha256": "b" * 64,
+                            "port": 18080,
+                            "candidate_root": str(Path(temp)),
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                stop = rf"""
+. '{helper}'
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); return @() }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); throw 'not listening' }}
+Stop-HonghuVerifiedCandidate -RecordPath '{record}' | ConvertTo-Json -Depth 12 -Compress
+"""
+                stop_result = _run_powershell(stop)
+                self.assertEqual(stop_result.returncode, 0, stop_result.stdout + stop_result.stderr)
+                outcome = json.loads(stop_result.stdout.strip().splitlines()[-1])
+                self.assertEqual(outcome["status"], "verified-candidate-stopped")
+                child.wait(timeout=10)
+                self.assertFalse(record.exists())
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                    child.wait(timeout=10)
+
+    def test_stale_candidate_record_is_archived_only_when_pid_and_port_are_absent(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        record_payload = {
+            "pid": 5500,
+            "start_time_utc": "2026-08-06T00:00:00.0000000Z",
+            "executable_path": r"D:\candidate\python.exe",
+            "command_line_sha256": "c" * 64,
+            "launch_id": "launch-stale",
+            "commit_sha": "d" * 40,
+            "manifest_sha256": "e" * 64,
+            "port": 18080,
+            "candidate_root": r"D:\honghu-ai-research-candidate",
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            record = Path(temp) / "viewer_candidate_process.json"
+            record.write_text(json.dumps(record_payload), encoding="utf-8")
+            script = rf"""
+. '{helper}'
+function Get-Process {{ param($Id,$ErrorAction); return $null }}
+function Get-CimInstance {{ param($ClassName,$Filter,$ErrorAction); return $null }}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); return @() }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); throw 'not listening' }}
+Stop-HonghuVerifiedCandidate -RecordPath '{record}' | ConvertTo-Json -Depth 14 -Compress
+"""
+            result = _run_powershell(script)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            payload = json.loads(result.stdout.strip().splitlines()[-1])
+            self.assertEqual(payload["status"], "stale-record-archived")
+            self.assertFalse(record.exists())
+            archive = Path(payload["archive_path"])
+            self.assertTrue(archive.is_file())
+            archived = json.loads(archive.read_text(encoding="utf-8-sig"))
+            self.assertEqual(archived["original_identity"]["pid"], 5500)
+            self.assertEqual(archived["original_identity"]["launch_id"], "launch-stale")
+            self.assertIn("no listener", archived["reason"])
+
+    def test_stale_record_with_listener_conflict_remains_fail_closed(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        payload = {
+            "pid": 5500,
+            "start_time_utc": "2026-08-06T00:00:00Z",
+            "executable_path": r"D:\candidate\python.exe",
+            "command_line_sha256": "c" * 64,
+            "launch_id": "launch-stale",
+            "commit_sha": "d" * 40,
+            "manifest_sha256": "e" * 64,
+            "port": 18080,
+            "candidate_root": r"D:\candidate",
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            record = Path(temp) / "viewer_candidate_process.json"
+            record.write_text(json.dumps(payload), encoding="utf-8")
+            script = rf"""
+. '{helper}'
+function Get-Process {{ param($Id,$ErrorAction); return $null }}
+function Get-CimInstance {{ param($ClassName,$Filter,$ErrorAction); return $null }}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); [pscustomobject]@{{OwningProcess=9900;LocalPort=18080}} }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); throw 'wrong service' }}
+Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
+"""
+            result = _run_powershell(script)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(record.is_file())
+            self.assertFalse((Path(temp) / "stale_process_records").exists())
+
+    def test_failure_evidence_separates_primary_cleanup_and_production_comparison(self):
+        deploy = (ROOT / "tools/release/Deploy-ReadonlyCandidate.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("$evidence.failure.primary", deploy)
+        self.assertIn("$evidence.failure.cleanup", deploy)
+        self.assertIn("$evidence.failure.pointer_recovery", deploy)
+        self.assertIn("$failureProductionComparison", deploy)
+        self.assertIn("production_8080_and_pointer_unchanged", deploy)
+        self.assertLess(
+            deploy.index("Save-HonghuEvidenceDocument -Evidence $evidence", deploy.index("catch {")),
+            deploy.index("throw $primaryFailure"),
+        )
 
 
 if __name__ == "__main__":
