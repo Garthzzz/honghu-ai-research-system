@@ -103,6 +103,14 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--repo-root", type=Path, required=True)
     build.add_argument("--deploy-root", type=Path, required=True)
     build.add_argument("--commit", required=True)
+    build.add_argument(
+        "--quarantine-invalid-inactive",
+        action="store_true",
+        help=(
+            "atomically quarantine and rebuild an invalid existing release only "
+            "when it is neither current nor referenced by a candidate process record"
+        ),
+    )
 
     verify = sub.add_parser("verify")
     verify.add_argument("--release-dir", type=Path, required=True)
@@ -151,7 +159,14 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         if args.command == "build":
-            _print(build_release(args.repo_root, args.deploy_root, commit=args.commit))
+            _print(
+                build_release(
+                    args.repo_root,
+                    args.deploy_root,
+                    commit=args.commit,
+                    quarantine_invalid_inactive=args.quarantine_invalid_inactive,
+                )
+            )
         elif args.command == "verify":
             _print(verify_release(args.release_dir))
         elif args.command == "preflight":

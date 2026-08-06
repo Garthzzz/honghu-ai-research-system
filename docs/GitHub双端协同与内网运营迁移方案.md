@@ -102,7 +102,7 @@ SQLite 不立即下线，但只作为按业务切换单元迁移的现状。Post
 
 ### VM production 部署
 
-还要求 immutable release、deployment manifest、preflight/health、只读 smoke、runtime 分离、明确 commit SHA 和 code-only rollback。候选 listener 必须绑定可核验的进程身份，Python 环境必须由明确的 3.10 解释器在候选根按 lockfile 重建；计划任务和生产 8080/current 要采集部署前后状态，不能用脚本声明替代实测。只读 smoke 应覆盖四库、外置文档、计算器和静态资源，并把 VM 本机与内网客户端可达性分开记录。code-only rollback 只有在当前 backend 通过旧 release 声明的对象、列、版本和只读探针合同时成立；仅计算 schema fingerprint 不是完整兼容证明，forward-only migration 需要单独恢复策略。数据库 migration 和任务切换另有独立批准。
+还要求 immutable release、deployment manifest、preflight/health、只读 smoke、runtime 分离、明确 commit SHA 和 code-only rollback。候选 listener 必须绑定可核验的进程身份，Python 环境必须由明确的 3.10 解释器在候选根按 lockfile 重建；所有导入项目代码的子进程都必须隔离 `PYTHONPATH/PYTHONHOME` 并禁止写 bytecode，且在 build、preflight、activate、launch、smoke、stop 或失败清理后复核同一 manifest。相同 SHA 的失效但未激活目录只能整体进入可审计 quarantine 后重建，current 或运行引用的 release 不得自动清理。计划任务和生产 8080/current 要采集部署前后状态，不能用脚本声明替代实测。只读 smoke 应覆盖四库、外置文档、计算器和静态资源，并把 VM 本机与内网客户端可达性分开记录。code-only rollback 只有在当前 backend 通过旧 release 声明的对象、列、版本和只读探针合同时成立；仅计算 schema fingerprint 不是完整兼容证明，forward-only migration 需要单独恢复策略。数据库 migration 和任务切换另有独立批准。
 
 当前应用仓库属于个人账号 `Garthzzz`。它可以在批准后用于安全 bootstrap 和开发，但成为 production authority 前必须完成公司资产归属或正式例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
 

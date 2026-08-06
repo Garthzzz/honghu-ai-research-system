@@ -4,6 +4,7 @@
 
 > 旧提交 `028572f7a1895636b6d8b46d3ff0d3019dd56309` 的 runtime verifier 存在 distribution 名称标准化缺陷，已经撤销 VM 验收资格。不得继续使用旧 checkout、旧 SHA 或手工修改 VM checkout 绕过；必须使用本次修复后同时通过 push/PR Actions 的新完整 SHA。
 > 旧提交 `f6926410475cf5c646641f6d7056736abae1453d` 把可选的 `docs/themes` Markdown 增强误列为 required content，已经撤销 VM 验收资格。不得创建空目录或复制伪内容绕过；必须使用本次内容合同修复后的新完整 SHA。
+> 旧提交 `97d01708737368a9f963f0e9d321c7c596f53efc` 的非 listener Python 调用仍会在 immutable release 内生成 bytecode；同 SHA 重试会因此在 build 阶段触发严格文件集合失败。该 SHA 已撤销验收资格，不得删除几个 `.pyc` 后继续使用。
 
 ## 1. 在 VM PowerShell 中确认解释器
 
@@ -58,7 +59,9 @@ if ($Resolved -ne $CommitSha.ToLowerInvariant()) { throw '检出提交与批准�
   -Port 18080
 ```
 
-脚本会在候选根建立 lockfile 绑定的隔离 venv并逐包核验，随后用该环境记录的 base Python 以 `-S` 直接启动 listener，只显式加入已验证 venv 的 site-packages。这样记录 PID 直接持有 18080，不会把 Windows venv redirector 当成服务进程，也不会继承其他 Python 环境的第三方包。脚本同时构建 exact-commit release、执行 preflight、运行代表性只读 smoke，并比较计划任务定义和生产 8080/current 的前后状态。任何后启动失败都应身份核验后回收候选进程，并恢复此前的候选指针。
+脚本会在候选根建立 lockfile 绑定的隔离 venv并逐包核验，随后用该环境记录的 base Python 统一以 `-I -B -S` 调用项目代码，只显式加入已验证 venv 的 site-packages，并清除子进程继承的 `PYTHONPATH/PYTHONHOME`。这样既不会把 Windows venv redirector 当成服务进程，也不会把 bytecode 写进 immutable release，或从调用者环境导入同名包。脚本同时构建 exact-commit release、执行 preflight、运行代表性只读 smoke，并在 build、preflight、activate、launch 和 smoke 后逐次复核 manifest；确定性 CI 还会在 stop 后再次复核。任何后启动失败都应身份核验后回收候选进程，并恢复此前的候选指针。
+
+每次执行都有唯一 attempt evidence；旧的 latest evidence 会复制到 `runtime/evidence_history/`，本次完整记录另存为 `vm_readonly_candidate_evidence.<attempt-id>.json`，不会因重试丢失。相同 SHA 的现有 release 若仍严格有效会直接复用；若已污染但既不是 `current`、也没有候选进程记录引用，脚本会把整个目录原子移动到 `runtime/release_quarantine/`，保存失败原因和文件集合指纹后重新构建。若污染目录仍是 `current`、仍被运行记录引用或引用状态无法证明，脚本必须停止并要求人工核验，不会自动删除、覆盖或局部修补。
 
 脚本成功只说明 VM 本机检查通过。证据文件位于：
 
@@ -67,6 +70,8 @@ C:\honghu-ai-research-candidate\runtime\vm_readonly_candidate_evidence.json
 ```
 
 必须人工确认 `ok=true`、`requested_commit_sha` 与批准 SHA 一致、代表性 smoke 全部通过、任务定义和生产 8080/current 的前后证据一致。`unverified` 中的内网客户端可达性仍需下一步补证。
+
+还必须确认 `observed.immutable_release_integrity` 中 build、preflight、activate、launch、smoke 的 `ok` 全为 `true`，commit、manifest hash 和文件数一致；`observed.release_build.disposition` 只能是新建、严格复用或“非活动失效目录整体隔离后重建”之一。出现 quarantine 时应保留其 record，不得删除隔离目录后伪装成首次成功。
 
 其中 preflight 的 `runtime_closure.external_content_contract` 必须同时满足：`required_missing=[]`、`invalid_paths=[]`，而当前 VM 的 `optional_missing` 应如实包含 `docs/themes`。这表示主题 Markdown 增强不存在，并不表示主题内容不存在；16 项 smoke 中的 `theme-db-only` 必须从 `research.db` 读取真实主题并验证页面明确报告可选 Markdown 缺失。若 `docs/industries` 或 `papers` 缺失，preflight 仍必须失败，不能继续启动候选。
 

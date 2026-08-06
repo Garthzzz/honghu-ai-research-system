@@ -12,6 +12,7 @@ import copy
 import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -28,6 +29,8 @@ MANIFEST_NAME = "RELEASE_MANIFEST.json"
 MANIFEST_HASH_NAME = "RELEASE_MANIFEST.sha256"
 CURRENT_POINTER_NAME = "current"
 LEDGER_RELATIVE = Path("runtime/deployment_ledger.jsonl")
+QUARANTINE_RELATIVE = Path("runtime/release_quarantine")
+CANDIDATE_PROCESS_RECORD_RELATIVE = Path("runtime/viewer_candidate_process.json")
 FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _RELEASE_HEALTH_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
 
@@ -238,11 +241,105 @@ def verify_release(release_dir: str | Path) -> dict[str, Any]:
     return manifest
 
 
+def _existing_release_inventory(release_dir: Path) -> dict[str, Any]:
+    """Describe an invalid release without changing it or exposing file content."""
+
+    files = sorted(
+        path.relative_to(release_dir).as_posix()
+        for path in release_dir.rglob("*")
+        if path.is_file()
+    )
+    return {
+        "file_count": len(files),
+        "relative_paths_sha256": _sha256_bytes(
+            ("\n".join(files) + "\n").encode("utf-8")
+        ),
+        "bytecode_paths": [
+            path for path in files if path.lower().endswith((".pyc", ".pyo"))
+        ],
+        "manifest_identity": (
+            _sha256_file(release_dir / MANIFEST_NAME)
+            if (release_dir / MANIFEST_NAME).is_file()
+            else None
+        ),
+    }
+
+
+def _release_protection_reason(deploy_root: Path, sha: str) -> str | None:
+    """Fail closed when an invalid release may be current or running.
+
+    A stale process record is intentionally treated as protection.  The
+    Windows deployer must first validate/remove it through
+    ``Stop-HonghuVerifiedCandidate``; the builder never guesses process state.
+    """
+
+    current_path = deploy_root / CURRENT_POINTER_NAME
+    if current_path.exists():
+        try:
+            current = _load_json(current_path)
+        except Exception as exc:
+            return f"current pointer is unreadable ({type(exc).__name__})"
+        if str(current.get("commit_sha") or "").lower() == sha:
+            return "release is referenced by current pointer"
+
+    process_record_path = deploy_root / CANDIDATE_PROCESS_RECORD_RELATIVE
+    if process_record_path.exists():
+        try:
+            process_record = _load_json(process_record_path)
+        except Exception as exc:
+            return f"candidate process record is unreadable ({type(exc).__name__})"
+        if str(process_record.get("commit_sha") or "").lower() == sha:
+            return "release is referenced by candidate process record"
+    return None
+
+
+def _quarantine_invalid_release(
+    deploy_root: Path,
+    target: Path,
+    *,
+    sha: str,
+    verification_error: str,
+) -> dict[str, Any]:
+    protection = _release_protection_reason(deploy_root, sha)
+    if protection:
+        raise ReleaseError(
+            f"invalid release is protected and cannot be quarantined automatically: {protection}"
+        )
+    if target.is_symlink():
+        raise ReleaseError("invalid release path is a symlink; refusing automatic quarantine")
+
+    quarantine_root = deploy_root / QUARANTINE_RELATIVE
+    quarantine_root.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    identity = f"{sha}-{stamp}-{uuid.uuid4().hex[:12]}"
+    quarantine_path = quarantine_root / identity
+    inventory = _existing_release_inventory(target)
+    target.rename(quarantine_path)
+    record = {
+        "schema_version": "honghu.release_quarantine.v1",
+        "quarantine_id": identity,
+        "recorded_at": _utc_now(),
+        "commit_sha": sha,
+        "reason": "existing_release_failed_exact_verification",
+        "verification_error": verification_error,
+        "original_path": str(target),
+        "quarantined_path": str(quarantine_path),
+        "inventory": inventory,
+        "current_pointer_protected": False,
+        "candidate_process_record_protected": False,
+    }
+    record_path = quarantine_root / f"{identity}.json"
+    _write_json(record_path, record)
+    record["record_path"] = str(record_path)
+    return record
+
+
 def build_release(
     repo_root: str | Path,
     deploy_root: str | Path,
     *,
     commit: str,
+    quarantine_invalid_inactive: bool = False,
 ) -> dict[str, Any]:
     repo = Path(repo_root).resolve()
     deploy = Path(deploy_root).resolve()
@@ -266,11 +363,24 @@ def build_release(
     releases_root = deploy / "releases"
     target = releases_root / sha
     releases_root.mkdir(parents=True, exist_ok=True)
+    quarantine_record: dict[str, Any] | None = None
     if target.exists():
-        existing = verify_release(target)
-        if existing.get("commit_sha") != sha:
-            raise ReleaseError(f"existing release identity mismatch: {target}")
-        return existing
+        try:
+            existing = verify_release(target)
+        except ReleaseError as exc:
+            if not quarantine_invalid_inactive:
+                raise
+            quarantine_record = _quarantine_invalid_release(
+                deploy,
+                target,
+                sha=sha,
+                verification_error=str(exc),
+            )
+        else:
+            if existing.get("commit_sha") != sha:
+                raise ReleaseError(f"existing release identity mismatch: {target}")
+            existing["build_disposition"] = "reused_verified_release"
+            return existing
 
     staging = releases_root / f".{sha}.staging-{os.getpid()}-{uuid.uuid4().hex}"
     staging.mkdir(parents=False)
@@ -315,11 +425,22 @@ def build_release(
         staging.rename(target)
     except Exception:
         if staging.exists():
-            import shutil
-
             shutil.rmtree(staging)
         raise
-    return verify_release(target)
+    result = verify_release(target)
+    result["build_disposition"] = (
+        "quarantined_invalid_inactive_and_rebuilt"
+        if quarantine_record is not None
+        else "built_new_release"
+    )
+    if quarantine_record is not None:
+        result["quarantine_record"] = {
+            "quarantine_id": quarantine_record["quarantine_id"],
+            "record_path": quarantine_record["record_path"],
+            "verification_error": quarantine_record["verification_error"],
+            "inventory": quarantine_record["inventory"],
+        }
+    return result
 
 
 def _sqlite_tables(conn: sqlite3.Connection) -> set[str]:

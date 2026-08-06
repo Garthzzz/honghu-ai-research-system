@@ -27,8 +27,8 @@ from tools.release.manager import (
     preflight_release,
     resolve_current_release,
     rollback_release,
+    verify_release,
 )
-from tools.release.readonly_smoke import run_representative_smoke
 from tools.release.runtime_environment import verify_runtime
 
 
@@ -117,6 +117,32 @@ def _port_is_released(port: int) -> bool:
     return False
 
 
+def _isolated_child_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    env.pop("PYTHONPATH", None)
+    env.pop("PYTHONHOME", None)
+    env.update(
+        {
+            "PYTHONDONTWRITEBYTECODE": "1",
+            "PYTHONNOUSERSITE": "1",
+            "PYTHONUTF8": "1",
+            "PYTHONIOENCODING": "utf-8",
+        }
+    )
+    return env
+
+
+def _integrity_snapshot(release: Path, stage: str) -> dict:
+    manifest = verify_release(release)
+    return {
+        "ok": True,
+        "stage": stage,
+        "commit_sha": manifest["commit_sha"],
+        "manifest_sha256": manifest["manifest_sha256"],
+        "file_count": manifest["file_count"],
+    }
+
+
 def _exercise_candidate_lifecycle(
     *,
     deploy: Path,
@@ -139,11 +165,15 @@ def _exercise_candidate_lifecycle(
     stderr_path = runtime / "candidate.stderr.log"
     listener_python = str(Path(getattr(sys, "_base_executable", sys.executable)).resolve())
     locked_site_packages = str(Path(sysconfig.get_path("purelib")).resolve())
+    bootstrap = release / "tools" / "release" / "direct_candidate.py"
+    child_env = _isolated_child_environment()
+    integrity = {"after_activate": _integrity_snapshot(release, "activate")}
     command = [
         listener_python,
+        "-I",
         "-B",
         "-S",
-        str(release / "tools" / "release" / "direct_candidate.py"),
+        str(bootstrap),
         "--site-packages",
         locked_site_packages,
         "--module",
@@ -178,6 +208,7 @@ def _exercise_candidate_lifecycle(
             process = subprocess.Popen(
                 command,
                 cwd=release,
+                env=child_env,
                 stdout=stdout,
                 stderr=stderr,
             )
@@ -201,19 +232,56 @@ def _exercise_candidate_lifecycle(
                     + stderr_path.read_text(encoding="utf-8", errors="replace")[-2000:]
                 )
             listener_pid = _listener_pid(port)
-            smoke = run_representative_smoke(
+            integrity["after_launch"] = _integrity_snapshot(release, "launch")
+            smoke_path = runtime / "representative_readonly_smoke.json"
+            smoke_command = [
+                listener_python,
+                "-I",
+                "-B",
+                "-S",
+                str(bootstrap),
+                "--site-packages",
+                locked_site_packages,
+                "--module",
+                "tools.release.readonly_smoke",
+                "--base-url",
                 f"http://127.0.0.1:{port}",
-                fixture / "data",
-                fixture / "content",
-                expected_commit=current,
-                expected_launch_id=launch_id,
-                expected_pid=process.pid,
+                "--data-root",
+                str(fixture / "data"),
+                "--content-root",
+                str(fixture / "content"),
+                "--expected-commit",
+                current,
+                "--expected-launch-id",
+                launch_id,
+                "--expected-pid",
+                str(process.pid),
+                "--output",
+                str(smoke_path),
+            ]
+            smoke_process = subprocess.run(
+                smoke_command,
+                cwd=release,
+                env=child_env,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
             )
+            if smoke_process.returncode:
+                raise RuntimeError(
+                    "isolated representative smoke process failed: "
+                    + smoke_process.stderr[-2000:]
+                )
+            smoke = json.loads(smoke_path.read_text(encoding="utf-8"))
             if not smoke["ok"]:
                 raise RuntimeError(
                     "representative candidate smoke failed: "
                     + json.dumps(smoke, ensure_ascii=False, sort_keys=True)
                 )
+            integrity["after_smoke"] = _integrity_snapshot(release, "smoke")
         finally:
             if process is not None and process.poll() is None:
                 process.terminate()
@@ -223,6 +291,7 @@ def _exercise_candidate_lifecycle(
                     process.kill()
                     process.wait(timeout=15)
     released = _port_is_released(port)
+    integrity["after_stop"] = _integrity_snapshot(release, "stop")
     pycache_dirs = [
         path.relative_to(release).as_posix()
         for path in release.rglob("__pycache__")
@@ -239,6 +308,8 @@ def _exercise_candidate_lifecycle(
         "preflight_report_sha256": preflight_sha,
         "listener_python_executable": listener_python,
         "locked_site_packages": locked_site_packages,
+        "python_invocation_flags": ["-I", "-B", "-S"],
+        "release_integrity_by_stage": integrity,
         "representative_smoke": smoke,
     }
     if not result["ok"]:
@@ -287,6 +358,11 @@ def build_stage2_evidence(output_dir: Path) -> dict:
         db_paths = sorted((fixture / "data").glob("*.db"))
         before = {path.name: _sha256(path) for path in db_paths}
         current_manifest = build_release(ROOT, deploy, commit=current)
+        release_integrity = {
+            "after_build": _integrity_snapshot(
+                deploy / "releases" / current, "build"
+            )
+        }
         previous_manifest = (
             build_release(ROOT, deploy, commit=previous) if previous else None
         )
@@ -295,6 +371,9 @@ def build_stage2_evidence(output_dir: Path) -> dict:
             data_root=fixture / "data",
             content_root=fixture / "content",
             state_root=deploy / "runtime",
+        )
+        release_integrity["after_preflight"] = _integrity_snapshot(
+            deploy / "releases" / current, "preflight"
         )
         schema = inspect_sqlite_contract(
             fixture / "data", current_manifest["schema_compatibility"]
@@ -327,6 +406,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
             current=current,
             preflight=preflight,
         )
+        release_integrity.update(lifecycle["release_integrity_by_stage"])
         if previous_manifest is not None:
             rollback = rollback_release(
                 deploy,
@@ -366,6 +446,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
         "python_runtime": python_runtime,
         "schema_compatibility_scope": schema.get("compatibility_scope"),
         "candidate_lifecycle": lifecycle,
+        "immutable_release_integrity": release_integrity,
         "rollback_rehearsal": {
             "previous_release_capable_commit": previous,
             "performed": rollback is not None,

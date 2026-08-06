@@ -227,6 +227,115 @@ class ReleaseManagerTests(unittest.TestCase):
             with self.assertRaises(ReleaseError):
                 verify_release(release)
 
+    def test_preflight_failure_then_same_sha_reuses_clean_release(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            repo = base / "repo"
+            repo.mkdir()
+            _, commit = self._make_repo(repo)
+            deploy = base / "deploy"
+            data = base / "data"
+            content = base / "content"
+            self._make_data(data)
+            (content / "docs/industries").mkdir(parents=True)
+            build_release(repo, deploy, commit=commit)
+            release = deploy / "releases" / commit
+
+            failed = preflight_release(
+                release,
+                data_root=data,
+                content_root=content,
+                state_root=deploy / "runtime",
+            )
+            self.assertFalse(failed["ok"])
+            rebuilt = build_release(
+                repo,
+                deploy,
+                commit=commit,
+                quarantine_invalid_inactive=True,
+            )
+            self.assertEqual(rebuilt["build_disposition"], "reused_verified_release")
+            self.assertFalse((deploy / "runtime/release_quarantine").exists())
+            verify_release(release)
+
+    def test_invalid_inactive_release_is_quarantined_as_a_whole_and_rebuilt(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            repo = base / "repo"
+            repo.mkdir()
+            _, commit = self._make_repo(repo)
+            deploy = base / "deploy"
+            build_release(repo, deploy, commit=commit)
+            release = deploy / "releases" / commit
+            bytecode = release / "tools/__pycache__/arbitrary.cpython-310.pyc"
+            bytecode.parent.mkdir(parents=True)
+            bytecode.write_bytes(b"not-real-bytecode")
+
+            rebuilt = build_release(
+                repo,
+                deploy,
+                commit=commit,
+                quarantine_invalid_inactive=True,
+            )
+            self.assertEqual(
+                rebuilt["build_disposition"],
+                "quarantined_invalid_inactive_and_rebuilt",
+            )
+            quarantine = rebuilt["quarantine_record"]
+            quarantined_root = Path(quarantine["record_path"]).with_suffix("")
+            self.assertTrue(quarantined_root.is_dir())
+            self.assertTrue(
+                (quarantined_root / "tools/__pycache__/arbitrary.cpython-310.pyc").is_file()
+            )
+            self.assertIn(
+                "tools/__pycache__/arbitrary.cpython-310.pyc",
+                quarantine["inventory"]["bytecode_paths"],
+            )
+            self.assertFalse(any(release.rglob("*.pyc")))
+            verify_release(release)
+
+    def test_invalid_current_or_recorded_running_release_is_never_quarantined(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            repo = base / "repo"
+            repo.mkdir()
+            _, commit = self._make_repo(repo)
+
+            for protection in ("current", "process-record"):
+                with self.subTest(protection=protection):
+                    deploy = base / protection
+                    manifest = build_release(repo, deploy, commit=commit)
+                    release = deploy / "releases" / commit
+                    if protection == "current":
+                        (deploy / "current").write_text(
+                            json.dumps(
+                                {
+                                    "commit_sha": commit,
+                                    "manifest_sha256": manifest["manifest_sha256"],
+                                }
+                            ),
+                            encoding="utf-8",
+                        )
+                    else:
+                        record = deploy / "runtime/viewer_candidate_process.json"
+                        record.parent.mkdir(parents=True, exist_ok=True)
+                        record.write_text(
+                            json.dumps({"commit_sha": commit}), encoding="utf-8"
+                        )
+                    extra = release / "unexpected.pyc"
+                    extra.write_bytes(b"polluted")
+
+                    with self.assertRaisesRegex(ReleaseError, "protected"):
+                        build_release(
+                            repo,
+                            deploy,
+                            commit=commit,
+                            quarantine_invalid_inactive=True,
+                        )
+                    self.assertTrue(release.is_dir())
+                    self.assertTrue(extra.is_file())
+                    self.assertFalse((deploy / "runtime/release_quarantine").exists())
+
     def test_schema_contract_rejects_missing_required_column(self):
         with tempfile.TemporaryDirectory() as temp:
             data = Path(temp) / "data"

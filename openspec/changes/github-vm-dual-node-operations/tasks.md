@@ -93,6 +93,7 @@
 - [x] [本阶段必须] 要求显式 Python 3.10 bootstrap 路径，在候选根按 lockfile 建立隔离环境；不得从 PATH 猜测解释器或修改现有生产任务环境。
 - [x] [本阶段必须] 修复外置 content/state 路径并建立代表性读取闭包；schema compatibility 收窄并增强为对象、列、版本和只读探针门禁，完整 fingerprint 仅作诊断。
 - [x] [本阶段必须] 依据生产事实区分外置内容的 required/optional 合同：`docs/industries` 与 `papers` 继续 fail-closed，`docs/themes` 作为数据库主题页的可选 Markdown 增强；缺失状态进入 preflight/evidence，并由数据库-only 主题路由 smoke 验证。
+- [x] [本阶段必须] 关闭 immutable release bytecode 污染与同 SHA 重试缺口：所有项目 Python 子进程使用隔离导入并禁止 bytecode；build、preflight、activate、launch、smoke、stop/失败清理均复核 manifest；仅对非 current、非运行引用的失效 release 做整目录可审计 quarantine/rebuild，并保留逐次失败 evidence。
 - [x] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
 - [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
 - [x] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。

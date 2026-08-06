@@ -57,7 +57,7 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: VM Python is selected
 - **WHEN** a candidate environment is prepared
-- **THEN** deployment SHALL require an explicit Python 3.10 executable, create or reuse only a candidate-local environment bound to the approved lockfile, verify exact locked packages, launch the listener without inheriting unrelated third-party package paths, and SHALL NOT silently select a PATH interpreter or alter the production task environment
+- **THEN** deployment SHALL require an explicit Python 3.10 executable, create or reuse only a candidate-local environment bound to the approved lockfile, verify exact locked packages, invoke every project-code Python child with isolated import resolution and bytecode writes disabled, launch the listener without inheriting `PYTHONPATH`, `PYTHONHOME`, user site, or unrelated third-party package paths, and SHALL NOT silently select a PATH interpreter or alter the production task environment
 
 #### Scenario: Candidate runtime closure is verified
 - **WHEN** immutable code is attached to external data, content, and state roots
@@ -73,7 +73,15 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: Dirty or mutable release
 - **WHEN** the target release differs from its verified manifest or contains an unapproved runtime mutation
-- **THEN** deployment SHALL stop without changing `current`
+- **THEN** exact-file verification SHALL fail without changing `current`; an invalid inactive and non-current release MAY be atomically moved as a whole into an auditable quarantine before a clean rebuild, but a current release or one referenced by a candidate process record SHALL never be overwritten, patched, deleted, or quarantined automatically
+
+#### Scenario: Same commit is retried after a failed attempt
+- **WHEN** deployment retries the same full SHA after preflight, startup, smoke, or later candidate validation failed
+- **THEN** a still-valid release SHALL be reused exactly, an invalid inactive release SHALL follow the quarantine-and-rebuild contract, prior attempt evidence SHALL be retained under a unique attempt identity, and no implementation SHALL delete only known `.pyc` files or weaken the manifest file-set comparison
+
+#### Scenario: Release remains immutable throughout candidate lifecycle
+- **WHEN** build, preflight, activation, listener startup, representative smoke, failure cleanup, or stop imports project code
+- **THEN** those operations SHALL leave the release file set and every manifest-declared file unchanged, and lifecycle evidence SHALL bind exact verification results to the build, preflight, activation, launch, smoke, and stop or failure-cleanup stages
 
 ### Requirement: Code rollback is independent from data rollback
 The VM SHALL support switching to a prior verified application release without automatically changing PostgreSQL, transition SQLite, papers, or user content.

@@ -398,7 +398,9 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 ### 阶段 2：可重复 release 与本地开发基线
 
 目标：建立 immutable release、本地 dev/test 工作流、部署 manifest 和只读 VM 并行验证。  
-候选运行合同：明确的 Python 3.10 仅用于在候选根建立 lockfile 绑定的隔离环境；listener 由被记录的同一进程直接持有，PID 必须与启动时间、解释器、命令行 hash、launch id、commit 和端口共同核验。Windows venv redirector 不得被误记为 listener owner；锁定环境完成逐包验证后，由已验证的 base interpreter 以 `-S` 启动，并只显式加入该 venv 的 site-packages，使记录进程直接持有端口且不继承其他环境的第三方包。失败路径先按身份回收进程，再恢复旧候选指针；不得用裸 PID 假定可以安全停止。数据库相对内容路径从外置 content root 解析，正式计算器模型来自 tracked config，迁移期旧 cache 只能从外置 state root 回退。
+候选运行合同：明确的 Python 3.10 仅用于在候选根建立 lockfile 绑定的隔离环境；listener 由被记录的同一进程直接持有，PID 必须与启动时间、解释器、命令行 hash、launch id、commit 和端口共同核验。Windows venv redirector 不得被误记为 listener owner；锁定环境完成逐包验证后，所有会导入项目代码的 Python 子进程统一使用隔离导入和禁止 bytecode 的启动合同，清除继承的 `PYTHONPATH/PYTHONHOME`，并由已验证的 base interpreter 以 `-I -B -S` 启动，只显式加入该 venv 的 site-packages。失败路径先按身份回收进程，再恢复旧候选指针；不得用裸 PID 假定可以安全停止。数据库相对内容路径从外置 content root 解析，正式计算器模型来自 tracked config，迁移期旧 cache 只能从外置 state root 回退。
+
+immutable release 的不变性覆盖 build 完成后的整个生命周期，而不只覆盖 listener：preflight、activate、launch、smoke、failure cleanup 和 stop 后都必须能重新通过同一 manifest 的精确文件集合与内容校验。相同 SHA 重试时，验证通过的目录直接复用；验证失败但既非 `current`、也没有候选进程记录引用的目录，可以整体原子移动到 `runtime/release_quarantine`，保存失败原因、文件集合指纹和原目录后再全新构建。任何 current、运行中或无法证明未被引用的 release 都禁止自动覆盖、局部删除或隔离；尤其不得把删除若干已知 `.pyc` 当成修复。每次部署使用唯一 attempt identity，旧失败 evidence 进入历史，避免重试覆盖根因。
 
 外置 content closure 必须由 manifest 逐路径声明为 `required` 或 `optional`，并说明对象类型与用途。阶段 2 的生产事实中，`docs/industries` 是行业正文权威、`papers` 是数据库证据引用的文件权威，二者缺失或类型错误必须 fail-closed；主题基础内容与关系由 `research.db` 承载，`docs/themes` 仅是可选 Markdown 增强。可选路径缺失必须进入 preflight、smoke 和 VM evidence，但不得伪装成内容存在，也不得阻止数据库主题页按其既有降级行为只读展示。任何 required 路径不得通过 CLI 开关绕过。
 

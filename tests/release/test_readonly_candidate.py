@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import unittest
 from pathlib import Path
@@ -117,9 +118,14 @@ print(json.dumps({
         self.assertIn("Candidate Python runtime verification did not return valid JSON", script)
         self.assertIn("$listenerPython = [string]$runtimeVerification.base_python_executable", script)
         self.assertIn("$lockedSitePackages = [string]$runtimeVerification.site_packages", script)
-        self.assertIn('"-B", "-S", $listenerBootstrap', script)
+        self.assertIn('"-I", "-B", "-S", $listenerBootstrap', script)
         self.assertIn("Start-Process -FilePath $listenerPython", script)
         self.assertNotIn("Start-Process -FilePath $venvPython", script)
+        self.assertNotIn("$venvPython -m tools.release", script)
+        self.assertIn("--quarantine-invalid-inactive", script)
+        self.assertIn("Get-HonghuExactReleaseVerification", script)
+        self.assertIn("after_smoke", script)
+        self.assertIn("evidence_history", script)
         self.assertIn("--preflight-report-sha256", script)
         self.assertNotIn("production_port_untouched = 8080", script)
         self.assertNotIn("scheduled_tasks_modified = $false", script)
@@ -130,6 +136,62 @@ print(json.dumps({
         cli = (ROOT / "tools/release/cli.py").read_text(encoding="utf-8")
         self.assertIn("use_reloader=False", cli)
         self.assertNotIn("subprocess.call", cli)
+
+    def test_isolated_bootstrap_ignores_pythonpath_and_never_writes_bytecode(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            release = root / "release"
+            malicious = root / "malicious"
+            for package_root in (release, malicious):
+                (package_root / "tools/release").mkdir(parents=True)
+                (package_root / "tools/__init__.py").write_text("", encoding="utf-8")
+                (package_root / "tools/release/__init__.py").write_text("", encoding="utf-8")
+            (release / "tools/release/direct_candidate.py").write_text(
+                (ROOT / "tools/release/direct_candidate.py").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            good_marker = root / "good.txt"
+            bad_marker = root / "bad.txt"
+            (release / "tools/release/cli.py").write_text(
+                "from pathlib import Path\n"
+                f"def main(argv=None): Path({str(good_marker)!r}).write_text('good'); return 0\n",
+                encoding="utf-8",
+            )
+            (malicious / "tools/release/cli.py").write_text(
+                "from pathlib import Path\n"
+                f"Path({str(bad_marker)!r}).write_text('bad')\n"
+                "def main(argv=None): return 0\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env.pop("PYTHONDONTWRITEBYTECODE", None)
+            env["PYTHONPATH"] = str(malicious)
+            command = [
+                str(Path(getattr(sys, "_base_executable", sys.executable)).resolve()),
+                "-I",
+                "-B",
+                "-S",
+                str(release / "tools/release/direct_candidate.py"),
+                "--site-packages",
+                str(Path(sysconfig.get_path("purelib")).resolve()),
+                "--module",
+                "tools.release.cli",
+                "verify",
+            ]
+            result = subprocess.run(
+                command,
+                cwd=malicious,
+                env=env,
+                text=True,
+                encoding="utf-8",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(good_marker.is_file())
+            self.assertFalse(bad_marker.exists())
+            self.assertFalse(any(release.rglob("*.pyc")))
 
     def test_runtime_content_resolution_and_representative_plan_use_external_roots(self):
         with tempfile.TemporaryDirectory() as temp:
