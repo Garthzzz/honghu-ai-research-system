@@ -188,3 +188,19 @@ Codex 在提交 `a6b19f2264a266a760688a46937d653f97e43c26` 的 push Actions 两�
 由于第二轮后出现上述实质身份修订，Codex使用最后一轮配额，只请 DeepSeek检查临时 merge SHA、stale PR head 和无 event 的本地 evidence 是否可能被误认成 VM 候选。DeepSeek把“PR merge-result 在 Actions 中测试”错误理解成“PR artifact 必须被拿去部署 VM”，并据此声称 PR 被完全跳过；公开 workflow 实际对 `pull_request` 和 `push` 都运行同一套两个 job，PR merge commit 已经被测试，只是按设计不具备 VM 部署资格。该 must-fix 被拒绝。
 
 DeepSeek关于“artifact 元数据应区分 push 与 PR”的方向已由本轮实现满足：`commit_role`、`event_name`、`pull_request_head_sha`、`pull_request_base_sha` 和 `eligible_as_vm_candidate_sha` 都进入 evidence。关于 PR 合并后 main push 的提醒也不构成缺口：若未来 main push 形成新的 branch commit，它必须重新通过该 SHA 自己的 push evidence；当前阶段仍禁止合并 PR 和 production deployment。第三轮未产生进一步修改，审核至此停止。
+
+## 阶段 2 Python runtime 名称规范化复核（2026-08-06 追加）
+
+> 实际有效轮次：2 轮；两轮均没有产生可复现的新缺口，因此停止第三轮。
+
+### 第一轮：名称规范化修复后的合同检查
+
+Codex 先根据 VM 的真实安装日志定位根因：旧 verifier 只把下划线替换成连字符，没有按 Python packaging 规则把点号、连字符、下划线和大小写统一。修复后，lockfile 名称和 `importlib.metadata` 返回的 distribution 名称两侧统一调用 `packaging.utils.canonicalize_name`；缺包、版本不一致、冲突 pin 和 `pip check` 失败继续 fail-closed。发送给 DeepSeek 的只有公开仓库、公开提交、脱敏合同摘要和测试结果，没有发送 key、Cookie、数据库、papers、用户内容、内网地址或源代码全文。
+
+DeepSeek 返回 `revise`，但声称 mismatch 和 `pip check` 不会使 verifier 失败、两侧没有统一规范化、evidence 未绑定提交，并建议为四个包建立硬编码映射。Codex 逐项对照公开实现和测试后拒绝：两类失败都会进入 `failures` 并使 `ok=false`；CLI 返回非零；两侧调用同一规范化函数；exact-commit evidence 在同一构建中记录提交身份与 runtime 结果；硬编码特例反而违反通用 packaging 规范。本轮没有据此改弱门禁。
+
+### 第二轮：最终实现与远端绿色结果复核
+
+第二轮只发送同一公开提交的脱敏事实：统一名称规范化、真实 Python 3.10 全新环境安装 74 个 hash pin 包、缺包/错版本/`pip check` 的反例测试、exact-commit evidence 和 push/PR Actions 绿色状态。DeepSeek再次返回 `revise`，但主要意见仍与事实冲突：把 `pip check` mismatch 说成需要解释的“可接受例外”，忽略现有 commit identity 和 CLI 退出码，并建议检查 `importlib.metadata` 是否安装（该模块属于受支持 Python 运行时的标准库）。这些意见被拒绝。
+
+其关于“锁文件不存在时给出更友好的结构化错误”的建议不构成本轮部署缺口：release manifest、部署脚本和固定路径在调用 verifier 前已验证 lockfile 闭包；若文件仍然消失，当前调用会非零终止而不是误报通过。后续可以改善错误展示，但不能把它解释为 runtime verification 会 false-positive。两轮连续没有有效新增问题，故不调用第三轮；最终依据仍是确定性回归、真实隔离环境、远端 Actions 和待执行的 VM 18080 人工证据，不是外部模型结论。

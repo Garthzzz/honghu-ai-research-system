@@ -8,6 +8,8 @@
 
 修复统一使用 `packaging.utils.canonicalize_name` 处理 lockfile 和 installed metadata 两侧名称，不为具体包增加例外。回归测试覆盖点号/连字符/下划线和大小写等价、真实 jaraco/backports 命名、缺包、版本不一致、规范名冲突以及 `pip check` 失败；后三类仍 fail-closed。部署脚本和 exact-commit Actions evidence 现在都保存 verifier 的结构化结果，包括标准化算法、锁定包数量、mismatch 和 `pip check`。
 
+修复提交 `05fd0ab04575188798a39cdaa8724c777e743090` 已在真实全新 Python 3.10 环境中按 lockfile 安装 74 个 hash-pinned distribution；verifier 返回 `ok=true`、`mismatches=[]`、`pip_check.ok=true`。完整本地结果为 550 passed、21 个受治理 artifact 测试分层跳过、53 subtests passed；push Actions run `31086840297` 和 PR Actions run `31086843575` 的两个 job 均真实绿色。下载后的 push artifact 绑定该分支提交且具备 VM 候选资格；PR artifact 绑定临时 merge commit，并记录 `pull_request_head_sha` 为同一分支提交。
+
 旧 VM 候选提交 `028572f7a1895636b6d8b46d3ff0d3019dd56309` 已失去验收资格，不得继续部署。新的 VM SHA 只能取自本次修复最终分支提交的绿色 push artifact，并须与绿色 PR artifact 的 `pull_request_head_sha` 一致。VM 尚未重新执行，因此本节不改变阶段 2 状态。
 
 ## 1. 隔离和禁止边界
