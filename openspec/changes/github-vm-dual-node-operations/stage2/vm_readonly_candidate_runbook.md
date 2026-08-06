@@ -2,6 +2,8 @@
 
 > 本手册只用于用户批准后的 18080 并行候选。它不切换 8080、不修改计划任务、不迁移数据库、不合并 PR，也不授权阶段 3。执行前必须把 `<GREEN_FULL_SHA>` 和 `<PYTHON310_EXE>` 替换为人工核验后的真实值。
 
+> 旧提交 `028572f7a1895636b6d8b46d3ff0d3019dd56309` 的 runtime verifier 存在 distribution 名称标准化缺陷，已经撤销 VM 验收资格。不得继续使用旧 checkout、旧 SHA 或手工修改 VM checkout 绕过；必须使用本次修复后同时通过 push/PR Actions 的新完整 SHA。
+
 ## 1. 在 VM PowerShell 中确认解释器
 
 ```powershell
@@ -64,6 +66,8 @@ C:\honghu-ai-research-candidate\runtime\vm_readonly_candidate_evidence.json
 ```
 
 必须人工确认 `ok=true`、`requested_commit_sha` 与批准 SHA 一致、代表性 smoke 全部通过、任务定义和生产 8080/current 的前后证据一致。`unverified` 中的内网客户端可达性仍需下一步补证。
+
+其中 `observed.python_runtime` 必须同时满足：`ok=true`、`locked_package_count=74`、`mismatches=[]`、`pip_check.ok=true`，并记录 `package_name_normalization=packaging.utils.canonicalize_name`。只看到安装日志或 venv marker 不等于 runtime verification 已通过。
 
 ## 4. 从另一台内网客户端验收
 

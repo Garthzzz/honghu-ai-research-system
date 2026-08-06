@@ -11,8 +11,16 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from packaging.utils import canonicalize_name
+
 
 PIN_RE = re.compile(r"^([A-Za-z0-9_.-]+)==([^\s\\]+)")
+
+
+def canonical_distribution_name(name: str) -> str:
+    """Return the PEP 503-normalized distribution name used for comparison."""
+
+    return str(canonicalize_name(name))
 
 
 def lockfile_pins(path: str | Path) -> dict[str, str]:
@@ -21,7 +29,15 @@ def lockfile_pins(path: str | Path) -> dict[str, str]:
     for line in lock.read_text(encoding="utf-8").splitlines():
         match = PIN_RE.match(line.strip())
         if match:
-            pins[match.group(1).lower().replace("_", "-")] = match.group(2)
+            name = canonical_distribution_name(match.group(1))
+            version = match.group(2)
+            prior = pins.get(name)
+            if prior is not None and prior != version:
+                raise ValueError(
+                    f"lockfile has conflicting pins for canonical package {name}: "
+                    f"{prior} and {version}"
+                )
+            pins[name] = version
     if not pins:
         raise ValueError(f"lockfile has no exact pins: {lock}")
     return pins
@@ -42,9 +58,9 @@ def verify_runtime(
     pins = lockfile_pins(lock)
     installed: dict[str, str] = {}
     for distribution in importlib.metadata.distributions():
-        name = str(distribution.metadata.get("Name") or "").lower().replace("_", "-")
-        if name:
-            installed[name] = distribution.version
+        raw_name = str(distribution.metadata.get("Name") or "").strip()
+        if raw_name:
+            installed[canonical_distribution_name(raw_name)] = distribution.version
     mismatches: list[dict[str, str | None]] = []
     for name, expected in sorted(pins.items()):
         actual = installed.get(name)
@@ -69,6 +85,7 @@ def verify_runtime(
         "python_version": ".".join(map(str, sys.version_info[:3])),
         "python_executable": str(Path(sys.executable).resolve()),
         "lockfile_sha256": hashlib.sha256(lock.read_bytes()).hexdigest(),
+        "package_name_normalization": "packaging.utils.canonicalize_name",
         "locked_package_count": len(pins),
         "mismatches": mismatches[:50],
         "pip_check": {

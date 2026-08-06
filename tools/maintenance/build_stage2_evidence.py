@@ -28,6 +28,7 @@ from tools.release.manager import (
     rollback_release,
 )
 from tools.release.readonly_smoke import run_representative_smoke
+from tools.release.runtime_environment import verify_runtime
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -262,6 +263,12 @@ def build_stage2_evidence(output_dir: Path) -> dict:
     branch = os.environ.get("GITHUB_REF_NAME") or _git("branch", "--show-current")
     generated_at = datetime.now(timezone.utc).isoformat()
     previous = _previous_release_capable_commit(current)
+    python_runtime = verify_runtime(ROOT / "requirements.lock.txt")
+    if not python_runtime["ok"]:
+        raise RuntimeError(
+            "exact-commit Python runtime verification failed: "
+            + json.dumps(python_runtime, ensure_ascii=False, sort_keys=True)
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="honghu-stage2-") as temp:
         sandbox = Path(temp)
@@ -347,6 +354,7 @@ def build_stage2_evidence(output_dir: Path) -> dict:
             "contains_secrets": current_manifest["contains_secrets"],
         },
         "preflight": preflight,
+        "python_runtime": python_runtime,
         "schema_compatibility_scope": schema.get("compatibility_scope"),
         "candidate_lifecycle": lifecycle,
         "rollback_rehearsal": {

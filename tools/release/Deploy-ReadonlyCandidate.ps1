@@ -192,8 +192,15 @@ try {
     if (-not (Test-Path -LiteralPath $venvMarker -PathType Leaf)) { throw "Candidate venv identity marker is missing." }
     $marker = Get-Content -LiteralPath $venvMarker -Raw -Encoding UTF8 | ConvertFrom-Json
     if ([string]$marker.lockfile_sha256 -ne $lockHash) { throw "Candidate venv lockfile identity mismatch." }
-    & $venvPython (Join-Path $source "tools\release\runtime_environment.py") --lockfile $lockPath
+    $runtimeVerificationText = (& $venvPython (Join-Path $source "tools\release\runtime_environment.py") --lockfile $lockPath | Out-String)
     if ($LASTEXITCODE -ne 0) { throw "Candidate Python runtime verification failed." }
+    try {
+        $runtimeVerification = $runtimeVerificationText | ConvertFrom-Json
+    }
+    catch {
+        throw "Candidate Python runtime verification did not return valid JSON."
+    }
+    if (-not $runtimeVerification.ok) { throw "Candidate Python runtime verification reported failure." }
 
     Push-Location $source
     try {
@@ -301,7 +308,8 @@ try {
 
     $evidence.observed.process_identity = $record
     $evidence.observed.process_identity_verified = $identity
-    $evidence.observed.python_runtime = Get-Content -LiteralPath $venvMarker -Raw -Encoding UTF8 | ConvertFrom-Json
+    $evidence.observed.python_environment = Get-Content -LiteralPath $venvMarker -Raw -Encoding UTF8 | ConvertFrom-Json
+    $evidence.observed.python_runtime = $runtimeVerification
     $evidence.observed.representative_smoke = $smoke
     $evidence.observed.scheduled_tasks_unchanged = $taskUnchanged
     $evidence.observed.production_8080_and_pointer_unchanged = $productionUnchanged

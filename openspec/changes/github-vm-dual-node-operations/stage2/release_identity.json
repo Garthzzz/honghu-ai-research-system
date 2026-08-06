@@ -13,6 +13,13 @@
     ],
     "rule": "The push artifact must bind the branch commit with eligible_as_vm_candidate_sha=true. Both push jobs and both PR merge-result jobs must be green, and the PR artifact pull_request_head_sha must equal the push commit, before that branch commit may be used for VM validation."
   },
+  "invalidated_vm_candidate_commits": [
+    {
+      "commit_sha": "028572f7a1895636b6d8b46d3ff0d3019dd56309",
+      "reason": "runtime verifier did not canonicalize dot, hyphen, and underscore distribution names according to Python packaging rules",
+      "replacement_rule": "use only the final green push-event branch commit produced after the canonicalization fix"
+    }
+  ],
   "last_locally_verified_implementation": {
     "commit_sha": "3b3778f7c5deada4f4a6fbe849ca390c219467ee",
     "release_manifest_sha256": "b6e23e5d03d7655a3b8cdda7a6b11f189aa2bfe9843f79b9ecadb47ee170047d",

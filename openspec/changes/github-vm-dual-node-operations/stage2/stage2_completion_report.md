@@ -2,6 +2,14 @@
 
 > 状态：实施修复已完成，VM 18080 人工验收尚未执行，阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
 
+## 2026-08-06 VM runtime verifier 阻断与修复
+
+首次 VM 人工执行在 Python runtime verification 处按设计停止。74 个 hash-pinned distribution 已安装且 `pip check` 通过，但旧 verifier 仅执行小写转换并把下划线替换为连字符，没有按照 Python packaging 规范把点号、连字符和下划线统一处理。因此 lockfile 中的 `backports-tarfile`、`jaraco-classes`、`jaraco-context`、`jaraco-functools` 与 metadata 返回的点号或下划线名称被错误判为缺包。
+
+修复统一使用 `packaging.utils.canonicalize_name` 处理 lockfile 和 installed metadata 两侧名称，不为具体包增加例外。回归测试覆盖点号/连字符/下划线和大小写等价、真实 jaraco/backports 命名、缺包、版本不一致、规范名冲突以及 `pip check` 失败；后三类仍 fail-closed。部署脚本和 exact-commit Actions evidence 现在都保存 verifier 的结构化结果，包括标准化算法、锁定包数量、mismatch 和 `pip check`。
+
+旧 VM 候选提交 `028572f7a1895636b6d8b46d3ff0d3019dd56309` 已失去验收资格，不得继续部署。新的 VM SHA 只能取自本次修复最终分支提交的绿色 push artifact，并须与绿色 PR artifact 的 `pull_request_head_sha` 一致。VM 尚未重新执行，因此本节不改变阶段 2 状态。
+
 ## 1. 隔离和禁止边界
 
 - 实施分支：`phase2/repeatable-release`；隔离工作目录：`D:\quant\industry_demo_stage1`。
