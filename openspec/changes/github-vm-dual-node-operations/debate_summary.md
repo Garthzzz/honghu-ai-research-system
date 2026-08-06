@@ -240,3 +240,9 @@ Codex 先根据 VM 现场独立定位并修复：legacy 8080 health 缺少 `view
 DeepSeek 返回 `fail`，但其五项判断均与公开提交直接冲突：声称没有 CIM 查询、没有端口过滤、没有 stale cleanup/pre-post comparison、没有 StrictMode，并要求“VM/papers 测试”。公开文件实际包含 `Get-CimInstance Win32_Process`、`Get-NetTCPConnection -LocalPort`、`stale-record-archived`、`Test-HonghuProductionUnchanged` 和文件首行 `Set-StrictMode -Version Latest`；papers 也不属于本轮进程兼容缺陷。因此这些意见全部拒绝，未据此降低门禁或扩张范围。
 
 Codex 没有因外部审查失真而停止独立复核，随后主动补强两点：stale 自动归档还必须确认 candidate health 不可达；可管理的活动 record 至少要有启动时间以及 executable/command 二者之一，避免生成以后无法安全清理的弱身份。相应增加 reachable-health 冲突测试，并保留“任一未知即 fail-closed”。第一轮外部结果不构成通过或退出依据。
+
+### 第二轮：指定 raw 文件的跨文件一致性复核
+
+为排除第一轮可能没有正确读取分支的问题，Codex 提供了最终候选提交中三个公开 raw 文件的精确 URL，并把问题限制为 health 能力、stale 四条件、PID 复用、CIM 可选属性和 failure evidence 五项。DeepSeek 仍声称 health 调用了不存在的 `/health`、PowerShell 没有处理 `viewer_mode`、没有校验命令行和 listener、没有 CIM 空字段测试。这些说法再次与公开源码中的 `/api/health`、`present_identity_fields`、`command_line_sha256`、`listener_owner` 以及对应回归测试直接冲突，故全部拒绝。
+
+两轮外部响应连续没有给出可定位到真实代码的新增问题。Codex 不为了凑满三轮继续调用；停止原因是 reviewer 没有信息增量，而不是把其结论当作通过。工程判断继续以完整本地测试、OpenSpec strict、最终 push/PR Actions、exact-commit artifact 和下一次 VM 现场 evidence 为准。
