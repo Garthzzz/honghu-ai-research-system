@@ -8,9 +8,11 @@
 
 修复没有删除 `.pyc` 或放宽 exact-file verification。VM 脚本会清除子进程继承的 `PYTHONPATH/PYTHONHOME`，设置禁止用户 site 与 bytecode 的环境，并让所有项目模块通过白名单 bootstrap 以 `-I -B -S` 运行。build、preflight、activate、launch 和 smoke 后逐次执行精确 manifest 复核；CI lifecycle 在 stop 后再复核一次。代表性 smoke 也改为真实的隔离子进程调用，不再由已经导入仓库代码的 evidence 父进程代跑。
 
+第一轮提交 `a612fe83065d51f9e87e807b25e6fccee8f7880e` 在本地完整生命周期通过，但真实 GitHub Windows runner 的 isolated smoke 暴露了第二个边界：`-I` 会忽略 `PYTHONUTF8/PYTHONIOENCODING`，runner 的标准输出仍为 `cp1252`，因此 smoke 已经写好的 UTF-8 JSON 在同步输出包含中文摘要时触发 `UnicodeEncodeError`。修复提交 `1580aa6b87ff5c3b89ffc434a65da5ab969281f0` 让白名单 bootstrap 在导入任何项目模块前显式把 stdout/stderr 设为 UTF-8 strict，并新增 `cp1252 + 中文 JSON` 回归测试；没有改成 ASCII 转义、丢弃字符或放宽 smoke。该提交的本地测试为 556 passed、21 skipped、55 subtests，push run `31113566860` 与 PR run `31113572490` 均为 success；本地 exact-commit evidence 的 build、preflight、activate、launch、smoke、stop 六个阶段保持同一 manifest、572 个文件且零 `.pyc`。后续文档提交仍须用自己的 push artifact 重新绑定最终 VM SHA。
+
 同 SHA 重试现在分三类：严格有效目录原样复用；失效且既非 `current`、也未被当前执行开始时的候选进程记录引用的目录，整体原子移动到 `runtime/release_quarantine/`，保存原目录、失败原因、文件集合指纹和 bytecode 路径后重新构建；`current`、运行引用、引用记录不可读或符号链接目录一律停止，不自动覆盖、修补、删除或隔离。每次部署生成唯一 attempt evidence，原 latest evidence 进入 `runtime/evidence_history/`，失败重试不覆盖前次证据。
 
-回归测试新增：preflight 失败后同 SHA 复用；任意 `.pyc` 与普通额外文件触发整目录隔离重建；current/运行记录引用的失效 release 禁止自动处理；调用环境存在恶意 `PYTHONPATH` 时仍从 release 导入白名单模块且不写 bytecode；完整生命周期各阶段的 commit、manifest hash、文件数与内容继续一致。第一轮实现提交为 `a612fe83065d51f9e87e807b25e6fccee8f7880e`，旧 SHA `97d01708737368a9f963f0e9d321c7c596f53efc` 已撤销 VM 验收资格。最终可部署 SHA 仍须以后续最终修订的 push/PR Actions 和 exact-commit artifact 为准，本节不宣称 VM 已验收。
+回归测试新增：preflight 失败后同 SHA 复用；任意 `.pyc` 与普通额外文件触发整目录隔离重建；current/运行记录引用的失效 release 禁止自动处理；调用环境存在恶意 `PYTHONPATH` 时仍从 release 导入白名单模块且不写 bytecode；遗留 Windows 输出编码不能破坏中文 evidence；完整生命周期各阶段的 commit、manifest hash、文件数与内容继续一致。旧 SHA `97d01708737368a9f963f0e9d321c7c596f53efc` 已撤销 VM 验收资格。最终可部署 SHA 仍须以后续最终修订的 push/PR Actions 和 exact-commit artifact 为准，本节不宣称 VM 已验收。
 
 ## 2026-08-06 VM content preflight 阻断与修复
 

@@ -220,3 +220,13 @@ DeepSeek 返回 `pass`。它建议可选目录存在但类型错误时失败、r
 第一轮之后，Codex 使用严格 lockfile venv 生成 exact-commit evidence，16 个路由全部成功，但身份门禁发现 Windows venv redirector PID 并非实际 listener PID。该问题不是 DeepSeek 提出，而是确定性 lifecycle 测试继续 fail-closed 的结果。修复提交 `f01208a40b7fe597d9969bfa226eb4dd4cb1728c` 保留 venv 安装与逐包核验，但由 verifier 记录的 base Python 以 `-S` 直接启动，只加入已验证 venv site-packages；实测 process PID、health PID 和 listener PID 一致，停止后端口释放。
 
 DeepSeek 第二轮再次返回 `pass`，仅建议文档说明 base Python/`-S` 合同并在 evidence 核对 listener owner；两项都已经进入 design、spec、runbook、结构化 evidence 和回归测试。连续两轮没有有效新增问题，故停止第三轮。Codex 不把外部 reviewer 的 `pass` 当作 VM 验收或阶段 2 退出依据。
+
+## 阶段 2 immutable release bytecode 与 Windows UTF-8 复核（2026-08-06 追加）
+
+> 实际有效轮次：1 轮。发送范围只有公开仓库、公开提交 `1580aa6b87ff5c3b89ffc434a65da5ab969281f0`、脱敏根因、隔离/重试合同和确定性测试摘要；没有发送 key、Cookie、数据库内容、papers、用户内容、内网地址或源代码全文。
+
+Codex 先用临时 exact release 复现 VM 的四个额外 `.pyc`：旧调用 `python -m tools.release.readonly_smoke --help` 稳定生成与现场完全相同的模块 bytecode，随后 strict verifier 返回 `release file set mismatch`。修复将所有导入项目代码的 Python 子进程收口到白名单 bootstrap 和 `-I -B -S`，在 build、preflight、activate、launch、smoke、stop 后逐次核对相同 manifest；污染但未激活、未运行的同 SHA 目录只能整体原子 quarantine 并保留文件集合证据，`current`、运行引用和不可证明状态全部 fail-closed。
+
+提交 `a612fe83065d51f9e87e807b25e6fccee8f7880e` 的本地 evidence 通过后，Codex读取真实失败 Actions 日志，发现 GitHub Windows runner 的标准输出为 `cp1252`。由于 `-I` 会忽略 `PYTHONUTF8/PYTHONIOENCODING`，中文 smoke JSON 在打印阶段触发 `UnicodeEncodeError`；这不是 release manifest 失败，也没有通过 ASCII 转义或跳过 smoke 隐藏。后续修复让 bootstrap 在导入项目入口前显式把 stdout/stderr 设为 UTF-8 strict，并增加遗留代码页与中文 JSON 的真实子进程回归测试。
+
+DeepSeek 返回 `pass`，唯一 should-fix 是“在 direct candidate 中显式 reconfigure UTF-8”，但该能力正是待审公开提交中已经实现并由回归测试覆盖的内容；因此没有新增修改。Codex以本地 556 passed、21 skipped、55 subtests、六阶段 exact manifest 一致性，以及 push run `31113566860` 和 PR run `31113572490` 的真实绿色结果作为工程依据。因 reviewer 没有给出新的可复现路径，停止后续轮次；阶段 2 仍必须等待新最终 SHA 的 VM 18080 人工验收，外部模型 `pass` 不构成退出批准。
