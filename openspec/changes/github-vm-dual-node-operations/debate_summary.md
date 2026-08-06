@@ -204,3 +204,19 @@ DeepSeek 返回 `revise`，但声称 mismatch 和 `pip check` 不会使 verifier
 第二轮只发送同一公开提交的脱敏事实：统一名称规范化、真实 Python 3.10 全新环境安装 74 个 hash pin 包、缺包/错版本/`pip check` 的反例测试、exact-commit evidence 和 push/PR Actions 绿色状态。DeepSeek再次返回 `revise`，但主要意见仍与事实冲突：把 `pip check` mismatch 说成需要解释的“可接受例外”，忽略现有 commit identity 和 CLI 退出码，并建议检查 `importlib.metadata` 是否安装（该模块属于受支持 Python 运行时的标准库）。这些意见被拒绝。
 
 其关于“锁文件不存在时给出更友好的结构化错误”的建议不构成本轮部署缺口：release manifest、部署脚本和固定路径在调用 verifier 前已验证 lockfile 闭包；若文件仍然消失，当前调用会非零终止而不是误报通过。后续可以改善错误展示，但不能把它解释为 runtime verification 会 false-positive。两轮连续没有有效新增问题，故不调用第三轮；最终依据仍是确定性回归、真实隔离环境、远端 Actions 和待执行的 VM 18080 人工证据，不是外部模型结论。
+
+## 阶段 2 外置主题内容合同复核（2026-08-06 追加）
+
+> 实际轮次：2 轮；两轮均未提出确定性新增缺口，因此停止第三轮。发送内容只有公开仓库、公开提交、脱敏后的 required/optional 内容合同、Windows 进程合同和测试摘要；没有发送 key、Cookie、数据库内容、papers、用户内容、内网地址或其他敏感材料。
+
+### 第一轮：required/optional content closure
+
+Codex 根据 VM 实测先独立确认：`docs/industries` 和 `papers` 存在，`docs/themes` 不存在，四库 probe 通过，主题基础数据在 `research.db`；代码中的主题 Markdown 加载器本来就允许文件缺失。修复提交 `65d981ff612741ad7f6a2f07165559efe9f0cdbf` 将外置路径改成 manifest 驱动合同：前两者 required，主题 Markdown optional；删除 content bypass；合成 fixture 刻意不创建空主题目录，并新增数据库-only 主题 route smoke。
+
+DeepSeek 返回 `pass`。它建议可选目录存在但类型错误时失败、runbook 明确 optional、检查其他环境配置。Codex 对照实现逐项确认：wrong-kind 对 required 和 optional 都进入失败；runbook 和 16 项 smoke 已覆盖缺失；全仓只有一份活动 deployment policy 声明此闭包。因此建议均已由当前实现满足，没有新增修改。
+
+### 第二轮：Windows venv listener ownership
+
+第一轮之后，Codex 使用严格 lockfile venv 生成 exact-commit evidence，16 个路由全部成功，但身份门禁发现 Windows venv redirector PID 并非实际 listener PID。该问题不是 DeepSeek 提出，而是确定性 lifecycle 测试继续 fail-closed 的结果。修复提交 `f01208a40b7fe597d9969bfa226eb4dd4cb1728c` 保留 venv 安装与逐包核验，但由 verifier 记录的 base Python 以 `-S` 直接启动，只加入已验证 venv site-packages；实测 process PID、health PID 和 listener PID 一致，停止后端口释放。
+
+DeepSeek 第二轮再次返回 `pass`，仅建议文档说明 base Python/`-S` 合同并在 evidence 核对 listener owner；两项都已经进入 design、spec、runbook、结构化 evidence 和回归测试。连续两轮没有有效新增问题，故停止第三轮。Codex 不把外部 reviewer 的 `pass` 当作 VM 验收或阶段 2 退出依据。

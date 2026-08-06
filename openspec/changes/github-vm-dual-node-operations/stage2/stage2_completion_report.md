@@ -12,6 +12,8 @@
 
 在按 lockfile 新建的本地 Windows venv 中运行 exact-commit lifecycle 时，16 项路由 smoke 全部通过，但身份门禁发现 `Popen/Start-Process` 记录的是 venv redirector，实际 listener 由其 Python 子进程持有。这说明旧实现对 GitHub setup-python 解释器有效，却没有覆盖 VM 真实的 venv 启动形态。修复后仍用 venv 完成 lockfile 安装和逐包核验，但 listener 改由 verifier 记录的 base Python 以 `-S` 直接启动，只显式加入已验证 venv 的 site-packages；因此记录 PID、health PID 和 Windows listener PID 是同一进程，也不会泄漏 base/quant 的其他第三方包。该修复由 exact-commit lifecycle 实测，而不是放宽身份断言。
 
+提交 `f01208a40b7fe597d9969bfa226eb4dd4cb1728c` 的本地严格环境 evidence 已验证：release 572 个文件、24,561,826 bytes、manifest SHA256 `03b0b3e324bbc5920cd8c91f99d580a0f8b90cd90c872b26d422c2346c5e77c8`；preflight 的 `required_missing=[]`、`optional_missing=[docs/themes]`、`invalid_paths=[]`；16 项 smoke 全部通过；process/listener PID 同为 17984；停止后端口释放；code-only rollback 已执行且四库哈希不变。该提交是实现证据，不替代后续最终分支头的 push/PR Actions artifact，也不冒充 VM 验收。
+
 ## 2026-08-06 VM runtime verifier 阻断与修复
 
 首次 VM 人工执行在 Python runtime verification 处按设计停止。74 个 hash-pinned distribution 已安装且 `pip check` 通过，但旧 verifier 仅执行小写转换并把下划线替换为连字符，没有按照 Python packaging 规范把点号、连字符和下划线统一处理。因此 lockfile 中的 `backports-tarfile`、`jaraco-classes`、`jaraco-context`、`jaraco-functools` 与 metadata 返回的点号或下划线名称被错误判为缺包。
