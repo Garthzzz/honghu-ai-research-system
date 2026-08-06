@@ -254,6 +254,12 @@ function Test-HonghuCandidateRecordContract {
         $value = Get-HonghuOptionalProperty $Record $name
         if ($null -eq $value -or [string]::IsNullOrWhiteSpace([string]$value)) { $missing.Add($name) }
     }
+    if (
+        [string]::IsNullOrWhiteSpace([string](Get-HonghuOptionalProperty $Record "executable_path")) -and
+        [string]::IsNullOrWhiteSpace([string](Get-HonghuOptionalProperty $Record "command_line_sha256"))
+    ) {
+        $missing.Add("executable_path_or_command_line_sha256")
+    }
     return [ordered]@{ ok = ($missing.Count -eq 0); missing = @($missing) }
 }
 
@@ -311,7 +317,8 @@ function Stop-HonghuVerifiedCandidate {
             [bool]$observation.process_query.query_succeeded -and
             [bool]$observation.cim_query.query_succeeded -and
             [bool]$observation.listener.query_succeeded -and
-            @($observation.listener.pids).Count -eq 0
+            @($observation.listener.pids).Count -eq 0 -and
+            -not [bool]$observation.candidate_health.reachable
         )
         if (-not $knownAbsent) {
             throw "Candidate process absence or port release cannot be proven; refusing stale-record cleanup."

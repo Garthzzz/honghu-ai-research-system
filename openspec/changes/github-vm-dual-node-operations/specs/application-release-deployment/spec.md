@@ -49,11 +49,19 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: Candidate process is started, replaced, or stopped
 - **WHEN** the deployer manages the read-only candidate listener
-- **THEN** the listener-owning process SHALL be the recorded process rather than a venv redirector or outer CLI process, its identity SHALL include more than a reusable PID, and stop or cleanup SHALL refuse to terminate a process whose start time, executable, command contract, launch identity, commit, and port do not match
+- **THEN** the listener-owning process SHALL be the recorded process rather than a venv redirector or outer CLI process, its identity SHALL include more than a reusable PID, optional process properties SHALL be recorded as available/unavailable rather than assumed present, and stop or cleanup SHALL require sufficient matching start-time, executable or command, launch, health, commit, and listener evidence while refusing any mismatch or insufficient authority
+
+#### Scenario: A prior candidate record is stale
+- **WHEN** both process-query authorities prove the recorded PID absent, the recorded port is provably not listening, candidate health is unreachable, and the process record has a complete stable identity
+- **THEN** deployment MAY archive the entire original record with its observations and reason before removing the active record; an unknown query result, reachable health, existing PID, listener, or identity conflict SHALL fail closed without deleting the record or killing a process
+
+#### Scenario: Legacy production health omits newer identity fields
+- **WHEN** production 8080 returns a valid successful legacy health response without `viewer_mode` or another newer optional identity field
+- **THEN** evidence SHALL record HTTP reachability, parsed payload status, present and missing identity fields separately, compare every field actually supported before and after, and SHALL NOT misclassify the service as unreachable merely because the legacy schema lacks the field
 
 #### Scenario: Candidate startup or smoke fails
 - **WHEN** any post-launch health, identity, content, database, or route check fails
-- **THEN** every verifiably started candidate process SHALL be reclaimed, the prior candidate pointer SHALL be restored or the candidate SHALL return to no-current state, failure evidence SHALL be retained, and production 8080 and scheduled tasks SHALL remain untouched
+- **THEN** every verifiably started candidate process SHALL be reclaimed, the prior candidate pointer SHALL be restored or the candidate SHALL return to no-current state, and evidence SHALL persist the primary failure, cleanup outcome, pointer recovery, complete pre/post states, per-gate comparison and reasons before rethrowing without allowing a cleanup failure to overwrite the primary cause; production 8080 and scheduled tasks SHALL remain untouched
 
 #### Scenario: VM Python is selected
 - **WHEN** a candidate environment is prepared

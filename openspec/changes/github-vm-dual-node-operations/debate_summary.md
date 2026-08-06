@@ -230,3 +230,13 @@ Codex 先用临时 exact release 复现 VM 的四个额外 `.pyc`：旧调用 `p
 提交 `a612fe83065d51f9e87e807b25e6fccee8f7880e` 的本地 evidence 通过后，Codex读取真实失败 Actions 日志，发现 GitHub Windows runner 的标准输出为 `cp1252`。由于 `-I` 会忽略 `PYTHONUTF8/PYTHONIOENCODING`，中文 smoke JSON 在打印阶段触发 `UnicodeEncodeError`；这不是 release manifest 失败，也没有通过 ASCII 转义或跳过 smoke 隐藏。后续修复让 bootstrap 在导入项目入口前显式把 stdout/stderr 设为 UTF-8 strict，并增加遗留代码页与中文 JSON 的真实子进程回归测试。
 
 DeepSeek 返回 `pass`，唯一 should-fix 是“在 direct candidate 中显式 reconfigure UTF-8”，但该能力正是待审公开提交中已经实现并由回归测试覆盖的内容；因此没有新增修改。Codex以本地 556 passed、21 skipped、55 subtests、六阶段 exact manifest 一致性，以及 push run `31113566860` 和 PR run `31113572490` 的真实绿色结果作为工程依据。因 reviewer 没有给出新的可复现路径，停止后续轮次；阶段 2 仍必须等待新最终 SHA 的 VM 18080 人工验收，外部模型 `pass` 不构成退出批准。
+
+## 阶段 2 legacy health 与 stale candidate record 复核（2026-08-07 追加）
+
+### 第一轮：公开分支实现反查
+
+Codex 先根据 VM 现场独立定位并修复：legacy 8080 health 缺少 `viewer_mode` 时的 StrictMode false negative、CIM 可选属性缺失、stale record 直接删除、失败 evidence 被 cleanup 次级异常遮蔽。定向回归和完整 core test 均通过后，将实现提交到公开分支，再向 DeepSeek 发送公开仓库、分支、提交、四项脱敏合同和测试目标；没有发送 key、Cookie、数据库、papers、用户内容、VM 内部内容或凭据。
+
+DeepSeek 返回 `fail`，但其五项判断均与公开提交直接冲突：声称没有 CIM 查询、没有端口过滤、没有 stale cleanup/pre-post comparison、没有 StrictMode，并要求“VM/papers 测试”。公开文件实际包含 `Get-CimInstance Win32_Process`、`Get-NetTCPConnection -LocalPort`、`stale-record-archived`、`Test-HonghuProductionUnchanged` 和文件首行 `Set-StrictMode -Version Latest`；papers 也不属于本轮进程兼容缺陷。因此这些意见全部拒绝，未据此降低门禁或扩张范围。
+
+Codex 没有因外部审查失真而停止独立复核，随后主动补强两点：stale 自动归档还必须确认 candidate health 不可达；可管理的活动 record 至少要有启动时间以及 executable/command 二者之一，避免生成以后无法安全清理的弱身份。相应增加 reachable-health 冲突测试，并保留“任一未知即 fail-closed”。第一轮外部结果不构成通过或退出依据。

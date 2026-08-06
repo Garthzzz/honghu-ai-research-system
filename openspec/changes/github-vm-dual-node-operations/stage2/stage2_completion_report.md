@@ -1,6 +1,18 @@
 # 阶段 2 实施与验收报告
 
-> 状态：实施修复已完成，VM 18080 人工验收尚未执行，阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+> 状态：VM 已完成候选启动和 16 项 smoke，但生产不变性自动判定与失败清理暴露兼容缺陷；本轮代码修复已完成，仍须使用新的绿色 full SHA 重新执行 VM 18080 人工验收。阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+
+## 2026-08-07 legacy production health 与 stale process record 修复
+
+真实 VM 现场表明，旧 SHA `dd099faa6bcf7f1f120e8ce5166d6319812488ba` 的候选成功启动，commit、listener PID、只读合同和 16 项 smoke 全部通过；8080 listener PID 集合、production current 和广播 manifest 前后均未变化，手工访问 8080 health 也正常。自动门禁却把 pre/post health 都记为 `reachable=false`，随后清理又因 CIM 对象没有可读取的 `ExecutablePath` 而失败。候选最终已经退出，18080 无 listener、candidate current 恢复为 no-current；遗留记录 PID 5500 在 `Get-Process`、CIM 和端口三处均无对应对象，属于 stale record，不是未知运行进程。
+
+根因有两层。第一，StrictMode 下直接访问 legacy health 不存在的 `viewer_mode` 会抛异常，外层 catch 把“HTTP 已返回但 schema 较旧”误写成“不可达”。第二，进程快照把 `Get-Process.Path`、CIM `ExecutablePath` 和 `CommandLine` 当作无条件属性；单个来源缺字段或权限不足会阻断所有观测。旧 stale 分支还在只看到 PID 不存在时直接删除活动记录，没有同时证明端口释放，也没有保存原 identity。
+
+修复将生产 health 分为 HTTP 可达性、状态码、payload 解析、实际存在/缺失的身份字段和身份值。比较逐字段核对双方实际能力：同一 legacy 字段前后都缺失不构成变化，字段出现/消失、值改变、真实断连、非成功状态、payload 不可解析、listener/current/manifest 变化仍 fail-closed。候选进程改为同时保存 Get-Process、CIM、listener 和 candidate health 四类观测；可选路径或命令行缺失只记为 unavailable，停止权限仍要求启动时间加“可取得的 executable/command”以及 command/listener/health 中至少一项运行权威，任一冲突或证据不足都拒绝杀进程。
+
+stale record 现在只有在记录合同完整、Get-Process 与 CIM 都确定无 PID、端口查询成功且无 listener、candidate health 不可达时才自动收口。流程先把原 record、SHA256、完整身份、现场观测、原因和时间写入 `runtime/stale_process_records/`，确认归档存在后才移除活动记录；PID/端口存在、查询权限未知、health 可达或身份冲突均保留记录并停止。该合同覆盖 VM 当前 PID 5500 状态，无需用户手工删除记录或杀 PID。
+
+失败 evidence 升级为 v4：主失败、cleanup 和 pointer recovery 分栏；无论门禁在哪一步失败，均在重新采集 post state 后保存 scheduled-task comparison、production comparison、逐项 reasons 和 release integrity，再重新抛出原始主失败，cleanup 的次级异常不再覆盖根因。回归测试覆盖 legacy health、部分字段、真实断连、身份变化、CIM 缺字段/拒绝访问、匹配进程真实回收、误杀拒绝、stale 归档、端口/health 冲突以及失败 evidence 字段顺序。旧 SHA 已撤销资格；最终可部署 SHA 以本轮最后绿色 push artifact 为准。
 
 ## 2026-08-06 VM immutable release bytecode 污染阻断与修复
 

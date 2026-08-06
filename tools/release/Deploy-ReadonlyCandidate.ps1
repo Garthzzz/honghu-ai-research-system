@@ -341,6 +341,10 @@ try {
         created_at = (Get-Date).ToUniversalTime().ToString("o")
     }
     $launchedRecord = $record
+    $recordContract = Test-HonghuCandidateRecordContract -Record $record
+    if (-not $recordContract.ok) {
+        throw "Candidate process identity is insufficient for safe lifecycle management ($($recordContract.missing -join ', '))."
+    }
     $record | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $recordPath -Encoding UTF8
     $identity = Test-HonghuCandidateProcessIdentity -Record $record -Snapshot $snapshot
     if (-not $identity.ok) { throw "Candidate process identity verification failed." }

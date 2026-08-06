@@ -569,6 +569,35 @@ Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
             self.assertTrue(record.is_file())
             self.assertFalse((Path(temp) / "stale_process_records").exists())
 
+    def test_stale_record_with_reachable_health_is_not_archived(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        payload = {
+            "pid": 5500,
+            "start_time_utc": "2026-08-06T00:00:00Z",
+            "executable_path": r"D:\candidate\python.exe",
+            "command_line_sha256": "c" * 64,
+            "launch_id": "launch-stale",
+            "commit_sha": "d" * 40,
+            "manifest_sha256": "e" * 64,
+            "port": 18080,
+            "candidate_root": r"D:\candidate",
+        }
+        with tempfile.TemporaryDirectory() as temp:
+            record = Path(temp) / "viewer_candidate_process.json"
+            record.write_text(json.dumps(payload), encoding="utf-8")
+            script = rf"""
+. '{helper}'
+function Get-Process {{ param($Id,$ErrorAction); return $null }}
+function Get-CimInstance {{ param($ClassName,$Filter,$ErrorAction); return $null }}
+function Get-NetTCPConnection {{ param($State,$LocalPort,$ErrorAction); return @() }}
+function Invoke-RestMethod {{ param($Uri,$TimeoutSec,$ErrorAction); [pscustomobject]@{{ok=$true}} }}
+Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
+"""
+            result = _run_powershell(script)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertTrue(record.is_file())
+            self.assertFalse((Path(temp) / "stale_process_records").exists())
+
     def test_failure_evidence_separates_primary_cleanup_and_production_comparison(self):
         deploy = (ROOT / "tools/release/Deploy-ReadonlyCandidate.ps1").read_text(
             encoding="utf-8"
