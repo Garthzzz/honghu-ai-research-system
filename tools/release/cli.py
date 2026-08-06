@@ -50,8 +50,6 @@ def _serve(args: argparse.Namespace) -> int:
     )
     if str(pointer.get("commit_sha")) != args.expected_commit.lower():
         raise ReleaseError("current candidate commit differs from expected commit")
-    if args.allow_missing_content:
-        raise ReleaseError("a bound VM candidate may not weaken content preflight")
     if not __import__("re").fullmatch(r"[0-9a-f]{32}", args.launch_id):
         raise ReleaseError("launch id must be 32 lowercase hexadecimal characters")
     if args.port == 8080:
@@ -114,7 +112,6 @@ def build_parser() -> argparse.ArgumentParser:
     preflight.add_argument("--data-root", type=Path, required=True)
     preflight.add_argument("--content-root", type=Path, required=True)
     preflight.add_argument("--state-root", type=Path, required=True)
-    preflight.add_argument("--allow-missing-content", action="store_true")
     preflight.add_argument("--output", type=Path)
 
     activate = sub.add_parser("activate")
@@ -147,7 +144,6 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--expected-commit", required=True)
     serve.add_argument("--preflight-report", type=Path, required=True)
     serve.add_argument("--preflight-report-sha256", required=True)
-    serve.add_argument("--allow-missing-content", action="store_true")
     return parser
 
 
@@ -164,7 +160,6 @@ def main(argv: list[str] | None = None) -> int:
                 data_root=args.data_root,
                 content_root=args.content_root,
                 state_root=args.state_root,
-                require_content=not args.allow_missing_content,
             )
             _print(result)
             if args.output:

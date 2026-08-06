@@ -47,10 +47,25 @@
     {
       "id": "research-content",
       "authority": "content_root",
-      "paths": [
-        "docs/industries",
-        "docs/themes",
-        "papers"
+      "path_contracts": [
+        {
+          "path": "docs/industries",
+          "presence": "required",
+          "kind": "directory",
+          "purpose": "行业正文与行业页面的外置内容权威"
+        },
+        {
+          "path": "papers",
+          "presence": "required",
+          "kind": "directory",
+          "purpose": "数据库 source 引用的研报与证据原件"
+        },
+        {
+          "path": "docs/themes",
+          "presence": "optional",
+          "kind": "directory",
+          "purpose": "主题 Markdown 增强；主题基础内容由 research.db 承载"
+        }
       ],
       "candidate_access": "read_only",
       "included_in_git_or_release": false

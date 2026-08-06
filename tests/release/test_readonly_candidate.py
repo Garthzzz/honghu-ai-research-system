@@ -38,6 +38,7 @@ home = client.get('/')
 industry = client.get('/industry/1')
 valuation = client.get('/industry/1/valuation')
 company = client.get('/company/1')
+theme = client.get('/theme/fixture-theme')
 sentiment = client.get('/dynamic/sentiment')
 opportunity = client.get('/opportunity-lens')
 opportunity_run = client.get('/opportunity-lens/run/1')
@@ -51,6 +52,9 @@ print(json.dumps({
     'industry': industry.status_code,
     'valuation': valuation.status_code,
     'company': company.status_code,
+    'theme': theme.status_code,
+    'theme_has_db_summary': '数据库承载的主题摘要' in theme.get_data(as_text=True),
+    'theme_reports_missing_optional_md': '尚无主题分析 md' in theme.get_data(as_text=True),
     'sentiment': sentiment.status_code,
     'opportunity': opportunity.status_code,
     'opportunity_run': opportunity_run.status_code,
@@ -85,11 +89,13 @@ print(json.dumps({
             self.assertEqual(outcome["health"], 200)
             self.assertEqual(outcome["health_mode"], "readonly_candidate")
             for key in (
-                "home", "industry", "valuation", "company", "sentiment",
+                "home", "industry", "valuation", "company", "theme", "sentiment",
                 "opportunity", "opportunity_run",
             ):
                 self.assertEqual(outcome[key], 200, (key, outcome))
             self.assertEqual(outcome["tools"], 200)
+            self.assertTrue(outcome["theme_has_db_summary"])
+            self.assertTrue(outcome["theme_reports_missing_optional_md"])
             self.assertEqual(outcome["pdf"], 200)
             self.assertTrue(outcome["pdf_type"].startswith("application/pdf"))
             self.assertEqual(outcome["blocked"], 403)
@@ -140,6 +146,10 @@ print(json.dumps({
             self.assertIn("research-financial-and-sentiment", categories)
             self.assertIn("opportunity-run-detail", categories)
             self.assertIn("tracked-model", categories)
+            self.assertIn("research-theme-with-optional-markdown", categories)
+            theme_check = next(item for item in plan if item.check_id == "theme-db-only")
+            self.assertEqual(theme_check.path, "/theme/fixture-theme")
+            self.assertEqual(theme_check.expected_body_contains, "尚无主题分析 md")
 
     def test_powershell_contract_parses_and_refuses_mismatched_pid_identity(self):
         scripts = [

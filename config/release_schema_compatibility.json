@@ -32,8 +32,9 @@
         "source_snapshot": {"type": "table", "required_columns": ["industry_id", "snapshot_date"]},
         "md_section_version": {"type": "table", "required_columns": ["review_pending", "md_path"]},
         "industry_thesis": {"type": "table", "required_columns": ["industry_id", "consensus_narrative", "consensus_source_ids"]},
-        "theme": {"type": "table", "required_columns": ["id", "name"]},
-        "theme_company": {"type": "table", "required_columns": ["theme_id", "company_id"]}
+        "theme": {"type": "table", "required_columns": ["id", "name", "category", "summary", "status"]},
+        "theme_industry": {"type": "table", "required_columns": ["theme_id", "industry_id", "impact", "note"]},
+        "theme_company": {"type": "table", "required_columns": ["theme_id", "company_id", "impact", "note"]}
       },
       "probe_queries": [
         {"id": "industry-reader", "sql": "SELECT id,name,tier,status FROM industry LIMIT 1"},
@@ -42,6 +43,8 @@
         {"id": "home-reader", "sql": "SELECT n.id,s.source_credibility FROM news_item n LEFT JOIN source s ON s.id=n.source_id WHERE n.is_ai_relevant=1 OR n.is_ai_relevant IS NULL LIMIT 1"},
         {"id": "industry-detail-reader", "sql": "SELECT dp.metric,s.title FROM industry_data_point dp LEFT JOIN source s ON s.id=dp.source_id LIMIT 1"},
         {"id": "industry-company-reader", "sql": "SELECT ci.role,c.name,cp.gross_margin FROM company_industry ci JOIN company c ON c.id=ci.company_id LEFT JOIN company_profile cp ON cp.company_id=ci.company_id AND cp.industry_id=ci.industry_id LIMIT 1"},
+        {"id": "theme-detail-reader", "sql": "SELECT id,name,category,summary,status FROM theme LIMIT 1"},
+        {"id": "theme-industry-reader", "sql": "SELECT ti.industry_id,t.name FROM theme_industry ti JOIN theme t ON t.id=ti.theme_id LIMIT 1"},
         {"id": "company-theme-reader", "sql": "SELECT tc.company_id,t.name FROM theme_company tc JOIN theme t ON t.id=tc.theme_id LIMIT 1"}
       ],
       "schema_fingerprint": {"mode": "audit_only", "accepted": []}

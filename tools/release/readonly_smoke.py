@@ -8,6 +8,7 @@ import json
 import sqlite3
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,7 @@ class SmokeCheck:
     expected_status: int = 200
     method: str = "GET"
     expected_content_type: str | None = None
+    expected_body_contains: str | None = None
 
 
 def _connect(path: Path) -> sqlite3.Connection:
@@ -89,6 +91,14 @@ def _discover_run(data_root: Path) -> int:
     return int(row[0])
 
 
+def _discover_theme(data_root: Path) -> str:
+    with closing(_connect(data_root / "research.db")) as conn:
+        row = conn.execute("SELECT id FROM theme ORDER BY id LIMIT 1").fetchone()
+    if row is None:
+        raise RuntimeError("research.db has no theme for representative smoke")
+    return str(row[0])
+
+
 def build_representative_plan(data_root: str | Path, content_root: str | Path) -> list[SmokeCheck]:
     data = Path(data_root).resolve()
     content = Path(content_root).resolve()
@@ -96,12 +106,20 @@ def build_representative_plan(data_root: str | Path, content_root: str | Path) -
     company_id = _discover_company(data)
     run_id = _discover_run(data)
     source_id = _discover_pdf_source(data, content)
+    theme_id = _discover_theme(data)
     return [
         SmokeCheck("health", "process-and-four-db-contract", "/api/health"),
         SmokeCheck("home", "research-db-and-home", "/"),
         SmokeCheck("industry", "external-doc-and-research-db", f"/industry/{industry_id}"),
         SmokeCheck("industry-valuation", "research-and-financial", f"/industry/{industry_id}/valuation"),
         SmokeCheck("company", "research-financial-and-sentiment", f"/company/{company_id}"),
+        SmokeCheck(
+            "theme-db-only",
+            "research-theme-with-optional-markdown",
+            f"/theme/{quote(theme_id, safe='')}",
+            expected_content_type="text/html",
+            expected_body_contains="尚无主题分析 md",
+        ),
         SmokeCheck("sentiment", "sentiment-and-research", "/dynamic/sentiment"),
         SmokeCheck("opportunity-home", "opportunity-db", "/opportunity-lens"),
         SmokeCheck("opportunity-run", "opportunity-run-detail", f"/opportunity-lens/run/{run_id}"),
@@ -130,16 +148,21 @@ def _request(base_url: str, check: SmokeCheck) -> dict[str, Any]:
         with urllib.request.urlopen(request, timeout=30) as response:
             status = int(response.status)
             content_type = str(response.headers.get("Content-Type") or "")
-            sample = response.read(4096)
+            sample = response.read(65536)
     except urllib.error.HTTPError as exc:
         status = int(exc.code)
         content_type = str(exc.headers.get("Content-Type") or "")
-        sample = exc.read(4096)
+        sample = exc.read(65536)
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
     content_ok = (
         check.expected_content_type is None
         or content_type.lower().startswith(check.expected_content_type.lower())
+    )
+    body_text = sample.decode("utf-8", errors="replace")
+    body_ok = (
+        check.expected_body_contains is None
+        or check.expected_body_contains in body_text
     )
     return {
         "id": check.check_id,
@@ -150,7 +173,8 @@ def _request(base_url: str, check: SmokeCheck) -> dict[str, Any]:
         "status": status,
         "content_type": content_type,
         "response_bytes_sampled": len(sample),
-        "ok": status == check.expected_status and content_ok and error is None,
+        "expected_body_contains": check.expected_body_contains,
+        "ok": status == check.expected_status and content_ok and body_ok and error is None,
         "error": error,
     }
 

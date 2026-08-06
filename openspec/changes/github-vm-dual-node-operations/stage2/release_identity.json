@@ -18,6 +18,11 @@
       "commit_sha": "028572f7a1895636b6d8b46d3ff0d3019dd56309",
       "reason": "runtime verifier did not canonicalize dot, hyphen, and underscore distribution names according to Python packaging rules",
       "replacement_rule": "use only the final green push-event branch commit produced after the canonicalization fix"
+    },
+    {
+      "commit_sha": "f6926410475cf5c646641f6d7056736abae1453d",
+      "reason": "deployment preflight incorrectly treated optional docs/themes Markdown enhancement as mandatory external content",
+      "replacement_rule": "use only a final green push-event branch commit whose manifest distinguishes required and optional content and whose database-only theme smoke passes"
     }
   ],
   "last_locally_verified_implementation": {

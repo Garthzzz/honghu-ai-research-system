@@ -127,8 +127,17 @@ CREATE TABLE company_profile (
     private_round TEXT, private_valuation_as_of TEXT, recent_events TEXT,
     risks TEXT, source_ids TEXT, summary TEXT, display_note TEXT
 );
-CREATE TABLE theme (id INTEGER PRIMARY KEY, name TEXT);
-CREATE TABLE theme_company (theme_id INTEGER, company_id INTEGER);
+CREATE TABLE theme (
+    id TEXT PRIMARY KEY, name TEXT, category TEXT, summary TEXT, status TEXT
+);
+CREATE TABLE theme_industry (
+    id INTEGER PRIMARY KEY, theme_id TEXT, industry_id INTEGER,
+    impact TEXT, note TEXT
+);
+CREATE TABLE theme_company (
+    id INTEGER PRIMARY KEY, theme_id TEXT, company_id INTEGER,
+    impact TEXT, note TEXT
+);
 """
 
 SENTIMENT_SCHEMA = """
@@ -219,6 +228,20 @@ def build_dev_fixture(target_root: str | Path, *, replace: bool = False) -> dict
                 "INSERT INTO source(id,title,quality_tier,file_path) VALUES(1,?,?,?)",
                 ("本地开发 PDF", 1, "papers/fixture.pdf"),
             ),
+            (
+                "INSERT INTO theme(id,name,category,summary,status) VALUES(?,?,?,?,?)",
+                ("fixture-theme", "本地开发主题", "测试", "数据库承载的主题摘要", "跟踪"),
+            ),
+            (
+                "INSERT INTO theme_industry(id,theme_id,industry_id,impact,note) "
+                "VALUES(1,?,?,?,?)",
+                ("fixture-theme", 1, "观察", "数据库关系样例"),
+            ),
+            (
+                "INSERT INTO theme_company(id,theme_id,company_id,impact,note) "
+                "VALUES(1,?,?,?,?)",
+                ("fixture-theme", 1, "观察", "数据库关系样例"),
+            ),
         ],
     )
     _initialize(data_root / "sentiment.db", SENTIMENT_SCHEMA)
@@ -250,7 +273,6 @@ def build_dev_fixture(target_root: str | Path, *, replace: bool = False) -> dict
         )],
     )
     (content_root / "docs" / "industries").mkdir(parents=True, exist_ok=True)
-    (content_root / "docs" / "themes").mkdir(parents=True, exist_ok=True)
     (content_root / "docs" / "industries" / "本地开发样例.md").write_text(
         "# 本地开发样例\n\n该文档只用于隔离开发，不含生产研究内容。\n",
         encoding="utf-8",

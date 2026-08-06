@@ -111,6 +111,58 @@ def _normalized_relative(value: str) -> str:
     return normalized
 
 
+def _external_content_contracts(
+    closure: object,
+) -> list[dict[str, str]]:
+    """Normalize manifest-declared content paths and their presence contract.
+
+    Older immutable releases used a plain ``paths`` list.  It remains readable
+    as a strict required-path contract for code-only rollback inspection, while
+    new releases must use ``path_contracts`` to distinguish required content
+    from optional page enhancements.
+    """
+
+    if not isinstance(closure, list):
+        raise ReleaseError("external runtime closure must be a list")
+    records: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for group in closure:
+        if not isinstance(group, Mapping) or group.get("authority") != "content_root":
+            continue
+        raw_contracts = group.get("path_contracts")
+        if raw_contracts is None:
+            raw_contracts = [
+                {"path": item, "presence": "required", "kind": "directory"}
+                for item in group.get("paths", [])
+            ]
+        if not isinstance(raw_contracts, list):
+            raise ReleaseError("content path_contracts must be a list")
+        for raw in raw_contracts:
+            if not isinstance(raw, Mapping):
+                raise ReleaseError("content path contract must be an object")
+            relative = _normalized_relative(str(raw.get("path") or ""))
+            presence = str(raw.get("presence") or "").lower()
+            kind = str(raw.get("kind") or "directory").lower()
+            if presence not in {"required", "optional"}:
+                raise ReleaseError(
+                    f"unsupported content presence contract for {relative}: {presence}"
+                )
+            if kind not in {"directory", "file"}:
+                raise ReleaseError(f"unsupported content path kind for {relative}: {kind}")
+            if relative in seen:
+                raise ReleaseError(f"duplicate external content path contract: {relative}")
+            seen.add(relative)
+            records.append(
+                {
+                    "path": relative,
+                    "presence": presence,
+                    "kind": kind,
+                    "purpose": str(raw.get("purpose") or ""),
+                }
+            )
+    return records
+
+
 def _matches_policy(path: str, policy: Mapping[str, Any]) -> bool:
     exact = {str(item) for item in policy.get("include_exact", [])}
     prefixes = tuple(str(item) for item in policy.get("include_prefixes", []))
@@ -206,6 +258,7 @@ def build_release(
         raise ReleaseError("unsupported deployment policy")
     if compatibility.get("schema_version") != "honghu.release_schema_compatibility.v1":
         raise ReleaseError("unsupported schema compatibility contract")
+    _external_content_contracts(policy.get("external_runtime_closure", []))
     selected, governance_only = selected_deployment_paths(repo, sha, policy)
     source_commit_time = str(
         _git(repo, "show", "-s", "--format=%cI", sha)
@@ -445,7 +498,6 @@ def preflight_release(
     data_root: str | Path,
     content_root: str | Path,
     state_root: str | Path,
-    require_content: bool = True,
 ) -> dict[str, Any]:
     release = Path(release_dir).resolve()
     manifest = verify_release(release)
@@ -469,10 +521,35 @@ def preflight_release(
         if not (release / relative).exists():
             failures.append(f"missing release code path: {relative}")
     content = Path(content_root).resolve()
-    if require_content:
-        for relative in ("docs/industries", "docs/themes", "papers"):
-            if not (content / relative).exists():
-                failures.append(f"missing external content path: {relative}")
+    content_checks: list[dict[str, Any]] = []
+    required_missing: list[str] = []
+    optional_missing: list[str] = []
+    invalid_paths: list[str] = []
+    content_contracts = _external_content_contracts(
+        manifest.get("external_runtime_closure", [])
+    )
+    for contract in content_contracts:
+        relative = contract["path"]
+        candidate = content / relative
+        present = candidate.is_dir() if contract["kind"] == "directory" else candidate.is_file()
+        exists_with_wrong_kind = candidate.exists() and not present
+        if exists_with_wrong_kind:
+            invalid_paths.append(relative)
+            failures.append(
+                f"external content path has wrong kind: {relative} "
+                f"(expected {contract['kind']})"
+            )
+            status = "invalid_kind"
+        elif present:
+            status = "present"
+        elif contract["presence"] == "required":
+            required_missing.append(relative)
+            failures.append(f"missing required external content path: {relative}")
+            status = "required_missing"
+        else:
+            optional_missing.append(relative)
+            status = "optional_missing"
+        content_checks.append({**contract, "present": present, "status": status})
     state = Path(state_root).resolve()
     state.mkdir(parents=True, exist_ok=True)
     probe = state / f".write-probe-{uuid.uuid4().hex}"
@@ -493,7 +570,19 @@ def preflight_release(
             "content_root": str(content),
             "state_root": str(state),
             "code_requirements": code_requirements,
-            "external_content_requirements": ["docs/industries", "docs/themes", "papers"],
+            "external_content_requirements": [
+                item["path"] for item in content_contracts if item["presence"] == "required"
+            ],
+            "external_content_optional": [
+                item["path"] for item in content_contracts if item["presence"] == "optional"
+            ],
+            "external_content_contract": {
+                "enforced": True,
+                "checks": content_checks,
+                "required_missing": required_missing,
+                "optional_missing": optional_missing,
+                "invalid_paths": invalid_paths,
+            },
         },
         "schema": schema_report,
         "failures": failures,
@@ -565,6 +654,11 @@ def resolve_preflighted_release(
     for key, expected in expected_roots.items():
         if str(runtime.get(key)) != expected:
             raise ReleaseError(f"bound preflight {key} differs from launch")
+    content_contract = runtime.get("external_content_contract") or {}
+    if not content_contract.get("enforced"):
+        raise ReleaseError("bound preflight did not enforce external content contracts")
+    if content_contract.get("required_missing") or content_contract.get("invalid_paths"):
+        raise ReleaseError("bound preflight has unresolved required external content")
     schema = preflight_report.get("schema") or {}
     expected_contract = _compatibility_fingerprint(manifest["schema_compatibility"])
     if not schema.get("compatible") or schema.get("compatibility_contract_sha256") != expected_contract:

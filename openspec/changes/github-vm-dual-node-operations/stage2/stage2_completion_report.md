@@ -2,6 +2,14 @@
 
 > 状态：实施修复已完成，VM 18080 人工验收尚未执行，阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
 
+## 2026-08-06 VM content preflight 阻断与修复
+
+第二次 VM 人工执行在候选启动前被 preflight 正确阻断，18080 没有 listener。实测 `C:\industry_demo\docs\industries` 与 `C:\industry_demo\papers` 存在，`docs\themes` 不存在；四库对象、列和只读探针全部通过，`research.db.theme` 有 5 条正常记录。代码审计确认主题详情页先读取数据库中的主题、行业和公司关系，主题 Markdown 由容错加载器作为增强内容读取；文件不存在时页面仍展示数据库内容，并明确显示“尚无主题分析 md”。本地旧目录中的 `docs/themes` 也是空目录，Git 不保存空目录，因此不存在尚未识别的主题文件权威。
+
+根因是 deployment policy 和 preflight 把三个外置路径硬编码为同一强制等级，把数据库承载、Markdown 可选增强的主题页误定义成无条件依赖。修复把外置路径改成 manifest 驱动的逐路径合同：`docs/industries` 和 `papers` 为 required，缺失或类型错误仍 fail-closed；`docs/themes` 为 optional，缺失会明确写入 preflight/evidence，但不会伪装存在或阻止数据库主题页。原 `--allow-missing-content` 绕过参数已经删除，防止 required 路径被弱化。
+
+合成 fixture 不再创建空 `docs/themes`，并新增数据库主题和关系；schema 合同新增主题必需列、关系表和只读探针；代表性 smoke 增加数据库-only 主题页检查，同时核对页面明确报告 Markdown 缺失。smoke 因而由 15 项增至 16 项。旧提交 `f6926410475cf5c646641f6d7056736abae1453d` 使用错误的强制内容合同，已经撤销 VM 验收资格。新的可部署 SHA 必须来自本次修复后的绿色 push artifact，并与绿色 PR artifact 的 `pull_request_head_sha` 一致。
+
 ## 2026-08-06 VM runtime verifier 阻断与修复
 
 首次 VM 人工执行在 Python runtime verification 处按设计停止。74 个 hash-pinned distribution 已安装且 `pip check` 通过，但旧 verifier 仅执行小写转换并把下划线替换为连字符，没有按照 Python packaging 规范把点号、连字符和下划线统一处理。因此 lockfile 中的 `backports-tarfile`、`jaraco-classes`、`jaraco-context`、`jaraco-functools` 与 metadata 返回的点号或下划线名称被错误判为缺包。
@@ -40,8 +48,8 @@
 - VM evidence 分为静态代码保证、部署前状态、部署后状态、实测结果和未验证事项；任务定义 XML hash、8080 health/listener、生产 current/broadcast identity 均前后采集比较。
 - 数据库相对 source/PDF 路径从外置 content root 解析；正式计算器模型来自 release 内 tracked config，旧 cache 只允许从外置 state root 回退；路径逃逸和绝对外部路径被拒绝。
 - schema 合同收窄为“阶段 2 代表性只读路由”，同时增强为 `mode=ro/query_only`、对象类型、必需列、版本范围和只读探针；完整 fingerprint 仅作诊断，不再声称证明全部列、索引、约束、视图和写路径兼容。
-- 代表性 smoke 共 15 项，覆盖 health、首页、行业、行业估值、公司、情绪、Opportunity Lens 列表与 run、外置 PDF、工具首页、锂/铜/锂电池计算器、静态 CSS 和写方法 403。
-- exact-commit CI evidence 现在会真实启动合成候选、核对 health PID、Windows listener PID、15 项 smoke、停止后端口释放、release 无 `__pycache__`，再执行 code-only rollback 和四库 hash 不变检查。
+- 代表性 smoke 共 16 项，覆盖 health、首页、行业、行业估值、公司、缺少可选 Markdown 时的数据库主题页、情绪、Opportunity Lens 列表与 run、外置 PDF、工具首页、锂/铜/锂电池计算器、静态 CSS 和写方法 403。
+- exact-commit CI evidence 现在会真实启动合成候选、核对 health PID、Windows listener PID、16 项 smoke、停止后端口释放、release 无 `__pycache__`，再执行 code-only rollback 和四库 hash 不变检查。
 - Windows 路径测试改为已有文件身份比较，仍保留路径逃逸拒绝；没有 skip、xfail、删除测试或降低合同。
 
 ## 4. 已取得的本地确定性证据

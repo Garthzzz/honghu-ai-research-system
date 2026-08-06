@@ -49,7 +49,29 @@ class ReleaseManagerTests(unittest.TestCase):
             "include_prefixes": ["config/", "opportunity_lens/intake_templates/", "tools/"],
             "forbidden_prefixes": ["data/", "papers/", "tools/dynamic/secrets/"],
             "forbidden_suffixes": [".db", ".log"],
-            "external_runtime_closure": [],
+            "external_runtime_closure": [
+                {
+                    "id": "research-content",
+                    "authority": "content_root",
+                    "path_contracts": [
+                        {
+                            "path": "docs/industries",
+                            "presence": "required",
+                            "kind": "directory",
+                        },
+                        {
+                            "path": "papers",
+                            "presence": "required",
+                            "kind": "directory",
+                        },
+                        {
+                            "path": "docs/themes",
+                            "presence": "optional",
+                            "kind": "directory",
+                        },
+                    ],
+                }
+            ],
         }
         compatibility = {
             "schema_version": "honghu.release_schema_compatibility.v1",
@@ -124,7 +146,6 @@ class ReleaseManagerTests(unittest.TestCase):
             state = deploy / "runtime"
             self._make_data(data)
             (content / "docs/industries").mkdir(parents=True)
-            (content / "docs/themes").mkdir(parents=True)
             (content / "papers").mkdir()
 
             first_manifest = build_release(repo, deploy, commit=first)
@@ -145,6 +166,9 @@ class ReleaseManagerTests(unittest.TestCase):
                 state_root=state,
             )
             self.assertTrue(report["ok"], report)
+            content_contract = report["runtime_closure"]["external_content_contract"]
+            self.assertEqual(content_contract["required_missing"], [])
+            self.assertEqual(content_contract["optional_missing"], ["docs/themes"])
             schema = inspect_sqlite_contract(data, first_manifest["schema_compatibility"])
             activate_release(deploy, first, actor="test", schema_report=schema)
             activate_release(deploy, second, actor="test", schema_report=schema)
@@ -154,6 +178,41 @@ class ReleaseManagerTests(unittest.TestCase):
             self.assertEqual(current_release.name, first)
             ledger = (deploy / "runtime/deployment_ledger.jsonl").read_text(encoding="utf-8")
             self.assertIn("code_only_rollback", ledger)
+
+    def test_preflight_fails_closed_for_required_content_but_not_optional_theme_markdown(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            repo = base / "repo"
+            repo.mkdir()
+            _, commit = self._make_repo(repo)
+            deploy = base / "deploy"
+            data = base / "data"
+            content = base / "content"
+            state = deploy / "runtime"
+            self._make_data(data)
+            (content / "docs/industries").mkdir(parents=True)
+            (content / "papers").mkdir()
+            build_release(repo, deploy, commit=commit)
+            release = deploy / "releases" / commit
+
+            optional_missing = preflight_release(
+                release, data_root=data, content_root=content, state_root=state
+            )
+            self.assertTrue(optional_missing["ok"], optional_missing)
+            contract = optional_missing["runtime_closure"]["external_content_contract"]
+            self.assertEqual(contract["optional_missing"], ["docs/themes"])
+
+            (content / "papers").rmdir()
+            required_missing = preflight_release(
+                release, data_root=data, content_root=content, state_root=state
+            )
+            self.assertFalse(required_missing["ok"])
+            contract = required_missing["runtime_closure"]["external_content_contract"]
+            self.assertEqual(contract["required_missing"], ["papers"])
+            self.assertTrue(
+                any("missing required external content path: papers" in item
+                    for item in required_missing["failures"])
+            )
 
     def test_release_tampering_is_rejected(self):
         with tempfile.TemporaryDirectory() as temp:

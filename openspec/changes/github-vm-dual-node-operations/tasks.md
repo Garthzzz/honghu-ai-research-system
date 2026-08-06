@@ -92,6 +92,7 @@
 - [x] [本阶段必须] 将 VM evidence 从写死声明改为部署前/后实测，分开记录静态保证、生产 8080/current、计划任务定义、候选进程、只读合同、代表性 smoke 和仍未验证的内网客户端可达性。
 - [x] [本阶段必须] 要求显式 Python 3.10 bootstrap 路径，在候选根按 lockfile 建立隔离环境；不得从 PATH 猜测解释器或修改现有生产任务环境。
 - [x] [本阶段必须] 修复外置 content/state 路径并建立代表性读取闭包；schema compatibility 收窄并增强为对象、列、版本和只读探针门禁，完整 fingerprint 仅作诊断。
+- [x] [本阶段必须] 依据生产事实区分外置内容的 required/optional 合同：`docs/industries` 与 `papers` 继续 fail-closed，`docs/themes` 作为数据库主题页的可选 Markdown 增强；缺失状态进入 preflight/evidence，并由数据库-only 主题路由 smoke 验证。
 - [x] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
 - [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
 - [x] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。

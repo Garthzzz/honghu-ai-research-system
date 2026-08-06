@@ -63,6 +63,14 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 - **WHEN** immutable code is attached to external data, content, and state roots
 - **THEN** relative database content references SHALL resolve against the declared external authority and representative smoke SHALL cover research, sentiment, financial, Opportunity Lens, external document, calculator, and static-asset reads without copying those authorities into the release
 
+#### Scenario: Required and optional external content are distinguished
+- **WHEN** candidate preflight evaluates the manifest-declared external content closure
+- **THEN** every path SHALL declare its required/optional presence, object kind, and purpose; a missing or wrong-kind required path SHALL fail closed, while a missing optional enhancement SHALL be recorded without being represented as present or weakening the underlying database-backed route
+
+#### Scenario: Database-backed theme has no Markdown enhancement
+- **WHEN** a theme exists in `research.db` but the optional `docs/themes` directory or matching Markdown file is absent
+- **THEN** the theme route SHALL render the database-backed theme and relations, identify that the optional Markdown analysis is absent, and pass a representative read-only smoke without requiring an empty placeholder directory
+
 #### Scenario: Dirty or mutable release
 - **WHEN** the target release differs from its verified manifest or contains an unapproved runtime mutation
 - **THEN** deployment SHALL stop without changing `current`
