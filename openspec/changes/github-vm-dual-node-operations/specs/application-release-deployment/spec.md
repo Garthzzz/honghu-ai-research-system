@@ -49,7 +49,7 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: Candidate process is started, replaced, or stopped
 - **WHEN** the deployer manages the read-only candidate listener
-- **THEN** the listener-owning process SHALL be the recorded process, its identity SHALL include more than a reusable PID, and stop or cleanup SHALL refuse to terminate a process whose start time, executable, command contract, launch identity, commit, and port do not match
+- **THEN** the listener-owning process SHALL be the recorded process rather than a venv redirector or outer CLI process, its identity SHALL include more than a reusable PID, and stop or cleanup SHALL refuse to terminate a process whose start time, executable, command contract, launch identity, commit, and port do not match
 
 #### Scenario: Candidate startup or smoke fails
 - **WHEN** any post-launch health, identity, content, database, or route check fails
@@ -57,7 +57,7 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: VM Python is selected
 - **WHEN** a candidate environment is prepared
-- **THEN** deployment SHALL require an explicit Python 3.10 executable, create or reuse only a candidate-local environment bound to the approved lockfile, verify exact locked packages, and SHALL NOT silently select a PATH interpreter or alter the production task environment
+- **THEN** deployment SHALL require an explicit Python 3.10 executable, create or reuse only a candidate-local environment bound to the approved lockfile, verify exact locked packages, launch the listener without inheriting unrelated third-party package paths, and SHALL NOT silently select a PATH interpreter or alter the production task environment
 
 #### Scenario: Candidate runtime closure is verified
 - **WHEN** immutable code is attached to external data, content, and state roots

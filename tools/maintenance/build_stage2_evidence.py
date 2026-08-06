@@ -10,6 +10,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import sysconfig
 import tempfile
 import time
 import urllib.error
@@ -136,10 +137,16 @@ def _exercise_candidate_lifecycle(
     launch_id = "c1" * 16
     stdout_path = runtime / "candidate.stdout.log"
     stderr_path = runtime / "candidate.stderr.log"
+    listener_python = str(Path(getattr(sys, "_base_executable", sys.executable)).resolve())
+    locked_site_packages = str(Path(sysconfig.get_path("purelib")).resolve())
     command = [
-        sys.executable,
+        listener_python,
         "-B",
-        "-m",
+        "-S",
+        str(release / "tools" / "release" / "direct_candidate.py"),
+        "--site-packages",
+        locked_site_packages,
+        "--module",
         "tools.release.cli",
         "serve-readonly-candidate",
         "--deploy-root",
@@ -230,6 +237,8 @@ def _exercise_candidate_lifecycle(
         "port_released_after_stop": released,
         "release_pycache_dirs": pycache_dirs,
         "preflight_report_sha256": preflight_sha,
+        "listener_python_executable": listener_python,
+        "locked_site_packages": locked_site_packages,
         "representative_smoke": smoke,
     }
     if not result["ok"]:

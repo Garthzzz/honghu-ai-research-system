@@ -201,6 +201,10 @@ try {
         throw "Candidate Python runtime verification did not return valid JSON."
     }
     if (-not $runtimeVerification.ok) { throw "Candidate Python runtime verification reported failure." }
+    $listenerPython = [string]$runtimeVerification.base_python_executable
+    $lockedSitePackages = [string]$runtimeVerification.site_packages
+    if (-not (Test-Path -LiteralPath $listenerPython -PathType Leaf)) { throw "Candidate listener base Python is missing." }
+    if (-not (Test-Path -LiteralPath $lockedSitePackages -PathType Container)) { throw "Candidate locked site-packages directory is missing." }
 
     Push-Location $source
     try {
@@ -234,8 +238,13 @@ try {
     finally { Pop-Location }
 
     $launchId = [guid]::NewGuid().ToString("N")
+    $listenerBootstrap = Join-Path $release "tools\release\direct_candidate.py"
+    if (-not (Test-Path -LiteralPath $listenerBootstrap -PathType Leaf)) { throw "Candidate direct listener bootstrap is missing." }
     $arguments = @(
-        "-B", "-m", "tools.release.cli", "serve-readonly-candidate",
+        "-B", "-S", $listenerBootstrap,
+        "--site-packages", $lockedSitePackages,
+        "--module", "tools.release.cli",
+        "serve-readonly-candidate",
         "--deploy-root", $candidate,
         "--data-root", (Join-Path $production "data"),
         "--content-root", $production,
@@ -250,7 +259,7 @@ try {
     $argumentString = ($arguments | ForEach-Object { Quote-HonghuArgument ([string]$_) }) -join " "
     $stdout = Join-Path $runtime "viewer_candidate.stdout.log"
     $stderr = Join-Path $runtime "viewer_candidate.stderr.log"
-    $process = Start-Process -FilePath $venvPython -ArgumentList $argumentString -WorkingDirectory $release -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $process = Start-Process -FilePath $listenerPython -ArgumentList $argumentString -WorkingDirectory $release -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
     $launched = $true
     Start-Sleep -Milliseconds 250
     $snapshot = Get-HonghuCandidateProcessSnapshot -ProcessId $process.Id
@@ -260,6 +269,7 @@ try {
         pid = $snapshot.pid
         start_time_utc = $snapshot.start_time_utc
         executable_path = $snapshot.executable_path
+        locked_site_packages = $lockedSitePackages
         command_line_sha256 = $snapshot.command_line_sha256
         launch_id = $launchId
         commit_sha = $resolved

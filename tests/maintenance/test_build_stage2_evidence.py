@@ -26,6 +26,9 @@ class Stage2EvidenceContractTests(unittest.TestCase):
         self.assertIn('if not python_runtime["ok"]:', text)
         self.assertIn('"port_released_after_stop": released', text)
         self.assertIn('"pid_matches_listener": pid_matches_listener', text)
+        self.assertIn('"-S"', text)
+        self.assertIn('"direct_candidate.py"', text)
+        self.assertIn('"listener_python_executable": listener_python', text)
         self.assertNotIn("tools/dynamic/secrets", text)
 
     def test_ci_invokes_stage2_evidence_as_a_package_module(self):

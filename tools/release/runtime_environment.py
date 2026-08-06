@@ -8,6 +8,7 @@ import json
 import re
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from typing import Any
 
@@ -84,6 +85,10 @@ def verify_runtime(
         "ok": not failures,
         "python_version": ".".join(map(str, sys.version_info[:3])),
         "python_executable": str(Path(sys.executable).resolve()),
+        "base_python_executable": str(
+            Path(getattr(sys, "_base_executable", sys.executable)).resolve()
+        ),
+        "site_packages": str(Path(sysconfig.get_path("purelib")).resolve()),
         "lockfile_sha256": hashlib.sha256(lock.read_bytes()).hexdigest(),
         "package_name_normalization": "packaging.utils.canonicalize_name",
         "locked_package_count": len(pins),

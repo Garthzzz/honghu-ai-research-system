@@ -58,7 +58,7 @@ if ($Resolved -ne $CommitSha.ToLowerInvariant()) { throw '检出提交与批准�
   -Port 18080
 ```
 
-脚本会在候选根建立 lockfile 绑定的隔离 venv，构建 exact-commit release，执行 preflight，启动由记录 PID 直接持有的 18080 listener，运行代表性只读 smoke，并比较计划任务定义和生产 8080/current 的前后状态。任何后启动失败都应身份核验后回收候选进程，并恢复此前的候选指针。
+脚本会在候选根建立 lockfile 绑定的隔离 venv并逐包核验，随后用该环境记录的 base Python 以 `-S` 直接启动 listener，只显式加入已验证 venv 的 site-packages。这样记录 PID 直接持有 18080，不会把 Windows venv redirector 当成服务进程，也不会继承其他 Python 环境的第三方包。脚本同时构建 exact-commit release、执行 preflight、运行代表性只读 smoke，并比较计划任务定义和生产 8080/current 的前后状态。任何后启动失败都应身份核验后回收候选进程，并恢复此前的候选指针。
 
 脚本成功只说明 VM 本机检查通过。证据文件位于：
 

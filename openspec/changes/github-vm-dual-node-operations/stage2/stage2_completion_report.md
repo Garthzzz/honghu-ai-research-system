@@ -10,6 +10,8 @@
 
 合成 fixture 不再创建空 `docs/themes`，并新增数据库主题和关系；schema 合同新增主题必需列、关系表和只读探针；代表性 smoke 增加数据库-only 主题页检查，同时核对页面明确报告 Markdown 缺失。smoke 因而由 15 项增至 16 项。旧提交 `f6926410475cf5c646641f6d7056736abae1453d` 使用错误的强制内容合同，已经撤销 VM 验收资格。新的可部署 SHA 必须来自本次修复后的绿色 push artifact，并与绿色 PR artifact 的 `pull_request_head_sha` 一致。
 
+在按 lockfile 新建的本地 Windows venv 中运行 exact-commit lifecycle 时，16 项路由 smoke 全部通过，但身份门禁发现 `Popen/Start-Process` 记录的是 venv redirector，实际 listener 由其 Python 子进程持有。这说明旧实现对 GitHub setup-python 解释器有效，却没有覆盖 VM 真实的 venv 启动形态。修复后仍用 venv 完成 lockfile 安装和逐包核验，但 listener 改由 verifier 记录的 base Python 以 `-S` 直接启动，只显式加入已验证 venv 的 site-packages；因此记录 PID、health PID 和 Windows listener PID 是同一进程，也不会泄漏 base/quant 的其他第三方包。该修复由 exact-commit lifecycle 实测，而不是放宽身份断言。
+
 ## 2026-08-06 VM runtime verifier 阻断与修复
 
 首次 VM 人工执行在 Python runtime verification 处按设计停止。74 个 hash-pinned distribution 已安装且 `pip check` 通过，但旧 verifier 仅执行小写转换并把下划线替换为连字符，没有按照 Python packaging 规范把点号、连字符和下划线统一处理。因此 lockfile 中的 `backports-tarfile`、`jaraco-classes`、`jaraco-context`、`jaraco-functools` 与 metadata 返回的点号或下划线名称被错误判为缺包。

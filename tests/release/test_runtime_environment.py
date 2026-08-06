@@ -79,6 +79,8 @@ class RuntimeEnvironmentTests(unittest.TestCase):
             self.assertTrue(result["ok"], result)
             self.assertEqual(result["mismatches"], [])
             self.assertTrue(result["pip_check"]["ok"])
+            self.assertTrue(Path(result["base_python_executable"]).is_file())
+            self.assertTrue(Path(result["site_packages"]).is_dir())
 
     def test_missing_and_version_mismatch_still_fail_closed(self):
         with tempfile.TemporaryDirectory() as temp:
