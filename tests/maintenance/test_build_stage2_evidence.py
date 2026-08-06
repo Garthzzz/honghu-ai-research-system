@@ -26,8 +26,12 @@ class Stage2EvidenceContractTests(unittest.TestCase):
         self.assertIn('if not python_runtime["ok"]:', text)
         self.assertIn('"port_released_after_stop": released', text)
         self.assertIn('"pid_matches_listener": pid_matches_listener', text)
+        self.assertIn('"-I"', text)
         self.assertIn('"-S"', text)
         self.assertIn('"direct_candidate.py"', text)
+        self.assertIn('"tools.release.readonly_smoke"', text)
+        self.assertIn('"immutable_release_integrity": release_integrity', text)
+        self.assertIn('integrity["after_stop"]', text)
         self.assertIn('"listener_python_executable": listener_python', text)
         self.assertNotIn("tools/dynamic/secrets", text)
 

@@ -23,6 +23,22 @@ ALLOWED_MODULES = {
 }
 
 
+def configure_utf8_stdio() -> None:
+    """Make project JSON output independent of the inherited Windows code page.
+
+    Isolated mode intentionally ignores ``PYTHONUTF8`` and
+    ``PYTHONIOENCODING``.  The bootstrap must therefore set the streams before
+    importing any project entrypoint.  Without this, a cp1252 runner cannot
+    emit evidence containing Chinese text even though the evidence file itself
+    is correctly written as UTF-8.
+    """
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="strict")
+
+
 def prepare_import_path(site_packages: str | Path) -> tuple[Path, Path]:
     locked_site = Path(site_packages).resolve()
     if not locked_site.is_dir():
@@ -42,6 +58,7 @@ def prepare_import_path(site_packages: str | Path) -> tuple[Path, Path]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--site-packages", required=True)
     parser.add_argument("--module", choices=sorted(ALLOWED_MODULES), required=True)

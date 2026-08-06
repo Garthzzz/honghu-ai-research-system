@@ -193,6 +193,51 @@ print(json.dumps({
             self.assertFalse(bad_marker.exists())
             self.assertFalse(any(release.rglob("*.pyc")))
 
+    def test_direct_bootstrap_overrides_legacy_windows_output_encoding(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            release = root / "release"
+            (release / "tools/release").mkdir(parents=True)
+            (release / "tools/__init__.py").write_text("", encoding="utf-8")
+            (release / "tools/release/__init__.py").write_text("", encoding="utf-8")
+            (release / "tools/release/direct_candidate.py").write_text(
+                (ROOT / "tools/release/direct_candidate.py").read_text(encoding="utf-8"),
+                encoding="utf-8",
+            )
+            (release / "tools/release/readonly_smoke.py").write_text(
+                "def main(argv=None):\n"
+                "    print('{\"summary\": \"数据库承载的主题摘要\"}')\n"
+                "    return 0\n",
+                encoding="utf-8",
+            )
+            env = os.environ.copy()
+            env["PYTHONIOENCODING"] = "cp1252"
+            result = subprocess.run(
+                [
+                    str(Path(getattr(sys, "_base_executable", sys.executable)).resolve()),
+                    "-B",
+                    "-S",
+                    str(release / "tools/release/direct_candidate.py"),
+                    "--site-packages",
+                    str(Path(sysconfig.get_path("purelib")).resolve()),
+                    "--module",
+                    "tools.release.readonly_smoke",
+                    "--emit",
+                ],
+                cwd=release,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                result.stderr.decode("utf-8", errors="replace"),
+            )
+            self.assertIn("数据库承载的主题摘要", result.stdout.decode("utf-8"))
+            self.assertFalse(any(release.rglob("*.pyc")))
+
     def test_runtime_content_resolution_and_representative_plan_use_external_roots(self):
         with tempfile.TemporaryDirectory() as temp:
             fixture = Path(temp) / "fixture"

@@ -2,6 +2,16 @@
 
 > 状态：实施修复已完成，VM 18080 人工验收尚未执行，阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
 
+## 2026-08-06 VM immutable release bytecode 污染阻断与修复
+
+第三次 VM 人工执行在 immutable release build 阶段被严格文件集合校验阻断，18080 尚未启动。现场报告的四个额外文件并非随机残留：在不设置 `PYTHONDONTWRITEBYTECODE` 的隔离复现实验中，从 release 目录执行旧命令 `python -m tools.release.readonly_smoke --help` 会稳定生成完全相同的四个文件：`tools/__pycache__/runtime_paths`、`tools/release/__pycache__/__init__`、`manager` 和 `readonly_smoke` 的 `.pyc`。随后 `verify_release()` 正确返回 `release file set mismatch`。因此根因不是 verifier 过严，而是旧部署仅给 listener 加了 `-B`；build/preflight/activate/rollback 和 smoke 仍以普通模块方式导入项目代码。前一次执行可在 smoke 或后续失败路径污染保留的 SHA，下一次同 SHA 重试在 build 复用检查时才暴露污染。
+
+修复没有删除 `.pyc` 或放宽 exact-file verification。VM 脚本会清除子进程继承的 `PYTHONPATH/PYTHONHOME`，设置禁止用户 site 与 bytecode 的环境，并让所有项目模块通过白名单 bootstrap 以 `-I -B -S` 运行。build、preflight、activate、launch 和 smoke 后逐次执行精确 manifest 复核；CI lifecycle 在 stop 后再复核一次。代表性 smoke 也改为真实的隔离子进程调用，不再由已经导入仓库代码的 evidence 父进程代跑。
+
+同 SHA 重试现在分三类：严格有效目录原样复用；失效且既非 `current`、也未被当前执行开始时的候选进程记录引用的目录，整体原子移动到 `runtime/release_quarantine/`，保存原目录、失败原因、文件集合指纹和 bytecode 路径后重新构建；`current`、运行引用、引用记录不可读或符号链接目录一律停止，不自动覆盖、修补、删除或隔离。每次部署生成唯一 attempt evidence，原 latest evidence 进入 `runtime/evidence_history/`，失败重试不覆盖前次证据。
+
+回归测试新增：preflight 失败后同 SHA 复用；任意 `.pyc` 与普通额外文件触发整目录隔离重建；current/运行记录引用的失效 release 禁止自动处理；调用环境存在恶意 `PYTHONPATH` 时仍从 release 导入白名单模块且不写 bytecode；完整生命周期各阶段的 commit、manifest hash、文件数与内容继续一致。第一轮实现提交为 `a612fe83065d51f9e87e807b25e6fccee8f7880e`，旧 SHA `97d01708737368a9f963f0e9d321c7c596f53efc` 已撤销 VM 验收资格。最终可部署 SHA 仍须以后续最终修订的 push/PR Actions 和 exact-commit artifact 为准，本节不宣称 VM 已验收。
+
 ## 2026-08-06 VM content preflight 阻断与修复
 
 第二次 VM 人工执行在候选启动前被 preflight 正确阻断，18080 没有 listener。实测 `C:\industry_demo\docs\industries` 与 `C:\industry_demo\papers` 存在，`docs\themes` 不存在；四库对象、列和只读探针全部通过，`research.db.theme` 有 5 条正常记录。代码审计确认主题详情页先读取数据库中的主题、行业和公司关系，主题 Markdown 由容错加载器作为增强内容读取；文件不存在时页面仍展示数据库内容，并明确显示“尚无主题分析 md”。本地旧目录中的 `docs/themes` 也是空目录，Git 不保存空目录，因此不存在尚未识别的主题文件权威。
@@ -47,7 +57,7 @@
 
 - 候选 CLI 自身直接运行 Flask，记录进程即 listener owner；关闭 reloader，不再保留外层父进程。
 - PID 身份扩展为 PID、启动时间、解释器、命令行 SHA256、launch id、commit、manifest 和端口；停止、重复部署和失败回收均先核验身份，拒绝误停复用 PID。
-- 进程从解释器参数开始使用 `-B`；preflight 报告以 SHA256、commit、manifest、schema contract 和 data/content/state root 绑定给进程，避免启动后再次递归散列 release 和生成 `__pycache__`。
+- 所有导入项目代码的进程从解释器参数开始使用 `-I -B -S`，并隔离 `PYTHONPATH/PYTHONHOME`；preflight 报告以 SHA256、commit、manifest、schema contract 和 data/content/state root 绑定给进程，release 在 build 到 stop 的各阶段继续接受精确文件校验。
 - VM 部署要求显式 Python 3.10 绝对路径，在候选根按 lockfile hash 创建隔离 venv，以 `--require-hashes` 安装并逐包核验；不碰生产任务环境。
 - VM evidence 分为静态代码保证、部署前状态、部署后状态、实测结果和未验证事项；任务定义 XML hash、8080 health/listener、生产 current/broadcast identity 均前后采集比较。
 - 数据库相对 source/PDF 路径从外置 content root 解析；正式计算器模型来自 release 内 tracked config，旧 cache 只允许从外置 state root 回退；路径逃逸和绝对外部路径被拒绝。

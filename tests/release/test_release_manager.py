@@ -270,6 +270,8 @@ class ReleaseManagerTests(unittest.TestCase):
             bytecode = release / "tools/__pycache__/arbitrary.cpython-310.pyc"
             bytecode.parent.mkdir(parents=True)
             bytecode.write_bytes(b"not-real-bytecode")
+            arbitrary_extra = release / "unexpected-runtime-file.txt"
+            arbitrary_extra.write_text("unexpected", encoding="utf-8")
 
             rebuilt = build_release(
                 repo,
@@ -287,6 +289,7 @@ class ReleaseManagerTests(unittest.TestCase):
             self.assertTrue(
                 (quarantined_root / "tools/__pycache__/arbitrary.cpython-310.pyc").is_file()
             )
+            self.assertTrue((quarantined_root / "unexpected-runtime-file.txt").is_file())
             self.assertIn(
                 "tools/__pycache__/arbitrary.cpython-310.pyc",
                 quarantine["inventory"]["bytecode_paths"],
