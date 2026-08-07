@@ -746,6 +746,7 @@ Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
         self.assertIn("$evidence.failure.primary", deploy)
         self.assertIn("$evidence.failure.cleanup", deploy)
         self.assertIn("$evidence.failure.pointer_recovery", deploy)
+        self.assertIn("$evidence.failure.final_state_capture", deploy)
         self.assertIn("$failurePostProductionWindow", deploy)
         self.assertIn("Set-HonghuCandidateGateEvidence", deploy)
         self.assertIn("Set-HonghuCandidateRecoveryEvidence", deploy)
@@ -759,6 +760,10 @@ Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
         self.assertNotIn(
             "$evidence.post_state = [ordered]@{ scheduled_tasks = $failurePostTasks",
             catch_body,
+        )
+        self.assertLess(
+            catch_body.index("$evidence.failure.primary"),
+            catch_body.index("$evidence.failure.final_state_capture"),
         )
         self.assertLess(
             deploy.index(

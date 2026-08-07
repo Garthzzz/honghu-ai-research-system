@@ -40,5 +40,6 @@ release manifest 另行声明并验证 `contains_live_data=false`、`contains_pa
 
 - tracked boundary gate、release manifest 禁止资产声明和 Git diff 继续作为三条独立检查，不用单一 secret scanner 代替；
 - VM 人工手册中的私网地址沿用既有正式部署事实，未新增凭据或访问能力；
+- evidence v5 新增的是 gate/recovery 状态分区、采样次数和比较理由，不包含 VM 原始 evidence、PID、数据库内容、用户内容或凭据；公开风险仍来自既有部署拓扑和运维合同，没有新增秘密材料；
 - 仓库继续 public 是用户明确决定，风险接受不等于仓库获得 production authority；
 - PR #3 未合并，VM deploy credential 未配置，内容仓库仍为 `RESERVED-UNUSED`。

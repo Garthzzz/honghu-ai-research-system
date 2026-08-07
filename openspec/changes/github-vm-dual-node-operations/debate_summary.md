@@ -246,3 +246,18 @@ Codex 没有因外部审查失真而停止独立复核，随后主动补强两�
 为排除第一轮可能没有正确读取分支的问题，Codex 提供了最终候选提交中三个公开 raw 文件的精确 URL，并把问题限制为 health 能力、stale 四条件、PID 复用、CIM 可选属性和 failure evidence 五项。DeepSeek 仍声称 health 调用了不存在的 `/health`、PowerShell 没有处理 `viewer_mode`、没有校验命令行和 listener、没有 CIM 空字段测试。这些说法再次与公开源码中的 `/api/health`、`present_identity_fields`、`command_line_sha256`、`listener_owner` 以及对应回归测试直接冲突，故全部拒绝。
 
 两轮外部响应连续没有给出可定位到真实代码的新增问题。Codex 不为了凑满三轮继续调用；停止原因是 reviewer 没有信息增量，而不是把其结论当作通过。工程判断继续以完整本地测试、OpenSpec strict、最终 push/PR Actions、exact-commit artifact 和下一次 VM 现场 evidence 为准。
+
+## 阶段 2 production gate evidence v5 复核（2026-08-07 追加）
+
+### 第一轮：公开修复提交与脱敏控制流检查
+
+Codex 先根据真实 VM evidence 独立确认确定性根因：正常路径已经写入并据此判失败的 production gate comparison，在 catch cleanup 后被同名字段的二次采样覆盖。因此最终 JSON 出现 primary failure 与 `verified=true` 同时存在。修复提交 `7ef641827649d67ee4d9e74268be3b95eca0fbda` 将 evidence 升级为 v5：原始 `gate.post_state/comparisons/reasons` 只允许写一次，顶层兼容字段永久指向原 gate；cleanup 后状态独立进入 `recovery.post_cleanup_state/comparisons_to_pre`；primary、cleanup、pointer recovery 和 final-state capture 分别保存。生产状态使用三次有界采样，至少两个样本可用，所有可用样本在实际身份、listener、`current` 和广播 manifest 上必须一致。
+
+发送给 DeepSeek 的只有公开仓库、公开 commit、上述脱敏控制流、测试名称和汇总结果，没有发送 key、Cookie、数据库内容、papers/evidence、用户内容、内网地址或 VM 原始 evidence。DeepSeek 返回 `needs_changes`，但四项 must-fix 均与公开实现直接冲突：
+
+- 声称 gate 抛错后 catch 不执行 cleanup；实际 `catch` 先保存 `failure.primary`，再调用身份受控 cleanup 与 pointer recovery；
+- 声称 final-state capture 不保证运行；实际 cleanup 后有独立 `try/catch`，成功或失败都写 `failure.final_state_capture`，最后重新抛出保存的 primary；
+- 声称窗口没有验证 health/listener/current/manifest；实际 usable 条件要求 HTTP、payload、成功状态和 listener query，所有 usable 状态再通过 `Test-HonghuProductionUnchanged` 比较 identity、listener、current pointer 和 broadcast manifest。`current` 可以合法不存在，但其存在性和 hash 必须前后一致；
+- 声称测试没有核对 gate 与 recovery；`test_gate_evidence_remains_immutable_when_cleanup_state_recovers` 明确断言 gate=false、兼容 post_state 仍为 gate、recovery=true、post-cleanup 状态独立、primary 不变、observed 仍指原 gate，并验证第二次 gate 写入被拒绝。
+
+DeepSeek 在 `uncertainties` 中也承认没有完整看到具体代码路径，因此 Codex 拒绝上述无可复现依据的意见，没有据此放宽 production gate。确定性依据是 569 passed、21 skipped、55 subtests、PowerShell parser 0 error、tracked boundary、SQLite ratchet 和 OpenSpec strict；远端 push/PR Actions 与 exact-commit artifact 仍需按最终提交重新核验，外部 reviewer 不替代 VM 重验。
