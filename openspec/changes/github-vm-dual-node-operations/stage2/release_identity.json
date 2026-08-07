@@ -1,0 +1,59 @@
+{
+  "schema_version": "honghu.stage2_review_identity.v2",
+  "repository": "Garthzzz/honghu-ai-research-system",
+  "branch": "phase2/repeatable-release",
+  "pull_request": 3,
+  "exact_commit_binding": {
+    "source": "push-event GitHub Actions artifact stage2_evidence.json",
+    "commit_field": "binding.commit_sha",
+    "run_field": "binding.github_run_id",
+    "required_jobs": [
+      "boundary-and-contracts",
+      "python-clean-environment"
+    ],
+    "rule": "The push artifact must bind the branch commit with eligible_as_vm_candidate_sha=true. Both push jobs and both PR merge-result jobs must be green, and the PR artifact pull_request_head_sha must equal the push commit, before that branch commit may be used for VM validation."
+  },
+  "invalidated_vm_candidate_commits": [
+    {
+      "commit_sha": "028572f7a1895636b6d8b46d3ff0d3019dd56309",
+      "reason": "runtime verifier did not canonicalize dot, hyphen, and underscore distribution names according to Python packaging rules",
+      "replacement_rule": "use only the final green push-event branch commit produced after the canonicalization fix"
+    },
+    {
+      "commit_sha": "f6926410475cf5c646641f6d7056736abae1453d",
+      "reason": "deployment preflight incorrectly treated optional docs/themes Markdown enhancement as mandatory external content",
+      "replacement_rule": "use only a final green push-event branch commit whose manifest distinguishes required and optional content and whose database-only theme smoke passes"
+    },
+    {
+      "commit_sha": "67cc70ec93908db982d8f16f81c49f1ae3b9c90a",
+      "reason": "failure cleanup resampled production state and overwrote the original failing production gate evidence",
+      "replacement_rule": "use only a final green push-event branch commit whose evidence schema keeps immutable gate-time state and separate post-cleanup recovery state"
+    }
+  ],
+  "last_locally_verified_implementation": {
+    "commit_sha": "f01208a40b7fe597d9969bfa226eb4dd4cb1728c",
+    "github_push_run_id": null,
+    "github_pull_request_run_id": null,
+    "release_manifest_sha256": "03b0b3e324bbc5920cd8c91f99d580a0f8b90cd90c872b26d422c2346c5e77c8",
+    "release_file_count": 572,
+    "release_content_bytes": 24561826,
+    "preflight_ok": true,
+    "python_runtime_ok": true,
+    "locked_package_count": 74,
+    "package_name_normalization": "packaging.utils.canonicalize_name",
+    "pip_check_ok": true,
+    "candidate_lifecycle_ok": true,
+    "representative_smoke_count": 16,
+    "listener_pid_matches_process": true,
+    "port_released_after_stop": true,
+    "release_pycache_count": 0,
+    "rollback_performed": true,
+    "database_hashes_unchanged": true
+  },
+  "contains_live_data": false,
+  "contains_papers_or_evidence": false,
+  "contains_secrets": false,
+  "vm_readonly_candidate_verified": false,
+  "lan_client_verified": false,
+  "phase2_halt_approved": false
+}

@@ -2,9 +2,9 @@
 
 ## 1. 设计状态与边界
 
-本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。它仍处于人工审查阶段，只描述目标、边界、阶段和验收，不授权实施。
+本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。阶段 0 和阶段 1 已完成人工审查；当前只授权实施阶段 2 的 immutable release、本地 dev/test 边界和不切换生产的 VM 只读候选，后续阶段仍未授权。
 
-本轮不做：Git 初始化或远端操作、PostgreSQL 安装、live schema/data 修改、任务迁移、VM 部署、生产配置变更、资料上传或备份清理。
+阶段 2 不做：PostgreSQL 安装、live schema/data 修改、任务迁移、现有生产 Viewer 切换、VM 写接口、资料上传或备份清理。允许在隔离分支构建 exact-commit release，并在独立 VM 目录和端口运行只读并行候选。
 
 ## 2. 审计事实与问题定义
 
@@ -37,7 +37,7 @@
   ├─ 本地 Viewer
   └─ 独立 dev/test PostgreSQL
              │
-             ├──────── private GitHub application repository
+             ├──────── controlled GitHub application repository
              │          code/config template/migration/test/rules/SOP
              │
 VM production
@@ -238,7 +238,7 @@ pull → local branch → local migration/test data → local Viewer/browser
 - secret/path/credential 扫描；
 - live DB、WAL/SHM、backup、broadcast、runtime、个人上下文、临时 cache 和未批准大文件被排除；
 - 首次 staged inventory 由人工审查；
-- private repository 和访问权限确认。
+- 仓库可见性和访问权限经过明确批准；通常为 private，当前迁移/审核期 public 是用户明确例外，且禁止资产门禁仍须通过。
 
 已知测试失败可以在 bootstrap branch 中如实记录并修复。它们不应迫使修复过程继续发生在无版本历史的目录里。
 
@@ -391,14 +391,26 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 ### 阶段 1：安全 Git、CI 与版本边界
 
 目标：在不带生产数据和 secrets 的前提下建立可审核代码历史；让后续修复发生在 feature branch。  
-退出：bootstrap inventory 通过人工审查；CI 能稳定运行；活动 required checks 通过；main 受保护。安全 bootstrap 可以在个人 private 仓库中进行，但该仓库成为 production authority 前必须关闭公司控制权 gate。  
+退出：bootstrap inventory 通过人工审查；CI 能稳定运行；活动 required checks 通过；main 受保护。安全 bootstrap 可以在个人仓库中进行；当前 public 状态仅用于用户批准的迁移和审核，不等于 production authority，成为生产权威前仍必须关闭公司控制权 gate。
 回滚：删除未发布的本地 bootstrap 元数据或停止远端接入，不影响 live 系统。  
 禁止：VM 生产部署、数据迁移、任务切换。
 
 ### 阶段 2：可重复 release 与本地开发基线
 
 目标：建立 immutable release、本地 dev/test 工作流、部署 manifest 和只读 VM 并行验证。  
-退出：干净环境可重建；本地 Viewer 不依赖 VM；VM 候选 release 只读运行；deployment ledger 和 schema compatibility 声明能区分可回滚应用版本与 forward-only migration。  
+候选运行合同：明确的 Python 3.10 仅用于在候选根建立 lockfile 绑定的隔离环境；listener 由被记录的同一进程直接持有，PID 必须与启动时间、解释器、命令行 hash、launch id、commit 和端口共同核验。Windows venv redirector 不得被误记为 listener owner；锁定环境完成逐包验证后，所有会导入项目代码的 Python 子进程统一使用隔离导入和禁止 bytecode 的启动合同，清除继承的 `PYTHONPATH/PYTHONHOME`，并由已验证的 base interpreter 以 `-I -B -S` 启动，只显式加入该 venv 的 site-packages。失败路径先按身份回收进程，再恢复旧候选指针；不得用裸 PID 假定可以安全停止。数据库相对内容路径从外置 content root 解析，正式计算器模型来自 tracked config，迁移期旧 cache 只能从外置 state root 回退。
+
+immutable release 的不变性覆盖 build 完成后的整个生命周期，而不只覆盖 listener：preflight、activate、launch、smoke、failure cleanup 和 stop 后都必须能重新通过同一 manifest 的精确文件集合与内容校验。相同 SHA 重试时，验证通过的目录直接复用；验证失败但既非 `current`、也没有候选进程记录引用的目录，可以整体原子移动到 `runtime/release_quarantine`，保存失败原因、文件集合指纹和原目录后再全新构建。任何 current、运行中或无法证明未被引用的 release 都禁止自动覆盖、局部删除或隔离；尤其不得把删除若干已知 `.pyc` 当成修复。每次部署使用唯一 attempt identity，旧失败 evidence 进入历史，避免重试覆盖根因。
+
+外置 content closure 必须由 manifest 逐路径声明为 `required` 或 `optional`，并说明对象类型与用途。阶段 2 的生产事实中，`docs/industries` 是行业正文权威、`papers` 是数据库证据引用的文件权威，二者缺失或类型错误必须 fail-closed；主题基础内容与关系由 `research.db` 承载，`docs/themes` 仅是可选 Markdown 增强。可选路径缺失必须进入 preflight、smoke 和 VM evidence，但不得伪装成内容存在，也不得阻止数据库主题页按其既有降级行为只读展示。任何 required 路径不得通过 CLI 开关绕过。
+
+schema compatibility 只对阶段 2 声明的代表性只读路由负责：门禁检查 SQLite `mode=ro/query_only`、对象类型、必需列、版本范围和只读探针；完整 schema fingerprint 作为诊断记录，除非以后另行批准 accepted set，否则不充当全部 schema 兼容证明。VM evidence 区分静态代码保证、部署前状态、部署后状态、实测 smoke 和未验证事项；计划任务与生产 8080/current 必须采集前后状态，不能写死“未修改”。
+
+生产不变性证据采用有界稳定采样，而不是把单次 8080 请求当作最终事实。硬权威身份由 health 可达与可解析状态、实际支持的 release/app/manifest 身份字段、production `current`、广播 manifest，以及 8080 listener 是否持续存在共同组成；至少两个可用样本必须形成唯一的硬权威身份 cluster，且所有可用样本都必须属于该 cluster。窗口保留全部尝试、聚类、入选样本和冲突样本；孤立不可达/不可解析样本可以作为 warning，但任何可用样本的硬权威身份冲突、可用样本不足、pre/post 权威身份变化、listener 消失、`current`/广播变化，或候选 PID 出现在 8080 上仍然 fail-closed。
+
+listener PID set 是 legacy Windows 运行时拓扑诊断，不等同于 deployment authority：PID 漂移必须连同每个样本原值进入 evidence 和 warning，但在 hard identity、listener 存在性、production pointer 与广播均稳定时，不单独判定生产被候选修改。pre-state、gate-time post-state 与 cleanup 后 recovery 使用同一 authority-vs-runtime 比较语义；正常 gate 的 post-state、comparison 和 reasons 一经记录即不可覆盖，后续 recovery/final-state 采样不能改写原 gate 或 primary failure。
+
+退出：干净环境可重建；本地 Viewer 不依赖 VM；VM 候选 release 只读运行；代表性 smoke 覆盖四库、required 外置文档、缺少可选主题 Markdown 时的数据库主题页、计算器和静态资源；VM 本机与另一台内网客户端可达性分别有证据；deployment ledger 和声明范围内的 schema compatibility 能区分可回滚应用版本与 forward-only migration。
 回滚：切回现有广播包/启动路径；不触碰数据库。  
 禁止：开放 VM 写接口、迁移任务或数据库。
 
@@ -430,7 +442,7 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 
 | 原机制 | 处置 | 理由 |
 |---|---|---|
-| private 应用仓库、allowlist、secret/path gate | 保留 | 与数据库选型无关 |
+| 受控应用仓库、allowlist、secret/path gate | 保留 | 当前 public 审核例外不放宽边界；与数据库选型无关 |
 | immutable release、commit SHA、preflight/health、code rollback | 保留 | 可重复部署核心能力 |
 | 四库 maintenance lock + 一致快照 | 仅迁移期保留 | 用于形成冻结迁移基线和审计档案；S3 后不是默认 production rollback target |
 | 本地 request workspace | 删除为通用同步能力 | 本地改用 dev/test PG；研究请求仍作为业务输入保留 |

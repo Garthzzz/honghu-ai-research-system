@@ -148,3 +148,150 @@ DeepSeek 的三项意见及 Codex 判断：
 Codex 完成第一轮修订后先做本地全层复核，再推送 `8e83dfc6ddb85cde59c8777f5b1bc440e712324a`。远端 run `30847270449` 的两个 job 均为 success：553 项测试被收集，532 passed、21 skipped、53 subtests passed。Actions 上传的 `stage1-evidence-8e83dfc6ddb85cde59c8777f5b1bc440e712324a` 被重新下载检查，commit、run、760 个 tracked 文件、7 份 spec 和 66 条 pending-review 索引相互一致。GitHub API 同时回读确认 main 的两个 required checks、strict、PR gate、管理员约束、conversation resolution、force-push 禁令和删除禁令。
 
 DeepSeek 只收到这些脱敏结果和公开仓库标识，返回 `pass`，没有提出阶段 1 内的 must-fix，也没有要求范围扩张。Codex 独立复核后同意“没有新增工程缺口”，但不把 reviewer 的 pass 解释为阶段 1 人工批准；最终仍需 protected main 的 PR/main Actions 和用户 HALT。由于第二轮没有信息增量或未闭环问题，停止第三轮。
+
+## 阶段 2 release 实施审核（2026-08-04）
+
+### 第一轮：初始实现审查
+
+Codex 先在隔离 clone 中完成 exact-commit release、只读 candidate、schema compatibility、code-only rollback、本地 fixture 和测试，再向 DeepSeek发送公开 commit 与脱敏合同摘要。没有发送 key、Cookie、数据库、papers、用户内容、内网地址或源代码全文。
+
+DeepSeek 把 reviewer 身份写成 `postgresql-docker-redis`，并提出以下与代码事实冲突的意见：声称 candidate 没有设置 `query_only`、health 没有验证 manifest、POST 路由仍会处理 body，又虚构 Docker/Redis 配置和 VM 资源结论。这些均被拒绝：candidate 连接同时使用 `mode=ro` 和 `query_only`；health 会调用 `verify_release` 复算 manifest 和逐文件 hash；非安全 HTTP 方法在路由处理前统一返回 403；项目没有阶段 2 Docker/Redis 实现。
+
+这轮没有可采纳的工程增量。Codex独立审查反而发现并修正了两个真实问题：同 commit manifest 不应含构建时钟；rollback 必须用目标 release 的 schema contract，而不是当前 release contract。
+
+### 第二轮：远端绿色证据审查
+
+第二轮只发送远端 run `30856809650`、artifact identity、preflight、rollback 和禁止范围。DeepSeek 返回空的 `valid_must_fix`/`valid_should_fix`，但仍生成 `docker=true`、`redis=true`、`postgresql=true` 等不存在的断言，并在已明确“VM 尚未执行”时建议 `proceed`。
+
+Codex拒绝这些虚构字段，也拒绝阶段 2 退出建议：VM 只读并行候选仍是明确退出 gate。两轮连续没有有效新增问题，因此停止第三轮。阶段 2 的有效证据来自本地/fresh-clone 测试、远端 Actions、下载后重算的 artifact、只读数据库哈希和待完成的 VM 实测，不来自 DeepSeek 的结论。
+
+## 阶段 2 重点复审（2026-08-04 追加）
+
+> 实际轮次：2 轮；未进行第三轮，因为第二轮没有提出能由公开代码或脱敏摘要支持的新缺口。发送内容仅包括公开仓库、公开 commit、测试状态，以及进程生命周期、Python 合同、路径闭包、schema 范围、smoke 和证据绑定的脱敏摘要；没有发送 key、Cookie、数据库内容、papers/evidence、用户内容或凭据。
+
+### 第一轮：生命周期与 VM 证据合同
+
+Codex 先修复候选进程 ownership、身份校验、失败清理、显式 Python 3.10、外置 content/state、只读 schema 合同和 15 项代表性 smoke，并在提交 `b9ce946ea5b74497bdc00befa80e814efef43435` 上完成真实本地生命周期实验。DeepSeek 返回 `pass`，没有 must-fix 或 should-fix。
+
+Codex 没有把该结果当作退出依据。继续独立检查 CI evidence 后发现：原 evidence 虽验证了构建和 rollback，却没有在同一 exact-commit job 中真实启动候选；强化后又暴露合成 fixture 缺少首页、行业、估值和公司页依赖对象。由此新增了 CI 内的真实候选生命周期、listener PID、15 项 smoke、端口释放和无 `__pycache__` 证据，并扩充 fixture 与只读 schema 合同。
+
+### 第二轮：公开提交与人工 VM 手册复核
+
+Codex 在提交 `a6b19f2264a266a760688a46937d653f97e43c26` 的 push Actions 两个 job 真实绿色后，再向 DeepSeek发送上述实现摘要和 VM 手册边界。DeepSeek仍声称不存在 PID/launch id/commit/manifest evidence、Python 3.10 校验、data/content/state 检查、schema probe、exact-commit CI、403 smoke、rollback 和 Windows `samefile` 处理；这些陈述与公开提交中的实现和测试直接冲突，因此全部拒绝。其“增加 schema migration”和“建立 VM push/PR matrix”建议还越过阶段 2：本阶段禁止数据库 migration，push/PR Actions 是代码验证，不是替用户远程部署 VM。
+
+第二轮没有给出新的可定位文件、失败路径或可复现反例。Codex据此停止第三轮，但仍保留 VM 18080 本机与内网客户端真实验收为人工 gate。外部 reviewer 的 `pass` 或 `revise` 均不替代确定性测试、Actions artifact、VM evidence 或用户 HALT。
+
+第二轮后下载真实 Actions artifact 元数据时，Codex又独立发现 GitHub PR workflow 的 `GITHUB_SHA` 是临时 merge commit，而不是分支头。该问题不来自 DeepSeek意见。最终修订因此把 push artifact 定义为可部署分支提交的 exact-commit evidence，把 PR artifact 定义为与 base 的合并结果证据，并要求 PR artifact 中记录的 `pull_request_head_sha` 与 push SHA 一致；PR 临时 merge SHA 明确不得用于 VM 部署。
+
+### 第三轮：push 分支身份与 PR merge 身份
+
+由于第二轮后出现上述实质身份修订，Codex使用最后一轮配额，只请 DeepSeek检查临时 merge SHA、stale PR head 和无 event 的本地 evidence 是否可能被误认成 VM 候选。DeepSeek把“PR merge-result 在 Actions 中测试”错误理解成“PR artifact 必须被拿去部署 VM”，并据此声称 PR 被完全跳过；公开 workflow 实际对 `pull_request` 和 `push` 都运行同一套两个 job，PR merge commit 已经被测试，只是按设计不具备 VM 部署资格。该 must-fix 被拒绝。
+
+DeepSeek关于“artifact 元数据应区分 push 与 PR”的方向已由本轮实现满足：`commit_role`、`event_name`、`pull_request_head_sha`、`pull_request_base_sha` 和 `eligible_as_vm_candidate_sha` 都进入 evidence。关于 PR 合并后 main push 的提醒也不构成缺口：若未来 main push 形成新的 branch commit，它必须重新通过该 SHA 自己的 push evidence；当前阶段仍禁止合并 PR 和 production deployment。第三轮未产生进一步修改，审核至此停止。
+
+## 阶段 2 Python runtime 名称规范化复核（2026-08-06 追加）
+
+> 实际有效轮次：2 轮；两轮均没有产生可复现的新缺口，因此停止第三轮。
+
+### 第一轮：名称规范化修复后的合同检查
+
+Codex 先根据 VM 的真实安装日志定位根因：旧 verifier 只把下划线替换成连字符，没有按 Python packaging 规则把点号、连字符、下划线和大小写统一。修复后，lockfile 名称和 `importlib.metadata` 返回的 distribution 名称两侧统一调用 `packaging.utils.canonicalize_name`；缺包、版本不一致、冲突 pin 和 `pip check` 失败继续 fail-closed。发送给 DeepSeek 的只有公开仓库、公开提交、脱敏合同摘要和测试结果，没有发送 key、Cookie、数据库、papers、用户内容、内网地址或源代码全文。
+
+DeepSeek 返回 `revise`，但声称 mismatch 和 `pip check` 不会使 verifier 失败、两侧没有统一规范化、evidence 未绑定提交，并建议为四个包建立硬编码映射。Codex 逐项对照公开实现和测试后拒绝：两类失败都会进入 `failures` 并使 `ok=false`；CLI 返回非零；两侧调用同一规范化函数；exact-commit evidence 在同一构建中记录提交身份与 runtime 结果；硬编码特例反而违反通用 packaging 规范。本轮没有据此改弱门禁。
+
+### 第二轮：最终实现与远端绿色结果复核
+
+第二轮只发送同一公开提交的脱敏事实：统一名称规范化、真实 Python 3.10 全新环境安装 74 个 hash pin 包、缺包/错版本/`pip check` 的反例测试、exact-commit evidence 和 push/PR Actions 绿色状态。DeepSeek再次返回 `revise`，但主要意见仍与事实冲突：把 `pip check` mismatch 说成需要解释的“可接受例外”，忽略现有 commit identity 和 CLI 退出码，并建议检查 `importlib.metadata` 是否安装（该模块属于受支持 Python 运行时的标准库）。这些意见被拒绝。
+
+其关于“锁文件不存在时给出更友好的结构化错误”的建议不构成本轮部署缺口：release manifest、部署脚本和固定路径在调用 verifier 前已验证 lockfile 闭包；若文件仍然消失，当前调用会非零终止而不是误报通过。后续可以改善错误展示，但不能把它解释为 runtime verification 会 false-positive。两轮连续没有有效新增问题，故不调用第三轮；最终依据仍是确定性回归、真实隔离环境、远端 Actions 和待执行的 VM 18080 人工证据，不是外部模型结论。
+
+## 阶段 2 外置主题内容合同复核（2026-08-06 追加）
+
+> 实际轮次：2 轮；两轮均未提出确定性新增缺口，因此停止第三轮。发送内容只有公开仓库、公开提交、脱敏后的 required/optional 内容合同、Windows 进程合同和测试摘要；没有发送 key、Cookie、数据库内容、papers、用户内容、内网地址或其他敏感材料。
+
+### 第一轮：required/optional content closure
+
+Codex 根据 VM 实测先独立确认：`docs/industries` 和 `papers` 存在，`docs/themes` 不存在，四库 probe 通过，主题基础数据在 `research.db`；代码中的主题 Markdown 加载器本来就允许文件缺失。修复提交 `65d981ff612741ad7f6a2f07165559efe9f0cdbf` 将外置路径改成 manifest 驱动合同：前两者 required，主题 Markdown optional；删除 content bypass；合成 fixture 刻意不创建空主题目录，并新增数据库-only 主题 route smoke。
+
+DeepSeek 返回 `pass`。它建议可选目录存在但类型错误时失败、runbook 明确 optional、检查其他环境配置。Codex 对照实现逐项确认：wrong-kind 对 required 和 optional 都进入失败；runbook 和 16 项 smoke 已覆盖缺失；全仓只有一份活动 deployment policy 声明此闭包。因此建议均已由当前实现满足，没有新增修改。
+
+### 第二轮：Windows venv listener ownership
+
+第一轮之后，Codex 使用严格 lockfile venv 生成 exact-commit evidence，16 个路由全部成功，但身份门禁发现 Windows venv redirector PID 并非实际 listener PID。该问题不是 DeepSeek 提出，而是确定性 lifecycle 测试继续 fail-closed 的结果。修复提交 `f01208a40b7fe597d9969bfa226eb4dd4cb1728c` 保留 venv 安装与逐包核验，但由 verifier 记录的 base Python 以 `-S` 直接启动，只加入已验证 venv site-packages；实测 process PID、health PID 和 listener PID 一致，停止后端口释放。
+
+DeepSeek 第二轮再次返回 `pass`，仅建议文档说明 base Python/`-S` 合同并在 evidence 核对 listener owner；两项都已经进入 design、spec、runbook、结构化 evidence 和回归测试。连续两轮没有有效新增问题，故停止第三轮。Codex 不把外部 reviewer 的 `pass` 当作 VM 验收或阶段 2 退出依据。
+
+## 阶段 2 immutable release bytecode 与 Windows UTF-8 复核（2026-08-06 追加）
+
+> 实际有效轮次：1 轮。发送范围只有公开仓库、公开提交 `1580aa6b87ff5c3b89ffc434a65da5ab969281f0`、脱敏根因、隔离/重试合同和确定性测试摘要；没有发送 key、Cookie、数据库内容、papers、用户内容、内网地址或源代码全文。
+
+Codex 先用临时 exact release 复现 VM 的四个额外 `.pyc`：旧调用 `python -m tools.release.readonly_smoke --help` 稳定生成与现场完全相同的模块 bytecode，随后 strict verifier 返回 `release file set mismatch`。修复将所有导入项目代码的 Python 子进程收口到白名单 bootstrap 和 `-I -B -S`，在 build、preflight、activate、launch、smoke、stop 后逐次核对相同 manifest；污染但未激活、未运行的同 SHA 目录只能整体原子 quarantine 并保留文件集合证据，`current`、运行引用和不可证明状态全部 fail-closed。
+
+提交 `a612fe83065d51f9e87e807b25e6fccee8f7880e` 的本地 evidence 通过后，Codex读取真实失败 Actions 日志，发现 GitHub Windows runner 的标准输出为 `cp1252`。由于 `-I` 会忽略 `PYTHONUTF8/PYTHONIOENCODING`，中文 smoke JSON 在打印阶段触发 `UnicodeEncodeError`；这不是 release manifest 失败，也没有通过 ASCII 转义或跳过 smoke 隐藏。后续修复让 bootstrap 在导入项目入口前显式把 stdout/stderr 设为 UTF-8 strict，并增加遗留代码页与中文 JSON 的真实子进程回归测试。
+
+DeepSeek 返回 `pass`，唯一 should-fix 是“在 direct candidate 中显式 reconfigure UTF-8”，但该能力正是待审公开提交中已经实现并由回归测试覆盖的内容；因此没有新增修改。Codex以本地 556 passed、21 skipped、55 subtests、六阶段 exact manifest 一致性，以及 push run `31113566860` 和 PR run `31113572490` 的真实绿色结果作为工程依据。因 reviewer 没有给出新的可复现路径，停止后续轮次；阶段 2 仍必须等待新最终 SHA 的 VM 18080 人工验收，外部模型 `pass` 不构成退出批准。
+
+## 阶段 2 legacy health 与 stale candidate record 复核（2026-08-07 追加）
+
+### 第一轮：公开分支实现反查
+
+Codex 先根据 VM 现场独立定位并修复：legacy 8080 health 缺少 `viewer_mode` 时的 StrictMode false negative、CIM 可选属性缺失、stale record 直接删除、失败 evidence 被 cleanup 次级异常遮蔽。定向回归和完整 core test 均通过后，将实现提交到公开分支，再向 DeepSeek 发送公开仓库、分支、提交、四项脱敏合同和测试目标；没有发送 key、Cookie、数据库、papers、用户内容、VM 内部内容或凭据。
+
+DeepSeek 返回 `fail`，但其五项判断均与公开提交直接冲突：声称没有 CIM 查询、没有端口过滤、没有 stale cleanup/pre-post comparison、没有 StrictMode，并要求“VM/papers 测试”。公开文件实际包含 `Get-CimInstance Win32_Process`、`Get-NetTCPConnection -LocalPort`、`stale-record-archived`、`Test-HonghuProductionUnchanged` 和文件首行 `Set-StrictMode -Version Latest`；papers 也不属于本轮进程兼容缺陷。因此这些意见全部拒绝，未据此降低门禁或扩张范围。
+
+Codex 没有因外部审查失真而停止独立复核，随后主动补强两点：stale 自动归档还必须确认 candidate health 不可达；可管理的活动 record 至少要有启动时间以及 executable/command 二者之一，避免生成以后无法安全清理的弱身份。相应增加 reachable-health 冲突测试，并保留“任一未知即 fail-closed”。第一轮外部结果不构成通过或退出依据。
+
+### 第二轮：指定 raw 文件的跨文件一致性复核
+
+为排除第一轮可能没有正确读取分支的问题，Codex 提供了最终候选提交中三个公开 raw 文件的精确 URL，并把问题限制为 health 能力、stale 四条件、PID 复用、CIM 可选属性和 failure evidence 五项。DeepSeek 仍声称 health 调用了不存在的 `/health`、PowerShell 没有处理 `viewer_mode`、没有校验命令行和 listener、没有 CIM 空字段测试。这些说法再次与公开源码中的 `/api/health`、`present_identity_fields`、`command_line_sha256`、`listener_owner` 以及对应回归测试直接冲突，故全部拒绝。
+
+两轮外部响应连续没有给出可定位到真实代码的新增问题。Codex 不为了凑满三轮继续调用；停止原因是 reviewer 没有信息增量，而不是把其结论当作通过。工程判断继续以完整本地测试、OpenSpec strict、最终 push/PR Actions、exact-commit artifact 和下一次 VM 现场 evidence 为准。
+
+## 阶段 2 production gate evidence v5 复核（2026-08-07 追加）
+
+### 第一轮：公开修复提交与脱敏控制流检查
+
+Codex 先根据真实 VM evidence 独立确认确定性根因：正常路径已经写入并据此判失败的 production gate comparison，在 catch cleanup 后被同名字段的二次采样覆盖。因此最终 JSON 出现 primary failure 与 `verified=true` 同时存在。修复提交 `7ef641827649d67ee4d9e74268be3b95eca0fbda` 将 evidence 升级为 v5：原始 `gate.post_state/comparisons/reasons` 只允许写一次，顶层兼容字段永久指向原 gate；cleanup 后状态独立进入 `recovery.post_cleanup_state/comparisons_to_pre`；primary、cleanup、pointer recovery 和 final-state capture 分别保存。生产状态使用三次有界采样，至少两个样本可用，所有可用样本在实际身份、listener、`current` 和广播 manifest 上必须一致。
+
+发送给 DeepSeek 的只有公开仓库、公开 commit、上述脱敏控制流、测试名称和汇总结果，没有发送 key、Cookie、数据库内容、papers/evidence、用户内容、内网地址或 VM 原始 evidence。DeepSeek 返回 `needs_changes`，但两项 must-fix 和两项 should-fix 均与公开实现直接冲突：
+
+- 声称 gate 抛错后 catch 不执行 cleanup；实际 `catch` 先保存 `failure.primary`，再调用身份受控 cleanup 与 pointer recovery；
+- 声称 final-state capture 不保证运行；实际 cleanup 后有独立 `try/catch`，成功或失败都写 `failure.final_state_capture`，最后重新抛出保存的 primary；
+- 声称窗口没有验证 health/listener/current/manifest；实际 usable 条件要求 HTTP、payload、成功状态和 listener query，所有 usable 状态再通过 `Test-HonghuProductionUnchanged` 比较 identity、listener、current pointer 和 broadcast manifest。`current` 可以合法不存在，但其存在性和 hash 必须前后一致；
+- 声称测试没有核对 gate 与 recovery；`test_gate_evidence_remains_immutable_when_cleanup_state_recovers` 明确断言 gate=false、兼容 post_state 仍为 gate、recovery=true、post-cleanup 状态独立、primary 不变、observed 仍指原 gate，并验证第二次 gate 写入被拒绝。
+
+DeepSeek 在 `uncertainties` 中也承认没有完整看到具体代码路径，因此 Codex 拒绝上述无可复现依据的意见，没有据此放宽 production gate。确定性依据是 569 passed、21 skipped、55 subtests、PowerShell parser 0 error、tracked boundary、SQLite ratchet 和 OpenSpec strict；远端 push/PR Actions 与 exact-commit artifact 仍需按最终提交重新核验，外部 reviewer 不替代 VM 重验。
+
+### 第二轮：当前分支头的可定位反例复核
+
+Codex 将第一轮复核记录提交为 `b8af0d0f36192422e49944f04c1619151f61d9c3` 后，再次要求 DeepSeek 只在读取公开代码后给出“相对路径、真实函数名和可复现反例”，并把输出限制为紧凑 JSON。DeepSeek 仍返回四项与源码冲突的意见：它引用了不存在的 `Set-GateState` 和笼统的 `Deploy-ReadonlyCandidate` 函数，声称 catch 没有 cleanup/pointer recovery、gate setter 不保存 post-state、生产窗口不相对 pre-state 比较，以及测试没有核对 primary/reasons。公开实现实际使用 `Set-HonghuCandidateGateEvidence`、`Set-HonghuCandidateRecoveryEvidence`、`Get-HonghuProductionStateWindow` 和 `Test-HonghuProductionUnchanged`；部署脚本 catch 明确执行 cleanup、pointer recovery、独立 final-state capture 后重抛 primary；回归测试逐项断言原 gate、recovery、primary、reasons 和兼容别名。
+
+这些意见没有提供能够在公开提交上复现的路径，而且响应再次在 `uncertainties` 中承认实现细节并未完整确认。Codex 因此拒绝全部四项，不产生新的运行时代码修订；在没有新确定性事实时不为凑轮数调用第三轮。随后最终审计记录提交的远端 CI 暴露了新的 Windows 测试事实，才据此进行下面的第三轮。最终工程依据仍是当前提交自己的完整 Actions、exact-commit artifact 和下一次 VM 现场 evidence；本记录提交只保存 reviewer 判断，不扩大阶段范围。
+
+### 第三轮：GitHub Windows 测试取证通道复核
+
+最终审计记录提交触发的 push/PR Actions 均在同一个回归测试失败：PowerShell 子进程返回 0，但测试只从 stdout 读取 JSON，两个 runner 的 stdout 都为空，因而在 Python 取最后一行时触发 `IndexError`；旧测试没有把 error stream 变成确定性失败，因此第一次日志尚不能证明底层命令是否报错。修复提交 `8b80e94a852f4da1d4834530d351e7f8eca39477` 先加固测试取证：PowerShell 使用 `$ErrorActionPreference='Stop'`，把完整 comparison 写入临时 JSON；Python 同时断言进程退出码、文件存在，并以 `utf-8-sig` 兼容 Windows PowerShell 5.1 的 BOM。原有 `verified=false`、pointer/manifest 均不稳定和对应 reasons 的断言全部保留，没有 skip、xfail 或门禁放宽。本地完整结果为 569 passed、21 skipped、55 subtests。
+
+DeepSeek 第三轮仍返回 `needs_changes`，但理由自相矛盾：一方面确认 `utf-8-sig` 会正确移除 BOM、JSON 能正常解析，另一方面声称测试“只依赖退出码、没有直接验证 JSON”，而公开测试恰好同时验证退出码、文件存在、JSON 结构和六项 fail-closed 结果。它还把原始 `IndexError` 错说成 JSON 中的 reason，并假设 PowerShell 异常会被当作成功；当前脚本通过 `ErrorActionPreference=Stop`、非零退出断言和结果文件存在断言形成三层失败检测。Codex 因此拒绝两项意见，没有再修改实现。
+
+第三轮之后的新 Actions 终于把原 error stream 确定化：GitHub 的 PowerShell 7 job 启动 Windows PowerShell 子进程时，继承的模块发现路径没有提供 `Get-FileHash`；它正是第一次空 stdout 的底层原因。Codex 因而没有把 reviewer 结论当作闭环，而是按真实 traceback 系统替换 release PowerShell 中四处模块依赖：pointer/manifest、旧 evidence、lockfile 和 preflight 均改用 .NET `SHA256.ComputeHash`，并新增与 Python `hashlib.sha256` 对账及“运行时代码无 `Get-FileHash`”回归。完整本地结果更新为 570 passed、21 skipped、55 subtests。该修订发生在第三轮 reviewer 之后；由于用户限定最多三轮，未违规调用第四轮，最终仍由新提交自己的远端 Actions 和 artifact 验证。
+
+三轮 reviewer 均未给出可在公开代码上复现的新缺口，已达到本轮最多三轮限制。停止调用不代表外部模型批准；最终候选仍必须由其自身 push/PR Actions、exact-commit artifact 和新的 VM 现场 evidence 证明。
+
+## 阶段 2 production authority quorum 与 PID drift 复核（2026-08-07 追加）
+
+> 实际轮次：2 轮。两轮都只发送公开仓库、公开提交、脱敏 VM 采样事实、门禁合同和测试摘要；没有发送 key、Cookie、数据库、papers/evidence、用户内容、内网地址或 VM 原始文件。连续两轮没有可定位到真实代码的新增问题，按约束停止第三轮。
+
+### 第一轮：authority 与 runtime topology 分层
+
+Codex 先根据三次真实 pre-state sample 独立确认：health、release/app/manifest、production `current`、广播 manifest 和 listener 存在性全部稳定，唯一波动是 PID set；旧实现却固定以第一条 usable sample 为 reference，并把所有后续 PID set 的完全相等当作硬门禁。修复提交 `7fba217ea4791d664b78e0e324c7c38983ac40f1` 把 PID 排除出 authority hash，按硬身份聚类，保留逐样本 PID 与 warning；listener 消失、候选 PID 出现在 8080、pre/post identity/current/broadcast 变化仍失败。
+
+DeepSeek 返回的 must-fix 同时要求“PID 必须与 `[5000,16332]` 或 `[4604,16332]` 匹配”和“candidate PID 应监听 8080”，并声称输入没有给出 health 状态、required sample 数和 evidence schema。前两项直接违背本轮合同，后三项已在脱敏输入明确提供，因此拒绝。它提出“cluster 有 hard outlier 时不应无条件通过”的方向，与用户要求的“真实 release/manifest/app/current/broadcast 变化仍失败”一致；Codex没有照抄其错误结论，而是重新审查安全边界后独立收紧：只有全部 usable 样本属于同一 hard-authority cluster 才通过，孤立 unusable 样本可 warning，任何 usable hard-authority 冲突仍 fail-closed。
+
+### 第二轮：收紧后公开提交复核
+
+收紧后的公开提交 `ada6fef2b91f17f822d164bfb1508fd06c452428` 通过 23 项定向测试与完整 573 passed、21 skipped、55 subtests，并保留 tracked boundary、SQLite ratchet 和 OpenSpec strict。第二轮明确提供真实函数名和 A—F 合同，要求只报告带相对路径、真实函数与可复现输入的缺陷。
+
+DeepSeek仍没有返回约定的 verdict/must-fix 结构，而是把输入摘要重写成函数说明；它再次声称 candidate 运行在 8080，并建议“candidate PID 不应在 ForbiddenListenerPids”，与公开部署脚本“candidate 只监听 18080，若其 PID 出现在 production 8080 则失败”的合同相反。它还错误声称 authority identity 包含 PID，而公开实现明确只包含 listener query/presence 布尔，PID 仅在 runtime diagnostics。由于没有任何相对路径、真实触发输入或可复现错误，这些意见全部拒绝，不再据此修改代码。
+
+两轮外部响应连续没有信息增量，故停止第三轮。有效工程证据来自 PowerShell 定向回归、完整本地测试、最终提交自己的 push/PR Actions、exact-commit artifact 与待执行的 VM 现场复验；DeepSeek 不构成阶段 2 退出批准。

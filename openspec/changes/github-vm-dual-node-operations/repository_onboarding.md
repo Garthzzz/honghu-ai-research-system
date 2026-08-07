@@ -25,7 +25,7 @@
 ## 尚未完成
 
 - tag 级 Git 写权限已经验证，不应仅为重复认证再次登录或重跑同一测试。首次 bootstrap 的后续工作以 `tasks.md` 的“阶段 1：安全 Git bootstrap 与 CI”及其明确任务标题为准，不再引用已经失效的数字任务编号。
-- 尚未核验 GitHub 网页设置中的 private 可见性、2FA、ruleset、secret scanning/push protection；应在阶段 1 的仓库治理与 production gate 中核验。
+- 阶段 1 已核验 `main` ruleset/required checks；用户在 2026-08-04 明确要求迁移、实施和人工审核期间保持 public。public 是当前审核授权而非 production authority，2FA、公司控制权、共同管理/交接、deploy credential 等仍属于 production gate。
 - 尚未为 VM 配置应用仓库只读 deploy key。新版设计不再默认给内容仓库配置实时写权限；只有用户和合规重新批准其明确用途后才评估。
 - 第二个仓库本轮不删除、不重命名、不 archive；它的当前状态已明确，不再作为 production 设计的 open question。
 

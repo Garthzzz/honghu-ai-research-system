@@ -25,10 +25,11 @@ import json
 import hashlib
 import logging
 import math
+import os
+import sys
 import re
 import sqlite3
 import subprocess
-import sys
 import traceback
 from bisect import bisect_left, bisect_right
 from datetime import datetime
@@ -58,13 +59,19 @@ from tools.financial.read_models import (  # noqa: E402
 )
 from tools.financial.valuation import historical_pb_roa, historical_pb_roe  # noqa: E402
 from tools.viewer.lithium_runtime import resolve_inputs as resolve_lithium_inputs  # noqa: E402
+from tools.runtime_paths import (  # noqa: E402
+    readonly_candidate_enabled,
+    resolve_content_reference,
+    resolve_runtime_layout,
+)
 
-DB_PATH    = ROOT / "data" / "research.db"
-FINANCIAL_DB_PATH = ROOT / "data" / "financial.db"
-OPPORTUNITY_DB_PATH = ROOT / "data" / "opportunity_lens.db"
-DOCS_DIR   = ROOT / "docs"
-PAPERS_DIR = ROOT / "papers"
-CACHE_DIR  = ROOT / "cache"
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DB_PATH    = RUNTIME_LAYOUT.data_root / "research.db"
+FINANCIAL_DB_PATH = RUNTIME_LAYOUT.data_root / "financial.db"
+OPPORTUNITY_DB_PATH = RUNTIME_LAYOUT.data_root / "opportunity_lens.db"
+DOCS_DIR   = RUNTIME_LAYOUT.content_root / "docs"
+PAPERS_DIR = RUNTIME_LAYOUT.content_root / "papers"
+CACHE_DIR  = RUNTIME_LAYOUT.cache_root
 DEBUG_LOG  = CACHE_DIR / "viewer_debug.log"
 
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -196,12 +203,31 @@ app = Flask(
     template_folder=str(Path(__file__).resolve().parent / "templates"),
     static_folder=str(Path(__file__).resolve().parent / "static"),
 )
+app.config["HONGHU_READ_ONLY_CANDIDATE"] = readonly_candidate_enabled()
+app.config["OPPORTUNITY_LENS_DB_PATH"] = OPPORTUNITY_DB_PATH
 
 try:
     from .opportunity_lens_blueprint import opportunity_lens_bp
 except ImportError:
     from opportunity_lens_blueprint import opportunity_lens_bp
 app.register_blueprint(opportunity_lens_bp)
+
+
+@app.before_request
+def enforce_readonly_candidate_mode():
+    """Make a Phase 2 parallel candidate incapable of HTTP mutations."""
+    if app.config.get("HONGHU_READ_ONLY_CANDIDATE") and request.method not in {
+        "GET",
+        "HEAD",
+        "OPTIONS",
+    }:
+        return jsonify(
+            {
+                "ok": False,
+                "error": "read-only candidate blocks mutation methods",
+                "viewer_mode": "readonly_candidate",
+            }
+        ), 403
 
 
 @app.route("/favicon.ico")
@@ -465,10 +491,19 @@ app.jinja_env.globals["freshness"] = freshness
 
 # ── DB 工具 ───────────────────────────────────────────
 def get_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(DB_PATH))
+    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+        conn = sqlite3.connect(
+            f"file:{DB_PATH.resolve().as_posix()}?mode=ro",
+            uri=True,
+            timeout=10,
+        )
+        conn.execute("PRAGMA query_only=ON")
+    else:
+        conn = sqlite3.connect(str(DB_PATH))
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA synchronous=NORMAL")
+    if not app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
@@ -496,14 +531,19 @@ def query_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
 
 
 # ── 独立 sentiment.db(情绪/事件/代理/专题);C1:research.db 仅【只读】ATTACH ──
-SENTI_DB_PATH = ROOT / "data" / "sentiment.db"
+SENTI_DB_PATH = RUNTIME_LAYOUT.data_root / "sentiment.db"
 
 
 def senti_conn() -> Optional[sqlite3.Connection]:
     if not SENTI_DB_PATH.exists():
         return None
-    conn = sqlite3.connect(f"file:{SENTI_DB_PATH.as_posix()}", uri=True)   # uri 开启 → ATTACH 支持 mode=ro
+    sentiment_uri = f"file:{SENTI_DB_PATH.resolve().as_posix()}"
+    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+        sentiment_uri += "?mode=ro"
+    conn = sqlite3.connect(sentiment_uri, uri=True)
     conn.row_factory = sqlite3.Row
+    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+        conn.execute("PRAGMA query_only=ON")
     conn.execute(f"ATTACH DATABASE 'file:{DB_PATH.as_posix()}?mode=ro' AS research")
     return conn
 
@@ -2963,7 +3003,10 @@ def _render_lithium_calculator(*, comparison_mode: bool):
     each mine/salar, its stated ownership, 2025-2030 volume, cost and notes.  It
     must not be collapsed back into one company-level resource row.
     """
-    calculator_inputs = resolve_lithium_inputs(ROOT)
+    calculator_inputs = resolve_lithium_inputs(
+        RUNTIME_LAYOUT.code_root,
+        state_root=RUNTIME_LAYOUT.state_root,
+    )
     model_path = calculator_inputs.independent_model
     recon_path = calculator_inputs.reconciliation
     project_ledger_path = calculator_inputs.project_ledger
@@ -4173,7 +4216,15 @@ def serve_pdf(source_id: int):
     if not src or not src.get("file_path"):
         abort(404, "该 source 无 file_path")
     rel = src["file_path"].strip()
-    pdf_abs = (ROOT / rel).resolve()
+    try:
+        pdf_abs = resolve_content_reference(
+            RUNTIME_LAYOUT.content_root,
+            rel,
+            default_prefix="papers",
+        )
+    except ValueError:
+        log.warning("serve_pdf 路径越界: %s", rel)
+        abort(403)
     # 安全校验:必须在 papers/ 内
     try:
         pdf_abs.relative_to(PAPERS_DIR.resolve())
@@ -4466,7 +4517,11 @@ def refresh_industry(industry_id: int):
         "refresh_confirm.html",
         ind=ind,
         last_snap=last_snap,
-        papers_subdir=str(papers_subdir.relative_to(ROOT)) if papers_subdir.exists() else None,
+        papers_subdir=(
+            str(papers_subdir.relative_to(RUNTIME_LAYOUT.content_root))
+            if papers_subdir.exists()
+            else None
+        ),
         paper_files=paper_files,
         new_files=new_files,
     )
@@ -7117,9 +7172,9 @@ def api_health():
                 release_version = "manifest_unreadable"
         app_sha256 = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
         active_routes = {rule.rule for rule in app.url_map.iter_rules()}
-        return jsonify({
+        payload = {
             "ok": True,
-            "db_path": str(DB_PATH),
+            "db_path": str(DB_PATH) if not app.config.get("HONGHU_READ_ONLY_CANDIDATE") else None,
             "tables": tables,
             "table_count": len(tables),
             "release_version": release_version,
@@ -7142,7 +7197,30 @@ def api_health():
                 ),
             },
             "time": datetime.now().isoformat(timespec="seconds"),
-        })
+            "viewer_mode": (
+                "readonly_candidate"
+                if app.config.get("HONGHU_READ_ONLY_CANDIDATE")
+                else "legacy_live"
+            ),
+        }
+        if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+            deploy_root = os.environ.get("HONGHU_DEPLOY_ROOT")
+            if deploy_root:
+                from tools.release.manager import release_health_payload
+
+                release_health = release_health_payload(
+                    deploy_root,
+                    data_root=RUNTIME_LAYOUT.data_root,
+                )
+                payload["ok"] = bool(payload["ok"] and release_health["ok"])
+                payload["release"] = release_health["release"]
+                payload["database_contract"] = release_health["database_contract"]
+            payload["candidate_process"] = {
+                "pid": os.getpid(),
+                "launch_id": os.environ.get("HONGHU_CANDIDATE_LAUNCH_ID"),
+                "python_version": ".".join(map(str, sys.version_info[:3])),
+            }
+        return jsonify(payload)
     except Exception:
         log.error(f"health error: {traceback.format_exc()}")
         return jsonify({"ok": False, "error": "db check failed"}), 500

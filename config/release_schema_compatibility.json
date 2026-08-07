@@ -1,0 +1,94 @@
+{
+  "schema_version": "honghu.release_schema_compatibility.v1",
+  "backend": "sqlite-transition",
+  "migration_phase": "pre-postgresql",
+  "forward_only_migrations": [],
+  "code_only_rollback": {
+    "allowed": true,
+    "requires_same_backend": true,
+    "requires_declared_objects_columns_and_probes": true,
+    "changes_data_authority": false,
+    "changes_user_content": false
+  },
+  "compatibility_scope": "readonly_candidate_representative_routes",
+  "databases": {
+    "research.db": {
+      "required_objects": {
+        "industry": {"type": "table", "required_columns": ["id", "name", "tier", "status"]},
+        "source": {"type": "table", "required_columns": ["id", "title", "file_path", "source_credibility", "note", "publish_date"]},
+        "company": {"type": "table", "required_columns": ["id", "name", "ticker", "market", "listing_status", "pe_ttm", "pb", "roe", "roa"]},
+        "news_item": {"type": "table", "required_columns": ["id", "title", "source_id", "publish_date", "fetch_timestamp", "importance", "is_breaking", "is_ai_relevant"]},
+        "event": {"type": "table", "required_columns": ["id", "title", "scheduled_date", "importance", "event_type", "status"]},
+        "opinion_leader": {"type": "table", "required_columns": ["id", "name", "platform", "source_id"]},
+        "voice_post": {"type": "table", "required_columns": ["id", "leader_id", "content_text", "post_url", "posted_at", "post_type", "is_ai_relevant"]},
+        "researcher": {"type": "table", "required_columns": ["id", "name", "display_name"]},
+        "hypothesis": {"type": "table", "required_columns": ["id", "researcher_id", "is_draft", "related_industry_ids", "related_company_ids"]},
+        "industry_data_point": {"type": "table", "required_columns": ["id", "industry_id", "source_id", "period", "metric", "extraction_method"]},
+        "industry_relation": {"type": "table", "required_columns": ["upstream_id", "downstream_id", "cost_share", "demand_share"]},
+        "company_industry": {"type": "table", "required_columns": ["company_id", "industry_id", "role", "revenue_share", "note"]},
+        "company_profile": {"type": "table", "required_columns": ["id", "company_id", "industry_id", "period", "revenue_series", "net_income_series", "gross_margin", "net_margin", "source_ids"]},
+        "source_entity": {"type": "table", "required_columns": ["source_id", "entity_type", "entity_id"]},
+        "thesis": {"type": "table", "required_columns": ["id", "industry_id", "created_at"]},
+        "source_snapshot": {"type": "table", "required_columns": ["industry_id", "snapshot_date"]},
+        "md_section_version": {"type": "table", "required_columns": ["review_pending", "md_path"]},
+        "industry_thesis": {"type": "table", "required_columns": ["industry_id", "consensus_narrative", "consensus_source_ids"]},
+        "theme": {"type": "table", "required_columns": ["id", "name", "category", "summary", "status"]},
+        "theme_industry": {"type": "table", "required_columns": ["theme_id", "industry_id", "impact", "note"]},
+        "theme_company": {"type": "table", "required_columns": ["theme_id", "company_id", "impact", "note"]}
+      },
+      "probe_queries": [
+        {"id": "industry-reader", "sql": "SELECT id,name,tier,status FROM industry LIMIT 1"},
+        {"id": "source-reader", "sql": "SELECT id,title,file_path FROM source LIMIT 1"},
+        {"id": "company-reader", "sql": "SELECT id,name,ticker FROM company LIMIT 1"},
+        {"id": "home-reader", "sql": "SELECT n.id,s.source_credibility FROM news_item n LEFT JOIN source s ON s.id=n.source_id WHERE n.is_ai_relevant=1 OR n.is_ai_relevant IS NULL LIMIT 1"},
+        {"id": "industry-detail-reader", "sql": "SELECT dp.metric,s.title FROM industry_data_point dp LEFT JOIN source s ON s.id=dp.source_id LIMIT 1"},
+        {"id": "industry-company-reader", "sql": "SELECT ci.role,c.name,cp.gross_margin FROM company_industry ci JOIN company c ON c.id=ci.company_id LEFT JOIN company_profile cp ON cp.company_id=ci.company_id AND cp.industry_id=ci.industry_id LIMIT 1"},
+        {"id": "theme-detail-reader", "sql": "SELECT id,name,category,summary,status FROM theme LIMIT 1"},
+        {"id": "theme-industry-reader", "sql": "SELECT ti.industry_id,t.name FROM theme_industry ti JOIN theme t ON t.id=ti.theme_id LIMIT 1"},
+        {"id": "company-theme-reader", "sql": "SELECT tc.company_id,t.name FROM theme_company tc JOIN theme t ON t.id=tc.theme_id LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    },
+    "sentiment.db": {
+      "required_objects": {
+        "senti_raw": {"type": "table", "required_columns": ["id", "company_id", "ticker", "publish_time"]},
+        "stock_kline": {"type": "table", "required_columns": ["id", "company_id", "ticker", "freq", "ts", "o", "h", "l", "c", "vol"]},
+        "funda_semi_nodes": {"type": "table", "required_columns": ["ticker", "name", "layer"]},
+        "senti_retail_daily": {"type": "table", "required_columns": ["company_id", "trade_date", "valid_count", "net_sentiment_weighted", "coverage", "usable"]},
+        "event_item": {"type": "table", "required_columns": ["entity_type", "entity_id", "title", "published_at", "sentiment", "materiality", "summary_ai"]}
+      },
+      "probe_queries": [
+        {"id": "sentiment-reader", "sql": "SELECT id,company_id,ticker,publish_time FROM senti_raw LIMIT 1"},
+        {"id": "kline-reader", "sql": "SELECT company_id,ticker,freq,ts,o,h,l,c,vol FROM stock_kline LIMIT 1"},
+        {"id": "retail-reader", "sql": "SELECT company_id,trade_date,valid_count,net_sentiment_weighted,coverage,usable FROM senti_retail_daily LIMIT 1"},
+        {"id": "company-event-reader", "sql": "SELECT title,published_at,sentiment,materiality,summary_ai FROM event_item WHERE entity_type='company' LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    },
+    "opportunity_lens.db": {
+      "required_objects": {
+        "opportunity_run": {"type": "table", "required_columns": ["id", "run_status", "display_title", "research_question"]},
+        "opportunity_source": {"type": "table", "required_columns": ["id", "run_id", "title", "evidence_ref_uri"]},
+        "opportunity_entity": {"type": "table", "required_columns": ["id", "entity_type", "canonical_name", "display_name"]}
+      },
+      "probe_queries": [
+        {"id": "run-reader", "sql": "SELECT id,run_status,display_title,research_question FROM opportunity_run LIMIT 1"},
+        {"id": "entity-reader", "sql": "SELECT id,entity_type,canonical_name,display_name FROM opportunity_entity LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    },
+    "financial.db": {
+      "required_objects": {
+        "financial_security": {"type": "table", "required_columns": ["id", "research_company_id", "canonical_name", "ticker", "market"]},
+        "financial_observation": {"type": "table", "required_columns": ["id", "security_id", "metric_name", "fact_type", "as_of_date"]},
+        "financial_model_run": {"type": "table", "required_columns": ["id", "run_key", "security_id", "model_name", "status"]}
+      },
+      "probe_queries": [
+        {"id": "security-reader", "sql": "SELECT id,research_company_id,canonical_name,ticker,market FROM financial_security LIMIT 1"},
+        {"id": "observation-reader", "sql": "SELECT security_id,metric_name,fact_type,as_of_date FROM financial_observation LIMIT 1"}
+      ],
+      "schema_fingerprint": {"mode": "audit_only", "accepted": []}
+    }
+  },
+  "contract_policy": "A destructive or forward-only database contract requires a separately approved release. Code-only rollback is allowed only when the same backend passes the declared object, column and read-probe contract. The full schema fingerprint is diagnostic in phase 2 and is not proof of compatibility outside the representative read-only route scope."
+}

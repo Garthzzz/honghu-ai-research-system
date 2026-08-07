@@ -12,7 +12,9 @@
 
 因此长期方向改为：
 
-> **private GitHub 应用仓库管理代码和正式规则；中央 PostgreSQL 管理 live 结构化数据；内部文件或对象存储管理 papers/evidence；本地 dev/test 与 VM production 分离。**
+> **受控 GitHub 应用仓库管理代码和正式规则；中央 PostgreSQL 管理 live 结构化数据；内部文件或对象存储管理 papers/evidence；本地 dev/test 与 VM production 分离。**
+
+长期正常边界仍优先采用 private/公司治理仓库。用户已明确批准迁移实施和人工审核期间保持 public，便于核验 Actions、提交和阶段证据；该公开例外不允许新增数据库、papers、用户内容、凭据或其他敏感资产，也不使个人账号仓库自动成为 production authority。
 
 SQLite 不立即下线，但只作为按业务切换单元迁移的现状。PostgreSQL 产生必须保留的新写入后，旧 SQLite 主要是冻结迁移基线、审计档案和有限修复材料，不再是默认无损回滚点。
 
@@ -92,7 +94,7 @@ SQLite 不立即下线，但只作为按业务切换单元迁移的现状。Post
 
 ### 安全 bootstrap commit
 
-只要求 tracked allowlist、secret/path gate、禁止资产排除、首次 staged inventory 人工审查和 private repository 权限确认。已知测试债务可以在 bootstrap branch 内修复。
+只要求 tracked allowlist、secret/path gate、禁止资产排除、首次 staged inventory 人工审查和仓库可见性/权限获得明确批准。已知测试债务可以在 bootstrap branch 内修复；当前 public 审核例外必须配套每阶段暴露复核。
 
 ### 合入受保护 main
 
@@ -100,7 +102,7 @@ SQLite 不立即下线，但只作为按业务切换单元迁移的现状。Post
 
 ### VM production 部署
 
-还要求 immutable release、deployment manifest、preflight/health、只读 smoke、runtime 分离、明确 commit SHA 和 code-only rollback。code-only rollback 只有在当前 schema 仍兼容旧代码时成立；forward-only migration 需要单独恢复策略。数据库 migration 和任务切换另有独立批准。
+还要求 immutable release、deployment manifest、preflight/health、只读 smoke、runtime 分离、明确 commit SHA 和 code-only rollback。候选 listener 必须绑定可核验的进程身份，Python 环境必须由明确的 3.10 解释器在候选根按 lockfile 重建；所有导入项目代码的子进程都必须隔离 `PYTHONPATH/PYTHONHOME` 并禁止写 bytecode，且在 build、preflight、activate、launch、smoke、stop 或失败清理后复核同一 manifest。相同 SHA 的失效但未激活目录只能整体进入可审计 quarantine 后重建，current 或运行引用的 release 不得自动清理。计划任务和生产 8080/current 要采集部署前后状态，不能用脚本声明替代实测。只读 smoke 应覆盖四库、外置文档、计算器和静态资源，并把 VM 本机与内网客户端可达性分开记录。code-only rollback 只有在当前 backend 通过旧 release 声明的对象、列、版本和只读探针合同时成立；仅计算 schema fingerprint 不是完整兼容证明，forward-only migration 需要单独恢复策略。数据库 migration 和任务切换另有独立批准。
 
 当前应用仓库属于个人账号 `Garthzzz`。它可以在批准后用于安全 bootstrap 和开发，但成为 production authority 前必须完成公司资产归属或正式例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
 

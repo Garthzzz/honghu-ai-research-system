@@ -43,15 +43,22 @@ def deployed_inputs(root: Path) -> LithiumCalculatorInputs:
 
 
 def resolve_inputs(
-    root: Path,
+    code_root: Path,
     *,
+    state_root: Path | None = None,
     allow_legacy_cache: bool = True,
 ) -> LithiumCalculatorInputs:
-    """Return deployable inputs, optionally falling back to the old cache paths."""
-    primary = deployed_inputs(root)
+    """Return frozen inputs without confusing immutable code and mutable state.
+
+    The supported model lives in tracked ``config`` below ``code_root``.  The
+    old cache fallback remains transitional only and, in an immutable release,
+    is resolved below the external ``state_root``.
+    """
+    primary = deployed_inputs(code_root)
     if not primary.missing() or not allow_legacy_cache:
         return primary
-    legacy_dir = root / LEGACY_MODEL_DIR_RELATIVE
+    state = (state_root or code_root).resolve()
+    legacy_dir = state / "cache" / "lithium_research" / "models"
     legacy = LithiumCalculatorInputs(
         independent_model=legacy_dir / MODEL_FILENAMES[0],
         reconciliation=legacy_dir / MODEL_FILENAMES[1],

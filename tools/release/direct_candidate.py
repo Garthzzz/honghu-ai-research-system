@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+"""Start the candidate in the listener-owning base interpreter.
+
+On Windows, a venv ``python.exe`` can be a redirector process whose child owns
+the socket. The release contract records and stops the listener itself, so the
+deployer launches the verified base interpreter with ``-I -B -S`` and adds only
+the already verified venv site-packages before entering an allowlisted release
+module.  The same bootstrap is used by one-shot project commands so a caller's
+``PYTHONPATH`` cannot choose the imported ``tools`` package and no bytecode is
+written into an immutable release.
+"""
+
+import argparse
+import importlib
+import sys
+from pathlib import Path
+
+
+ALLOWED_MODULES = {
+    "tools.release.cli": "main",
+    "tools.release.readonly_smoke": "main",
+}
+
+
+def configure_utf8_stdio() -> None:
+    """Make project JSON output independent of the inherited Windows code page.
+
+    Isolated mode intentionally ignores ``PYTHONUTF8`` and
+    ``PYTHONIOENCODING``.  The bootstrap must therefore set the streams before
+    importing any project entrypoint.  Without this, a cp1252 runner cannot
+    emit evidence containing Chinese text even though the evidence file itself
+    is correctly written as UTF-8.
+    """
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            reconfigure(encoding="utf-8", errors="strict")
+
+
+def prepare_import_path(site_packages: str | Path) -> tuple[Path, Path]:
+    locked_site = Path(site_packages).resolve()
+    if not locked_site.is_dir():
+        raise RuntimeError(f"locked site-packages directory is missing: {locked_site}")
+    release_root = Path(__file__).resolve().parents[2]
+    retained = []
+    for item in sys.path:
+        if not item:
+            continue
+        resolved = Path(item).resolve()
+        if "site-packages" in {part.casefold() for part in resolved.parts}:
+            continue
+        if resolved not in {release_root, locked_site}:
+            retained.append(item)
+    sys.path[:] = [str(release_root), str(locked_site), *retained]
+    return release_root, locked_site
+
+
+def main(argv: list[str] | None = None) -> int:
+    configure_utf8_stdio()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--site-packages", required=True)
+    parser.add_argument("--module", choices=sorted(ALLOWED_MODULES), required=True)
+    args, remainder = parser.parse_known_args(argv)
+    prepare_import_path(args.site_packages)
+    if not remainder:
+        raise RuntimeError("candidate CLI command is missing")
+    module = importlib.import_module(args.module)
+    entrypoint = getattr(module, ALLOWED_MODULES[args.module])
+    return int(entrypoint(remainder))
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -419,13 +419,48 @@ def sqlite_inventory(root: Path, paths: list[str]) -> dict[str, Any]:
 
 def check_sqlite_ratchet(current: dict[str, Any], baseline: dict[str, Any]) -> dict[str, Any]:
     failures: list[dict[str, Any]] = []
+    applied_exceptions: list[dict[str, Any]] = []
     old = baseline.get("counts_by_file_rule", {})
+    exceptions: dict[tuple[str, str], dict[str, Any]] = {}
+    required_exception_fields = (
+        "path",
+        "rule",
+        "max_count",
+        "domain",
+        "reason",
+        "owner",
+        "future_cutover_unit_candidate",
+        "sunset_condition",
+    )
+    for item in baseline.get("documented_exceptions", []):
+        if not isinstance(item, dict) or not all(item.get(field) not in (None, "") for field in required_exception_fields):
+            continue
+        exceptions[(str(item["path"]), str(item["rule"]))] = item
     for path, rules in current.get("counts_by_file_rule", {}).items():
         for rule, count in rules.items():
             allowed = int(old.get(path, {}).get(rule, 0))
+            exception = exceptions.get((path, rule))
+            if exception is not None:
+                exception_limit = int(exception["max_count"])
+                if exception_limit > allowed:
+                    allowed = exception_limit
+                    applied_exceptions.append({
+                        "path": path,
+                        "rule": rule,
+                        "baseline": int(old.get(path, {}).get(rule, 0)),
+                        "exception_limit": exception_limit,
+                        "current": int(count),
+                        "domain": exception["domain"],
+                        "owner": exception["owner"],
+                        "sunset_condition": exception["sunset_condition"],
+                    })
             if int(count) > allowed:
                 failures.append({"path": path, "rule": rule, "baseline": allowed, "current": count})
-    return {"status": "blocked" if failures else "pass", "failures": failures}
+    return {
+        "status": "blocked" if failures else "pass",
+        "failures": failures,
+        "applied_exceptions": sorted(applied_exceptions, key=lambda row: (row["path"], row["rule"])),
+    }
 
 
 def write_json(path: Path, payload: dict[str, Any]) -> None:

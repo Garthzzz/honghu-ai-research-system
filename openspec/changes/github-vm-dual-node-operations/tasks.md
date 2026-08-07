@@ -1,8 +1,8 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0 已获用户批准退出；现仅授权执行阶段 1“安全 Git bootstrap 与 CI”。PostgreSQL、VM、数据库和任务实施均未获授权。
-> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。阶段 1 人工 HALT 尚未批准。仓库当前仅为本轮审查临时 public，人工复核后应恢复 private。
+> 当前状态：阶段 0、阶段 1 均已获用户批准退出；现仅授权执行阶段 2“可重复 release 与本地开发边界”。PostgreSQL、数据库后端切换、计划任务迁移和现有生产 Viewer 切换均未获授权。
+> 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
 
@@ -70,7 +70,7 @@
 - [x] [本阶段必须] 已准备 main 的 CI、required-check 名称和治理边界，并明确 bootstrap branch、main merge 和 deployable commit 的不同门槛。
 - [x] [人工 GitHub gate] 已在 bootstrap 修复提交两个远端 job 真实绿色后创建 `main`；GitHub API 回读确认默认分支为 `main`，required checks 为 `boundary-and-contracts`、`python-clean-environment`，strict update、PR review gate、管理员约束和 conversation resolution 已启用，force push 与 branch deletion 已禁止。该仓库仍只是 bootstrap/development source，不是 production authority，也不授权 VM deployment。
 - [ ] [production gate] 应用仓库在成为 production authority 前，完成公司资产归属或经批准例外、第二位公司管理员/交接、强制 2FA、账号恢复、branch protection、最小权限和公司控制的 VM deploy credential。
-- [ ] [HALT] 提交 tracked inventory、CI 结果、已知例外和 Git diff，等待人工批准。
+- [x] [HALT] 用户已于 2026-08-04 05:31:09 +08:00 完成人工复核并批准阶段 1 退出。批准人：用户；批准范围仅为阶段 2 的 immutable release、本地 dev/test 边界、health/preflight、代码级 rollback 和不切换生产的 VM 只读并行候选；未批准 PostgreSQL production、live SQLite 修改、计划任务迁移、现有生产 Viewer 切换或 production authority；下一人工 HALT 位于阶段 2 结束。
 
 **退出条件**：干净 clone 可恢复正式开发/审核规则；活动测试稳定通过；main 受保护；仓库历史不含禁止资产。仓库控制权 gate 可以不阻止安全 bootstrap，但未关闭前禁止 production deploy。
 
@@ -83,14 +83,21 @@
 **前置条件**：阶段 1 通过。  
 **回滚点**：继续使用当前 Viewer 启动与广播冷备；数据库不变。
 
-- [ ] [本阶段必须] 定义 deployment allowlist/manifest，区分 Git tracked closure 与运行所需 artifact closure。
-- [ ] [本阶段必须] 建立 immutable `releases/<sha>`、`current` 原子切换、`runtime`/secrets/data 外置和 deployment ledger。
-- [ ] [本阶段必须] 将 commit SHA、manifest hash、database schema version 暴露给 health/preflight 审计，但不得泄露凭据。
-- [ ] [本阶段必须] 验证 preflight、read-only smoke 和 code-only rollback；应用回滚不得改数据库或人工内容。
-- [ ] [本阶段必须] 定义 migration compatibility 声明，验证 code-only rollback 只在旧代码仍兼容当前 schema 时成立；forward-only migration 必须显式标记。
-- [ ] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
+- [x] [本阶段必须] 定义 deployment allowlist/manifest，区分 Git tracked closure 与运行所需 artifact closure。
+- [x] [本阶段必须] 建立 immutable `releases/<sha>`、`current` 原子切换、`runtime`/secrets/data 外置和 deployment ledger。
+- [x] [本阶段必须] 将 commit SHA、manifest hash、database schema version 暴露给 health/preflight 审计，但不得泄露凭据。
+- [x] [本阶段必须] 验证 preflight、read-only smoke 和 code-only rollback；应用回滚不得改数据库或人工内容。
+- [x] [本阶段必须] 定义 migration compatibility 声明，验证 code-only rollback 只在旧代码仍兼容当前 schema 时成立；forward-only migration 必须显式标记。
+- [x] [本阶段必须] 修复候选进程生命周期：listener-owning PID 使用启动时间、解释器、命令行 hash、launch id、commit 和端口联合验证；重复部署及所有已识别失败路径执行身份核验后的清理，不使用裸 PID。
+- [x] [本阶段必须] 将 VM evidence 从写死声明改为部署前/后实测，分开记录静态保证、生产 8080/current、计划任务定义、候选进程、只读合同、代表性 smoke 和仍未验证的内网客户端可达性。
+- [x] [本阶段必须] 要求显式 Python 3.10 bootstrap 路径，在候选根按 lockfile 建立隔离环境；不得从 PATH 猜测解释器或修改现有生产任务环境。
+- [x] [本阶段必须] 修复外置 content/state 路径并建立代表性读取闭包；schema compatibility 收窄并增强为对象、列、版本和只读探针门禁，完整 fingerprint 仅作诊断。
+- [x] [本阶段必须] 依据生产事实区分外置内容的 required/optional 合同：`docs/industries` 与 `papers` 继续 fail-closed，`docs/themes` 作为数据库主题页的可选 Markdown 增强；缺失状态进入 preflight/evidence，并由数据库-only 主题路由 smoke 验证。
+- [x] [本阶段必须] 关闭 immutable release bytecode 污染与同 SHA 重试缺口：所有项目 Python 子进程使用隔离导入并禁止 bytecode；build、preflight、activate、launch、smoke、stop/失败清理均复核 manifest；仅对非 current、非运行引用的失效 release 做整目录可审计 quarantine/rebuild，并保留逐次失败 evidence。
+- [x] [本阶段必须] 修复 VM legacy health、候选进程与 evidence 生命周期兼容：8080 的 HTTP 可达性、可用身份字段和字段缺失分开记录并使用有界硬权威身份 quorum；listener PID 漂移保留为运行时 warning，不替代 release/app/manifest/current/broadcast 与 listener 存在性的硬门禁；pre/post/recovery 使用同一比较语义并拒绝候选 PID 出现在 8080。CIM/Get-Process 可选属性不再由 StrictMode 误判；stale record 只有在双进程源、端口和健康探针共同证明候选不存在时才归档收口；原始 gate state/comparison/reasons、主失败、cleanup/pointer recovery 和 post-cleanup/final-state 分区持久化，后续采样不得覆盖原 gate。
+- [x] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
 - [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
-- [ ] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。
+- [x] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。
 - [ ] [HALT] 提交 release 演练、rollback、clean clone 和本地离线开发证据，等待人工批准。
 
 **退出条件**：明确 commit 可重复部署；本地 dev/test 独立；VM 只读候选可回滚且不影响 live 系统。

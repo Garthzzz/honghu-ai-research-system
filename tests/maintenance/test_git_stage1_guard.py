@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tools.maintenance.git_stage1_guard import build_inventory, load_policy
+from tools.maintenance.git_stage1_guard import (
+    build_inventory,
+    check_sqlite_ratchet,
+    load_policy,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -51,3 +55,53 @@ def test_local_virtual_environment_is_runtime_not_pending_review(tmp_path: Path)
     assert records[".venv-stage1/Lib/site-packages/sample.py"]["classification"] == (
         "runtime"
     )
+
+
+def test_sqlite_ratchet_only_accepts_complete_bounded_exception() -> None:
+    current = {"counts_by_file_rule": {"tools/example.py": {"sqlite3_connect": 2}}}
+    baseline = {
+        "counts_by_file_rule": {},
+        "documented_exceptions": [
+            {
+                "path": "tools/example.py",
+                "rule": "sqlite3_connect",
+                "max_count": 2,
+                "domain": "release test fixture",
+                "reason": "synthetic fixture only",
+                "owner": "release governance",
+                "future_cutover_unit_candidate": "dev/test data platform",
+                "sunset_condition": "remove after the PostgreSQL dev fixture is authoritative",
+            }
+        ],
+    }
+
+    result = check_sqlite_ratchet(current, baseline)
+
+    assert result["status"] == "pass"
+    assert result["applied_exceptions"][0]["exception_limit"] == 2
+
+
+def test_sqlite_ratchet_rejects_incomplete_or_exceeded_exception() -> None:
+    current = {"counts_by_file_rule": {"tools/example.py": {"sqlite3_connect": 3}}}
+    baseline = {
+        "counts_by_file_rule": {},
+        "documented_exceptions": [
+            {
+                "path": "tools/example.py",
+                "rule": "sqlite3_connect",
+                "max_count": 2,
+                "domain": "release test fixture",
+                "reason": "synthetic fixture only",
+                "owner": "release governance",
+                "future_cutover_unit_candidate": "dev/test data platform",
+                "sunset_condition": "remove after the PostgreSQL dev fixture is authoritative",
+            }
+        ],
+    }
+
+    result = check_sqlite_ratchet(current, baseline)
+
+    assert result["status"] == "blocked"
+    assert result["failures"] == [
+        {"path": "tools/example.py", "rule": "sqlite3_connect", "baseline": 2, "current": 3}
+    ]

@@ -12,6 +12,9 @@
 /backup/
 /broadcast_packages/
 /cache/
+/releases/
+/runtime/
+/current
 /workpapers/
 /reviews/
 *.log
