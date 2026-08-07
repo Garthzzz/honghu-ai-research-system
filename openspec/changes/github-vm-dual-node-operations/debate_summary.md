@@ -277,3 +277,21 @@ DeepSeek 第三轮仍返回 `needs_changes`，但理由自相矛盾：一方面�
 第三轮之后的新 Actions 终于把原 error stream 确定化：GitHub 的 PowerShell 7 job 启动 Windows PowerShell 子进程时，继承的模块发现路径没有提供 `Get-FileHash`；它正是第一次空 stdout 的底层原因。Codex 因而没有把 reviewer 结论当作闭环，而是按真实 traceback 系统替换 release PowerShell 中四处模块依赖：pointer/manifest、旧 evidence、lockfile 和 preflight 均改用 .NET `SHA256.ComputeHash`，并新增与 Python `hashlib.sha256` 对账及“运行时代码无 `Get-FileHash`”回归。完整本地结果更新为 570 passed、21 skipped、55 subtests。该修订发生在第三轮 reviewer 之后；由于用户限定最多三轮，未违规调用第四轮，最终仍由新提交自己的远端 Actions 和 artifact 验证。
 
 三轮 reviewer 均未给出可在公开代码上复现的新缺口，已达到本轮最多三轮限制。停止调用不代表外部模型批准；最终候选仍必须由其自身 push/PR Actions、exact-commit artifact 和新的 VM 现场 evidence 证明。
+
+## 阶段 2 production authority quorum 与 PID drift 复核（2026-08-07 追加）
+
+> 实际轮次：2 轮。两轮都只发送公开仓库、公开提交、脱敏 VM 采样事实、门禁合同和测试摘要；没有发送 key、Cookie、数据库、papers/evidence、用户内容、内网地址或 VM 原始文件。连续两轮没有可定位到真实代码的新增问题，按约束停止第三轮。
+
+### 第一轮：authority 与 runtime topology 分层
+
+Codex 先根据三次真实 pre-state sample 独立确认：health、release/app/manifest、production `current`、广播 manifest 和 listener 存在性全部稳定，唯一波动是 PID set；旧实现却固定以第一条 usable sample 为 reference，并把所有后续 PID set 的完全相等当作硬门禁。修复提交 `7fba217ea4791d664b78e0e324c7c38983ac40f1` 把 PID 排除出 authority hash，按硬身份聚类，保留逐样本 PID 与 warning；listener 消失、候选 PID 出现在 8080、pre/post identity/current/broadcast 变化仍失败。
+
+DeepSeek 返回的 must-fix 同时要求“PID 必须与 `[5000,16332]` 或 `[4604,16332]` 匹配”和“candidate PID 应监听 8080”，并声称输入没有给出 health 状态、required sample 数和 evidence schema。前两项直接违背本轮合同，后三项已在脱敏输入明确提供，因此拒绝。它提出“cluster 有 hard outlier 时不应无条件通过”的方向，与用户要求的“真实 release/manifest/app/current/broadcast 变化仍失败”一致；Codex没有照抄其错误结论，而是重新审查安全边界后独立收紧：只有全部 usable 样本属于同一 hard-authority cluster 才通过，孤立 unusable 样本可 warning，任何 usable hard-authority 冲突仍 fail-closed。
+
+### 第二轮：收紧后公开提交复核
+
+收紧后的公开提交 `ada6fef2b91f17f822d164bfb1508fd06c452428` 通过 23 项定向测试与完整 573 passed、21 skipped、55 subtests，并保留 tracked boundary、SQLite ratchet 和 OpenSpec strict。第二轮明确提供真实函数名和 A—F 合同，要求只报告带相对路径、真实函数与可复现输入的缺陷。
+
+DeepSeek仍没有返回约定的 verdict/must-fix 结构，而是把输入摘要重写成函数说明；它再次声称 candidate 运行在 8080，并建议“candidate PID 不应在 ForbiddenListenerPids”，与公开部署脚本“candidate 只监听 18080，若其 PID 出现在 production 8080 则失败”的合同相反。它还错误声称 authority identity 包含 PID，而公开实现明确只包含 listener query/presence 布尔，PID 仅在 runtime diagnostics。由于没有任何相对路径、真实触发输入或可复现错误，这些意见全部拒绝，不再据此修改代码。
+
+两轮外部响应连续没有信息增量，故停止第三轮。有效工程证据来自 PowerShell 定向回归、完整本地测试、最终提交自己的 push/PR Actions、exact-commit artifact 与待执行的 VM 现场复验；DeepSeek 不构成阶段 2 退出批准。

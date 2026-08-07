@@ -18,6 +18,8 @@
 
 新增回归覆盖三次样本中 hard authority 全部一致但 PID set 漂移、一次不可用样本加两个稳定 authority 样本、2/3 hard-authority cluster 仍因一个可用 identity 冲突而失败、listener 消失、候选 PID 出现在 8080、pointer/manifest 变化，以及 pre/post comparison 复用同一语义。旧分支头 `1582843ea66b795d899d390099673ae1144dd7c5` 不再用于下一次 VM 验收；新 SHA 只在完整本地验证、DeepSeek reviewer、push/PR CI 和 exact-commit evidence 全部完成后确定。
 
+本轮收紧后本地结果为 573 passed、21 skipped、55 subtests；23 项只读候选定向测试全部通过，compile、tracked boundary（784 个文件）、SQLite dependency ratchet 和 OpenSpec strict 均通过。DeepSeek 实际调用两轮：第一轮错误要求 PID 固定和 candidate 监听 8080，但其“hard outlier 不应被 quorum 掩盖”的方向经 Codex独立核对后转化为更严格合同；第二轮仍错误声称 authority hash 包含 PID、candidate 应在 8080，且没有给出任何可复现路径，故拒绝并停止第三轮。最终远端 Actions 与 exact-commit artifact 仍必须绑定最后文档提交自身，不能复用中间提交结果。
+
 ## 2026-08-07 production gate evidence 覆盖缺陷与稳定采样修复
 
 真实 VM 使用提交 `67cc70ec93908db982d8f16f81c49f1ae3b9c90a` 时，18080 成功启动，commit/PID/数据库合同正确，16 项代表性 smoke 全部通过，写请求门禁返回 403。最终 production gate 抛出 `Production 8080/current evidence is not stable.`，随后候选清理成功、端口释放、candidate pointer 恢复，8080 正常。但最终 JSON 却显示 `observed.production_8080_and_pointer_unchanged.verified=true` 且 `reasons=[]`。
