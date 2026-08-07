@@ -67,9 +67,13 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 - **WHEN** the original production or scheduled-task gate comparison is false and post-cleanup sampling later compares true
 - **THEN** the original gate-time post-state, false comparison, reasons and primary failure SHALL remain immutable, while the post-cleanup/final state and its comparison SHALL be stored under a separate recovery evidence section and SHALL NOT replace compatibility aliases that point to the original gate
 
-#### Scenario: Production health has an isolated transient sampling failure
-- **WHEN** one bounded production sample is unreachable or unreadable while the required number of other samples are usable and mutually identical
-- **THEN** the isolated failure MAY be retained as a warning without failing the gate, but insufficient usable samples or any successful sample that conflicts on supported identity fields, listener ownership, current pointer, or broadcast manifest SHALL fail closed
+#### Scenario: Production samples form a stable authority quorum
+- **WHEN** a bounded production window contains the required number of samples with one unique supported health/release/app/manifest, current-pointer, broadcast-manifest, and listener-presence identity while another sample is unreachable, unreadable, or an isolated authority outlier
+- **THEN** the system MAY select the unique authority quorum, SHALL retain every sample and outlier as evidence and warning, and SHALL fail closed when no unique quorum exists, the pre/post authority changes, the listener disappears, or a candidate PID is observed on production 8080
+
+#### Scenario: Legacy listener PID topology drifts inside a stable authority quorum
+- **WHEN** listener PID sets differ across usable samples but supported health identity, release/app/manifest identity, current pointer, broadcast manifest, listener presence, and candidate-port separation remain stable
+- **THEN** PID drift SHALL be recorded as runtime diagnostic evidence and warning and SHALL NOT alone be treated as a deployment-authority change; pre-state, post-state, and recovery comparison SHALL use the same authority-versus-runtime semantics
 
 #### Scenario: VM Python is selected
 - **WHEN** a candidate environment is prepared

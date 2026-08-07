@@ -126,7 +126,7 @@ $preTasks = Get-HonghuScheduledTaskSnapshot
 $preProductionWindow = Get-HonghuProductionStateWindow -Root $production
 $preProduction = $preProductionWindow.selected_state
 $evidence = [ordered]@{
-    schema_version = "honghu.vm_readonly_candidate_evidence.v5"
+    schema_version = "honghu.vm_readonly_candidate_evidence.v6"
     attempt_id = $attemptId
     started_at = (Get-Date).ToUniversalTime().ToString("o")
     requested_commit_sha = $CommitSha.ToLowerInvariant()
@@ -397,7 +397,7 @@ try {
     $postTasks = Get-HonghuScheduledTaskSnapshot
     $postProductionWindow = Get-HonghuProductionStateWindow -Root $production
     $taskUnchanged = New-HonghuScheduledTaskComparison -Before $preTasks -After $postTasks
-    $productionUnchanged = New-HonghuProductionWindowComparison -Before $preProduction -AfterWindow $postProductionWindow
+    $productionUnchanged = New-HonghuProductionWindowComparison -Before $preProduction -AfterWindow $postProductionWindow -ForbiddenListenerPids @([int]$record.pid)
     $evidence.observed.process_identity = $record
     $evidence.observed.process_identity_verified = $identity
     $evidence.observed.python_environment = Get-Content -LiteralPath $venvMarker -Raw -Encoding UTF8 | ConvertFrom-Json

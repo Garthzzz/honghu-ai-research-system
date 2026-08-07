@@ -1,6 +1,22 @@
 # 阶段 2 实施与验收报告
 
-> 状态：VM 已完成候选启动和 16 项 smoke，但生产不变性 evidence 被 cleanup 后采样覆盖；本轮代码修复已完成本地定向验证，仍须取得新的 push/PR 绿色 full SHA 和 exact-commit artifact 后重新执行 VM 18080 人工验收。阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+> 状态：最新 VM pre-state 三次采样证明 health 与 release/app/manifest/current/broadcast 权威身份稳定，失败仅由 legacy listener PID set 瞬时漂移触发。authority quorum 修复仍须取得新的 push/PR 绿色 full SHA 和 exact-commit artifact 后重新执行 VM 18080 人工验收。阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+
+## 2026-08-07 production authority quorum 与 listener PID 语义修复
+
+真实 VM 的三次 pre-state sample 全部可用：health 均为 HTTP 200 且 payload 可解析，health identity SHA、`release_version`、`release_manifest_sha256`、`app_sha256`、production `current` 和广播 manifest 均稳定，8080 始终存在 listener。唯一变化是 PID set 在 `[5000,16332]`、`[4604,16332]`、`[5000,16332]` 间波动；该变化发生在候选启动前，因此不能解释成 candidate 修改 production。
+
+旧实现的确定根因是把“至少两个稳定样本”写成“第一条可用样本与其后所有样本逐项完全相等”，并把 listener PID set 与 release identity 放在同一硬比较中。它既没有实现 quorum，也把 Windows/legacy 运行时拓扑的瞬时属性误提升为 deployment authority。
+
+本轮将 evidence 升级为 `honghu.vm_readonly_candidate_evidence.v6`，production window 升级为 `honghu.production_state_window.v2`：
+
+- hard authority identity 由 health 可达/可解析、实际支持的 release/app/manifest 字段、`current`、广播 manifest 和 listener 持续存在组成；
+- 可用样本按 hard authority hash 聚类，只有一个 identity cluster 达到 `required_usable_samples` 时才通过；证据保存全部 cluster、`selected_quorum_attempts`、`authority_outlier_attempts` 和原始样本；
+- listener PID set 不再参与 authority hash；它的漂移进入 `runtime_listener`、逐样本 PID 和 warnings，不被隐藏；
+- listener 消失、无可识别 authority 字段、pre/post authority 变化、`current`/广播变化、没有唯一 quorum，或候选 PID 在任一可用 post sample 中出现在 8080，仍严格失败；
+- pre-state、gate-time post-state 与 cleanup 后 recovery 均调用同一 authority-vs-runtime 比较合同，避免一边容忍 PID drift、另一边再次误判。
+
+新增回归覆盖三次样本中 PID set 漂移但 hard authority 全部一致、2/3 authority quorum 加单个离群样本、三个不同 authority 无 quorum、listener 消失、候选 PID 出现在 8080、pointer/manifest 变化，以及 pre/post comparison 复用同一语义。旧分支头 `1582843ea66b795d899d390099673ae1144dd7c5` 不再用于下一次 VM 验收；新 SHA 只在完整本地验证、DeepSeek reviewer、push/PR CI 和 exact-commit evidence 全部完成后确定。
 
 ## 2026-08-07 production gate evidence 覆盖缺陷与稳定采样修复
 

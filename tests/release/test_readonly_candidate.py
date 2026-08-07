@@ -419,6 +419,65 @@ Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSample
         self.assertTrue(payload["samples"][2]["usable"])
         self.assertTrue(payload["warnings"])
 
+    def test_production_state_window_records_pid_drift_without_rejecting_stable_authority(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            script = rf"""
+. '{helper}'
+$global:healthCall = 0
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
+    $global:healthCall += 1
+    [pscustomobject]@{{ StatusCode = 200; Content = '{{"release_version":"legacy-1","release_manifest_sha256":"manifest","app_sha256":"app"}}' }}
+}}
+function Get-NetTCPConnection {{
+    param($State, $LocalPort, $ErrorAction)
+    $changingPid = if ($global:healthCall -eq 2) {{ 4604 }} else {{ 5000 }}
+    @(
+        [pscustomobject]@{{ OwningProcess = $changingPid; LocalPort = 8080 }},
+        [pscustomobject]@{{ OwningProcess = 16332; LocalPort = 8080 }}
+    )
+}}
+Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSamples 2 -DelayMilliseconds 0 | ConvertTo-Json -Depth 30 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertTrue(payload["verified"], payload)
+        self.assertTrue(payload["hard_identity_quorum_verified"])
+        self.assertEqual(payload["selected_quorum_attempts"], [1, 2, 3])
+        self.assertTrue(
+            payload["runtime_listener"]["pid_drift_within_selected_quorum"]
+        )
+        self.assertTrue(any("PID drift" in item for item in payload["warnings"]))
+
+    def test_production_state_window_selects_two_of_three_authority_quorum(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            script = rf"""
+. '{helper}'
+$global:healthCall = 0
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
+    $global:healthCall += 1
+    $version = if ($global:healthCall -eq 2) {{ 'transient-other' }} else {{ 'stable' }}
+    [pscustomobject]@{{ StatusCode = 200; Content = ('{{"release_version":"' + $version + '","app_sha256":"app"}}') }}
+}}
+function Get-NetTCPConnection {{
+    param($State, $LocalPort, $ErrorAction)
+    [pscustomobject]@{{ OwningProcess = 4321; LocalPort = 8080 }}
+}}
+Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSamples 2 -DelayMilliseconds 0 | ConvertTo-Json -Depth 30 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertTrue(payload["verified"], payload)
+        self.assertEqual(payload["selected_quorum_attempts"], [1, 3])
+        self.assertEqual(payload["authority_outlier_attempts"], [2])
+        self.assertEqual(len(payload["authority_clusters"]), 2)
+        self.assertTrue(any("authority outlier" in item for item in payload["warnings"]))
+
     def test_production_state_window_rejects_real_identity_change(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"
         with tempfile.TemporaryDirectory() as temp:
@@ -428,7 +487,7 @@ $global:healthCall = 0
 function Invoke-WebRequest {{
     param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
     $global:healthCall += 1
-    $version = if ($global:healthCall -eq 1) {{ 'one' }} else {{ 'two' }}
+    $version = @('one', 'two', 'three')[$global:healthCall - 1]
     [pscustomobject]@{{ StatusCode = 200; Content = ('{{"release_version":"' + $version + '"}}') }}
 }}
 function Get-NetTCPConnection {{
@@ -442,7 +501,59 @@ Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSample
         payload = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertFalse(payload["verified"], payload)
         self.assertEqual(payload["usable_sample_count"], 3)
-        self.assertTrue(any("release_version" in x for x in payload["reasons"]))
+        self.assertTrue(any("no production authority identity" in x for x in payload["reasons"]))
+
+    def test_listener_disappearance_fails_but_pid_drift_uses_same_pre_post_semantics(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            script = rf"""
+. '{helper}'
+function New-TestState([int[]]$Pids) {{
+    [ordered]@{{
+        health = [ordered]@{{ reachable=$true; status=200; payload_parsed=$true; identity=[ordered]@{{release_version='stable';release_manifest_sha256='manifest';app_sha256='app'}} }}
+        listener = [ordered]@{{ query_succeeded=$true; pids=@($Pids); error=$null }}
+        listener_pids = @($Pids)
+        current_pointer = [ordered]@{{ exists=$false; sha256=$null }}
+        broadcast_manifest = [ordered]@{{ exists=$true; sha256='broadcast' }}
+    }}
+}}
+$before = New-TestState @(5000,16332)
+$sample1 = [ordered]@{{attempt=1;usable=$true;state=(New-TestState @(5000,16332))}}
+$sample2 = [ordered]@{{attempt=2;usable=$true;state=(New-TestState @(4604,16332))}}
+$sample3 = [ordered]@{{attempt=3;usable=$true;state=(New-TestState @(5000,16332))}}
+$window = [ordered]@{{
+    verified=$true; reasons=@(); warnings=@('listener PID drift occurred inside the selected authority quorum; retained as runtime diagnostic')
+    selected_state=$sample3.state; selected_authority_sha256='authority'; selected_quorum_attempts=@(1,2,3); authority_outlier_attempts=@()
+    runtime_listener=[ordered]@{{pid_drift_within_selected_quorum=$true}}
+    samples=@($sample1,$sample2,$sample3)
+}}
+$changedState = New-TestState @(5000,16332)
+$changedState.health.identity.release_version = 'changed'
+$changedSample = [ordered]@{{attempt=1;usable=$true;state=$changedState}}
+$changedWindow = [ordered]@{{
+    verified=$true; reasons=@(); warnings=@(); selected_state=$changedState; selected_authority_sha256='changed-authority'
+    selected_quorum_attempts=@(1,2); authority_outlier_attempts=@(); runtime_listener=[ordered]@{{pid_drift_within_selected_quorum=$false}}
+    samples=@($changedSample)
+}}
+$comparison = New-HonghuProductionWindowComparison -Before $before -AfterWindow $window
+$changed = New-HonghuProductionWindowComparison -Before $before -AfterWindow $changedWindow
+$forbidden = New-HonghuProductionWindowComparison -Before $before -AfterWindow $window -ForbiddenListenerPids @(4604)
+$missing = Test-HonghuProductionUnchanged -Before $before -After (New-TestState @())
+[ordered]@{{comparison=$comparison;changed=$changed;forbidden=$forbidden;missing=$missing}} | ConvertTo-Json -Depth 30 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertTrue(payload["comparison"]["verified"], payload)
+        self.assertFalse(payload["comparison"]["listener"]["pid_drift"])
+        self.assertTrue(payload["comparison"]["runtime_listener_window"]["pid_drift_within_selected_quorum"])
+        self.assertTrue(payload["comparison"]["warnings"])
+        self.assertFalse(payload["changed"]["verified"])
+        self.assertTrue(any("release_version" in x for x in payload["changed"]["reasons"]))
+        self.assertFalse(payload["forbidden"]["verified"])
+        self.assertTrue(payload["forbidden"]["forbidden_listener_observations"])
+        self.assertFalse(payload["missing"]["verified"])
+        self.assertTrue(any("listener was absent" in x for x in payload["missing"]["reasons"]))
 
     def test_production_pointer_and_manifest_changes_remain_fail_closed(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"
@@ -775,7 +886,7 @@ Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
         self.assertIn("$failurePostProductionWindow", deploy)
         self.assertIn("Set-HonghuCandidateGateEvidence", deploy)
         self.assertIn("Set-HonghuCandidateRecoveryEvidence", deploy)
-        self.assertIn("honghu.vm_readonly_candidate_evidence.v5", deploy)
+        self.assertIn("honghu.vm_readonly_candidate_evidence.v6", deploy)
         self.assertIn("production_8080_and_pointer_unchanged", helper)
         catch_body = deploy[deploy.index("catch {\n    $primaryFailure") :]
         self.assertNotIn(

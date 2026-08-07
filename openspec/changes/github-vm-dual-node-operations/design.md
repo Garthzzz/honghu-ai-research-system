@@ -406,7 +406,9 @@ immutable release 的不变性覆盖 build 完成后的整个生命周期，而�
 
 schema compatibility 只对阶段 2 声明的代表性只读路由负责：门禁检查 SQLite `mode=ro/query_only`、对象类型、必需列、版本范围和只读探针；完整 schema fingerprint 作为诊断记录，除非以后另行批准 accepted set，否则不充当全部 schema 兼容证明。VM evidence 区分静态代码保证、部署前状态、部署后状态、实测 smoke 和未验证事项；计划任务与生产 8080/current 必须采集前后状态，不能写死“未修改”。
 
-生产不变性证据采用有界稳定采样，而不是把单次 8080 请求当作最终事实：每个窗口保留全部尝试，要求至少两个可用且相互一致的样本；孤立的不可达/不可解析样本只可在其余样本满足合同且没有任何成功样本冲突时作为 warning。受支持身份字段、listener PID、production `current` 或广播 manifest 的真实变化、可用样本不足仍然 fail-closed。正常 gate 的 post-state、comparison 和 reasons 一经记录即不可覆盖；若 gate 失败后 cleanup/pointer recovery 使生产恢复稳定，后续采样只能进入独立的 recovery/final-state evidence，不能改写原 gate 或 primary failure。scheduled-task gate 采用相同的“原 gate 与 cleanup 后状态分离”语义。
+生产不变性证据采用有界稳定采样，而不是把单次 8080 请求当作最终事实。硬权威身份由 health 可达与可解析状态、实际支持的 release/app/manifest 身份字段、production `current`、广播 manifest，以及 8080 listener 是否持续存在共同组成；至少两个可用样本必须形成唯一的硬权威身份 quorum。窗口保留全部尝试、聚类、入选样本和离群样本；孤立不可达/不可解析样本或未进入 quorum 的可用身份离群样本可以作为 warning，但可用样本不足、没有唯一 quorum、pre/post 权威身份变化、listener 消失、`current`/广播变化，或候选 PID 出现在 8080 上仍然 fail-closed。
+
+listener PID set 是 legacy Windows 运行时拓扑诊断，不等同于 deployment authority：PID 漂移必须连同每个样本原值进入 evidence 和 warning，但在 hard identity、listener 存在性、production pointer 与广播均稳定时，不单独判定生产被候选修改。pre-state、gate-time post-state 与 cleanup 后 recovery 使用同一 authority-vs-runtime 比较语义；正常 gate 的 post-state、comparison 和 reasons 一经记录即不可覆盖，后续 recovery/final-state 采样不能改写原 gate 或 primary failure。
 
 退出：干净环境可重建；本地 Viewer 不依赖 VM；VM 候选 release 只读运行；代表性 smoke 覆盖四库、required 外置文档、缺少可选主题 Markdown 时的数据库主题页、计算器和静态资源；VM 本机与另一台内网客户端可达性分别有证据；deployment ledger 和声明范围内的 schema compatibility 能区分可回滚应用版本与 forward-only migration。
 回滚：切回现有广播包/启动路径；不触碰数据库。  
