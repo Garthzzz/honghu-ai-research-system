@@ -632,7 +632,6 @@ function Get-HonghuProductionStateWindow {
         $clusterByAuthority[$key] = @($clusterByAuthority[$key]) + @($entry)
     }
     $clusterSummaries = New-Object System.Collections.Generic.List[object]
-    $qualifyingClusters = New-Object System.Collections.Generic.List[object]
     foreach ($key in @($clusterByAuthority.Keys | Sort-Object)) {
         $entries = @($clusterByAuthority[$key])
         $summary = [ordered]@{
@@ -642,21 +641,16 @@ function Get-HonghuProductionStateWindow {
             attempts = @($entries | ForEach-Object { [int]$_.attempt })
         }
         $clusterSummaries.Add($summary)
-        if ($entries.Count -ge $RequiredUsableSamples) {
-            $qualifyingClusters.Add([ordered]@{ key = $key; entries = $entries; summary = $summary })
-        }
     }
 
     $selectedCluster = $null
     if ($usableSamples.Count -ge $RequiredUsableSamples) {
-        if ($qualifyingClusters.Count -eq 1) {
-            $selectedCluster = $qualifyingClusters[0]
+        if ($clusterSummaries.Count -eq 1) {
+            $onlyKey = [string]$clusterSummaries[0].authority_sha256
+            $selectedCluster = [ordered]@{ key = $onlyKey; entries = @($clusterByAuthority[$onlyKey]); summary = $clusterSummaries[0] }
         }
-        elseif ($qualifyingClusters.Count -eq 0) {
-            $reasons.Add("no production authority identity reached the required quorum of $RequiredUsableSamples samples")
-        }
-        else {
-            $reasons.Add("multiple production authority identities independently reached quorum; authority is ambiguous")
+        elseif ($clusterSummaries.Count -gt 1) {
+            $reasons.Add("usable production samples conflict on hard authority identity; a PID-only quorum cannot waive release/app/manifest/current/broadcast changes")
         }
     }
 
@@ -689,6 +683,17 @@ function Get-HonghuProductionStateWindow {
             })
         }
     }
+    elseif ($usableSamples.Count -gt 1 -and $clusterSummaries.Count -gt 1) {
+        $reference = $usableSamples[0]
+        $outlierEntries = @($usableSamples.ToArray() | Where-Object { [string]$_.authority_sha256 -ne [string]$reference.authority_sha256 })
+        foreach ($outlier in $outlierEntries) {
+            $outlierComparisons.Add([ordered]@{
+                reference_attempt = [int]$reference.attempt
+                candidate_attempt = [int]$outlier.attempt
+                comparison = Test-HonghuProductionUnchanged -Before $reference.state -After $outlier.state
+            })
+        }
+    }
 
     $runtimeListenerSamples = New-Object System.Collections.Generic.List[object]
     $selectedPidSignatures = New-Object System.Collections.Generic.List[string]
@@ -709,7 +714,7 @@ function Get-HonghuProductionStateWindow {
         schema_version = "honghu.production_state_window.v2"
         verified = ($reasons.Count -eq 0)
         decision = if ($reasons.Count -eq 0) { "pass" } else { "fail" }
-        decision_basis = if ($reasons.Count -eq 0) { "one unique hard-authority quorum reached the required sample count" } else { "hard-authority quorum or usability requirements were not met" }
+        decision_basis = if ($reasons.Count -eq 0) { "all usable samples formed one hard-authority cluster and reached the required sample count" } else { "hard-authority consistency or usability requirements were not met" }
         hard_identity_quorum_verified = ($null -ne $selectedCluster -and $reasons.Count -eq 0)
         attempt_count = $Attempts
         required_usable_samples = $RequiredUsableSamples
@@ -719,6 +724,7 @@ function Get-HonghuProductionStateWindow {
         selected_authority_sha256 = if ($null -ne $selectedCluster) { [string]$selectedCluster.key } else { $null }
         selected_quorum_attempts = @($selectedEntries | ForEach-Object { [int]$_.attempt })
         authority_outlier_attempts = @($outlierEntries | ForEach-Object { [int]$_.attempt })
+        conflicting_authority_attempts = @($outlierEntries | ForEach-Object { [int]$_.attempt })
         authority_clusters = $clusterSummaries.ToArray()
         runtime_listener = [ordered]@{
             samples = $runtimeListenerSamples.ToArray()
@@ -787,6 +793,7 @@ function New-HonghuProductionWindowComparison {
     $comparison.selected_authority_sha256 = Get-HonghuOptionalProperty $AfterWindow "selected_authority_sha256"
     $comparison.selected_quorum_attempts = @(Get-HonghuOptionalProperty $AfterWindow "selected_quorum_attempts" @())
     $comparison.authority_outlier_attempts = @(Get-HonghuOptionalProperty $AfterWindow "authority_outlier_attempts" @())
+    $comparison.conflicting_authority_attempts = @(Get-HonghuOptionalProperty $AfterWindow "conflicting_authority_attempts" @())
     $comparison.runtime_listener_window = Get-HonghuOptionalProperty $AfterWindow "runtime_listener"
     $comparison.forbidden_listener_observations = $forbiddenObservations.ToArray()
     return $comparison

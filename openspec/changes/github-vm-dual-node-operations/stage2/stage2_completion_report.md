@@ -11,12 +11,12 @@
 本轮将 evidence 升级为 `honghu.vm_readonly_candidate_evidence.v6`，production window 升级为 `honghu.production_state_window.v2`：
 
 - hard authority identity 由 health 可达/可解析、实际支持的 release/app/manifest 字段、`current`、广播 manifest 和 listener 持续存在组成；
-- 可用样本按 hard authority hash 聚类，只有一个 identity cluster 达到 `required_usable_samples` 时才通过；证据保存全部 cluster、`selected_quorum_attempts`、`authority_outlier_attempts` 和原始样本；
+- 可用样本按 hard authority hash 聚类；只有全部可用样本属于同一 identity cluster 且达到 `required_usable_samples` 时才通过，任何可用的 hard-authority 冲突样本仍失败；证据保存全部 cluster、`selected_quorum_attempts`、冲突 attempts 和原始样本；
 - listener PID set 不再参与 authority hash；它的漂移进入 `runtime_listener`、逐样本 PID 和 warnings，不被隐藏；
 - listener 消失、无可识别 authority 字段、pre/post authority 变化、`current`/广播变化、没有唯一 quorum，或候选 PID 在任一可用 post sample 中出现在 8080，仍严格失败；
 - pre-state、gate-time post-state 与 cleanup 后 recovery 均调用同一 authority-vs-runtime 比较合同，避免一边容忍 PID drift、另一边再次误判。
 
-新增回归覆盖三次样本中 PID set 漂移但 hard authority 全部一致、2/3 authority quorum 加单个离群样本、三个不同 authority 无 quorum、listener 消失、候选 PID 出现在 8080、pointer/manifest 变化，以及 pre/post comparison 复用同一语义。旧分支头 `1582843ea66b795d899d390099673ae1144dd7c5` 不再用于下一次 VM 验收；新 SHA 只在完整本地验证、DeepSeek reviewer、push/PR CI 和 exact-commit evidence 全部完成后确定。
+新增回归覆盖三次样本中 hard authority 全部一致但 PID set 漂移、一次不可用样本加两个稳定 authority 样本、2/3 hard-authority cluster 仍因一个可用 identity 冲突而失败、listener 消失、候选 PID 出现在 8080、pointer/manifest 变化，以及 pre/post comparison 复用同一语义。旧分支头 `1582843ea66b795d899d390099673ae1144dd7c5` 不再用于下一次 VM 验收；新 SHA 只在完整本地验证、DeepSeek reviewer、push/PR CI 和 exact-commit evidence 全部完成后确定。
 
 ## 2026-08-07 production gate evidence 覆盖缺陷与稳定采样修复
 

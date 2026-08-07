@@ -451,7 +451,7 @@ Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSample
         )
         self.assertTrue(any("PID drift" in item for item in payload["warnings"]))
 
-    def test_production_state_window_selects_two_of_three_authority_quorum(self):
+    def test_production_state_window_rejects_hard_authority_outlier_despite_two_sample_cluster(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"
         with tempfile.TemporaryDirectory() as temp:
             script = rf"""
@@ -472,11 +472,13 @@ Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSample
             result = _run_powershell(script)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         payload = json.loads(result.stdout.strip().splitlines()[-1])
-        self.assertTrue(payload["verified"], payload)
-        self.assertEqual(payload["selected_quorum_attempts"], [1, 3])
+        self.assertFalse(payload["verified"], payload)
+        self.assertEqual(payload["selected_quorum_attempts"], [])
         self.assertEqual(payload["authority_outlier_attempts"], [2])
+        self.assertEqual(payload["conflicting_authority_attempts"], [2])
         self.assertEqual(len(payload["authority_clusters"]), 2)
-        self.assertTrue(any("authority outlier" in item for item in payload["warnings"]))
+        self.assertTrue(any("conflict on hard authority" in item for item in payload["reasons"]))
+        self.assertTrue(payload["authority_outlier_comparisons"])
 
     def test_production_state_window_rejects_real_identity_change(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"
@@ -487,7 +489,7 @@ $global:healthCall = 0
 function Invoke-WebRequest {{
     param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
     $global:healthCall += 1
-    $version = @('one', 'two', 'three')[$global:healthCall - 1]
+    $version = if ($global:healthCall -eq 1) {{ 'one' }} else {{ 'two' }}
     [pscustomobject]@{{ StatusCode = 200; Content = ('{{"release_version":"' + $version + '"}}') }}
 }}
 function Get-NetTCPConnection {{
@@ -501,7 +503,7 @@ Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSample
         payload = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertFalse(payload["verified"], payload)
         self.assertEqual(payload["usable_sample_count"], 3)
-        self.assertTrue(any("no production authority identity" in x for x in payload["reasons"]))
+        self.assertTrue(any("conflict on hard authority" in x for x in payload["reasons"]))
 
     def test_listener_disappearance_fails_but_pid_drift_uses_same_pre_post_semantics(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"

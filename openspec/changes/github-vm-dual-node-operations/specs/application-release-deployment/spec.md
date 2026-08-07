@@ -68,8 +68,8 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 - **THEN** the original gate-time post-state, false comparison, reasons and primary failure SHALL remain immutable, while the post-cleanup/final state and its comparison SHALL be stored under a separate recovery evidence section and SHALL NOT replace compatibility aliases that point to the original gate
 
 #### Scenario: Production samples form a stable authority quorum
-- **WHEN** a bounded production window contains the required number of samples with one unique supported health/release/app/manifest, current-pointer, broadcast-manifest, and listener-presence identity while another sample is unreachable, unreadable, or an isolated authority outlier
-- **THEN** the system MAY select the unique authority quorum, SHALL retain every sample and outlier as evidence and warning, and SHALL fail closed when no unique quorum exists, the pre/post authority changes, the listener disappears, or a candidate PID is observed on production 8080
+- **WHEN** a bounded production window contains the required number of usable samples with one supported health/release/app/manifest, current-pointer, broadcast-manifest, and listener-presence identity while another sample is unreachable or unreadable
+- **THEN** the system MAY select that authority quorum, SHALL retain every sample as evidence and warning, and SHALL fail closed when any usable sample conflicts on hard authority identity, the pre/post authority changes, the listener disappears, or a candidate PID is observed on production 8080
 
 #### Scenario: Legacy listener PID topology drifts inside a stable authority quorum
 - **WHEN** listener PID sets differ across usable samples but supported health identity, release/app/manifest identity, current pointer, broadcast manifest, listener presence, and candidate-port separation remain stable
