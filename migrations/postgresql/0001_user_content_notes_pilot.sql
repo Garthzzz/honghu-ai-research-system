@@ -55,6 +55,32 @@ DO $$
 BEGIN
   BEGIN
     PERFORM * FROM user_content.put_analyst_note(
+      'pilot-note-001', 'company', 1, NULL, 'research', 'Changed payload', 'Same claimed hash',
+      'stage3-pilot', 3, 'put-001', 'hash-put-001'
+    );
+    RAISE EXCEPTION 'same hash with changed payload unexpectedly succeeded';
+  EXCEPTION WHEN unique_violation THEN
+    NULL;
+  END;
+END $$;
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM * FROM user_content.put_analyst_note(
+      'pilot-note-null-revision', 'company', 1, NULL, 'research', 'Invalid', 'Null revision',
+      'stage3-pilot', NULL, 'put-null-revision', 'hash-null-revision'
+    );
+    RAISE EXCEPTION 'null expected revision unexpectedly succeeded';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    NULL;
+  END;
+END $$;
+
+DO $$
+BEGIN
+  BEGIN
+    PERFORM * FROM user_content.put_analyst_note(
       'pilot-note-001', 'company', 1, NULL, 'research', 'Conflict', 'Must not win',
       'stage3-pilot', 3, 'put-001', 'different-request-hash'
     );

@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS operations.idempotency_record (
     operation_scope text NOT NULL,
     idempotency_key text NOT NULL,
     request_hash text NOT NULL,
+    request_payload jsonb NOT NULL,
     result_payload jsonb NOT NULL,
     created_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     PRIMARY KEY (operation_scope, idempotency_key)
@@ -88,13 +89,24 @@ DECLARE
     v_note user_content.analyst_note%ROWTYPE;
     v_action text;
     v_result jsonb;
+    v_request jsonb;
 BEGIN
+    IF p_expected_revision IS NULL OR nullif(p_idempotency_key, '') IS NULL
+       OR nullif(p_request_hash, '') IS NULL THEN
+        RAISE EXCEPTION 'expected revision, idempotency key and request hash are required'
+            USING ERRCODE = '22023';
+    END IF;
+    v_request := jsonb_build_object(
+        'note_key', p_note_key, 'entity_type', p_entity_type, 'entity_id', p_entity_id,
+        'q_number', p_q_number, 'note_type', p_note_type, 'title', p_title,
+        'content', p_content, 'author', p_author, 'expected_revision', p_expected_revision
+    );
     SELECT * INTO v_existing
       FROM operations.idempotency_record
      WHERE operation_scope = 'user_content.put_analyst_note'
        AND idempotency_key = p_idempotency_key;
     IF FOUND THEN
-        IF v_existing.request_hash <> p_request_hash THEN
+        IF v_existing.request_hash <> p_request_hash OR v_existing.request_payload <> v_request THEN
             RAISE EXCEPTION 'idempotency key conflict' USING ERRCODE = '23505';
         END IF;
         RETURN QUERY SELECT
@@ -153,9 +165,9 @@ BEGIN
         p_idempotency_key, to_jsonb(v_note)
     );
     INSERT INTO operations.idempotency_record(
-        operation_scope, idempotency_key, request_hash, result_payload
+        operation_scope, idempotency_key, request_hash, request_payload, result_payload
     ) VALUES (
-        'user_content.put_analyst_note', p_idempotency_key, p_request_hash, v_result
+        'user_content.put_analyst_note', p_idempotency_key, p_request_hash, v_request, v_result
     );
     RETURN QUERY SELECT v_note.note_key, v_note.revision, false;
 END;
@@ -174,13 +186,22 @@ DECLARE
     v_existing operations.idempotency_record%ROWTYPE;
     v_note user_content.analyst_note%ROWTYPE;
     v_result jsonb;
+    v_request jsonb;
 BEGIN
+    IF p_expected_revision IS NULL OR nullif(p_idempotency_key, '') IS NULL
+       OR nullif(p_request_hash, '') IS NULL THEN
+        RAISE EXCEPTION 'expected revision, idempotency key and request hash are required'
+            USING ERRCODE = '22023';
+    END IF;
+    v_request := jsonb_build_object(
+        'note_key', p_note_key, 'actor', p_actor, 'expected_revision', p_expected_revision
+    );
     SELECT * INTO v_existing
       FROM operations.idempotency_record
      WHERE operation_scope = 'user_content.soft_delete_analyst_note'
        AND idempotency_key = p_idempotency_key;
     IF FOUND THEN
-        IF v_existing.request_hash <> p_request_hash THEN
+        IF v_existing.request_hash <> p_request_hash OR v_existing.request_payload <> v_request THEN
             RAISE EXCEPTION 'idempotency key conflict' USING ERRCODE = '23505';
         END IF;
         RETURN QUERY SELECT
@@ -215,9 +236,9 @@ BEGIN
         p_idempotency_key, to_jsonb(v_note)
     );
     INSERT INTO operations.idempotency_record(
-        operation_scope, idempotency_key, request_hash, result_payload
+        operation_scope, idempotency_key, request_hash, request_payload, result_payload
     ) VALUES (
-        'user_content.soft_delete_analyst_note', p_idempotency_key, p_request_hash, v_result
+        'user_content.soft_delete_analyst_note', p_idempotency_key, p_request_hash, v_request, v_result
     );
     RETURN QUERY SELECT v_note.note_key, v_note.revision, true;
 END;

@@ -41,6 +41,18 @@ def _run(command: list[str], *, input_text: str | None = None) -> subprocess.Com
     )
 
 
+def _run_server_start(command: list[str]) -> None:
+    """Start pg_ctl without pipes that the long-lived server can inherit."""
+
+    subprocess.run(
+        command,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=True,
+    )
+
+
 def _tool(bin_dir: Path, name: str) -> str:
     path = (bin_dir / f"{name}.exe").resolve()
     if not path.is_file():
@@ -83,18 +95,20 @@ def cluster_init(bin_dir: Path, cluster_root: Path, port: int, username: str) ->
 
 
 def cluster_start(bin_dir: Path, cluster_root: Path, port: int) -> dict[str, Any]:
-    result = _run(
-        [
+    log_path = cluster_root.resolve().parent / "postgresql-devtest.log"
+    command = [
             _tool(bin_dir, "pg_ctl"),
             "-D",
             str(cluster_root.resolve()),
+            "-l",
+            str(log_path),
             "-o",
             f"-h 127.0.0.1 -p {port}",
             "-w",
             "start",
         ]
-    )
-    return {"status": "started", "stdout": result.stdout.strip()}
+    _run_server_start(command)
+    return {"status": "started", "log_path": str(log_path)}
 
 
 def cluster_stop(bin_dir: Path, cluster_root: Path) -> dict[str, Any]:
