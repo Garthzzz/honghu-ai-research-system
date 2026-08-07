@@ -266,4 +266,12 @@ DeepSeek 在 `uncertainties` 中也承认没有完整看到具体代码路径，
 
 Codex 将第一轮复核记录提交为 `b8af0d0f36192422e49944f04c1619151f61d9c3` 后，再次要求 DeepSeek 只在读取公开代码后给出“相对路径、真实函数名和可复现反例”，并把输出限制为紧凑 JSON。DeepSeek 仍返回四项与源码冲突的意见：它引用了不存在的 `Set-GateState` 和笼统的 `Deploy-ReadonlyCandidate` 函数，声称 catch 没有 cleanup/pointer recovery、gate setter 不保存 post-state、生产窗口不相对 pre-state 比较，以及测试没有核对 primary/reasons。公开实现实际使用 `Set-HonghuCandidateGateEvidence`、`Set-HonghuCandidateRecoveryEvidence`、`Get-HonghuProductionStateWindow` 和 `Test-HonghuProductionUnchanged`；部署脚本 catch 明确执行 cleanup、pointer recovery、独立 final-state capture 后重抛 primary；回归测试逐项断言原 gate、recovery、primary、reasons 和兼容别名。
 
-这些意见没有提供能够在公开提交上复现的路径，而且响应再次在 `uncertainties` 中承认实现细节并未完整确认。Codex 因此拒绝全部四项，不产生新的运行时代码修订，也不调用第三轮：连续两轮都没有信息增量，继续调用只会重复已被确定性测试覆盖的猜测。最终工程依据仍是当前提交自己的完整 Actions、exact-commit artifact 和下一次 VM 现场 evidence；本记录提交只保存 reviewer 判断，不扩大阶段范围。
+这些意见没有提供能够在公开提交上复现的路径，而且响应再次在 `uncertainties` 中承认实现细节并未完整确认。Codex 因此拒绝全部四项，不产生新的运行时代码修订；在没有新确定性事实时不为凑轮数调用第三轮。随后最终审计记录提交的远端 CI 暴露了新的 Windows 测试事实，才据此进行下面的第三轮。最终工程依据仍是当前提交自己的完整 Actions、exact-commit artifact 和下一次 VM 现场 evidence；本记录提交只保存 reviewer 判断，不扩大阶段范围。
+
+### 第三轮：GitHub Windows 测试取证通道复核
+
+最终审计记录提交触发的 push/PR Actions 均在同一个回归测试失败：PowerShell 子进程返回 0，但测试只从 stdout 读取 JSON，两个 runner 的 stdout 都为空，因而在 Python 取最后一行时触发 `IndexError`。运行时代码和 production comparison 没有报错。修复提交 `8b80e94a852f4da1d4834530d351e7f8eca39477` 仅加固测试取证：PowerShell 使用 `$ErrorActionPreference='Stop'`，把完整 comparison 写入临时 JSON；Python 同时断言进程退出码、文件存在，并以 `utf-8-sig` 兼容 Windows PowerShell 5.1 的 BOM。原有 `verified=false`、pointer/manifest 均不稳定和对应 reasons 的断言全部保留，没有 skip、xfail 或门禁放宽。本地完整结果为 569 passed、21 skipped、55 subtests。
+
+DeepSeek 第三轮仍返回 `needs_changes`，但理由自相矛盾：一方面确认 `utf-8-sig` 会正确移除 BOM、JSON 能正常解析，另一方面声称测试“只依赖退出码、没有直接验证 JSON”，而公开测试恰好同时验证退出码、文件存在、JSON 结构和六项 fail-closed 结果。它还把原始 `IndexError` 错说成 JSON 中的 reason，并假设 PowerShell 异常会被当作成功；当前脚本通过 `ErrorActionPreference=Stop`、非零退出断言和结果文件存在断言形成三层失败检测。Codex 因此拒绝两项意见，没有再修改实现。
+
+三轮 reviewer 均未给出可在公开代码上复现的新缺口，已达到本轮最多三轮限制。停止调用不代表外部模型批准；最终候选仍必须由其自身 push/PR Actions、exact-commit artifact 和新的 VM 现场 evidence 证明。
