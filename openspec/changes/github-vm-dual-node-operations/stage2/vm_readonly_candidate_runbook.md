@@ -7,6 +7,7 @@
 > 旧提交 `97d01708737368a9f963f0e9d321c7c596f53efc` 的非 listener Python 调用仍会在 immutable release 内生成 bytecode；同 SHA 重试会因此在 build 阶段触发严格文件集合失败。该 SHA 已撤销验收资格，不得删除几个 `.pyc` 后继续使用。
 > 第一轮 bytecode 修复提交 `a612fe83065d51f9e87e807b25e6fccee8f7880e` 又在 GitHub Windows runner 暴露 isolated mode 忽略 `PYTHONUTF8/PYTHONIOENCODING` 的问题，中文 smoke JSON 会被 `cp1252` 阻断。后续 bootstrap 已在进程内固定 UTF-8；仍应只使用最终 push artifact 明确标记为可部署的 SHA，不得退回该中间提交。
 > 旧提交 `dd099faa6bcf7f1f120e8ce5166d6319812488ba` 在真实 VM 上完成启动与 16 项 smoke，但把 legacy 8080 health 缺少 `viewer_mode` 误报为不可达，并在失败清理时假定 CIM 一定返回 `ExecutablePath`。该 SHA 已撤销验收资格；不得手工删除旧 process record 或按旧 PID 杀进程。
+> 旧提交 `67cc70ec93908db982d8f16f81c49f1ae3b9c90a` 在真实 VM 上完成 16 项 smoke 和安全 cleanup，但 catch 用 cleanup 后重新采集的正常状态覆盖了原始 production gate evidence，形成“primary failure 与最终 `verified=true` 冲突”。该 SHA 已撤销验收资格；不得再次部署或把 cleanup 后状态解释为原 gate 通过。
 
 ## 1. 在 VM PowerShell 中确认解释器
 
@@ -71,11 +72,13 @@ if ($Resolved -ne $CommitSha.ToLowerInvariant()) { throw '检出提交与批准�
 D:\honghu-ai-research-candidate\runtime\vm_readonly_candidate_evidence.json
 ```
 
-必须人工确认 `ok=true`、`requested_commit_sha` 与批准 SHA 一致、代表性 smoke 全部通过、任务定义和生产 8080/current 的前后证据一致。`unverified` 中的内网客户端可达性仍需下一步补证。
+必须人工确认 `schema_version=honghu.vm_readonly_candidate_evidence.v5`、`ok=true`、`requested_commit_sha` 与批准 SHA 一致、代表性 smoke 全部通过、`gate.evaluated=true`，且 `gate.comparisons` 中任务定义和生产 8080/current 均为通过。`post_state` 是原 gate-time post-state 的兼容别名，不能被 cleanup 后状态替代；`unverified` 中的内网客户端可达性仍需下一步补证。
 
 当前 VM 已知遗留的 `viewer_candidate_process.json` 记录 PID 5500，但两个进程查询均无结果且 18080 无监听。新流程会重新采集这三项事实并探测 candidate health；只有双进程源均确定不存在、端口查询成功且无 listener、candidate health 也不可达时，才把原记录连同 launch id、commit、manifest、观测和原因归档到 `runtime\stale_process_records\`，随后移除活动记录。任一查询权限不明、PID 存在、端口监听、health 可达或身份冲突都会停止部署并保留原记录，不会自动删记录或杀 PID。
 
-`pre_state.production.health` 和 `post_state.production.health` 现在分别记录 HTTP 可达性、状态码、JSON 是否可解析、实际存在/缺失的身份字段及其值。旧 8080 没有 `viewer_mode` 只表示 legacy schema；只要前后都缺失且其他实际身份、listener、`current` 和广播 manifest 稳定，就不会再被误判为不可达。真正断连、字段出现/消失或值变化仍严格失败。
+`pre_state.production_sampling` 和 `gate.post_state.production_sampling` 各保留三次有界采样的完整结果；至少两个样本必须可用且所有可用样本相互一致。一次孤立的 HTTP/解析失败可以作为 warning 保留，不能抹去；可用样本不足，或任一成功样本在实际身份、listener、`current`、广播 manifest 上冲突，仍严格失败。旧 8080 没有 `viewer_mode` 只表示 legacy schema；前后都缺失不会被误判为不可达。
+
+若部署失败，原始 `gate.post_state`、`gate.comparisons`、`gate.comparisons.*.reasons` 与 `failure.primary` 必须永久保留。cleanup、pointer recovery 后的再次采样只允许写入 `recovery.post_cleanup_state` 和 `recovery.comparisons_to_pre`；即使 cleanup 后比较恢复为 `true`，也不能覆盖或“修正”原 gate 的 `false`。`failure.cleanup`、`failure.pointer_recovery` 和 `failure.final_state_capture` 分别记录次级结果，任何一个都不能替代 primary failure。
 
 还必须确认 `observed.immutable_release_integrity` 中 build、preflight、activate、launch、smoke 的 `ok` 全为 `true`，commit、manifest hash 和文件数一致；`observed.release_build.disposition` 只能是新建、严格复用或“非活动失效目录整体隔离后重建”之一。出现 quarantine 时应保留其 record，不得删除隔离目录后伪装成首次成功。
 

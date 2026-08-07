@@ -61,7 +61,15 @@ The VM SHALL fetch an explicit full commit SHA using read-only application-repos
 
 #### Scenario: Candidate startup or smoke fails
 - **WHEN** any post-launch health, identity, content, database, or route check fails
-- **THEN** every verifiably started candidate process SHALL be reclaimed, the prior candidate pointer SHALL be restored or the candidate SHALL return to no-current state, and evidence SHALL persist the primary failure, cleanup outcome, pointer recovery, complete pre/post states, per-gate comparison and reasons before rethrowing without allowing a cleanup failure to overwrite the primary cause; production 8080 and scheduled tasks SHALL remain untouched
+- **THEN** every verifiably started candidate process SHALL be reclaimed, the prior candidate pointer SHALL be restored or the candidate SHALL return to no-current state, and evidence SHALL persist the primary failure, cleanup outcome, pointer recovery, complete pre/gate-time post states, per-gate comparison and reasons before rethrowing without allowing cleanup or final-state sampling to overwrite the primary cause; production 8080 and scheduled tasks SHALL remain untouched
+
+#### Scenario: Production gate fails but cleanup restores a stable final state
+- **WHEN** the original production or scheduled-task gate comparison is false and post-cleanup sampling later compares true
+- **THEN** the original gate-time post-state, false comparison, reasons and primary failure SHALL remain immutable, while the post-cleanup/final state and its comparison SHALL be stored under a separate recovery evidence section and SHALL NOT replace compatibility aliases that point to the original gate
+
+#### Scenario: Production health has an isolated transient sampling failure
+- **WHEN** one bounded production sample is unreachable or unreadable while the required number of other samples are usable and mutually identical
+- **THEN** the isolated failure MAY be retained as a warning without failing the gate, but insufficient usable samples or any successful sample that conflicts on supported identity fields, listener ownership, current pointer, or broadcast manifest SHALL fail closed
 
 #### Scenario: VM Python is selected
 - **WHEN** a candidate environment is prepared

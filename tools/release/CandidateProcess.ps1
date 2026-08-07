@@ -446,3 +446,195 @@ function Test-HonghuProductionUnchanged {
         broadcast_manifest_stable = ($Before.broadcast_manifest.exists -eq $After.broadcast_manifest.exists -and $Before.broadcast_manifest.sha256 -eq $After.broadcast_manifest.sha256)
     }
 }
+
+function Test-HonghuProductionStateUsable {
+    param([Parameter(Mandatory = $true)]$State)
+    $reasons = New-Object System.Collections.Generic.List[string]
+    if (-not [bool](Get-HonghuOptionalProperty $State.health "reachable" $false)) {
+        $reasons.Add("production health is not reachable")
+    }
+    if (
+        [bool](Get-HonghuOptionalProperty $State.health "reachable" $false) -and
+        -not [bool](Get-HonghuOptionalProperty $State.health "payload_parsed" $false)
+    ) {
+        $reasons.Add("production health payload is not parseable")
+    }
+    $status = [int](Get-HonghuOptionalProperty $State.health "status" 0)
+    if (
+        [bool](Get-HonghuOptionalProperty $State.health "reachable" $false) -and
+        ($status -lt 200 -or $status -ge 300)
+    ) {
+        $reasons.Add("production health returned a non-success status")
+    }
+    if (-not [bool](Get-HonghuOptionalProperty $State.listener "query_succeeded" $false)) {
+        $reasons.Add("production listener query failed")
+    }
+    return [ordered]@{ usable = ($reasons.Count -eq 0); reasons = @($reasons) }
+}
+
+function Get-HonghuProductionStateWindow {
+    param(
+        [Parameter(Mandatory = $true)][string]$Root,
+        [ValidateRange(2, 10)][int]$Attempts = 3,
+        [ValidateRange(2, 10)][int]$RequiredUsableSamples = 2,
+        [ValidateRange(0, 5000)][int]$DelayMilliseconds = 500
+    )
+    if ($RequiredUsableSamples -gt $Attempts) {
+        throw "RequiredUsableSamples cannot exceed Attempts."
+    }
+
+    $samples = New-Object System.Collections.Generic.List[object]
+    $usableSamples = New-Object System.Collections.Generic.List[object]
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $state = Get-HonghuProductionState -Root $Root
+        $assessment = Test-HonghuProductionStateUsable -State $state
+        $entry = [ordered]@{
+            attempt = $attempt
+            sampled_at = (Get-Date).ToUniversalTime().ToString("o")
+            usable = [bool]$assessment.usable
+            usability_reasons = @($assessment.reasons)
+            state = $state
+        }
+        $samples.Add($entry)
+        if ($assessment.usable) { $usableSamples.Add($entry) }
+        if ($attempt -lt $Attempts -and $DelayMilliseconds -gt 0) {
+            Start-Sleep -Milliseconds $DelayMilliseconds
+        }
+    }
+
+    $reasons = New-Object System.Collections.Generic.List[string]
+    $warnings = New-Object System.Collections.Generic.List[string]
+    $comparisons = New-Object System.Collections.Generic.List[object]
+    if ($usableSamples.Count -lt $RequiredUsableSamples) {
+        $reasons.Add("only $($usableSamples.Count) of $Attempts production samples were usable; $RequiredUsableSamples required")
+    }
+    elseif ($usableSamples.Count -lt $Attempts) {
+        $warnings.Add("$($Attempts - $usableSamples.Count) transient production sample(s) were unusable but retained in evidence")
+    }
+
+    if ($usableSamples.Count -gt 0) {
+        $reference = $usableSamples[0]
+        for ($index = 1; $index -lt $usableSamples.Count; $index++) {
+            $candidate = $usableSamples[$index]
+            $comparison = Test-HonghuProductionUnchanged -Before $reference.state -After $candidate.state
+            $comparisons.Add([ordered]@{
+                reference_attempt = [int]$reference.attempt
+                candidate_attempt = [int]$candidate.attempt
+                comparison = $comparison
+            })
+            if (-not $comparison.verified) {
+                $reasons.Add("production samples $($reference.attempt) and $($candidate.attempt) conflict: $(@($comparison.reasons) -join '; ')")
+            }
+        }
+    }
+
+    $selectedEntry = if ($usableSamples.Count -gt 0) { $usableSamples[$usableSamples.Count - 1] } else { $samples[$samples.Count - 1] }
+    return [ordered]@{
+        schema_version = "honghu.production_state_window.v1"
+        verified = ($reasons.Count -eq 0)
+        attempt_count = $Attempts
+        required_usable_samples = $RequiredUsableSamples
+        usable_sample_count = $usableSamples.Count
+        selected_attempt = [int]$selectedEntry.attempt
+        selected_state = $selectedEntry.state
+        samples = $samples.ToArray()
+        intra_window_comparisons = $comparisons.ToArray()
+        reasons = @($reasons)
+        warnings = @($warnings)
+    }
+}
+
+function New-HonghuScheduledTaskComparison {
+    param(
+        [Parameter(Mandatory = $true)]$Before,
+        [Parameter(Mandatory = $true)]$After
+    )
+    return [ordered]@{
+        verified = ($Before.verified -and $After.verified -and $Before.definitions_sha256 -eq $After.definitions_sha256)
+        reason = if (-not $Before.verified -or -not $After.verified) { "scheduled task definitions could not be read" } elseif ($Before.definitions_sha256 -ne $After.definitions_sha256) { "scheduled task definitions changed" } else { $null }
+    }
+}
+
+function New-HonghuProductionWindowComparison {
+    param(
+        [Parameter(Mandatory = $true)]$Before,
+        [Parameter(Mandatory = $true)]$AfterWindow
+    )
+    $comparison = Test-HonghuProductionUnchanged -Before $Before -After $AfterWindow.selected_state
+    $reasons = New-Object System.Collections.Generic.List[string]
+    foreach ($reason in @($comparison.reasons)) { $reasons.Add([string]$reason) }
+    if (-not [bool]$AfterWindow.verified) {
+        foreach ($reason in @($AfterWindow.reasons)) {
+            $reasons.Add("production sampling window is not stable: $reason")
+        }
+    }
+    $comparison.verified = ($reasons.Count -eq 0)
+    $comparison.reasons = @($reasons)
+    $comparison.sampling_window_verified = [bool]$AfterWindow.verified
+    $comparison.sampling_window_reasons = @($AfterWindow.reasons)
+    return $comparison
+}
+
+function Set-HonghuCandidateGateEvidence {
+    param(
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary]$Evidence,
+        [Parameter(Mandatory = $true)]$PostTasks,
+        [Parameter(Mandatory = $true)]$PostProductionWindow,
+        [Parameter(Mandatory = $true)]$TaskComparison,
+        [Parameter(Mandatory = $true)]$ProductionComparison
+    )
+    $existing = Get-HonghuOptionalProperty $Evidence "gate"
+    if ([bool](Get-HonghuOptionalProperty $existing "evaluated" $false)) {
+        throw "Candidate gate evidence is immutable once evaluated."
+    }
+    $postState = [ordered]@{
+        scheduled_tasks = $PostTasks
+        production = $PostProductionWindow.selected_state
+        production_sampling = $PostProductionWindow
+    }
+    $Evidence["gate"] = [ordered]@{
+        evaluated = $true
+        captured_at = (Get-Date).ToUniversalTime().ToString("o")
+        post_state = $postState
+        comparisons = [ordered]@{
+            scheduled_tasks_unchanged = $TaskComparison
+            production_8080_and_pointer_unchanged = $ProductionComparison
+        }
+    }
+    # Compatibility aliases always point at the original gate and are never
+    # rewritten by cleanup/final-state sampling.
+    $Evidence["post_state"] = $postState
+    $Evidence["observed"]["scheduled_tasks_unchanged"] = $TaskComparison
+    $Evidence["observed"]["production_8080_and_pointer_unchanged"] = $ProductionComparison
+}
+
+function Set-HonghuCandidateRecoveryEvidence {
+    param(
+        [Parameter(Mandatory = $true)][System.Collections.IDictionary]$Evidence,
+        [Parameter(Mandatory = $true)]$PostCleanupTasks,
+        [Parameter(Mandatory = $true)]$PostCleanupProductionWindow,
+        [Parameter(Mandatory = $true)]$TaskComparison,
+        [Parameter(Mandatory = $true)]$ProductionComparison
+    )
+    $existing = Get-HonghuOptionalProperty $Evidence "recovery"
+    if ([bool](Get-HonghuOptionalProperty $existing "captured" $false)) {
+        throw "Candidate recovery evidence is immutable once captured."
+    }
+    $postCleanupState = [ordered]@{
+        scheduled_tasks = $PostCleanupTasks
+        production = $PostCleanupProductionWindow.selected_state
+        production_sampling = $PostCleanupProductionWindow
+    }
+    $recovery = [ordered]@{
+        captured = $true
+        captured_at = (Get-Date).ToUniversalTime().ToString("o")
+        post_cleanup_state = $postCleanupState
+        comparisons_to_pre = [ordered]@{
+            scheduled_tasks_unchanged = $TaskComparison
+            production_8080_and_pointer_unchanged = $ProductionComparison
+        }
+    }
+    $Evidence["recovery"] = $recovery
+    $Evidence["observed"]["post_cleanup_state"] = $postCleanupState
+    $Evidence["observed"]["post_cleanup_comparisons"] = $recovery.comparisons_to_pre
+}

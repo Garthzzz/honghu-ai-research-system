@@ -1,6 +1,23 @@
 # 阶段 2 实施与验收报告
 
-> 状态：VM 已完成候选启动和 16 项 smoke，但生产不变性自动判定与失败清理暴露兼容缺陷；本轮代码修复已完成，仍须使用新的绿色 full SHA 重新执行 VM 18080 人工验收。阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+> 状态：VM 已完成候选启动和 16 项 smoke，但生产不变性 evidence 被 cleanup 后采样覆盖；本轮代码修复已完成本地定向验证，仍须取得新的 push/PR 绿色 full SHA 和 exact-commit artifact 后重新执行 VM 18080 人工验收。阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+
+## 2026-08-07 production gate evidence 覆盖缺陷与稳定采样修复
+
+真实 VM 使用提交 `67cc70ec93908db982d8f16f81c49f1ae3b9c90a` 时，18080 成功启动，commit/PID/数据库合同正确，16 项代表性 smoke 全部通过，写请求门禁返回 403。最终 production gate 抛出 `Production 8080/current evidence is not stable.`，随后候选清理成功、端口释放、candidate pointer 恢复，8080 正常。但最终 JSON 却显示 `observed.production_8080_and_pointer_unchanged.verified=true` 且 `reasons=[]`。
+
+确定根因是同一个 evidence key 被两个时间点复用：正常路径先采集 gate-time `post_state` 和 production comparison，据此抛错；catch 在停止候选、恢复 pointer 后再次采集生产状态，并把 cleanup 后的 comparison 重新写回 `observed.production_8080_and_pointer_unchanged` 与 `post_state`。因此真正触发 gate 的原始 false/reasons 被销毁，只留下恢复后的正常状态；这不是门禁“误抛后又自行纠正”，而是证据生命周期设计错误。
+
+evidence 升级为 `honghu.vm_readonly_candidate_evidence.v5`：
+
+- `pre_state` 保存部署前任务、生产状态及完整采样窗口；
+- `gate.post_state` 与 `gate.comparisons` 是原始门禁证据，一经 `evaluated=true` 即不可覆盖；顶层 `post_state` 和原 `observed.*_unchanged` 只作为指向该原始 gate 的兼容别名；
+- `failure.primary` 永久保存主失败；`failure.cleanup`、`failure.pointer_recovery`、`failure.final_state_capture` 分别记录次级动作；
+- cleanup/pointer recovery 后的新状态只进入 `recovery.post_cleanup_state` 和 `recovery.comparisons_to_pre`。即使 recovery comparison 为 true，也不能改写 gate 的 false/reasons。
+
+生产稳定性门禁同时从单次请求改为三次有界采样，要求至少两个可用样本，且所有可用样本在实际支持的 health identity、listener PID、production `current` 和广播 manifest 上相互一致。一次孤立的不可达或不可解析样本会连同错误原样保留为 warning；可用样本不足、成功样本之间冲突、真实身份/pointer/manifest 变化仍 fail-closed。这个改动减少旧 8080 的瞬态访问噪声，但没有降低 production authority 门禁。
+
+回归覆盖：原 gate=false 而 recovery=true 时原 false/reasons 不变；第二次写 gate 被拒绝；primary failure 不被 recovery 覆盖；一次瞬态失败加两个一致样本可以通过；真实 identity 变化、pointer 变化和 broadcast manifest 变化继续失败；PowerShell 三个脚本解析无错误。旧 SHA `67cc70ec93908db982d8f16f81c49f1ae3b9c90a` 已撤销 VM 验收资格，新的唯一可部署 SHA 只能在本修复提交的 push/PR required jobs 和 exact-commit artifact 均通过后确定。
 
 ## 2026-08-07 legacy production health 与 stale process record 修复
 

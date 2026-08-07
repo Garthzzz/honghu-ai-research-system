@@ -23,6 +23,11 @@
       "commit_sha": "f6926410475cf5c646641f6d7056736abae1453d",
       "reason": "deployment preflight incorrectly treated optional docs/themes Markdown enhancement as mandatory external content",
       "replacement_rule": "use only a final green push-event branch commit whose manifest distinguishes required and optional content and whose database-only theme smoke passes"
+    },
+    {
+      "commit_sha": "67cc70ec93908db982d8f16f81c49f1ae3b9c90a",
+      "reason": "failure cleanup resampled production state and overwrote the original failing production gate evidence",
+      "replacement_rule": "use only a final green push-event branch commit whose evidence schema keeps immutable gate-time state and separate post-cleanup recovery state"
     }
   ],
   "last_locally_verified_implementation": {

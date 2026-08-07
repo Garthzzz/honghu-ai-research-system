@@ -391,6 +391,144 @@ Test-HonghuProductionUnchanged $before $after | ConvertTo-Json -Depth 10 -Compre
         self.assertFalse(outage_payload["verified"])
         self.assertTrue(any("not reachable" in x for x in outage_payload["reasons"]))
 
+    def test_production_state_window_tolerates_one_transient_sample_with_two_stable_samples(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            script = rf"""
+. '{helper}'
+$global:healthCall = 0
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
+    $global:healthCall += 1
+    if ($global:healthCall -eq 1) {{ throw 'transient connection reset' }}
+    [pscustomobject]@{{ StatusCode = 200; Content = '{{"release_version":"legacy-1","app_sha256":"abc"}}' }}
+}}
+function Get-NetTCPConnection {{
+    param($State, $LocalPort, $ErrorAction)
+    [pscustomobject]@{{ OwningProcess = 4321; LocalPort = 8080 }}
+}}
+Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSamples 2 -DelayMilliseconds 0 | ConvertTo-Json -Depth 20 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertTrue(payload["verified"], payload)
+        self.assertEqual(payload["usable_sample_count"], 2)
+        self.assertFalse(payload["samples"][0]["usable"])
+        self.assertTrue(payload["samples"][1]["usable"])
+        self.assertTrue(payload["samples"][2]["usable"])
+        self.assertTrue(payload["warnings"])
+
+    def test_production_state_window_rejects_real_identity_change(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            script = rf"""
+. '{helper}'
+$global:healthCall = 0
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
+    $global:healthCall += 1
+    $version = if ($global:healthCall -eq 1) {{ 'one' }} else {{ 'two' }}
+    [pscustomobject]@{{ StatusCode = 200; Content = ('{{"release_version":"' + $version + '"}}') }}
+}}
+function Get-NetTCPConnection {{
+    param($State, $LocalPort, $ErrorAction)
+    [pscustomobject]@{{ OwningProcess = 4321; LocalPort = 8080 }}
+}}
+Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSamples 2 -DelayMilliseconds 0 | ConvertTo-Json -Depth 20 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertFalse(payload["verified"], payload)
+        self.assertEqual(payload["usable_sample_count"], 3)
+        self.assertTrue(any("release_version" in x for x in payload["reasons"]))
+
+    def test_production_pointer_and_manifest_changes_remain_fail_closed(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            script = rf"""
+. '{helper}'
+function Invoke-WebRequest {{
+    param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
+    [pscustomobject]@{{ StatusCode = 200; Content = '{{"release_version":"legacy-1"}}' }}
+}}
+function Get-NetTCPConnection {{
+    param($State, $LocalPort, $ErrorAction)
+    [pscustomobject]@{{ OwningProcess = 4321; LocalPort = 8080 }}
+}}
+$before = Get-HonghuProductionState -Root '{temp}'
+'new-current' | Set-Content -LiteralPath '{root / "current"}' -Encoding UTF8
+'new-manifest' | Set-Content -LiteralPath '{root / "BROADCAST_MANIFEST.json"}' -Encoding UTF8
+$after = Get-HonghuProductionState -Root '{temp}'
+Test-HonghuProductionUnchanged -Before $before -After $after | ConvertTo-Json -Depth 12 -Compress
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertFalse(payload["verified"], payload)
+        self.assertFalse(payload["current_pointer_stable"])
+        self.assertFalse(payload["broadcast_manifest_stable"])
+        self.assertTrue(any("current pointer" in x for x in payload["reasons"]))
+        self.assertTrue(any("broadcast manifest" in x for x in payload["reasons"]))
+
+    def test_gate_evidence_remains_immutable_when_cleanup_state_recovers(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        script = rf"""
+. '{helper}'
+$evidence = [ordered]@{{
+    observed = [ordered]@{{}}
+    post_state = $null
+    gate = [ordered]@{{ evaluated = $false }}
+    recovery = [ordered]@{{ captured = $false }}
+    failure = [ordered]@{{ primary = [ordered]@{{ message = 'Production 8080/current evidence is not stable.' }} }}
+}}
+$gateTasks = [ordered]@{{ verified = $false; reason = 'gate task mismatch' }}
+$gateProduction = [ordered]@{{ verified = $false; reasons = @('gate health transient') }}
+$recoveryTasks = [ordered]@{{ verified = $true; reason = $null }}
+$recoveryProduction = [ordered]@{{ verified = $true; reasons = @() }}
+$badWindow = [ordered]@{{ selected_state = [ordered]@{{ marker = 'gate' }}; verified = $false; reasons = @('gate health transient') }}
+$goodWindow = [ordered]@{{ selected_state = [ordered]@{{ marker = 'post-cleanup' }}; verified = $true; reasons = @() }}
+Set-HonghuCandidateGateEvidence -Evidence $evidence -PostTasks ([ordered]@{{ marker = 'gate' }}) -PostProductionWindow $badWindow -TaskComparison $gateTasks -ProductionComparison $gateProduction
+Set-HonghuCandidateRecoveryEvidence -Evidence $evidence -PostCleanupTasks ([ordered]@{{ marker = 'post-cleanup' }}) -PostCleanupProductionWindow $goodWindow -TaskComparison $recoveryTasks -ProductionComparison $recoveryProduction
+$secondGateRejected = $false
+try {{
+    Set-HonghuCandidateGateEvidence -Evidence $evidence -PostTasks ([ordered]@{{ marker = 'overwrite' }}) -PostProductionWindow $goodWindow -TaskComparison $recoveryTasks -ProductionComparison $recoveryProduction
+}}
+catch {{ $secondGateRejected = $true }}
+[ordered]@{{ evidence = $evidence; second_gate_rejected = $secondGateRejected }} | ConvertTo-Json -Depth 20 -Compress
+"""
+        result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        payload = json.loads(result.stdout.strip().splitlines()[-1])
+        evidence = payload["evidence"]
+        self.assertTrue(payload["second_gate_rejected"])
+        self.assertFalse(
+            evidence["gate"]["comparisons"][
+                "production_8080_and_pointer_unchanged"
+            ]["verified"]
+        )
+        self.assertEqual(evidence["post_state"]["production"]["marker"], "gate")
+        self.assertTrue(
+            evidence["recovery"]["comparisons_to_pre"][
+                "production_8080_and_pointer_unchanged"
+            ]["verified"]
+        )
+        self.assertEqual(
+            evidence["recovery"]["post_cleanup_state"]["production"]["marker"],
+            "post-cleanup",
+        )
+        self.assertEqual(
+            evidence["failure"]["primary"]["message"],
+            "Production 8080/current evidence is not stable.",
+        )
+        self.assertFalse(
+            evidence["observed"]["production_8080_and_pointer_unchanged"][
+                "verified"
+            ]
+        )
+
     def test_process_identity_tolerates_missing_optional_cim_path_with_other_evidence(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"
         command = (
@@ -602,13 +740,31 @@ Stop-HonghuVerifiedCandidate -RecordPath '{record}' | Out-Null
         deploy = (ROOT / "tools/release/Deploy-ReadonlyCandidate.ps1").read_text(
             encoding="utf-8"
         )
+        helper = (ROOT / "tools/release/CandidateProcess.ps1").read_text(
+            encoding="utf-8"
+        )
         self.assertIn("$evidence.failure.primary", deploy)
         self.assertIn("$evidence.failure.cleanup", deploy)
         self.assertIn("$evidence.failure.pointer_recovery", deploy)
-        self.assertIn("$failureProductionComparison", deploy)
-        self.assertIn("production_8080_and_pointer_unchanged", deploy)
+        self.assertIn("$failurePostProductionWindow", deploy)
+        self.assertIn("Set-HonghuCandidateGateEvidence", deploy)
+        self.assertIn("Set-HonghuCandidateRecoveryEvidence", deploy)
+        self.assertIn("honghu.vm_readonly_candidate_evidence.v5", deploy)
+        self.assertIn("production_8080_and_pointer_unchanged", helper)
+        catch_body = deploy[deploy.index("catch {\n    $primaryFailure") :]
+        self.assertNotIn(
+            "$evidence.observed.production_8080_and_pointer_unchanged = $failureProductionComparison",
+            catch_body,
+        )
+        self.assertNotIn(
+            "$evidence.post_state = [ordered]@{ scheduled_tasks = $failurePostTasks",
+            catch_body,
+        )
         self.assertLess(
-            deploy.index("Save-HonghuEvidenceDocument -Evidence $evidence", deploy.index("catch {")),
+            deploy.index(
+                "Save-HonghuEvidenceDocument -Evidence $evidence",
+                deploy.index("catch {\n    $primaryFailure"),
+            ),
             deploy.index("throw $primaryFailure"),
         )
 

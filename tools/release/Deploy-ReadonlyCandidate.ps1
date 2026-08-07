@@ -123,9 +123,10 @@ if ([System.IO.Path]::GetFullPath([string]$pythonVersion.executable) -ne $bootst
 }
 
 $preTasks = Get-HonghuScheduledTaskSnapshot
-$preProduction = Get-HonghuProductionState -Root $production
+$preProductionWindow = Get-HonghuProductionStateWindow -Root $production
+$preProduction = $preProductionWindow.selected_state
 $evidence = [ordered]@{
-    schema_version = "honghu.vm_readonly_candidate_evidence.v4"
+    schema_version = "honghu.vm_readonly_candidate_evidence.v5"
     attempt_id = $attemptId
     started_at = (Get-Date).ToUniversalTime().ToString("o")
     requested_commit_sha = $CommitSha.ToLowerInvariant()
@@ -138,7 +139,11 @@ $evidence = [ordered]@{
         python_isolated_mode_required = $true
         bytecode_writes_disabled = $true
     }
-    pre_state = [ordered]@{ scheduled_tasks = $preTasks; production = $preProduction }
+    pre_state = [ordered]@{
+        scheduled_tasks = $preTasks
+        production = $preProduction
+        production_sampling = $preProductionWindow
+    }
     observed = [ordered]@{
         prior_evidence_archive = $priorEvidenceArchive
         python_import_environment = [ordered]@{
@@ -150,11 +155,15 @@ $evidence = [ordered]@{
             dont_write_bytecode_flag = "-B"
         }
     }
+    gate = [ordered]@{ evaluated = $false; captured_at = $null; post_state = $null; comparisons = $null }
+    # Compatibility alias.  Once the gate is evaluated this remains the
+    # original gate-time post-state; cleanup never rewrites it.
     post_state = $null
+    recovery = [ordered]@{ captured = $false; captured_at = $null; post_cleanup_state = $null; comparisons_to_pre = $null }
     unverified = @("LAN client reachability must be tested from a separate intranet client")
     ok = $false
     error = $null
-    failure = [ordered]@{ primary = $null; cleanup = $null; pointer_recovery = $null }
+    failure = [ordered]@{ primary = $null; cleanup = $null; pointer_recovery = $null; final_state_capture = $null }
 }
 
 $launched = $false
@@ -165,6 +174,9 @@ $previousCandidateCommit = $null
 $release = $null
 $releaseIntegrity = [ordered]@{}
 try {
+    if (-not $preProductionWindow.verified) {
+        throw "Production 8080/current pre-state did not reach a stable evidence window."
+    }
     if (-not (Test-Path -LiteralPath (Join-Path $source ".git") -PathType Container)) {
         git clone --filter=blob:none --no-checkout $Repository $source
         if ($LASTEXITCODE -ne 0) { throw "Candidate source clone failed." }
@@ -383,21 +395,16 @@ try {
     $smoke = Get-Content -LiteralPath $smokePath -Raw -Encoding UTF8 | ConvertFrom-Json
 
     $postTasks = Get-HonghuScheduledTaskSnapshot
-    $postProduction = Get-HonghuProductionState -Root $production
-    $taskUnchanged = [ordered]@{
-        verified = ($preTasks.verified -and $postTasks.verified -and $preTasks.definitions_sha256 -eq $postTasks.definitions_sha256)
-        reason = if (-not $preTasks.verified -or -not $postTasks.verified) { "scheduled task definitions could not be read" } elseif ($preTasks.definitions_sha256 -ne $postTasks.definitions_sha256) { "scheduled task definitions changed" } else { $null }
-    }
-    $productionUnchanged = Test-HonghuProductionUnchanged -Before $preProduction -After $postProduction
+    $postProductionWindow = Get-HonghuProductionStateWindow -Root $production
+    $taskUnchanged = New-HonghuScheduledTaskComparison -Before $preTasks -After $postTasks
+    $productionUnchanged = New-HonghuProductionWindowComparison -Before $preProduction -AfterWindow $postProductionWindow
     $evidence.observed.process_identity = $record
     $evidence.observed.process_identity_verified = $identity
     $evidence.observed.python_environment = Get-Content -LiteralPath $venvMarker -Raw -Encoding UTF8 | ConvertFrom-Json
     $evidence.observed.python_runtime = $runtimeVerification
     $evidence.observed.representative_smoke = $smoke
     $evidence.observed.immutable_release_integrity = $releaseIntegrity
-    $evidence.observed.scheduled_tasks_unchanged = $taskUnchanged
-    $evidence.observed.production_8080_and_pointer_unchanged = $productionUnchanged
-    $evidence.post_state = [ordered]@{ scheduled_tasks = $postTasks; production = $postProduction }
+    Set-HonghuCandidateGateEvidence -Evidence $evidence -PostTasks $postTasks -PostProductionWindow $postProductionWindow -TaskComparison $taskUnchanged -ProductionComparison $productionUnchanged
     if (-not $taskUnchanged.verified) { throw "Scheduled task before/after evidence is not stable." }
     if (-not $productionUnchanged.verified) { throw "Production 8080/current evidence is not stable." }
     $evidence.completed_at = (Get-Date).ToUniversalTime().ToString("o")
@@ -467,16 +474,20 @@ catch {
         }
         $evidence.observed.immutable_release_integrity = $releaseIntegrity
     }
-    $failurePostTasks = Get-HonghuScheduledTaskSnapshot
-    $failurePostProduction = Get-HonghuProductionState -Root $production
-    $failureTaskComparison = [ordered]@{
-        verified = ($preTasks.verified -and $failurePostTasks.verified -and $preTasks.definitions_sha256 -eq $failurePostTasks.definitions_sha256)
-        reason = if (-not $preTasks.verified -or -not $failurePostTasks.verified) { "scheduled task definitions could not be read" } elseif ($preTasks.definitions_sha256 -ne $failurePostTasks.definitions_sha256) { "scheduled task definitions changed" } else { $null }
+    # Recovery/final-state sampling is intentionally separate from the gate.
+    # It can demonstrate successful cleanup, but it must never erase the
+    # state or comparison that caused the primary gate failure.
+    try {
+        $failurePostTasks = Get-HonghuScheduledTaskSnapshot
+        $failurePostProductionWindow = Get-HonghuProductionStateWindow -Root $production
+        $failureTaskComparison = New-HonghuScheduledTaskComparison -Before $preTasks -After $failurePostTasks
+        $failureProductionComparison = New-HonghuProductionWindowComparison -Before $preProduction -AfterWindow $failurePostProductionWindow
+        Set-HonghuCandidateRecoveryEvidence -Evidence $evidence -PostCleanupTasks $failurePostTasks -PostCleanupProductionWindow $failurePostProductionWindow -TaskComparison $failureTaskComparison -ProductionComparison $failureProductionComparison
+        $evidence.failure.final_state_capture = [ordered]@{ ok = $true; error = $null }
     }
-    $failureProductionComparison = Test-HonghuProductionUnchanged -Before $preProduction -After $failurePostProduction
-    $evidence.observed.scheduled_tasks_unchanged = $failureTaskComparison
-    $evidence.observed.production_8080_and_pointer_unchanged = $failureProductionComparison
-    $evidence.post_state = [ordered]@{ scheduled_tasks = $failurePostTasks; production = $failurePostProduction }
+    catch {
+        $evidence.failure.final_state_capture = [ordered]@{ ok = $false; error = $_.Exception.Message }
+    }
     $evidence.completed_at = (Get-Date).ToUniversalTime().ToString("o")
     Save-HonghuEvidenceDocument -Evidence $evidence -AttemptPath $attemptEvidencePath -LatestPath $evidencePath
     throw $primaryFailure
