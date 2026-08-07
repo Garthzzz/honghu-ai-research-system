@@ -1,6 +1,21 @@
 # 阶段 2 实施与验收报告
 
-> 状态：最新 VM pre-state 三次采样证明 health 与 release/app/manifest/current/broadcast 权威身份稳定，失败仅由 legacy listener PID set 瞬时漂移触发。authority quorum 修复仍须取得新的 push/PR 绿色 full SHA 和 exact-commit artifact 后重新执行 VM 18080 人工验收。阶段 2 不具备退出条件。PR #3 保持 open、未合并；阶段 2 HALT 未批准，阶段 3 未开始。
+> 最终状态：用户已于 2026-08-07 17:12:24 +08:00 按 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并批准阶段 2 退出。验收基准 SHA 为 `e2c324763f4b8ee5fd712623000126114d09c594`。waiver 仅针对 Scheduled Tasks 的全 VM aggregate definitions hash 自动门禁，不豁免任何真实安全条件。下文按时间保留的历史阻断与修复记录只描述当时提交和当时状态，均由本节最终结论取代。
+
+## 最终人工终验与 waiver
+
+阶段 2 最终通过的实测闭包包括：push/PR required CI、exact release、Python 3.10.20 与 74 个锁定包、`pip check`、四套 SQLite 的只读/schema probes、16 项代表性 smoke、403 mutation gate、build/preflight/activate/launch/smoke/cleanup 全生命周期 immutable manifest、零 `.pyc`、production 8080 hard authority、跨机器 LAN 18080 访问以及候选清理。终验结束时 PID 8428 在 Get-Process 与 CIM 均不存在，18080 无 listener，candidate `current` 不存在，原 8080 health 正常。
+
+Scheduled Tasks 自动 gate 比较 VM 上全部 265 个任务的聚合 XML hash，无法区分 Windows 系统任务变化与七个项目任务变化。验收时间窗内任务总数不变，发生文件变化的是 Windows `InstallService/SmartRetry` 与 `SoftwareProtectionPlatform/SvcRestartTask`；VM 上不存在尚未迁移的七个 `IndustryDemo_*` 任务，候选部署调用链也不包含任务注册、修改、启停或删除操作。因此该自动失败被归类为 `TOOLING FAILURE / MANUAL-EVIDENCE PASS`。由于 Task Scheduler Operational log 当时未启用，结论不表述为获得了日志级不存在证明；人工 waiver 只接受现有只读现场证据足以排除本候选对项目任务的修改。
+
+原始 evidence 保持在 Git 外，不提交公开仓库。治理记录绑定以下身份：
+
+- VM candidate evidence：SHA256 `5dead654dc9ebfb8d9b7084a2ab4f8873ecd8269886d3408c954c7e64995ba04`；
+- Scheduled Tasks waiver evidence：SHA256 `fcced27be07053be6d10306e5604fbed954b770caae8f5093ff49938926b85dc`；
+- 跨机器 LAN evidence（客户端 `DESKTOP-VGD07J4`）：SHA256 `69eeb410b28494efa429e926409cd947e1c110fdba3f6a08ecdc06eb59168adb`；
+- 最终 candidate cleanup evidence：SHA256 `92017c86af7b74a4befa083ebb09282e23db49cc05f6c1646d65dfe4598f7641`。
+
+PR #3 在不改变验收基准 release 的前提下单独合并；批准记录由后续 docs/governance PR 提交。阶段 2 批准不授权 production PostgreSQL、live SQLite 修改或迁移、计划任务迁移、production Viewer/writer 切换或阶段 4。
 
 ## 2026-08-07 production authority quorum 与 listener PID 语义修复
 

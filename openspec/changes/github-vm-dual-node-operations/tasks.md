@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0、阶段 1 均已获用户批准退出；现仅授权执行阶段 2“可重复 release 与本地开发边界”。PostgreSQL、数据库后端切换、计划任务迁移和现有生产 Viewer 切换均未获授权。
+> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出。用户现仅授权阶段 3 的依赖建模、数据访问边界、PostgreSQL dev/test 与非生产低风险切换单元试点；production PostgreSQL、live SQLite 修改/迁移、计划任务迁移、production writer 或 Viewer 切换及阶段 4 均未获授权。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -96,9 +96,9 @@
 - [x] [本阶段必须] 关闭 immutable release bytecode 污染与同 SHA 重试缺口：所有项目 Python 子进程使用隔离导入并禁止 bytecode；build、preflight、activate、launch、smoke、stop/失败清理均复核 manifest；仅对非 current、非运行引用的失效 release 做整目录可审计 quarantine/rebuild，并保留逐次失败 evidence。
 - [x] [本阶段必须] 修复 VM legacy health、候选进程与 evidence 生命周期兼容：8080 的 HTTP 可达性、可用身份字段和字段缺失分开记录并使用有界硬权威身份 quorum；listener PID 漂移保留为运行时 warning，不替代 release/app/manifest/current/broadcast 与 listener 存在性的硬门禁；pre/post/recovery 使用同一比较语义并拒绝候选 PID 出现在 8080。CIM/Get-Process 可选属性不再由 StrictMode 误判；stale record 只有在双进程源、端口和健康探针共同证明候选不存在时才归档收口；原始 gate state/comparison/reasons、主失败、cleanup/pointer recovery 和 post-cleanup/final-state 分区持久化，后续采样不得覆盖原 gate。
 - [x] [本阶段必须] 建立本地 dev/test 数据库配置合同和最小 fixture；本地 Viewer、测试和浏览器验证不依赖 VM 在线。
-- [ ] [本阶段必须] 在 VM 做只读并行候选部署；所有 POST/DELETE、自动任务和 migration 保持禁用。
+- [x] [本阶段必须] 已在 VM 对验收基准 SHA `e2c324763f4b8ee5fd712623000126114d09c594` 完成只读并行候选部署：exact release、74 个锁定包、四库只读/schema probe、16 项代表性 smoke、403 mutation gate、immutable manifest、production 8080 authority、跨机器 LAN 18080 和最终 cleanup 均通过；POST/DELETE、自动任务和 migration 保持禁用。Scheduled Tasks 的全 VM aggregate definitions hash 自动门禁判为 tooling failure，按现场只读证据接受人工 waiver；该 waiver 不豁免任何真实安全条件。
 - [x] [仅过渡期需要] 保留可验证广播包作为冷备，不继续把它发展成主发布通道。
-- [ ] [HALT] 提交 release 演练、rollback、clean clone 和本地离线开发证据，等待人工批准。
+- [x] [HALT] 用户已于 2026-08-07 17:12:24 +08:00 完成人工终验并批准阶段 2 以 `STAGE 2 PASS WITH HUMAN WAIVER` 退出。批准人：用户；waiver 仅针对无法区分 Windows 系统任务变化与项目任务变化的全 VM Scheduled Tasks aggregate hash；批准范围允许合并已验收 PR #3、完成独立 governance PR 后进入阶段 3，未授权 production PostgreSQL、live SQLite 修改/迁移、任务迁移、production Viewer/writer 切换或阶段 4。验收结束时 candidate PID 不存在、18080 已释放、candidate current 不存在、8080 正常。
 
 **退出条件**：明确 commit 可重复部署；本地 dev/test 独立；VM 只读候选可回滚且不影响 live 系统。
 
