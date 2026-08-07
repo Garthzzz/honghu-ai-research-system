@@ -109,7 +109,7 @@ $priorEvidenceArchive = $null
 if (Test-Path -LiteralPath $evidencePath -PathType Leaf) {
     $historyRoot = Join-Path $runtime "evidence_history"
     New-Item -ItemType Directory -Force $historyRoot | Out-Null
-    $priorHash = (Get-FileHash -LiteralPath $evidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $priorHash = Get-HonghuFileSha256 -Path $evidencePath
     $priorEvidenceArchive = Join-Path $historyRoot "vm_readonly_candidate_evidence.$attemptId.$($priorHash.Substring(0, 12)).json"
     Copy-Item -LiteralPath $evidencePath -Destination $priorEvidenceArchive -ErrorAction Stop
 }
@@ -189,7 +189,7 @@ try {
     if ($resolved -ne $CommitSha.ToLowerInvariant()) { throw "Checked out commit differs from the request." }
 
     $lockPath = Join-Path $source "requirements.lock.txt"
-    $lockHash = (Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    $lockHash = Get-HonghuFileSha256 -Path $lockPath
     $venvRoot = Join-Path (Join-Path $candidate "python-envs") $lockHash.Substring(0, 16)
     $venvPython = Join-Path $venvRoot "Scripts\python.exe"
     $venvMarker = Join-Path $venvRoot "honghu-runtime.json"
@@ -292,7 +292,7 @@ try {
         & $listenerPython -I -B -S $sourceBootstrap --site-packages $lockedSitePackages --module "tools.release.cli" preflight --release-dir $release --data-root (Join-Path $production "data") --content-root $production --state-root $runtime --output $preflightPath
         if ($LASTEXITCODE -ne 0) { throw "Read-only candidate preflight failed." }
         $releaseIntegrity.after_preflight = Get-HonghuExactReleaseVerification -Interpreter $listenerPython -Bootstrap $sourceBootstrap -SitePackages $lockedSitePackages -ReleasePath $release -Stage "preflight"
-        $preflightSha = (Get-FileHash -LiteralPath $preflightPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        $preflightSha = Get-HonghuFileSha256 -Path $preflightPath
     }
     finally { Pop-Location }
 

@@ -480,6 +480,24 @@ $comparison | ConvertTo-Json -Depth 12 -Compress | Set-Content -LiteralPath '{re
         self.assertTrue(any("current pointer" in x for x in payload["reasons"]))
         self.assertTrue(any("broadcast manifest" in x for x in payload["reasons"]))
 
+    def test_release_powershell_hashing_does_not_require_get_file_hash_module(self):
+        helper = ROOT / "tools/release/CandidateProcess.ps1"
+        deploy = ROOT / "tools/release/Deploy-ReadonlyCandidate.ps1"
+        self.assertNotIn("Get-FileHash", helper.read_text(encoding="utf-8"))
+        self.assertNotIn("Get-FileHash", deploy.read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as temp:
+            source = Path(temp) / "identity.txt"
+            source.write_bytes(b"honghu-release-identity")
+            expected = hashlib.sha256(source.read_bytes()).hexdigest()
+            script = rf"""
+$ErrorActionPreference = 'Stop'
+. '{helper}'
+Get-HonghuFileSha256 -Path '{source}'
+"""
+            result = _run_powershell(script)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.strip().splitlines()[-1], expected)
+
     def test_gate_evidence_remains_immutable_when_cleanup_state_recovers(self):
         helper = ROOT / "tools/release/CandidateProcess.ps1"
         script = rf"""

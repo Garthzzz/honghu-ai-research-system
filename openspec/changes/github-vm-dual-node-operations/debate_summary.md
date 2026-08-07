@@ -270,8 +270,10 @@ Codex 将第一轮复核记录提交为 `b8af0d0f36192422e49944f04c1619151f61d9c
 
 ### 第三轮：GitHub Windows 测试取证通道复核
 
-最终审计记录提交触发的 push/PR Actions 均在同一个回归测试失败：PowerShell 子进程返回 0，但测试只从 stdout 读取 JSON，两个 runner 的 stdout 都为空，因而在 Python 取最后一行时触发 `IndexError`。运行时代码和 production comparison 没有报错。修复提交 `8b80e94a852f4da1d4834530d351e7f8eca39477` 仅加固测试取证：PowerShell 使用 `$ErrorActionPreference='Stop'`，把完整 comparison 写入临时 JSON；Python 同时断言进程退出码、文件存在，并以 `utf-8-sig` 兼容 Windows PowerShell 5.1 的 BOM。原有 `verified=false`、pointer/manifest 均不稳定和对应 reasons 的断言全部保留，没有 skip、xfail 或门禁放宽。本地完整结果为 569 passed、21 skipped、55 subtests。
+最终审计记录提交触发的 push/PR Actions 均在同一个回归测试失败：PowerShell 子进程返回 0，但测试只从 stdout 读取 JSON，两个 runner 的 stdout 都为空，因而在 Python 取最后一行时触发 `IndexError`；旧测试没有把 error stream 变成确定性失败，因此第一次日志尚不能证明底层命令是否报错。修复提交 `8b80e94a852f4da1d4834530d351e7f8eca39477` 先加固测试取证：PowerShell 使用 `$ErrorActionPreference='Stop'`，把完整 comparison 写入临时 JSON；Python 同时断言进程退出码、文件存在，并以 `utf-8-sig` 兼容 Windows PowerShell 5.1 的 BOM。原有 `verified=false`、pointer/manifest 均不稳定和对应 reasons 的断言全部保留，没有 skip、xfail 或门禁放宽。本地完整结果为 569 passed、21 skipped、55 subtests。
 
 DeepSeek 第三轮仍返回 `needs_changes`，但理由自相矛盾：一方面确认 `utf-8-sig` 会正确移除 BOM、JSON 能正常解析，另一方面声称测试“只依赖退出码、没有直接验证 JSON”，而公开测试恰好同时验证退出码、文件存在、JSON 结构和六项 fail-closed 结果。它还把原始 `IndexError` 错说成 JSON 中的 reason，并假设 PowerShell 异常会被当作成功；当前脚本通过 `ErrorActionPreference=Stop`、非零退出断言和结果文件存在断言形成三层失败检测。Codex 因此拒绝两项意见，没有再修改实现。
+
+第三轮之后的新 Actions 终于把原 error stream 确定化：GitHub 的 PowerShell 7 job 启动 Windows PowerShell 子进程时，继承的模块发现路径没有提供 `Get-FileHash`；它正是第一次空 stdout 的底层原因。Codex 因而没有把 reviewer 结论当作闭环，而是按真实 traceback 系统替换 release PowerShell 中四处模块依赖：pointer/manifest、旧 evidence、lockfile 和 preflight 均改用 .NET `SHA256.ComputeHash`，并新增与 Python `hashlib.sha256` 对账及“运行时代码无 `Get-FileHash`”回归。完整本地结果更新为 570 passed、21 skipped、55 subtests。该修订发生在第三轮 reviewer 之后；由于用户限定最多三轮，未违规调用第四轮，最终仍由新提交自己的远端 Actions 和 artifact 验证。
 
 三轮 reviewer 均未给出可在公开代码上复现的新缺口，已达到本轮最多三轮限制。停止调用不代表外部模型批准；最终候选仍必须由其自身 push/PR Actions、exact-commit artifact 和新的 VM 现场 evidence 证明。

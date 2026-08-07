@@ -135,3 +135,9 @@ Codex 没有替用户执行 VM PowerShell 命令。新的人工步骤见 `stage2
 - VM evidence 和客户端证据交回人工审查。
 
 在上述证据完成前，不得宣称阶段 2 完成，不得勾选 VM gate 或 HALT，不得合并 PR #3，也不得进入阶段 3。
+
+## 2026-08-07 production gate evidence v5 与跨 PowerShell 哈希兼容
+
+第三次 VM 现场已经证明候选启动、16 项 smoke 和只读门禁本身可运行，但失败 JSON 把 gate 时刻的 production comparison 在 catch cleanup 后用同名字段覆盖，导致 primary failure 与最终 `verified=true` 自相矛盾。evidence v5 将原 gate 设为一次写入：`gate.post_state/comparisons` 和兼容 `post_state/observed` 永久保留实际判失败状态；cleanup 后采样只进入 `recovery.post_cleanup_state/comparisons_to_pre`。`failure.primary`、cleanup、pointer recovery 和 final-state capture 分别记录，次级异常不能覆盖主失败。production 8080 使用 3 次有界采样、至少 2 次可用；所有可用样本仍须在实际 identity、listener、production current 和 broadcast manifest 上与切换前一致，真实变化继续严格失败。
+
+最终提交前的 GitHub Windows CI 又揭示 `Get-FileHash` 是隐式模块依赖：PowerShell 7 job 启动 `powershell.exe` 子进程后，继承模块路径未提供该 cmdlet。第一次测试只看到 stdout 为空；把 error stream fail-fast 后，第二次日志明确定位到 `CandidateProcess.ps1::Get-HonghuFileIdentity`。修复没有跳过测试，而是将 release PowerShell 的四处文件摘要统一改为 .NET SHA-256，并与 Python `hashlib.sha256` 对账。最新本地完整结果为 570 passed、21 skipped、55 subtests；PowerShell parser、compile、tracked boundary、SQLite ratchet 和 OpenSpec strict 均通过。最终可部署 SHA 仍必须等待该实现及本记录组成的同一分支头完成新的 push/PR Actions 与 exact-commit artifact 绑定。

@@ -12,6 +12,27 @@ function Get-HonghuTextSha256 {
     }
 }
 
+function Get-HonghuFileSha256 {
+    param([Parameter(Mandatory = $true)][string]$Path)
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "Cannot hash a missing file: $Path"
+    }
+    $stream = [System.IO.File]::Open(
+        [System.IO.Path]::GetFullPath($Path),
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::Read
+    )
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        return ([System.BitConverter]::ToString($sha.ComputeHash($stream))).Replace("-", "").ToLowerInvariant()
+    }
+    finally {
+        $sha.Dispose()
+        $stream.Dispose()
+    }
+}
+
 function Get-HonghuOptionalProperty {
     param(
         $InputObject,
@@ -359,7 +380,7 @@ function Get-HonghuFileIdentity {
     }
     return [ordered]@{
         exists = $true
-        sha256 = (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = Get-HonghuFileSha256 -Path $Path
     }
 }
 
