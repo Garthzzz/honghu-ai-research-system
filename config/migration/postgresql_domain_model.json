@@ -1,0 +1,35 @@
+{
+  "schema_version": "honghu.postgresql_domain_model.v1",
+  "status": "stage3_design_only",
+  "physical_topology": {
+    "instance": "one PostgreSQL instance candidate",
+    "database": "one primary business database candidate",
+    "rule": "Prefer logical schema and role separation; require evidence before physical database or server separation."
+  },
+  "logical_domains": {
+    "core": ["company", "security", "industry", "theme", "stable identity mapping"],
+    "research": ["sources", "data points", "publication state"],
+    "dynamic": ["news", "events", "opinion leaders", "fetch state"],
+    "sentiment": ["raw windows", "aggregates", "checkpoints", "retention ledger"],
+    "opportunity": ["runs", "entities", "evidence links", "review and publication ledger"],
+    "financial": ["security identity", "observations", "revisions", "models", "reconciliation"],
+    "user_content": ["analyst notes", "thesis", "hypothesis"],
+    "operations": ["migration ledger", "idempotency ledger", "task/checkpoint state"],
+    "audit": ["immutable revision and mutation audit"]
+  },
+  "role_contracts": {
+    "viewer_read": "Read only on explicitly published schemas/views.",
+    "unit_writer": "One least-privilege role per owning cutover unit; no cross-unit grants by default.",
+    "publisher": "Transactional publication on its approved dependency cluster only.",
+    "migration": "DDL and backfill only during approved migration windows; not an application credential.",
+    "audit_reader": "Read audit and migration evidence without mutation privilege."
+  },
+  "stage3_realized_schemas": ["user_content", "operations", "audit"],
+  "stage3_prohibited": [
+    "production credentials",
+    "production database or service",
+    "automatic SQLite fallback",
+    "cross-backend pseudo-transactions",
+    "long-term dual write"
+  ]
+}

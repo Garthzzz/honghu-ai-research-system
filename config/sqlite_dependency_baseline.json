@@ -7,6 +7,26 @@
   },
   "documented_exceptions": [
     {
+      "path": "tools/migration/sqlite_inventory.py",
+      "domain": "migration dependency audit",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "Stage 3 needs one bounded read-only connection to inspect transition-era SQLite schemas. The connection requires URI mode=ro, immutable=1 and query_only, and the generated row-level audit remains outside Git.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "migration inventory and cutover registry",
+      "sunset_condition": "Remove after all production cutover units have left SQLite and the transition schema auditor is retired."
+    },
+    {
+      "path": "tools/migration/sqlite_inventory.py",
+      "domain": "migration dependency audit",
+      "rule": "pragma",
+      "max_count": 3,
+      "reason": "The Stage 3 read-only schema auditor recognizes PRAGMA dependencies and uses query_only, user_version and table_info for transition schema evidence; it does not execute mutating PRAGMAs.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "migration inventory and cutover registry",
+      "sunset_condition": "Remove after all production cutover units have left SQLite and the transition schema auditor is retired."
+    },
+    {
       "path": "tools/opportunity_lens/silicon_review_recorder.py",
       "domain": "opportunity_lens publication review",
       "rule": "begin_immediate",

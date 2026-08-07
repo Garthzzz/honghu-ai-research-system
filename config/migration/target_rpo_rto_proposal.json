@@ -1,0 +1,48 @@
+{
+  "schema_version": "honghu.target_rpo_rto_proposal.v1",
+  "approval_status": "pending_human_approval",
+  "decision_gate": "Must be approved before any production data-backend cutover.",
+  "targets": [
+    {
+      "class": "human_authored_and_publication_control",
+      "examples": ["comment", "analyst note", "thesis", "hypothesis", "publication ledger", "audit revision"],
+      "recoverability": "not reliably re-fetchable",
+      "target_rpo": "at most 5 minutes of committed data",
+      "target_rto": "restore critical read/write service within 4 hours",
+      "design_consequence": "transactional revision/audit, frequent durable backup or PITR-capable design, restore test required"
+    },
+    {
+      "class": "financial_and_model_governance",
+      "examples": ["observations", "observation revisions", "model inputs/outputs", "reconciliation ledger"],
+      "recoverability": "provider data may be re-fetched; internal estimates, revisions and reconciliation are not fully reproducible",
+      "target_rpo": "at most 30 minutes for non-reproducible revisions and model ledger",
+      "target_rto": "restore governed financial reads within 8 hours",
+      "design_consequence": "protect internal/revision rows more strongly than re-fetchable provider snapshots"
+    },
+    {
+      "class": "dynamic_intelligence_and_task_state",
+      "examples": ["news", "events", "voice posts", "fetch checkpoint", "schedule ledger"],
+      "recoverability": "partly re-fetchable; provider windows and deleted upstream content may not be",
+      "target_rpo": "at most 1 hour for checkpoints and non-reproducible accepted items",
+      "target_rto": "restore ingestion coordination within 12 hours",
+      "design_consequence": "checkpoint/ledger has higher durability than re-fetchable payloads; missed-window reconciliation required"
+    },
+    {
+      "class": "sentiment_raw_windows_and_aggregates",
+      "examples": ["raw posts", "window state", "permanent aggregates", "retention ledger"],
+      "recoverability": "aggregates are reproducible only while validated raw input exists; some raw sources cannot be replayed",
+      "target_rpo": "at most 1 hour for window/checkpoint/retention state; raw-source tolerance recorded per source",
+      "target_rto": "restore ledger and latest aggregates within 24 hours",
+      "design_consequence": "do not treat raw and aggregate as one class; retention deletion requires complete aggregate and validation evidence"
+    },
+    {
+      "class": "papers_evidence_and_artifact_identity",
+      "examples": ["accepted source original", "content hash", "artifact metadata"],
+      "recoverability": "accepted originals may disappear upstream",
+      "target_rpo": "zero accepted originals after durable ingestion acknowledgement",
+      "target_rto": "restore indexed access within 24 hours",
+      "design_consequence": "internal/object storage plus off-VM backup; Git is not the artifact store"
+    }
+  ],
+  "measurement_contract": "Stage 5 restore exercises measure actual RPO/RTO; target approval does not claim those values are already achieved."
+}

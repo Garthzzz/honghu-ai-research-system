@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "honghu.user_content_controlled_export.v1",
+  "title": "Controlled user-content export",
+  "type": "object",
+  "required": ["schema_version", "export_id", "created_at", "source_revision_watermark", "objects"],
+  "properties": {
+    "schema_version": {"const": "honghu.user_content_controlled_export.v1"},
+    "export_id": {"type": "string", "minLength": 1},
+    "created_at": {"type": "string", "format": "date-time"},
+    "source_revision_watermark": {"type": "string", "minLength": 1},
+    "objects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["object_type", "stable_key", "revision", "deleted", "payload_sha256", "payload"],
+        "properties": {
+          "object_type": {"type": "string"},
+          "stable_key": {"type": "string"},
+          "revision": {"type": "integer", "minimum": 1},
+          "deleted": {"type": "boolean"},
+          "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "payload": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "description": "A low-frequency portability/restore export contract. It is not a live Git replication channel."
+}
