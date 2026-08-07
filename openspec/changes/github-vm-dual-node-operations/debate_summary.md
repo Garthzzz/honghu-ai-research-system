@@ -253,7 +253,7 @@ Codex 没有因外部审查失真而停止独立复核，随后主动补强两�
 
 Codex 先根据真实 VM evidence 独立确认确定性根因：正常路径已经写入并据此判失败的 production gate comparison，在 catch cleanup 后被同名字段的二次采样覆盖。因此最终 JSON 出现 primary failure 与 `verified=true` 同时存在。修复提交 `7ef641827649d67ee4d9e74268be3b95eca0fbda` 将 evidence 升级为 v5：原始 `gate.post_state/comparisons/reasons` 只允许写一次，顶层兼容字段永久指向原 gate；cleanup 后状态独立进入 `recovery.post_cleanup_state/comparisons_to_pre`；primary、cleanup、pointer recovery 和 final-state capture 分别保存。生产状态使用三次有界采样，至少两个样本可用，所有可用样本在实际身份、listener、`current` 和广播 manifest 上必须一致。
 
-发送给 DeepSeek 的只有公开仓库、公开 commit、上述脱敏控制流、测试名称和汇总结果，没有发送 key、Cookie、数据库内容、papers/evidence、用户内容、内网地址或 VM 原始 evidence。DeepSeek 返回 `needs_changes`，但四项 must-fix 均与公开实现直接冲突：
+发送给 DeepSeek 的只有公开仓库、公开 commit、上述脱敏控制流、测试名称和汇总结果，没有发送 key、Cookie、数据库内容、papers/evidence、用户内容、内网地址或 VM 原始 evidence。DeepSeek 返回 `needs_changes`，但两项 must-fix 和两项 should-fix 均与公开实现直接冲突：
 
 - 声称 gate 抛错后 catch 不执行 cleanup；实际 `catch` 先保存 `failure.primary`，再调用身份受控 cleanup 与 pointer recovery；
 - 声称 final-state capture 不保证运行；实际 cleanup 后有独立 `try/catch`，成功或失败都写 `failure.final_state_capture`，最后重新抛出保存的 primary；
@@ -261,3 +261,9 @@ Codex 先根据真实 VM evidence 独立确认确定性根因：正常路径已�
 - 声称测试没有核对 gate 与 recovery；`test_gate_evidence_remains_immutable_when_cleanup_state_recovers` 明确断言 gate=false、兼容 post_state 仍为 gate、recovery=true、post-cleanup 状态独立、primary 不变、observed 仍指原 gate，并验证第二次 gate 写入被拒绝。
 
 DeepSeek 在 `uncertainties` 中也承认没有完整看到具体代码路径，因此 Codex 拒绝上述无可复现依据的意见，没有据此放宽 production gate。确定性依据是 569 passed、21 skipped、55 subtests、PowerShell parser 0 error、tracked boundary、SQLite ratchet 和 OpenSpec strict；远端 push/PR Actions 与 exact-commit artifact 仍需按最终提交重新核验，外部 reviewer 不替代 VM 重验。
+
+### 第二轮：当前分支头的可定位反例复核
+
+Codex 将第一轮复核记录提交为 `b8af0d0f36192422e49944f04c1619151f61d9c3` 后，再次要求 DeepSeek 只在读取公开代码后给出“相对路径、真实函数名和可复现反例”，并把输出限制为紧凑 JSON。DeepSeek 仍返回四项与源码冲突的意见：它引用了不存在的 `Set-GateState` 和笼统的 `Deploy-ReadonlyCandidate` 函数，声称 catch 没有 cleanup/pointer recovery、gate setter 不保存 post-state、生产窗口不相对 pre-state 比较，以及测试没有核对 primary/reasons。公开实现实际使用 `Set-HonghuCandidateGateEvidence`、`Set-HonghuCandidateRecoveryEvidence`、`Get-HonghuProductionStateWindow` 和 `Test-HonghuProductionUnchanged`；部署脚本 catch 明确执行 cleanup、pointer recovery、独立 final-state capture 后重抛 primary；回归测试逐项断言原 gate、recovery、primary、reasons 和兼容别名。
+
+这些意见没有提供能够在公开提交上复现的路径，而且响应再次在 `uncertainties` 中承认实现细节并未完整确认。Codex 因此拒绝全部四项，不产生新的运行时代码修订，也不调用第三轮：连续两轮都没有信息增量，继续调用只会重复已被确定性测试覆盖的猜测。最终工程依据仍是当前提交自己的完整 Actions、exact-commit artifact 和下一次 VM 现场 evidence；本记录提交只保存 reviewer 判断，不扩大阶段范围。
