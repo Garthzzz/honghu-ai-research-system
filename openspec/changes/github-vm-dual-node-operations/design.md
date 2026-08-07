@@ -2,9 +2,9 @@
 
 ## 1. 设计状态与边界
 
-本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。阶段 0 和阶段 1 已完成人工审查；当前只授权实施阶段 2 的 immutable release、本地 dev/test 边界和不切换生产的 VM 只读候选，后续阶段仍未授权。
+本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。阶段 0、阶段 1 和阶段 2 已完成人工审查；用户已授权实施阶段 3 的只读依赖审计、cutover unit 建模、独立 PostgreSQL dev/test 和非生产试点。阶段 3 尚未完成人工退出验收，阶段 4 及后续生产迁移仍未授权。
 
-阶段 2 不做：PostgreSQL 安装、live schema/data 修改、任务迁移、现有生产 Viewer 切换、VM 写接口、资料上传或备份清理。允许在隔离分支构建 exact-commit release，并在独立 VM 目录和端口运行只读并行候选。
+阶段 3 不做：production PostgreSQL 安装或切换、live SQLite schema/data 修改、任务迁移、现有生产 Viewer/writer 切换、VM 写接口、资料上传或备份清理。允许在隔离环境建立 PostgreSQL dev/test、执行合成 fixture 与恢复演练，并以只读方式审计 live SQLite 的 schema 和依赖边界。
 
 ## 2. 审计事实与问题定义
 
