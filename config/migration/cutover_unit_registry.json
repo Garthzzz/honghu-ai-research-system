@@ -1,7 +1,7 @@
 {
   "schema_version": "honghu.cutover_unit_registry.v1",
-  "source_commit": "b47ab687b5cdcbff30c6e64bf07f0e624ea4e398",
-  "inventory_sha256": "9d4cb018b8e0d4ed9a47062f231f330edee86890abd713d5fd2954a5f8908d61",
+  "source_commit": "48dc94035b3907468f762e88208279755db29a6b",
+  "inventory_sha256": "1fa9bca8400aa3967aeff33f31a71130b4c195196911783e2348dab73fa7a049",
   "boundary_change_policy": "human_review_required",
   "units": {
     "dynamic_intelligence": {
@@ -26666,5 +26666,5 @@
     "transaction_boundary_count": 387,
     "passed": true
   },
-  "registry_sha256": "6c42a5364ae1156f3750842be3a8af37cfc24c653a8457e7ff11472f398015b1"
+  "registry_sha256": "e32d537e5d9582037bef17b17f384dea0e6b101ac5d331bbb50f72dc642db0cf"
 }

@@ -1,6 +1,6 @@
 {
   "schema_version": "honghu.sqlite_dependency_inventory.v1",
-  "source_commit": "b47ab687b5cdcbff30c6e64bf07f0e624ea4e398",
+  "source_commit": "48dc94035b3907468f762e88208279755db29a6b",
   "definition": {
     "writer": "domain mutation path/write endpoint/writer operation/transaction contract",
     "not_equivalent_to": "whole process, Viewer application, or scheduled-task process",
@@ -5108,7 +5108,7 @@
     },
     {
       "path": "tools/migration/postgres_devtest.py",
-      "source_sha256": "4dda35be28af893a383c7f3115365b537eeed77c8cc719ed1c0012baa7a4452d",
+      "source_sha256": "b3689208185ee4ad497548b118d5fb7e87807de858dc2d6ca365a94990ba119b",
       "domain": "other",
       "lifecycle": "active_or_callable",
       "access": "read",
@@ -16269,5 +16269,5 @@
       "review_status": "machine_classified"
     }
   ],
-  "inventory_sha256": "9d4cb018b8e0d4ed9a47062f231f330edee86890abd713d5fd2954a5f8908d61"
+  "inventory_sha256": "1fa9bca8400aa3967aeff33f31a71130b4c195196911783e2348dab73fa7a049"
 }
