@@ -448,7 +448,9 @@ Get-HonghuProductionStateWindow -Root '{temp}' -Attempts 3 -RequiredUsableSample
         helper = ROOT / "tools/release/CandidateProcess.ps1"
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
+            result_path = root / "comparison.json"
             script = rf"""
+$ErrorActionPreference = 'Stop'
 . '{helper}'
 function Invoke-WebRequest {{
     param([switch]$UseBasicParsing, $Uri, $TimeoutSec, $ErrorAction)
@@ -462,11 +464,16 @@ $before = Get-HonghuProductionState -Root '{temp}'
 'new-current' | Set-Content -LiteralPath '{root / "current"}' -Encoding UTF8
 'new-manifest' | Set-Content -LiteralPath '{root / "BROADCAST_MANIFEST.json"}' -Encoding UTF8
 $after = Get-HonghuProductionState -Root '{temp}'
-Test-HonghuProductionUnchanged -Before $before -After $after | ConvertTo-Json -Depth 12 -Compress
+$comparison = Test-HonghuProductionUnchanged -Before $before -After $after
+$comparison | ConvertTo-Json -Depth 12 -Compress | Set-Content -LiteralPath '{result_path}' -Encoding UTF8
 """
             result = _run_powershell(script)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        payload = json.loads(result.stdout.strip().splitlines()[-1])
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(result_path.is_file(), result.stdout + result.stderr)
+            # Windows PowerShell 5.1 writes a UTF-8 BOM while PowerShell 7 does
+            # not. The contract under test is the comparison object, not the
+            # console host's output transport or BOM policy.
+            payload = json.loads(result_path.read_text(encoding="utf-8-sig"))
         self.assertFalse(payload["verified"], payload)
         self.assertFalse(payload["current_pointer_stable"])
         self.assertFalse(payload["broadcast_manifest_stable"])
