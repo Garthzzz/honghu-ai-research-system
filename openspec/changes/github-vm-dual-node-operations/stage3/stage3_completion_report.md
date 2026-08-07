@@ -17,6 +17,23 @@
 - 在隔离 PostgreSQL 17.10 dev/test 完成 analyst-note 低风险试点、幂等/revision/audit/soft-delete、冲突、dump/restore 和 live SQLite 哈希不变验证。
 - 提出按数据可补抓性和业务重要性分层的 target RPO/RTO，等待人工批准。
 
+## 固定身份与验证结果
+
+- 公开 PR：`#5`，工程复核 head（写本报告时）：`e8701562f5fa815adb4c7d85ce6d1b52fffe053e`；最终治理提交和 CI 仍以 PR 实际最新 head 为准。
+- inventory 绑定实现提交：`48dc94035b3907468f762e88208279755db29a6b`。
+- inventory：134 个 live 表、956 条 operation-level writer、387 个事务边界；ownership overlap、unknown owner、漏表和虚构表均为 0。
+- 本地 core：581 passed、21 skipped、55 subtests；compile、SQLite ratchet 和 OpenSpec strict 通过。
+- Git-external PostgreSQL pilot evidence SHA256：`29a75f79ebcc69af4af58fb365800f4f408ce9d8ad9205ea4810fefcacba70fd`。
+- Git-external只读 live schema audit SHA256：`3aaab5f5207bd70ea23e4dc9694713f2a192f505d31b1e61a4188b00b4138337`。
+- PostgreSQL 17.10 官方指向 binary archive SHA256：`ef9b1e5e23d2e8a83914ba13d9dc536a72210fba53fd1808ff1f7e06bb22b106`。
+- 最新试点 migration SHA256：`333d8d5bd266b6bb70afd2444b5deca44f8a908f0e9cb00736031ebecf121f47`；migration 两次应用、payload-level 幂等冲突、NULL revision、stale revision、soft delete、audit 和旁路 restore 均通过。
+
+原始 evidence 未提交公开 Git；上述 hash 只用于把人工复核绑定到本地只读/合成证据。
+
+## DeepSeek reviewer
+
+实际两轮后停止。第一轮要求把 operation ledger/lease 写入 live SQLite，并错误声称脚本使用 5432；第二轮仍把函数放错文件、否认公开代码已有的 migration SHA、soft delete、NULL revision 和 test-target gate，同时虚构 Docker/Redis/CDC 改动。两轮均没有可复现的有效新增问题，因此拒绝并停止第三轮。Codex 独立发现并修复了 payload-level 幂等比较、NULL revision 绕过和 Windows `pg_ctl` capture-pipe 生命周期问题；外部 reviewer 不是通过依据。
+
 ## 明确未执行
 
 - 未安装、启动或创建 production PostgreSQL；测试集群不是 Windows 服务且已停止。

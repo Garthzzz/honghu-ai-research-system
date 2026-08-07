@@ -109,19 +109,19 @@
 **前置条件**：阶段 2 通过；用户决定 PostgreSQL 试验环境。  
 **回滚点**：销毁 dev/test 试点，live SQLite 不变。
 
-- [ ] [本阶段必须] 建立机器可读 SQLite dependency inventory，至少记录文件路径、所属数据域、读/写属性、SQLite 专属语义、`ATTACH` 依赖、关联页面/API/任务/publisher、候选切换单元、权威后端和迁移状态；持续更新而不是只生成一次统计数字。
-- [ ] [本阶段必须] 产出并人工审查数据域依赖图、read/write 路径清单、跨域事务图、`ATTACH` 替代边界、共享身份依赖，以及必须共同成功的业务操作。
-- [ ] [本阶段必须] 建立版本化 cutover unit registry 和 authoritative-backend matrix：每个可写对象、writer 和完整事务边界只能有一个 owning unit，其他 unit 只能声明 dependency；登记每个 unit 的包含/依赖对象、S0—S4 状态、责任人和边界变更历史，执行 ownership 重叠/冲突检查。共享身份是否单独成基础 unit 由依赖与事务审计决定，迁移脚本不得自动漂移边界。
-- [ ] [本阶段必须] 明确不得把一次业务事务拆到 SQLite/PostgreSQL 分别提交；无法安全拆分的 reader、writer、任务、页面和 publisher 必须共同切换或先重构边界。
-- [ ] [本阶段必须] 设计统一连接、事务、repository/writer 和 migration 边界；业务代码不再新增直接 SQLite 文件依赖。
-- [ ] [本阶段必须] 建立 PostgreSQL dev/test 和可重复 migration/fixture 流程；测试直接使用 PostgreSQL 语义。
-- [ ] [本阶段必须] 定义主要 database 的逻辑域、共享身份、role/writer 权限和审计边界；物理拆库必须有证据。
-- [ ] [本阶段必须] 定义稳定业务身份与 legacy mapping 合同；保存 SQLite database/table/id 到稳定身份和 PostgreSQL 目标对象的可验证映射，允许内部 surrogate key，不强制全局 UUID。
-- [ ] [本阶段必须] 建立 expand–migrate/backfill–application transition–contract migration 合同；破坏性 contract 必须放在后续独立批准 release，每个 migration 说明 compatibility、backup、verification 和 recovery strategy。
+- [x] [本阶段必须] 建立机器可读 SQLite dependency inventory，至少记录文件路径、所属数据域、读/写属性、SQLite 专属语义、`ATTACH` 依赖、关联页面/API/任务/publisher、候选切换单元、权威后端和迁移状态；持续更新而不是只生成一次统计数字。
+- [x] [本阶段必须] 产出并人工审查数据域依赖图、read/write 路径清单、跨域事务图、`ATTACH` 替代边界、共享身份依赖，以及必须共同成功的业务操作。
+- [x] [本阶段必须] 建立版本化 cutover unit registry 和 authoritative-backend matrix：每个可写对象、writer 和完整事务边界只能有一个 owning unit，其他 unit 只能声明 dependency；登记每个 unit 的包含/依赖对象、S0—S4 状态、责任人和边界变更历史，执行 ownership 重叠/冲突检查。共享身份是否单独成基础 unit 由依赖与事务审计决定，迁移脚本不得自动漂移边界。
+- [x] [本阶段必须] 明确不得把一次业务事务拆到 SQLite/PostgreSQL 分别提交；无法安全拆分的 reader、writer、任务、页面和 publisher 必须共同切换或先重构边界。
+- [x] [本阶段必须] 设计统一连接、事务、repository/writer 和 migration 边界；业务代码不再新增直接 SQLite 文件依赖。
+- [x] [本阶段必须] 建立 PostgreSQL dev/test 和可重复 migration/fixture 流程；测试直接使用 PostgreSQL 语义。
+- [x] [本阶段必须] 定义主要 database 的逻辑域、共享身份、role/writer 权限和审计边界；物理拆库必须有证据。
+- [x] [本阶段必须] 定义稳定业务身份与 legacy mapping 合同；保存 SQLite database/table/id 到稳定身份和 PostgreSQL 目标对象的可验证映射，允许内部 surrogate key，不强制全局 UUID。
+- [x] [本阶段必须] 建立 expand–migrate/backfill–application transition–contract migration 合同；破坏性 contract 必须放在后续独立批准 release，每个 migration 说明 compatibility、backup、verification 和 recovery strategy。
 - [ ] [本阶段必须] 在阶段 3 结束、任何 production 数据切换前，按数据类别批准 target RPO/RTO，明确可接受损失/恢复时间、可补抓与不可补抓数据，以及它们对备份、PITR 和部署拓扑的约束。
-- [ ] [本阶段必须] 选择一个低风险切换单元试点。选择需比较数据量、共享身份、写复杂度、已有 ledger、对账和恢复；不得未经审计固定顺序。
-- [ ] [本阶段必须] 为试点验证计数、主外键、业务不变量、revision/audit、性能和恢复；publisher/user-content 更新必须测试稳定 release id、幂等重试、expected/base revision、stale conflict、禁止 silent last-write-wins 和依赖簇原子性。
-- [ ] [本阶段必须] 明确用户内容受控导出格式以满足可移植性，但不建立实时 Git 复制。
+- [x] [本阶段必须] 选择一个低风险切换单元试点。选择需比较数据量、共享身份、写复杂度、已有 ledger、对账和恢复；不得未经审计固定顺序。
+- [x] [本阶段必须] 为试点验证计数、主外键、业务不变量、revision/audit、性能和恢复；publisher/user-content 更新必须测试稳定 release id、幂等重试、expected/base revision、stale conflict、禁止 silent last-write-wins 和依赖簇原子性。
+- [x] [本阶段必须] 明确用户内容受控导出格式以满足可移植性，但不建立实时 Git 复制。
 - [ ] [HALT] 提交试点设计、测试、对账、rollback rehearsal 和下一域排序建议，等待人工批准。
 
 **退出条件**：inventory、依赖/事务图、cutover unit registry、唯一 ownership/dependency、重叠检查、权威后端、稳定身份和 migration compatibility 均通过人工审查；target RPO/RTO 已批准；试点在 dev/test 完整通过；没有 live 变更；证明数据访问层不是简单 SQL 字符串替换。

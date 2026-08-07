@@ -295,3 +295,19 @@ DeepSeek 返回的 must-fix 同时要求“PID 必须与 `[5000,16332]` 或 `[46
 DeepSeek仍没有返回约定的 verdict/must-fix 结构，而是把输入摘要重写成函数说明；它再次声称 candidate 运行在 8080，并建议“candidate PID 不应在 ForbiddenListenerPids”，与公开部署脚本“candidate 只监听 18080，若其 PID 出现在 production 8080 则失败”的合同相反。它还错误声称 authority identity 包含 PID，而公开实现明确只包含 listener query/presence 布尔，PID 仅在 runtime diagnostics。由于没有任何相对路径、真实触发输入或可复现错误，这些意见全部拒绝，不再据此修改代码。
 
 两轮外部响应连续没有信息增量，故停止第三轮。有效工程证据来自 PowerShell 定向回归、完整本地测试、最终提交自己的 push/PR Actions、exact-commit artifact 与待执行的 VM 现场复验；DeepSeek 不构成阶段 2 退出批准。
+
+## 阶段 3 数据依赖与 PostgreSQL dev/test 试点复核（2026-08-07 追加）
+
+> 实际轮次：2 轮。只发送公开仓库、PR #5、公开提交和脱敏合同/测试摘要；未发送 key、Cookie、数据库内容或行数、papers/evidence、用户内容、内网地址、外部 evidence 或凭据。连续两轮没有可复现的信息增量，停止第三轮。
+
+### 第一轮：初版公开试点
+
+Codex 先独立完成 operation-level SQLite dependency inventory、唯一 cutover ownership registry、显式 backend route、expand-only migration 和隔离 PostgreSQL 17.10 用户笔记试点。DeepSeek 要求把 operation ledger 与 writer lease 写入 live SQLite、用 attached database 保证一致性，并提前增加 Stage 4、复制和监控；这些直接违反“Stage 3 不改 live SQLite、不进入生产”的授权。它还错误声称 dev/test 使用 5432，而公开 `validate_test_target` 明确拒绝 5432、非 loopback 和非测试库前缀。上述意见全部拒绝。
+
+Codex没有因无效 reviewer 意见停止独立复核，随后发现两个真实 SQL 边界：NULL `expected_revision` 可能绕过 SQL 三值比较；只比较调用方声称的 request hash 不能证明 payload 相同。修订在数据库内保存并比较完整 canonical JSON payload，显式拒绝 NULL revision/key/hash，并增加“相同 hash 但 payload 改变”反例。Windows 真机复验还发现 `pg_ctl start` 的长生命周期 server 可继承 capture pipe；启动路径改用外部日志和无继承 pipe，并新增回归。
+
+### 第二轮：收紧后的公开提交
+
+第二轮要求 DeepSeek只报告带相对路径、真实函数/SQL对象和精确触发输入的问题。返回仍把 `validate_test_target` 错放进 `cutover_registry.py`，重复声称代码连接 5432、没有 migration ID/SHA、没有 soft delete/NULL 处理或 payload 校验，并虚构 PR 修改了 Docker、Redis 和 CDC。它还把“NULL revision 必须 fail-closed”倒置为缺陷。这些均与公开源码和测试直接冲突，全部拒绝。
+
+两轮没有有效增量后按约束停止。Stage 3 的有效依据是本地完整测试、真实 PostgreSQL migration/冲突/dump/restore、live SQLite 前后文件 hash、registry 冲突检查、OpenSpec strict 和最终 PR Actions，不是外部 reviewer verdict。
