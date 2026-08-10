@@ -16,15 +16,15 @@
 
 ## SQLite 依赖、ownership 与事务边界
 
-可部署清单覆盖 280 个依赖文件，其中 234 个生产文件、180 个写文件、957 条 operation-level writer 和 387 个事务边界；`ATTACH` 文件为 5 个。
+可部署清单覆盖 281 个依赖文件，其中 234 个生产文件、181 个写文件、958 条 operation-level writer 和 388 个事务边界；`ATTACH` 文件为 5 个。
 
 Git 外 live-only addendum 覆盖 6 个研究 producer，其中 3 个写文件、13 条 writer operation、4 个事务边界和 1 个 `ATTACH` 文件。合并后的完整审计视图为：
 
-- 286 个依赖文件；
+- 287 个依赖文件；
 - 240 个生产文件；
-- 183 个写文件；
-- 970 条 writer operation；
-- 391 个事务边界；
+- 184 个写文件；
+- 971 条 writer operation；
+- 392 个事务边界；
 - 6 个 `ATTACH` 文件；
 - writer、事务边界重复和未知 cutover owner 均为 0。
 
@@ -32,10 +32,10 @@ Git 外 live-only addendum 覆盖 6 个研究 producer，其中 3 个写文件�
 
 主要 Git 外证据身份：
 
-- deployable inventory 文件 SHA256：`586492740bc9304c8f4108e6774f1eed520a880f246d3d3a0bff098e9724a281`；
-- live-only addendum 文件 SHA256：`572147261dddd6bcefbac2eabbefe528ced425cee89e7376191b4cd4540490b2`；内容身份：`9c12e94ad04a1b4548c1728443c895f6b739cc4a7e5023c2ec433fbc19ae0ec4`；
-- aggregate manifest 文件 SHA256：`a323110e0fa0826d2153213eccdb3a8e8bf2233c6f15ac2ec24a878f7d42044e`；内容身份：`43992d208be4eff8481b55541727c55e525c8f208c4324c2b1df4f97a6acb6fb`；
-- cutover registry 文件 SHA256：`cb0590047f40e3b47fb4acf39e777114ba36c48e25c08c1145852c666937cfe2`；
+- deployable inventory 文件 SHA256：`751598638b54d7ddb7eae9fa3d42a59fb51787bedd1241912b5109d635559686`；内容身份：`3c08fcf087678f04a4d6fd028733ca0307c0cb9a2cf1b12484637026a69f3f2d`；
+- live-only addendum 文件 SHA256：`e2792166c653deaa286296edadae2a955d08bec0b4aa77d4a62555e4afbd10b4`；内容身份：`0a8f4ee59ba1aa97ed10c54e797dfd9aa8dba4fa3b650e4067d9c7aec2576999`；
+- aggregate manifest 文件 SHA256：`17abcc2e945ebee4d1328398544aba389a5d12cc8d49dbcab3680d7c1ab3f1a3`；内容身份：`4434170746e77ac0899ace93d45c3c3d8b6003ae846c00b9224506f9c3dc9b34`；
+- cutover registry 文件 SHA256：`cda06890d9a4be4d290587be00eb63be61d657c4aede1eeaf02b5bec3ccb0274`；
 - live schema audit 文件 SHA256：`2a60e51a465594360f99966555a511b2440a496d74373c8a84d320816db85400`。
 
 上述身份会在提交前重新生成；如最终值变化，以最终 Git 外 identity 记录和提交报告为准。
@@ -56,6 +56,8 @@ Git 外试点证据 SHA256 为 `ac9700d46af1b16af983d678c3ecf0ffbdd89409b2e51e48
 ## 测试与验收口径
 
 标准 clean-environment 测试入口当前结果为 591 passed、21 skipped、55 subtests；收集到 612 个测试。compile、SQLite dependency ratchet、代表性只读 Viewer 路由、Stage 2 readonly/release 回归和 OpenSpec strict 均通过。
+
+2026-08-11 的首次治理提交 CI 暴露出一个固定日期测试缺陷：财务刷新 fixture 使用 2026-07-15/07-10，但校验引用真实北京时间，跨日后旧值超过 31 天门槛而使测试失去原意。修复只在测试类内冻结时钟到 fixture 日期；production 的 apply-time freshness、31 天 fail-closed 门禁和测试断言均未放宽。修复后该模块 22 passed、3 subtests，完整 core 重新得到上述绿色结果。
 
 直接执行未分层的根目录 `pytest -q` 会进入 22 个由既有 manifest 治理、依赖 Git 外研究 artifact/Excel/live 数据的模块，因此产生 41 errors 和 42 failures；其余结果为 695 passed、21 skipped、57 subtests。这些失败没有通过删除、永久 xfail、放宽门禁或修改 live 数据掩盖。CI 与 clean clone 的权威入口继续是 `tools/ci/run_test_tier.py`，同时保留上述完整事实供人工判断。
 

@@ -1,6 +1,6 @@
 {
   "schema_version": "honghu.sqlite_dependency_inventory.v1",
-  "source_commit": "6c69479752c41b9a7a423cf11c41826a26af4163",
+  "source_commit": "f1aa7f9bb1a45406090ec155688823f76c7eabb9",
   "definition": {
     "writer": "domain mutation path/write endpoint/writer operation/transaction contract",
     "not_equivalent_to": "whole process, Viewer application, or scheduled-task process",
@@ -8,12 +8,12 @@
     "classification_limit": "static evidence; write paths remain manual-review items until code and transaction semantics are audited"
   },
   "summary": {
-    "file_count": 280,
+    "file_count": 281,
     "production_file_count": 234,
-    "write_file_count": 180,
-    "writer_operation_count": 957,
+    "write_file_count": 181,
+    "writer_operation_count": 958,
     "attach_file_count": 5,
-    "manual_review_file_count": 180,
+    "manual_review_file_count": 181,
     "counts_by_domain": {
       "dynamic": 17,
       "financial": 9,
@@ -24,7 +24,7 @@
       "release": 3,
       "research": 74,
       "sentiment": 33,
-      "test": 46,
+      "test": 47,
       "viewer": 3
     },
     "counts_by_rule": {
@@ -183,6 +183,43 @@
       ],
       "surface_types": [
         "cli"
+      ],
+      "routes": [],
+      "candidate_cutover_unit": "test_fixture_only",
+      "authoritative_backend": "sqlite_transition",
+      "migration_state": "S0",
+      "review_status": "manual_review_required"
+    },
+    {
+      "path": "tests/migration/test_live_delta_inventory.py",
+      "source_sha256": "9eeb813148cf94a551d979e358411894d94a2b6672b2130b90c5f6628ee7808d",
+      "domain": "test",
+      "lifecycle": "test_only",
+      "access": "write",
+      "sqlite_semantics": [],
+      "database_references": [
+        "research.db"
+      ],
+      "attach_present": false,
+      "dml_targets": [
+        "research_claim"
+      ],
+      "ddl_present": false,
+      "writer_operations": [
+        {
+          "rule": "dml",
+          "line": 33,
+          "column": 28,
+          "operation": "test_live_only_addendum_excludes_tracked_and_never_embeds_source",
+          "target": "research_claim",
+          "operation_id": "tests/migration/test_live_delta_inventory.py:test_live_only_addendum_excludes_tracked_and_never_embeds_source:dml:33:28"
+        }
+      ],
+      "transaction_boundaries": [
+        "tests/migration/test_live_delta_inventory.py:test_live_only_addendum_excludes_tracked_and_never_embeds_source"
+      ],
+      "surface_types": [
+        "library_or_script"
       ],
       "routes": [],
       "candidate_cutover_unit": "test_fixture_only",
@@ -1026,7 +1063,7 @@
     },
     {
       "path": "tests/research_workflow/test_company_financial_refresh.py",
-      "source_sha256": "2ace353ce667b92b82bca95a7170b616063bcfad8cb408f1b5ff183b3b2ac7e6",
+      "source_sha256": "23db1a3a1cf84cc3fdb3f23ebe11a4c9406ecd3d278d289dd1ef358f7f16ea37",
       "domain": "test",
       "lifecycle": "test_only",
       "access": "write",
@@ -1047,43 +1084,43 @@
       "writer_operations": [
         {
           "rule": "dml",
-          "line": 113,
+          "line": 124,
           "column": 17,
           "operation": "setUp",
           "target": "industry",
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:113:17"
-        },
-        {
-          "rule": "dml",
-          "line": 117,
-          "column": 17,
-          "operation": "setUp",
-          "target": "company",
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:117:17"
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:124:17"
         },
         {
           "rule": "dml",
           "line": 128,
           "column": 17,
           "operation": "setUp",
-          "target": "company_industry",
+          "target": "company",
           "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:128:17"
         },
         {
           "rule": "dml",
-          "line": 378,
-          "column": 19,
-          "operation": "test_missing_fields_do_not_erase_existing_values_or_financial_date",
-          "target": "company",
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_missing_fields_do_not_erase_existing_values_or_financial_date:dml:378:19"
+          "line": 139,
+          "column": 17,
+          "operation": "setUp",
+          "target": "company_industry",
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:139:17"
         },
         {
           "rule": "dml",
-          "line": 556,
+          "line": 389,
+          "column": 19,
+          "operation": "test_missing_fields_do_not_erase_existing_values_or_financial_date",
+          "target": "company",
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_missing_fields_do_not_erase_existing_values_or_financial_date:dml:389:19"
+        },
+        {
+          "rule": "dml",
+          "line": 567,
           "column": 17,
           "operation": "test_explicit_nonpositive_pe_clears_legacy_value",
           "target": "company",
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_explicit_nonpositive_pe_clears_legacy_value:dml:556:17"
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_explicit_nonpositive_pe_clears_legacy_value:dml:567:17"
         }
       ],
       "transaction_boundaries": [
@@ -16278,5 +16315,5 @@
       "review_status": "machine_classified"
     }
   ],
-  "inventory_sha256": "a38b78be85121f1d4c7d764fef00c2ecfdd4de5682ab49fc2eeb608f1f1258d5"
+  "inventory_sha256": "3c08fcf087678f04a4d6fd028733ca0307c0cb9a2cf1b12484637026a69f3f2d"
 }

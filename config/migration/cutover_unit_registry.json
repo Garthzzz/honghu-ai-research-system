@@ -1,7 +1,7 @@
 {
   "schema_version": "honghu.cutover_unit_registry.v1",
-  "source_commit": "6c69479752c41b9a7a423cf11c41826a26af4163",
-  "inventory_sha256": "a38b78be85121f1d4c7d764fef00c2ecfdd4de5682ab49fc2eeb608f1f1258d5",
+  "source_commit": "f1aa7f9bb1a45406090ec155688823f76c7eabb9",
+  "inventory_sha256": "3c08fcf087678f04a4d6fd028733ca0307c0cb9a2cf1b12484637026a69f3f2d",
   "boundary_change_policy": "human_review_required",
   "units": {
     "dynamic_intelligence": {
@@ -22779,6 +22779,19 @@
           "routes": []
         },
         {
+          "operation_id": "tests/migration/test_live_delta_inventory.py:test_live_only_addendum_excludes_tracked_and_never_embeds_source:dml:33:28",
+          "path": "tests/migration/test_live_delta_inventory.py",
+          "operation": "test_live_only_addendum_excludes_tracked_and_never_embeds_source",
+          "lifecycle": "test_only",
+          "dml_targets": [
+            "research_claim"
+          ],
+          "surface_types": [
+            "library_or_script"
+          ],
+          "routes": []
+        },
+        {
           "operation_id": "tests/migration/test_sqlite_inventory.py:test_scan_file_assigns_operation_level_writer_and_attach:begin_immediate:15:18",
           "path": "tests/migration/test_sqlite_inventory.py",
           "operation": "test_scan_file_assigns_operation_level_writer_and_attach",
@@ -23385,22 +23398,7 @@
           "routes": []
         },
         {
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:113:17",
-          "path": "tests/research_workflow/test_company_financial_refresh.py",
-          "operation": "setUp",
-          "lifecycle": "test_only",
-          "dml_targets": [
-            "company",
-            "company_industry",
-            "industry"
-          ],
-          "surface_types": [
-            "cli"
-          ],
-          "routes": []
-        },
-        {
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:117:17",
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:124:17",
           "path": "tests/research_workflow/test_company_financial_refresh.py",
           "operation": "setUp",
           "lifecycle": "test_only",
@@ -23430,7 +23428,22 @@
           "routes": []
         },
         {
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_explicit_nonpositive_pe_clears_legacy_value:dml:556:17",
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:setUp:dml:139:17",
+          "path": "tests/research_workflow/test_company_financial_refresh.py",
+          "operation": "setUp",
+          "lifecycle": "test_only",
+          "dml_targets": [
+            "company",
+            "company_industry",
+            "industry"
+          ],
+          "surface_types": [
+            "cli"
+          ],
+          "routes": []
+        },
+        {
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_explicit_nonpositive_pe_clears_legacy_value:dml:567:17",
           "path": "tests/research_workflow/test_company_financial_refresh.py",
           "operation": "test_explicit_nonpositive_pe_clears_legacy_value",
           "lifecycle": "test_only",
@@ -23445,7 +23458,7 @@
           "routes": []
         },
         {
-          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_missing_fields_do_not_erase_existing_values_or_financial_date:dml:378:19",
+          "operation_id": "tests/research_workflow/test_company_financial_refresh.py:test_missing_fields_do_not_erase_existing_values_or_financial_date:dml:389:19",
           "path": "tests/research_workflow/test_company_financial_refresh.py",
           "operation": "test_missing_fields_do_not_erase_existing_values_or_financial_date",
           "lifecycle": "test_only",
@@ -24737,6 +24750,13 @@
           "dml_targets": [
             "company",
             "industry"
+          ]
+        },
+        {
+          "transaction_id": "tests/migration/test_live_delta_inventory.py:test_live_only_addendum_excludes_tracked_and_never_embeds_source",
+          "path": "tests/migration/test_live_delta_inventory.py",
+          "dml_targets": [
+            "research_claim"
           ]
         },
         {
@@ -26678,9 +26698,9 @@
     "unowned_live_tables": [],
     "configured_objects_not_in_live_schema": [],
     "object_count": 134,
-    "writer_operation_count": 957,
-    "transaction_boundary_count": 387,
+    "writer_operation_count": 958,
+    "transaction_boundary_count": 388,
     "passed": true
   },
-  "registry_sha256": "fccc653b6eeed3afd05b838f8b97f5885749de6d1b66561d05d0e021460045ab"
+  "registry_sha256": "56d3502a12af875be7e0ac26f36026488bd288463fec38660bdbe385b7a4389d"
 }
