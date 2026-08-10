@@ -1,7 +1,7 @@
 {
   "schema_version": "honghu.cutover_unit_registry.v1",
-  "source_commit": "48dc94035b3907468f762e88208279755db29a6b",
-  "inventory_sha256": "1fa9bca8400aa3967aeff33f31a71130b4c195196911783e2348dab73fa7a049",
+  "source_commit": "6c69479752c41b9a7a423cf11c41826a26af4163",
+  "inventory_sha256": "a38b78be85121f1d4c7d764fef00c2ecfdd4de5682ab49fc2eeb608f1f1258d5",
   "boundary_change_policy": "human_review_required",
   "units": {
     "dynamic_intelligence": {
@@ -847,7 +847,7 @@
           "routes": []
         },
         {
-          "operation_id": "tools/viewer/app.py:api_event_analyst:dml:6184:14",
+          "operation_id": "tools/viewer/app.py:api_event_analyst:dml:6320:14",
           "path": "tools/viewer/app.py",
           "operation": "api_event_analyst",
           "lifecycle": "active_or_callable",
@@ -2161,7 +2161,7 @@
       ],
       "writer_operations": [
         {
-          "operation_id": "tools/viewer/app.py:_log_update:dml:6473:11",
+          "operation_id": "tools/viewer/app.py:_log_update:dml:6609:11",
           "path": "tools/viewer/app.py",
           "operation": "_log_update",
           "lifecycle": "active_or_callable",
@@ -2254,7 +2254,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:5950:19",
+          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:6086:19",
           "path": "tools/viewer/app.py",
           "operation": "api_company_thesis_upsert",
           "lifecycle": "active_or_callable",
@@ -2347,7 +2347,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:5956:21",
+          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:6092:21",
           "path": "tools/viewer/app.py",
           "operation": "api_company_thesis_upsert",
           "lifecycle": "active_or_callable",
@@ -2440,7 +2440,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:5961:19",
+          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:6097:19",
           "path": "tools/viewer/app.py",
           "operation": "api_company_thesis_upsert",
           "lifecycle": "active_or_callable",
@@ -2533,7 +2533,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6724:15",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6860:15",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_create",
           "lifecycle": "active_or_callable",
@@ -2626,7 +2626,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6740:19",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6876:19",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_create",
           "lifecycle": "active_or_callable",
@@ -2719,7 +2719,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6762:19",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6898:19",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_create",
           "lifecycle": "active_or_callable",
@@ -2812,7 +2812,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_edit:dml:6868:23",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_edit:dml:7004:23",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_edit",
           "lifecycle": "active_or_callable",
@@ -2905,7 +2905,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:6892:15",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:7028:15",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_signal_add",
           "lifecycle": "active_or_callable",
@@ -2998,7 +2998,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:6898:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:7034:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_signal_add",
           "lifecycle": "active_or_callable",
@@ -3091,7 +3091,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:6950:13",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:7086:13",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_signal_check",
           "lifecycle": "active_or_callable",
@@ -3184,7 +3184,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:6954:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:7090:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_signal_check",
           "lifecycle": "active_or_callable",
@@ -3277,7 +3277,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:6918:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:7054:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_signal_delete",
           "lifecycle": "active_or_callable",
@@ -3370,7 +3370,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:6921:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:7057:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_signal_delete",
           "lifecycle": "active_or_callable",
@@ -3463,7 +3463,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:6990:19",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7126:19",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_trade",
           "lifecycle": "active_or_callable",
@@ -3556,7 +3556,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7000:19",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7136:19",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_trade",
           "lifecycle": "active_or_callable",
@@ -3649,7 +3649,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7011:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7147:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_trade",
           "lifecycle": "active_or_callable",
@@ -3742,7 +3742,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7031:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7167:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_trade_delete",
           "lifecycle": "active_or_callable",
@@ -3835,7 +3835,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7034:22",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7170:22",
           "path": "tools/viewer/app.py",
           "operation": "api_hypothesis_trade_delete",
           "lifecycle": "active_or_callable",
@@ -3928,7 +3928,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:5998:19",
+          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6134:19",
           "path": "tools/viewer/app.py",
           "operation": "api_industry_thesis_upsert",
           "lifecycle": "active_or_callable",
@@ -4021,7 +4021,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6004:23",
+          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6140:23",
           "path": "tools/viewer/app.py",
           "operation": "api_industry_thesis_upsert",
           "lifecycle": "active_or_callable",
@@ -4114,7 +4114,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6011:19",
+          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6147:19",
           "path": "tools/viewer/app.py",
           "operation": "api_industry_thesis_upsert",
           "lifecycle": "active_or_callable",
@@ -22445,7 +22445,7 @@
           "routes": []
         },
         {
-          "operation_id": "tools/viewer/app.py:_resolve_or_create_researcher:dml:6642:9",
+          "operation_id": "tools/viewer/app.py:_resolve_or_create_researcher:dml:6778:9",
           "path": "tools/viewer/app.py",
           "operation": "_resolve_or_create_researcher",
           "lifecycle": "active_or_callable",
@@ -22538,7 +22538,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_researcher_create:dml:7104:13",
+          "operation_id": "tools/viewer/app.py:api_researcher_create:dml:7240:13",
           "path": "tools/viewer/app.py",
           "operation": "api_researcher_create",
           "lifecycle": "active_or_callable",
@@ -22695,12 +22695,27 @@
           "routes": []
         },
         {
-          "operation_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree:dml:49:29",
+          "operation_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree:dml:53:29",
           "path": "tests/maintenance/test_required_cache_bundle.py",
           "operation": "test_collects_config_database_and_durable_cache_without_temp_tree",
           "lifecycle": "test_only",
           "dml_targets": [
-            "artifact"
+            "artifact",
+            "audit_artifact"
+          ],
+          "surface_types": [
+            "cli"
+          ],
+          "routes": []
+        },
+        {
+          "operation_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree:dml:61:29",
+          "path": "tests/maintenance/test_required_cache_bundle.py",
+          "operation": "test_collects_config_database_and_durable_cache_without_temp_tree",
+          "lifecycle": "test_only",
+          "dml_targets": [
+            "artifact",
+            "audit_artifact"
           ],
           "surface_types": [
             "cli"
@@ -23860,7 +23875,7 @@
           "routes": []
         },
         {
-          "operation_id": "tests/research_workflow/test_refresh_project_backup.py:_project:dml:53:30",
+          "operation_id": "tests/research_workflow/test_refresh_project_backup.py:_project:dml:76:30",
           "path": "tests/research_workflow/test_refresh_project_backup.py",
           "operation": "_project",
           "lifecycle": "test_only",
@@ -24704,7 +24719,8 @@
           "transaction_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree",
           "path": "tests/maintenance/test_required_cache_bundle.py",
           "dml_targets": [
-            "artifact"
+            "artifact",
+            "audit_artifact"
           ]
         },
         {
@@ -25322,7 +25338,7 @@
       ],
       "writer_operations": [
         {
-          "operation_id": "tools/viewer/app.py:api_analyst_note_create:dml:5884:15",
+          "operation_id": "tools/viewer/app.py:api_analyst_note_create:dml:6020:15",
           "path": "tools/viewer/app.py",
           "operation": "api_analyst_note_create",
           "lifecycle": "active_or_callable",
@@ -25415,7 +25431,7 @@
           ]
         },
         {
-          "operation_id": "tools/viewer/app.py:api_analyst_note_delete:dml:5913:22",
+          "operation_id": "tools/viewer/app.py:api_analyst_note_delete:dml:6049:22",
           "path": "tools/viewer/app.py",
           "operation": "api_analyst_note_delete",
           "lifecycle": "active_or_callable",
@@ -26662,9 +26678,9 @@
     "unowned_live_tables": [],
     "configured_objects_not_in_live_schema": [],
     "object_count": 134,
-    "writer_operation_count": 956,
+    "writer_operation_count": 957,
     "transaction_boundary_count": 387,
     "passed": true
   },
-  "registry_sha256": "e32d537e5d9582037bef17b17f384dea0e6b101ac5d331bbb50f72dc642db0cf"
+  "registry_sha256": "fccc653b6eeed3afd05b838f8b97f5885749de6d1b66561d05d0e021460045ab"
 }

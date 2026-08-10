@@ -537,6 +537,55 @@ class ProjectCleanupTests(unittest.TestCase):
                 )
             self.assertTrue((root / rel).is_file())
 
+    def test_feature_retirement_ignores_ambiguous_bare_workflow_basename(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            root = base / "project"
+            backup = base / "backup"
+            backup.mkdir()
+            rel = "tools/legacy/manifest.json"
+            self._write_file(root / rel, "{}")
+            self._write_file(backup / rel, "{}")
+            self._write_file(root / "AGENTS.md", "manifest.json")
+
+            inventory = build_inventory(
+                root,
+                backup_path=backup,
+                feature_retirement=self._retirement_spec([rel]),
+            )
+            record = next(item for item in inventory["records"] if item["path"] == rel)
+
+            self.assertEqual(record["classification"], "retire_feature")
+            self.assertEqual(record["retirement_peer_references"], [])
+
+    def test_feature_retirement_still_rejects_exact_workflow_artifact_path(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            root = base / "project"
+            backup = base / "backup"
+            backup.mkdir()
+            rel = "tools/legacy/manifest.json"
+            self._write_file(root / rel, "{}")
+            self._write_file(backup / rel, "{}")
+            self._write_file(root / "AGENTS.md", rel)
+
+            inventory = build_inventory(
+                root,
+                backup_path=backup,
+                feature_retirement=self._retirement_spec([rel]),
+            )
+            record = next(item for item in inventory["records"] if item["path"] == rel)
+            self.assertEqual(record["active_references"], ["AGENTS.md"])
+            manifest = root / "inventory.json"
+            manifest.write_text(json.dumps(inventory), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "仍被活动文本引用"):
+                execute_cleanup(
+                    manifest,
+                    batches={"retire_obsolete_panel"},
+                    authorized_retirement_batches={"retire_obsolete_panel"},
+                )
+
     def test_feature_retirement_rejects_tampered_spec_hash(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             base = Path(temp_dir)

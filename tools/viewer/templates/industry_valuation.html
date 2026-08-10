@@ -53,6 +53,17 @@
   {% endfor %}
 </div>
 
+{% if valuation_report and valuation_report.exists %}
+<section class="panel cp-research-report" id="valuation-research-report">
+  <h2 class="panel-title">估值方法与研究结论
+    <span class="panel-sub">静态正文保存方法、边界和反向验证；下方结构化表展示当前财务数据</span>
+  </h2>
+  <div class="cp-report-scroll" tabindex="0" aria-label="{{ ind.name }}估值研究报告横向滚动区域">
+    <div class="md-body company-perspective-body" id="valuationResearchBody">{{ valuation_report.html|safe }}</div>
+  </div>
+</section>
+{% endif %}
+
 <!-- 覆盖度 + 数据来源声明 -->
 <div class="val-banner">
   <span>{% if coverage.all_entities is defined %}研究对象 <strong>{{ coverage.all_entities }}</strong> 家 · 进入估值比较 <strong>{{ coverage.total }}</strong> 家{% if coverage.excluded %} · 品牌、私营或历史退出主体 <strong>{{ coverage.excluded }}</strong> 家不参与排名{% endif %}{% else %}行业关联公司 <strong>{{ coverage.total }}</strong> 家{% endif %} · 有 PE/PB <strong>{{ coverage.with_valuation }}</strong>{% if not is_pcb_equipment %} · 六项齐全 <strong>{{ coverage.with_six }}</strong>{% endif %} · 有盈利预测 <strong>{{ coverage.with_forecast }}</strong></span>

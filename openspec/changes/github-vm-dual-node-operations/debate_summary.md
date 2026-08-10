@@ -311,3 +311,21 @@ Codex没有因无效 reviewer 意见停止独立复核，随后发现两个真�
 第二轮要求 DeepSeek只报告带相对路径、真实函数/SQL对象和精确触发输入的问题。返回仍把 `validate_test_target` 错放进 `cutover_registry.py`，重复声称代码连接 5432、没有 migration ID/SHA、没有 soft delete/NULL 处理或 payload 校验，并虚构 PR 修改了 Docker、Redis 和 CDC。它还把“NULL revision 必须 fail-closed”倒置为缺陷。这些均与公开源码和测试直接冲突，全部拒绝。
 
 两轮没有有效增量后按约束停止。Stage 3 的有效依据是本地完整测试、真实 PostgreSQL migration/冲突/dump/restore、live SQLite 前后文件 hash、registry 冲突检查、OpenSpec strict 和最终 PR Actions，不是外部 reviewer verdict。
+
+## 阶段 3 live 增量对账设计复核（2026-08-10 追加）
+
+> 实际轮次：2 轮。Codex 先独立审计 live/Git 差异、四库 schema、备份时点和阶段 3 证据，再形成 design/plan；发送给 DeepSeek 的只有脱敏架构摘要、文件类别和聚合计数，没有发送 key、Cookie、源代码、数据库行、papers、用户请求、研究正文、内网地址或原始 evidence。两轮连续没有可复现的信息增量，因此停止第三轮。
+
+### Codex 独立草案与修订
+
+只读审计确认 live 新研究没有改变四库 schema 或 134 张受审业务表集合，但增加了研究专属 SQLite writer；同时 live `app.py` 的新行业分组功能与阶段 2 已验收的 runtime/只读候选能力发生整文件分叉。Codex 因此拒绝整树复制，设计逐功能三方合并，并把研究专属脚本保持在 public Git 外。为避免排除路径从迁移审计中消失，设计采用 deployable inventory、Git 外 live-only addendum 和固定二者 SHA/扫描根/截止时间的 aggregate manifest；production sequencing 不能只拿公开清单。Codex还补充磁盘峰值 gate、现有 external safety backup 工具、研究脚本退役的人工边界变更，以及 staged tree 到 commit/checks 的非自引用证据映射。
+
+### 第一轮：事实被错误改写
+
+DeepSeek 把 134 张表误写成 134 个 SQLite 文件，把“新增至少 13 条 writer operation”改写成 13 个 ownership conflict，并虚构 Git 是 live data authority、RPO/RTO 已批准和 PostgreSQL 用于 analytics。其 must-fix 只是要求实现设计中已经存在的 backup API、ownership 与 addendum，未给出新的触发路径。Codex拒绝这些与输入冲突的结论，但接受其问题方向中唯一合理的抽象提醒：双层清单必须有一个完整审计身份，提交证据必须明确绑定最终树；这两点由 Codex按真实边界独立补强。
+
+### 第二轮：要求违反已批准边界
+
+第二轮把问题严格限制为五个合同并禁止发明事实。DeepSeek仍建议把 live database data 版本化进 Git、把研究内容纳入 immutable application release，并虚构 papers 已经在 public Git 和 8080 是开发端口。这些建议直接违反已批准的 PostgreSQL/live data/artifact 边界和当前阶段禁止事项；它关于 immutable release、backup API 和 exact commit 的建议也都是阶段 2 或当前设计已有能力，没有新增缺口。Codex全部拒绝，不据此扩大范围或上传研究资产。
+
+两轮连续没有有效增量，按用户约束停止第三轮。设计冻结依据是本地代码/DB/备份事实、已批准 capability specs 与确定性门禁；DeepSeek 不构成执行批准或通过证据。

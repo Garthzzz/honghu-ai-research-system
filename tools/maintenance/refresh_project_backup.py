@@ -184,7 +184,11 @@ def _copy_to_zip(
     info = _zip_info(relative, filesystem_source)
     with (
         filesystem_source.open("rb") as source_handle,
-        archive.open(info, "w") as target_handle,
+        # ``allowZip64=True`` on ZipFile is not enough when a member is
+        # streamed through ``ZipFile.open`` and its final size is unknown.
+        # Reserving Zip64 headers up front keeps multi-gigabyte papers and
+        # artifacts from failing only after most of the backup was written.
+        archive.open(info, "w", force_zip64=True) as target_handle,
     ):
         while True:
             chunk = source_handle.read(1024 * 1024)

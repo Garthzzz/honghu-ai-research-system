@@ -21,10 +21,14 @@ class RequiredCacheBundleTests(unittest.TestCase):
             (root / "config").mkdir()
             config_file = root / "cache" / "configured" / "model.json"
             database_file = root / "cache" / "evidence" / "source.pdf"
+            audit_file = root / "cache" / "audit" / "review.json"
+            screenshot_file = root / "cache" / "browser_audit" / "page.png"
             temp_file = root / "cache" / "broadcast_validation" / "copy.json"
             for path, content in (
                 (config_file, b"config"),
                 (database_file, b"database"),
+                (audit_file, b"audit"),
+                (screenshot_file, b"screenshot"),
                 (temp_file, b"temporary"),
             ):
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -49,6 +53,22 @@ class RequiredCacheBundleTests(unittest.TestCase):
                             "INSERT INTO artifact(file_path) VALUES (?)",
                             ("cache/evidence/source.pdf",),
                         )
+                        conn.execute(
+                            "CREATE TABLE audit_artifact("
+                            "id INTEGER PRIMARY KEY, manifest_json TEXT, screenshot_ref TEXT)"
+                        )
+                        conn.execute(
+                            "INSERT INTO audit_artifact(manifest_json, screenshot_ref) VALUES (?, ?)",
+                            (
+                                json.dumps(
+                                    {
+                                        "audit_ref": "cache/audit/review.json",
+                                        "screenshot_ref": "cache/browser_audit/page.png",
+                                    }
+                                ),
+                                "cache/browser_audit/page.png",
+                            ),
+                        )
                     conn.commit()
 
             paths, manifest = collect_required_cache(root)
@@ -59,6 +79,8 @@ class RequiredCacheBundleTests(unittest.TestCase):
 
             self.assertIn("cache/configured/model.json", relative_paths)
             self.assertIn("cache/evidence/source.pdf", relative_paths)
+            self.assertIn("cache/audit/review.json", relative_paths)
+            self.assertNotIn("cache/browser_audit/page.png", relative_paths)
             self.assertNotIn(
                 "cache/broadcast_validation/copy.json",
                 relative_paths,

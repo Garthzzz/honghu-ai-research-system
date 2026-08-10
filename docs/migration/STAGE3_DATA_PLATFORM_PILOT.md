@@ -4,7 +4,9 @@
 
 本阶段不迁移生产数据。当前四套 SQLite 仍是唯一生产事实源，所有切换单元均为 `S0 / sqlite_transition`。阶段 3 建立的是可审计清单、边界和非生产试点，不是 production PostgreSQL。
 
-机器清单覆盖 tracked Python 中的连接、`ATTACH`、`PRAGMA`、事务语义、普通 DML、函数级 writer operation、Viewer route、任务/ingest surface 和候选切换单元。静态识别不能替代人工事务审计，所以所有写路径继续标记为需人工复核。
+机器清单分为两个互相绑定的层次：公开仓库中的 deployable inventory，以及 Git 外 live-only research producer addendum。前者覆盖 tracked Python 中的连接、`ATTACH`、`PRAGMA`、事务语义、普通 DML、函数级 writer operation、Viewer route、任务/ingest surface 和候选切换单元；后者记录仍在活动目录、但因研究内容和公开边界不能纳入 Git 的一次性 producer。aggregate manifest 固定两者的内容身份、合并计数和冲突检查。后续 production sequencing 缺少任一层都不完整。静态识别不能替代人工事务审计，所以所有写路径继续标记为需人工复核。
+
+2026-08-10 live 增量对账后的合并视图为 286 个依赖文件、970 条 writer operation、391 个事务边界和 6 个 `ATTACH` 文件；deployable 子集为 280/957/387/5，Git 外 addendum 为 6/13/4/1。134 个业务表的唯一 ownership 检查、operation/transaction 重复检查和未知 owner 检查均通过。
 
 最终 registry 的硬约束是：
 

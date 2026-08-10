@@ -1,6 +1,6 @@
 {
   "schema_version": "honghu.sqlite_dependency_inventory.v1",
-  "source_commit": "48dc94035b3907468f762e88208279755db29a6b",
+  "source_commit": "6c69479752c41b9a7a423cf11c41826a26af4163",
   "definition": {
     "writer": "domain mutation path/write endpoint/writer operation/transaction contract",
     "not_equivalent_to": "whole process, Viewer application, or scheduled-task process",
@@ -11,7 +11,7 @@
     "file_count": 280,
     "production_file_count": 234,
     "write_file_count": 180,
-    "writer_operation_count": 956,
+    "writer_operation_count": 957,
     "attach_file_count": 5,
     "manual_review_file_count": 180,
     "counts_by_domain": {
@@ -79,7 +79,7 @@
     },
     {
       "path": "tests/maintenance/test_required_cache_bundle.py",
-      "source_sha256": "2ea90a7497b5b6045844a313001f61ebab84bc549baae988e317a88cb483473f",
+      "source_sha256": "c534cb67637daf3866cba28a8677730495ccf5318e8cd5048f0cc97e7c75ddde",
       "domain": "test",
       "lifecycle": "test_only",
       "access": "write",
@@ -91,17 +91,26 @@
       ],
       "attach_present": false,
       "dml_targets": [
-        "artifact"
+        "artifact",
+        "audit_artifact"
       ],
       "ddl_present": true,
       "writer_operations": [
         {
           "rule": "dml",
-          "line": 49,
+          "line": 53,
           "column": 29,
           "operation": "test_collects_config_database_and_durable_cache_without_temp_tree",
           "target": "artifact",
-          "operation_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree:dml:49:29"
+          "operation_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree:dml:53:29"
+        },
+        {
+          "rule": "dml",
+          "line": 61,
+          "column": 29,
+          "operation": "test_collects_config_database_and_durable_cache_without_temp_tree",
+          "target": "audit_artifact",
+          "operation_id": "tests/maintenance/test_required_cache_bundle.py:test_collects_config_database_and_durable_cache_without_temp_tree:dml:61:29"
         }
       ],
       "transaction_boundaries": [
@@ -1657,7 +1666,7 @@
     },
     {
       "path": "tests/research_workflow/test_project_cleanup.py",
-      "source_sha256": "858b57c535384d72ca34bff072c72984061c765a23374bb4380146c9f559579d",
+      "source_sha256": "4cb2627104770d76de5282c7531e9d5dbfe40e38a7454858bb519526570a0c1d",
       "domain": "test",
       "lifecycle": "test_only",
       "access": "write",
@@ -1697,7 +1706,7 @@
     },
     {
       "path": "tests/research_workflow/test_refresh_project_backup.py",
-      "source_sha256": "64d5355a22104475ac060258857d535dbd542588da4371d8e6edeb9c138204f7",
+      "source_sha256": "a532d0a327e93a7ed8b69427833a59b35eb029de45fdb9e283156f7e88d512b6",
       "domain": "test",
       "lifecycle": "test_only",
       "access": "write",
@@ -1716,11 +1725,11 @@
       "writer_operations": [
         {
           "rule": "dml",
-          "line": 53,
+          "line": 76,
           "column": 30,
           "operation": "_project",
           "target": "sample",
-          "operation_id": "tests/research_workflow/test_refresh_project_backup.py:_project:dml:53:30"
+          "operation_id": "tests/research_workflow/test_refresh_project_backup.py:_project:dml:76:30"
         }
       ],
       "transaction_boundaries": [
@@ -4314,7 +4323,7 @@
     },
     {
       "path": "tools/maintenance/build_required_cache_bundle.py",
-      "source_sha256": "ae99912837b2af90e089a4eb8c03a3869860f11d9d504bb4deccad5f7600b19a",
+      "source_sha256": "d4dc010d54dca0f040cd89e4a0ddbe1bd06e3afd68c9b604beef0d1aaf4fda34",
       "domain": "operations",
       "lifecycle": "active_or_callable",
       "access": "read",
@@ -4547,7 +4556,7 @@
     },
     {
       "path": "tools/maintenance/project_artifacts.py",
-      "source_sha256": "6852088f8dd4a5e3fa3a9545a15f6f26651ea3c41b646d0a6144fe2e4f262f6d",
+      "source_sha256": "67cede61d82c64e8c0870583c7c547f3b95aebe98b6624acc1413a20eae3eadd",
       "domain": "operations",
       "lifecycle": "active_or_callable",
       "access": "read",
@@ -4577,7 +4586,7 @@
     },
     {
       "path": "tools/maintenance/refresh_project_backup.py",
-      "source_sha256": "e8335904357cb842f91ff3d56937407f5203a9010d896e86b3d0363940bf8e80",
+      "source_sha256": "ea785a338315e6ca9de9164e74edcd6cac18cb17f28cd4b92f6f611f03e76ee6",
       "domain": "operations",
       "lifecycle": "active_or_callable",
       "access": "read",
@@ -15857,7 +15866,7 @@
     },
     {
       "path": "tools/viewer/app.py",
-      "source_sha256": "534d12fb7603fd859cfd51d184b62d208941d6ca6b393c1de33b3c595d521cad",
+      "source_sha256": "59ecd09e761e7281b11479585b1555c9a0483ca70832b74470aaa6b65e2d7ed6",
       "domain": "viewer",
       "lifecycle": "active_or_callable",
       "access": "write",
@@ -15888,219 +15897,219 @@
       "writer_operations": [
         {
           "rule": "dml",
-          "line": 5884,
+          "line": 6020,
           "column": 15,
           "operation": "api_analyst_note_create",
           "target": "analyst_note",
-          "operation_id": "tools/viewer/app.py:api_analyst_note_create:dml:5884:15"
+          "operation_id": "tools/viewer/app.py:api_analyst_note_create:dml:6020:15"
         },
         {
           "rule": "dml",
-          "line": 5913,
+          "line": 6049,
           "column": 22,
           "operation": "api_analyst_note_delete",
           "target": "analyst_note",
-          "operation_id": "tools/viewer/app.py:api_analyst_note_delete:dml:5913:22"
+          "operation_id": "tools/viewer/app.py:api_analyst_note_delete:dml:6049:22"
         },
         {
           "rule": "dml",
-          "line": 5950,
+          "line": 6086,
           "column": 19,
           "operation": "api_company_thesis_upsert",
           "target": "company_thesis",
-          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:5950:19"
+          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:6086:19"
         },
         {
           "rule": "dml",
-          "line": 5956,
+          "line": 6092,
           "column": 21,
           "operation": "api_company_thesis_upsert",
           "target": "company_thesis",
-          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:5956:21"
+          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:6092:21"
         },
         {
           "rule": "dml",
-          "line": 5961,
+          "line": 6097,
           "column": 19,
           "operation": "api_company_thesis_upsert",
           "target": "company_thesis",
-          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:5961:19"
+          "operation_id": "tools/viewer/app.py:api_company_thesis_upsert:dml:6097:19"
         },
         {
           "rule": "dml",
-          "line": 5998,
+          "line": 6134,
           "column": 19,
           "operation": "api_industry_thesis_upsert",
           "target": "industry_thesis",
-          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:5998:19"
+          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6134:19"
         },
         {
           "rule": "dml",
-          "line": 6004,
+          "line": 6140,
           "column": 23,
           "operation": "api_industry_thesis_upsert",
           "target": "industry_thesis",
-          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6004:23"
+          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6140:23"
         },
         {
           "rule": "dml",
-          "line": 6011,
+          "line": 6147,
           "column": 19,
           "operation": "api_industry_thesis_upsert",
           "target": "industry_thesis",
-          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6011:19"
+          "operation_id": "tools/viewer/app.py:api_industry_thesis_upsert:dml:6147:19"
         },
         {
           "rule": "dml",
-          "line": 6184,
+          "line": 6320,
           "column": 14,
           "operation": "api_event_analyst",
           "target": "event",
-          "operation_id": "tools/viewer/app.py:api_event_analyst:dml:6184:14"
+          "operation_id": "tools/viewer/app.py:api_event_analyst:dml:6320:14"
         },
         {
           "rule": "dml",
-          "line": 6473,
+          "line": 6609,
           "column": 11,
           "operation": "_log_update",
           "target": "hypothesis_update",
-          "operation_id": "tools/viewer/app.py:_log_update:dml:6473:11"
+          "operation_id": "tools/viewer/app.py:_log_update:dml:6609:11"
         },
         {
           "rule": "dml",
-          "line": 6642,
+          "line": 6778,
           "column": 9,
           "operation": "_resolve_or_create_researcher",
           "target": "researcher",
-          "operation_id": "tools/viewer/app.py:_resolve_or_create_researcher:dml:6642:9"
+          "operation_id": "tools/viewer/app.py:_resolve_or_create_researcher:dml:6778:9"
         },
         {
           "rule": "dml",
-          "line": 6724,
+          "line": 6860,
           "column": 15,
           "operation": "api_hypothesis_create",
           "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6724:15"
+          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6860:15"
         },
         {
           "rule": "dml",
-          "line": 6740,
+          "line": 6876,
           "column": 19,
           "operation": "api_hypothesis_create",
           "target": "hypothesis_monitoring_signal",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6740:19"
-        },
-        {
-          "rule": "dml",
-          "line": 6762,
-          "column": 19,
-          "operation": "api_hypothesis_create",
-          "target": "hypothesis_trade",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6762:19"
-        },
-        {
-          "rule": "dml",
-          "line": 6868,
-          "column": 23,
-          "operation": "api_hypothesis_edit",
-          "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_edit:dml:6868:23"
-        },
-        {
-          "rule": "dml",
-          "line": 6892,
-          "column": 15,
-          "operation": "api_hypothesis_signal_add",
-          "target": "hypothesis_monitoring_signal",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:6892:15"
+          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6876:19"
         },
         {
           "rule": "dml",
           "line": 6898,
-          "column": 22,
+          "column": 19,
+          "operation": "api_hypothesis_create",
+          "target": "hypothesis_trade",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_create:dml:6898:19"
+        },
+        {
+          "rule": "dml",
+          "line": 7004,
+          "column": 23,
+          "operation": "api_hypothesis_edit",
+          "target": "hypothesis",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_edit:dml:7004:23"
+        },
+        {
+          "rule": "dml",
+          "line": 7028,
+          "column": 15,
           "operation": "api_hypothesis_signal_add",
-          "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:6898:22"
-        },
-        {
-          "rule": "dml",
-          "line": 6918,
-          "column": 22,
-          "operation": "api_hypothesis_signal_delete",
           "target": "hypothesis_monitoring_signal",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:6918:22"
-        },
-        {
-          "rule": "dml",
-          "line": 6921,
-          "column": 22,
-          "operation": "api_hypothesis_signal_delete",
-          "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:6921:22"
-        },
-        {
-          "rule": "dml",
-          "line": 6950,
-          "column": 13,
-          "operation": "api_hypothesis_signal_check",
-          "target": "hypothesis_monitoring_signal",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:6950:13"
-        },
-        {
-          "rule": "dml",
-          "line": 6954,
-          "column": 22,
-          "operation": "api_hypothesis_signal_check",
-          "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:6954:22"
-        },
-        {
-          "rule": "dml",
-          "line": 6990,
-          "column": 19,
-          "operation": "api_hypothesis_trade",
-          "target": "hypothesis_trade",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:6990:19"
-        },
-        {
-          "rule": "dml",
-          "line": 7000,
-          "column": 19,
-          "operation": "api_hypothesis_trade",
-          "target": "hypothesis_trade",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7000:19"
-        },
-        {
-          "rule": "dml",
-          "line": 7011,
-          "column": 22,
-          "operation": "api_hypothesis_trade",
-          "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7011:22"
-        },
-        {
-          "rule": "dml",
-          "line": 7031,
-          "column": 22,
-          "operation": "api_hypothesis_trade_delete",
-          "target": "hypothesis_trade",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7031:22"
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:7028:15"
         },
         {
           "rule": "dml",
           "line": 7034,
           "column": 22,
-          "operation": "api_hypothesis_trade_delete",
+          "operation": "api_hypothesis_signal_add",
           "target": "hypothesis",
-          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7034:22"
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_add:dml:7034:22"
         },
         {
           "rule": "dml",
-          "line": 7104,
+          "line": 7054,
+          "column": 22,
+          "operation": "api_hypothesis_signal_delete",
+          "target": "hypothesis_monitoring_signal",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:7054:22"
+        },
+        {
+          "rule": "dml",
+          "line": 7057,
+          "column": 22,
+          "operation": "api_hypothesis_signal_delete",
+          "target": "hypothesis",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_delete:dml:7057:22"
+        },
+        {
+          "rule": "dml",
+          "line": 7086,
+          "column": 13,
+          "operation": "api_hypothesis_signal_check",
+          "target": "hypothesis_monitoring_signal",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:7086:13"
+        },
+        {
+          "rule": "dml",
+          "line": 7090,
+          "column": 22,
+          "operation": "api_hypothesis_signal_check",
+          "target": "hypothesis",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_signal_check:dml:7090:22"
+        },
+        {
+          "rule": "dml",
+          "line": 7126,
+          "column": 19,
+          "operation": "api_hypothesis_trade",
+          "target": "hypothesis_trade",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7126:19"
+        },
+        {
+          "rule": "dml",
+          "line": 7136,
+          "column": 19,
+          "operation": "api_hypothesis_trade",
+          "target": "hypothesis_trade",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7136:19"
+        },
+        {
+          "rule": "dml",
+          "line": 7147,
+          "column": 22,
+          "operation": "api_hypothesis_trade",
+          "target": "hypothesis",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade:dml:7147:22"
+        },
+        {
+          "rule": "dml",
+          "line": 7167,
+          "column": 22,
+          "operation": "api_hypothesis_trade_delete",
+          "target": "hypothesis_trade",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7167:22"
+        },
+        {
+          "rule": "dml",
+          "line": 7170,
+          "column": 22,
+          "operation": "api_hypothesis_trade_delete",
+          "target": "hypothesis",
+          "operation_id": "tools/viewer/app.py:api_hypothesis_trade_delete:dml:7170:22"
+        },
+        {
+          "rule": "dml",
+          "line": 7240,
           "column": 13,
           "operation": "api_researcher_create",
           "target": "researcher",
-          "operation_id": "tools/viewer/app.py:api_researcher_create:dml:7104:13"
+          "operation_id": "tools/viewer/app.py:api_researcher_create:dml:7240:13"
         }
       ],
       "transaction_boundaries": [
@@ -16269,5 +16278,5 @@
       "review_status": "machine_classified"
     }
   ],
-  "inventory_sha256": "1fa9bca8400aa3967aeff33f31a71130b4c195196911783e2348dab73fa7a049"
+  "inventory_sha256": "a38b78be85121f1d4c7d764fef00c2ecfdd4de5682ab49fc2eeb608f1f1258d5"
 }
