@@ -61,10 +61,10 @@
 
 ## Gate 6：提交与远端验证
 
-- [ ] 形成范围清楚的 commit，push 当前阶段 3 分支，保持 PR #5 open。
-- [ ] 验证 commit tree 等于已验收 staged tree，并在 Git 外记录 `tree → commit → checks` identity；不相等则作废并重验。
-- [ ] 核验 PR head、push/PR required checks 和 artifacts 绑定最终 SHA。
-- [ ] 更新状态为“阶段 3 工程证据已重绑定，等待 target RPO/RTO 与 HALT 人工批准”。
-- [ ] HALT；不合并 PR #5，不进入阶段 4。
+- [x] 形成范围清楚的 commit，push 当前阶段 3 分支，保持 PR #5 open。
+- [x] 验证 commit tree 等于已验收 staged tree，并在 Git 外记录 `tree → commit → checks` identity；不相等则作废并重验。
+- [x] 核验 PR head、push/PR required checks 和 artifacts 绑定最终 SHA。
+- [x] 更新状态为“阶段 3 工程证据已重绑定，等待 target RPO/RTO 与 HALT 人工批准”。
+- [x] HALT；不合并 PR #5，不进入阶段 4。
 
 **人工未决：** target RPO/RTO、阶段 3 退出、PR #5 是否合并及任何阶段 4 production 权限。

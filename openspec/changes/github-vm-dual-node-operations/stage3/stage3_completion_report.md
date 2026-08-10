@@ -88,4 +88,11 @@ Codex在独立复核中补强了：外部安全副本与 `backup/latest` 的不�
 4. PR #5 是否合并；
 5. 即使阶段 3 退出，任何阶段 4 production cutover 仍需另行授权。
 
-最终提交、CI 与 PR 身份将在提交前终验后补入 Git 外 identity 证据；在此之前不得把当前工作树描述为已远端验收。
+## 工程提交与远端初验
+
+提交前 staged tree `8fbdcba90e2abf39eae2ad9965c15b604f36e3ea` 与工程提交 `e18f8ee323b18a10feef38a17f7372603d6ec08b` 的 commit tree 完全一致。该提交已推送到 `phase3/postgresql-devtest-pilot`，PR #5 保持 open、clean、未合并。
+
+- push run `31388506232`：两个 required jobs 均成功，artifact 名称绑定工程提交 SHA；
+- pull_request run `31388509100`：两个 required jobs 均成功，PR head 为工程提交 SHA，workflow/artifact 使用 GitHub 临时 merge SHA `1c353b587feed53a25014f4c59b5c81f5f102f76`；该临时 SHA 不是部署或迁移身份。
+
+最终治理提交与其远端 checks 继续通过 Git 外 `tree → commit → checks` identity 记录，避免在 tracked 文档内制造无法闭合的自引用哈希。
