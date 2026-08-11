@@ -26,7 +26,8 @@ def test_company_page_sends_stable_note_and_operation_identity() -> None:
     template = (ROOT / "tools/viewer/templates/industry_companies.html").read_text(
         encoding="utf-8"
     )
-    assert "new HonghuAnalystNoteMutations.MutationCoordinator(window.sessionStorage)" in template
+    assert "new HonghuAnalystNoteMutations.MutationCoordinator(window.localStorage,window.navigator?.locks)" in template
+    assert "principalKey:analystNoteSession.principal" in template
     assert "'X-Idempotency-Key':identity.operation_id" in template
     assert "note_key:identity.note_key" in template
     assert "create:company:" in template

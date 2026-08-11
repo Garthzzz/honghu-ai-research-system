@@ -421,3 +421,13 @@ Codex先审计 live Viewer 的 analyst-note 写路径，确认原实现直接使
 DeepSeek要求 stable identity 包含 ticker+venue、显式处理 alias、保留 ACL/idempotency，并在 production 前验证现场 evidence；这些均已实现或明确保留为下一轮 blocker，没有形成新修订。它同时建议 uncertain response 后不要复用 identity、强制 reload；这与已批准的“同一逻辑 mutation 使用同一 operation identity 查询/重放”合同冲突，而且 reload 并不能证明数据库未提交，因此拒绝。其对 Redis、监控或 production preflight 扩建的泛化建议不属于本轮窄范围，也未给出可复现触发输入，未采纳。
 
 本轮外部 reviewer 没有发现新的可复现 must-fix。最终判断仍由真实 JavaScript 状态机测试、完整 core tests、隔离 PostgreSQL rehearsal、只读 live SQLite 哈希、OpenSpec strict 和最终远端 required CI 负责；DeepSeek 不构成 production 授权。
+
+## Stage 4 production-readiness candidate 复核（2026-08-12）
+
+> 实际轮次：2 轮。两轮均只发送脱敏合同、聚合结果和禁止边界；没有发送 key、Cookie、源代码全文、数据库行、papers、用户内容、内网地址、凭据或 Git 外原始 evidence。
+
+第一轮在实现前审查一致 mapping snapshot、evidence verifier、VM/off-VM 恢复和浏览器 uncertain mutation。DeepSeek关于 silent fallback、off-VM 不得同故障域冒充、浏览器竞态需 fail-closed 的方向被接受并落实为确定性门禁。以下意见被拒绝：tab 关闭或 principal 变化时清除 pending identity 会使 uncertain commit 被新 identity 重复提交；把 SQLite snapshot 描述为全局 transaction ID 不符合 SQLite 事实；强制 VM reboot、HA/failover 或额外节点超出授权且没有恢复目标证据。
+
+第二轮收到的脱敏事实已明确：S0 固定、事务内 schema/content watermark、typed artifact 本体校验、localStorage/principal/payload/locks、真实 PostgreSQL 17.10 TLS/ACL/credential/crash/backup/WAL/whole/side/authority recovery，以及 off-VM 缺失而保持 blocked。DeepSeek仍把上述每一项逐字列为“必须实现”，并混淆 774 条业务 stable mapping 与 authentication identity；还声称必须先具备远程 shell/SMB/WinRM 才可有 runbook。Codex对照实现与现场网络探针后拒绝：业务 stable key 不替代登录身份，后者已有可信 principal 合同；缺远程通道意味着 Codex不能自主执行 VM evidence，不意味着可以伪造通道或阻止生成安全人工手册。
+
+第二轮没有新的可复现触发路径，按用户约束停止第三轮。最终依据是事务快照回归、typed evidence 反例测试、真实隔离 PostgreSQL/recovery rehearsal、浏览器执行测试、live SQLite 不变性、边界门禁与最终 CI；DeepSeek 不构成 mapping、repository governance、S2 或 production cutover 批准。

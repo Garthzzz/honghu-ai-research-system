@@ -50,10 +50,22 @@ class IdentityMappingResolver:
             for key, value in manifest.items()
             if key not in {"generated_at", "manifest_sha256"}
         }
-        if manifest.get("schema_version") != "honghu.user_content_identity_mapping.v2":
+        if manifest.get("schema_version") not in {
+            "honghu.user_content_identity_mapping.v2",
+            "honghu.user_content_identity_mapping.v3",
+        }:
             raise IdentityMappingError("unsupported identity mapping schema")
         if manifest.get("manifest_sha256") != _sha(core):
             raise IdentityMappingError("identity mapping manifest hash mismatch")
+        if manifest.get("schema_version") == "honghu.user_content_identity_mapping.v3":
+            snapshot = manifest.get("source_snapshot") or {}
+            snapshot_core = {
+                "transaction_contract": snapshot.get("transaction_contract"),
+                "database_pragmas": snapshot.get("database_pragmas"),
+                "source_tables": manifest.get("source_tables"),
+            }
+            if snapshot.get("snapshot_identity_sha256") != _sha(snapshot_core):
+                raise IdentityMappingError("identity mapping snapshot identity mismatch")
         self.manifest_sha256 = str(manifest["manifest_sha256"])
         self._by_legacy: dict[tuple[str, str], str] = {}
         for record in manifest.get("mappings") or []:
@@ -236,6 +248,7 @@ def _mapping_record(
     identity_components: dict[str, Any] | None = None,
     alias_approval: dict[str, Any] | None = None,
     identity_override: dict[str, Any] | None = None,
+    review_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     record = {
         "entity_type": entity_type,
@@ -271,6 +284,8 @@ def _mapping_record(
             "rationale": identity_override["rationale"],
             "approval_file_sha256": identity_override["approval_file_sha256"],
         }
+    if review_identity:
+        record["review_identity"] = review_identity
     return record
 
 
@@ -282,12 +297,14 @@ def build_identity_mapping(
     database_path = Path(database).resolve()
     if not database_path.is_file():
         raise FileNotFoundError(database_path)
+    database_file_sha256_before = _file_sha(database_path)
     conn = sqlite3.connect(
         f"file:{database_path.as_posix()}?mode=ro", uri=True, timeout=10
     )
     conn.row_factory = sqlite3.Row
     try:
         conn.execute("PRAGMA query_only=ON")
+        conn.execute("BEGIN")
         present = {
             row[0]
             for row in conn.execute(
@@ -299,8 +316,15 @@ def build_identity_mapping(
             raise IdentityMappingError(f"missing identity tables: {', '.join(missing)}")
         rows = {table: _table_rows(conn, table) for table in ENTITY_TABLES}
         schemas = {table: _table_schema(conn, table) for table in ENTITY_TABLES}
+        database_pragmas = {
+            "application_id": int(conn.execute("PRAGMA application_id").fetchone()[0]),
+            "schema_version": int(conn.execute("PRAGMA schema_version").fetchone()[0]),
+            "user_version": int(conn.execute("PRAGMA user_version").fetchone()[0]),
+        }
+        conn.rollback()
     finally:
         conn.close()
+    database_file_sha256_after = _file_sha(database_path)
 
     table_watermarks: dict[str, dict[str, Any]] = {}
     for table in ENTITY_TABLES:
@@ -403,6 +427,11 @@ def build_identity_mapping(
                 },
                 alias_approval=alias_approval,
                 identity_override=identity_override,
+                review_identity={
+                    "display_name": str(row.get("name") or "").strip(),
+                    "ticker": ticker or None,
+                    "market": str(row.get("market") or "").strip() or None,
+                },
             )
         )
 
@@ -420,6 +449,14 @@ def build_identity_mapping(
                     basis="normalized_full_industry_path",
                     row=row,
                     source_watermark=table_watermarks["industry"],
+                    review_identity={
+                        "display_name": str(row.get("name") or "").strip(),
+                        "parent_legacy_id": (
+                            str(row.get("parent_id"))
+                            if row.get("parent_id") is not None
+                            else None
+                        ),
+                    },
                 )
             )
 
@@ -437,6 +474,9 @@ def build_identity_mapping(
                 basis="normalized_existing_text_primary_key",
                 row=row,
                 source_watermark=table_watermarks["theme"],
+                review_identity={
+                    "display_name": str(row.get("name") or "").strip(),
+                },
             )
         )
 
@@ -472,10 +512,30 @@ def build_identity_mapping(
         raise IdentityMappingError(
             f"identity overrides were not required by current source data: {unused_overrides}"
         )
+    snapshot_core = {
+        "transaction_contract": {
+            "mode": "explicit_read_transaction",
+            "query_only": True,
+            "tables_read_in_one_snapshot": list(ENTITY_TABLES),
+        },
+        "database_pragmas": database_pragmas,
+        "source_tables": table_watermarks,
+    }
     manifest_core = {
-        "schema_version": "honghu.user_content_identity_mapping.v2",
+        "schema_version": "honghu.user_content_identity_mapping.v3",
         "source_database": str(database_path),
-        "source_database_sha256": _file_sha(database_path),
+        "source_snapshot": {
+            **snapshot_core,
+            "snapshot_identity_sha256": _sha(snapshot_core),
+            "database_file_diagnostics": {
+                "role": "diagnostic_only_not_transaction_snapshot_identity",
+                "sha256_before": database_file_sha256_before,
+                "sha256_after": database_file_sha256_after,
+                "stable_during_scan": (
+                    database_file_sha256_before == database_file_sha256_after
+                ),
+            },
+        },
         "source_tables": table_watermarks,
         "mappings": mappings,
         "collision_count": 0,
@@ -527,7 +587,12 @@ def main() -> int:
             {
                 "manifest_sha256": result["manifest_sha256"],
                 "mapping_count": len(result["mappings"]),
-                "source_database_sha256": result["source_database_sha256"],
+                "snapshot_identity_sha256": result["source_snapshot"][
+                    "snapshot_identity_sha256"
+                ],
+                "database_file_identity_role": result["source_snapshot"][
+                    "database_file_diagnostics"
+                ]["role"],
             },
             ensure_ascii=False,
         )

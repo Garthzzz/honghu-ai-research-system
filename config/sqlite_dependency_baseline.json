@@ -40,8 +40,8 @@
       "path": "tools/migration/stage4_identity_mapping.py",
       "domain": "user-content stable identity migration audit",
       "rule": "pragma",
-      "max_count": 2,
-      "reason": "The read-only identity freezer enforces query_only and inspects table metadata to bind schema/content watermarks; it does not execute mutating PRAGMAs.",
+      "max_count": 5,
+      "reason": "The read-only identity freezer uses one query_only guard plus bounded table, application, schema and user-version metadata inspection to bind one transaction-consistent schema/content snapshot; it does not execute mutating PRAGMAs.",
       "owner": "user-content cutover governance",
       "future_cutover_unit_candidate": "user_content_notes and shared_identity",
       "sunset_condition": "Remove after shared_identity is authoritative in PostgreSQL and the transition mapping bridge is retired."
