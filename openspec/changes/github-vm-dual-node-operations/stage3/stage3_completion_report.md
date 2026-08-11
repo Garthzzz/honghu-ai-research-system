@@ -1,8 +1,8 @@
-# 阶段 3 工程完成报告（等待人工验收）
+# 阶段 3 完成报告（人工批准退出）
 
 ## 状态与授权边界
 
-阶段 3 的代码审计、迁移边界、隔离 PostgreSQL dev/test 试点和 live 增量对账已经完成；本报告不批准阶段 3 退出。`target RPO/RTO` 已补齐 migration/cutover authority control 后进入 `pending_human_approval`，阶段 3 的人工 HALT 仍未批准。
+阶段 3 的代码审计、迁移边界、隔离 PostgreSQL dev/test 试点和 live 增量对账已经完成。用户已于 2026-08-11 14:25:45 +08:00 批准 `target_rpo_rto_proposal.v2` 并批准阶段 3 退出。
 
 当前四套 SQLite 仍是唯一生产事实源。未安装或启用 production PostgreSQL，未修改 live SQLite，未切换 production writer、Viewer、runner 或计划任务，也未进入阶段 4。
 
@@ -84,13 +84,13 @@ Codex在独立复核中补强了：外部安全副本与 `backup/latest` 的不�
 
 最终两项 Gate 又完成两轮脱敏 reviewer 复核。DeepSeek 两次都把输入中已明确存在的 authority registry、fencing、target/measured 分层和 aggregate manifest 反写成“缺失”，没有提供可复现的新问题；Codex据确定性合同与扫描结果拒绝，未扩大范围或进入 Stage 4。完整记录追加在 `debate_summary.md`。
 
-## 尚待人工决定
+## 人工批准与授权边界
 
-1. 是否批准 `config/migration/target_rpo_rto_proposal.json`；
-2. 是否接受两层 inventory 作为当前完整审计合同；
-3. 是否批准阶段 3 退出；
-4. PR #5 是否合并；
-5. 即使阶段 3 退出，任何阶段 4 production cutover 仍需另行授权。
+- 批准人：用户；批准时间：2026-08-11 14:25:45 +08:00；
+- 批准内容：`target_rpo_rto_proposal.v2`、两层 inventory/aggregate manifest 合同、阶段 3 退出和 PR #5 合并；批准状态写回后的 proposal 文件 SHA256 为 `32faaa7004842a97c8c66d6b18233c1a829c7c762f53ccfb6760c4115c25b73a`；
+- 最终 evidence identity SHA256：`2b58252a84161996e3b9c81cf2e1cfe5f28bd30865be85d6d15acac14b5511c6`；final drift identity SHA256：`0f6c673c4cb5d6177681fafd25e5704d9a1985172c40c07efda7440d22cfc72c`；
+- PR #5 验收 head：`736d7d3e4c535dff9dc465256dedd1deb2db7716`；merge commit：`c514a47b47aa2d44eb8bb57cff6d444f5080f217`；merge 后 main run `31464637909` 的两个 required jobs 均成功；
+- 本次批准不授权 production PostgreSQL cutover、live SQLite migration、writer/backend、计划任务、production Viewer 或 runner 切换。任何阶段 4 操作仍需用户另行授权。
 
 ## 最终两项人工 Gate 收口
 

@@ -1,7 +1,13 @@
 {
   "schema_version": "honghu.target_rpo_rto_proposal.v2",
-  "approval_status": "pending_human_approval",
+  "approval_status": "approved",
   "decision_gate": "Must be approved before any production data-backend cutover.",
+  "approval": {
+    "approved_at": "2026-08-11T14:25:45+08:00",
+    "approved_by": "user",
+    "scope": "Approves target RPO/RTO proposal v2 and Stage 3 exit only; does not authorize Stage 4 or any production cutover.",
+    "final_evidence_identity_sha256": "2b58252a84161996e3b9c81cf2e1cfe5f28bd30865be85d6d15acac14b5511c6"
+  },
   "targets": [
     {
       "class": "migration_cutover_authority_control",

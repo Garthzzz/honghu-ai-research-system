@@ -56,3 +56,5 @@
 ### 阶段 3 授权边界
 
 用户已于 2026-08-07 批准阶段 2 以 `STAGE 2 PASS WITH HUMAN WAIVER` 退出，并授权阶段 3 的 SQLite 依赖与事务审计、cutover unit/ownership 建模、数据访问和 migration 边界、独立 PostgreSQL dev/test、低风险非生产试点及 target RPO/RTO 提案。该批准不包含 production PostgreSQL、live SQLite 修改或迁移、计划任务迁移、生产 Viewer/writer 切换或阶段 4；阶段 3 结束仍须再次 HALT 并由用户人工批准。
+
+用户已于 2026-08-11 批准 `target_rpo_rto_proposal.v2` 和阶段 3 退出。该批准确认阶段 3 的审计、dev/test 试点和治理合同，不授权任何阶段 4 production PostgreSQL cutover、live SQLite migration、writer/backend、计划任务、Viewer 或 runner 切换。
