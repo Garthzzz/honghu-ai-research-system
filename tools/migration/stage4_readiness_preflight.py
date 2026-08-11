@@ -67,6 +67,8 @@ def evaluate_readiness(
             blockers.append(f"identity_mapping.{field} is not verified")
     if identity.get("collision_count") != 0:
         blockers.append("identity mapping has unresolved collisions")
+    if identity.get("unapproved_alias_count") != 0:
+        blockers.append("identity mapping has unapproved aliases")
     if int(identity.get("mapping_count") or 0) <= 0:
         blockers.append("identity mapping is empty")
     if not str(identity.get("approval_reference") or "").strip():
@@ -84,6 +86,12 @@ def evaluate_readiness(
                 blockers.append("identity mapping source identity mismatch")
             if len(mapping.get("mappings") or []) != identity.get("mapping_count"):
                 blockers.append("identity mapping count mismatch")
+            if mapping.get("unapproved_alias_count") != 0:
+                blockers.append("identity mapping artifact has unapproved aliases")
+            for alias in mapping.get("alias_groups") or []:
+                for field in ("approval_reference", "approved_by", "rationale"):
+                    if not str(alias.get(field) or "").strip():
+                        blockers.append(f"identity mapping alias is missing {field}")
 
     boolean_fields = {
         "application_contract": [

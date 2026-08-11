@@ -9,6 +9,7 @@
     "source_database_sha256": "",
     "mapping_count": 0,
     "collision_count": null,
+    "unapproved_alias_count": null,
     "alias_group_count": null,
     "approval_reference": ""
   },

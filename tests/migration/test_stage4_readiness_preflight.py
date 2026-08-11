@@ -28,6 +28,7 @@ def _complete() -> dict:
             "source_database_sha256": "b" * 64,
             "mapping_count": 1,
             "collision_count": 0,
+            "unapproved_alias_count": 0,
             "alias_group_count": 0,
             "approval_reference": "identity-approved",
         }

@@ -399,6 +399,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='analyst_note_mutations.js') }}"></script>
 <script>
 function enhanceCompanyPerspective(){
   const body=document.getElementById('companyPerspectiveBody');
@@ -462,6 +463,7 @@ whenLandscapePlotly(()=>{drawLandscape('companyShareChart',LANDSCAPE.share);draw
 // ── 研究员补充 / 反共识(2c-G:AI 一致预期 + 反共识,选填)─────
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
 const analystNoteSession={ready:false,authenticated:false,csrfToken:'',principal:null,permissions:[]};
+const analystNoteMutations=new HonghuAnalystNoteMutations.MutationCoordinator(window.sessionStorage);
 async function refreshAnalystNoteSession(){
   const panel=document.getElementById('analystNoteAuth');
   if(!panel)return analystNoteSession;
@@ -558,18 +560,24 @@ document.querySelectorAll('.an-editor').forEach(ed => {
     if (!content) { st.textContent = '内容为空'; return; }
     await refreshAnalystNoteSession();
     if(!analystNoteSession.authenticated){st.textContent='请先登录研究员身份';return;}
+    const mutationPayload={entity_type:'company',entity_id:String(cid),content,expected_revision:0};
+    const mutationScope='create:company:'+cid;
     st.textContent = '提交中…';
-    const operationId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+'-'+Math.random();
     try {
-      const response=await fetch('/api/analyst_note', {
-        method: 'POST',credentials:'same-origin',
-        headers: {'Content-Type':'application/json','X-CSRF-Token':analystNoteSession.csrfToken,'X-Idempotency-Key':operationId},
-        body: JSON.stringify({ entity_type:'company', entity_id: cid, content, expected_revision:0 })
+      const result=await analystNoteMutations.execute({
+        scope:mutationScope,payload:mutationPayload,createNoteKey:true,
+        send:identity=>fetch('/api/analyst_note', {
+          method: 'POST',credentials:'same-origin',
+          headers: {'Content-Type':'application/json','X-CSRF-Token':analystNoteSession.csrfToken,'X-Idempotency-Key':identity.operation_id},
+          body: JSON.stringify({...mutationPayload,note_key:identity.note_key})
+        })
       });
-      const r=await response.json();
-      if (response.ok&&r.ok) { ta.value=''; st.textContent=' 已添加'; await reloadNotes(ed, cid); }
-      else st.textContent = '失败:' + (r.error||r.code||'');
-    } catch (e) { st.textContent = '网络错误'; }
+      if(result.ok){ta.value='';st.textContent=' 已添加';await reloadNotes(ed,cid);}
+      else if(result.uncertain){st.textContent='结果未确认；请保持内容不变并点击重试。';}
+      else st.textContent='失败:'+(result.body?.error||result.body?.code||'');
+    } catch (e) {
+      st.textContent=e?.code==='pending_mutation_conflict'?e.message:'写入身份不可用，操作已停止。';
+    }
   });
 });
 

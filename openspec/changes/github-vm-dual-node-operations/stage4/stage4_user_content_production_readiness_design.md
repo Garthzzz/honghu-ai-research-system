@@ -20,7 +20,7 @@
 
 保留现有 analyst-note URL，响应增加稳定键、revision、deleted 和 backend 等兼容字段。PostgreSQL mutation 要求 stable note key、expected revision 和 idempotency key；delete 调用数据库 soft-delete。S0 的 legacy SQLite 结构只能如实提供当前 create/list 能力；新的 repository 不再暴露不可审计的硬删除，也不伪造 durable idempotency、revision 或 soft-delete。
 
-切换前浏览器客户端应生成一次逻辑 operation identity，并在 uncertain response 时以同一 identity 查询或重放。stale revision、idempotency conflict、mapping conflict 和 authority fence 分别返回稳定错误类别，不用笼统 500 掩盖。
+浏览器客户端为一次逻辑 mutation 同时生成稳定 note identity 与 operation identity，并只保存 payload SHA256、不保存正文。网络异常、5xx 或响应无法解析时在 `sessionStorage` 保留同一 identity；重试必须复用，且 pending 期间 payload 改变即 fail-closed。成功或明确 4xx 失败后才释放。同一 scope 的并发同内容提交共享一个 in-flight Promise，只发送一次 HTTP 请求；并发改内容直接拒绝，避免双击竞态在 uncertain response 后释放 identity。当前页面的 create 使用该 coordinator，通用 coordinator 同时覆盖以后接入的 update/delete；测试必须执行真实 JavaScript 状态机，不能只断言 API header 存在。stale revision、idempotency conflict、mapping conflict 和 authority fence 分别返回稳定错误类别，不用笼统 500 掩盖。
 
 ## 4. 认证、授权与 CSRF
 
@@ -37,11 +37,11 @@
 
 只读工具从 `research.db` 冻结当前 company/industry/theme/industry_q 映射，并输出 Git 外 manifest：
 
-- company 优先使用规范 ticker/market 身份；无 ticker 时使用规范名称与市场组成的显式 fallback，并标注稳定性限制；
+- company 使用规范 ticker 与 venue 的组合身份；交易所后缀优先决定 venue，裸 ticker 使用可核验的 market/listing status。源表缺失 venue 时只能使用带批准引用和依据的显式 identity override；无 ticker 时使用规范名称与市场组成的 fallback，并标注稳定性限制；
 - industry 使用经 cycle/parent 校验的完整层级路径；
 - theme 使用现有文本主键；
 - industry_q 引用 industry stable key，Q 标签仍是 note 字段，不复制 shared identity authority；
-- 每条映射携带 source database/table/id、source watermark、basis 和 evidence identity；同一 legacy identity 冲突、父级环和空关键字段均 fail-closed。多个经过核验的历史 legacy alias 可以汇聚到同一 stable identity，但必须逐 alias 保存来源、批准和审计，不能把这种多对一关系当碰撞静默丢弃。
+- 每条映射携带 source database/table/id、source watermark、basis、ticker/venue 组成和 evidence identity；同一 legacy identity 冲突、父级环和空关键字段均 fail-closed。多个经过核验的历史 legacy alias 可以汇聚到同一 stable identity，但必须由 tracked approval 精确列出 legacy ids、批准引用和依据；任何未获批准的 stable-key 重复直接失败，不能用 `collision_count=0` 推定 alias 合法。
 
 映射原文不提交 public Git，只提交工具、聚合数量和 SHA256。shared identity 仍由 SQLite 管理；S2 禁止 mapping 变化，S1/S3/S4 的新增映射必须走已批准 controller/audit 合同。
 
@@ -66,6 +66,8 @@
 4. authority-control 恢复后先独立验证再开放 writer；
 5. repository 公司控制权或明确批准例外、第二管理员/交接、2FA、恢复与公司 deploy credential；
 6. 最新 live drift、维护窗口、operator、approver 和单 unit S2 授权。
+
+下一轮必须把 readiness preflight 从“boolean/reference/SHA 形状检查”提升为逐项打开并验证现场 evidence 本体、其相互引用及时间/主体/环境身份；本轮仅登记该 production-readiness blocker，不据此伪造或搭建 production 设施。
 
 ## 8. Reviewer 取舍
 

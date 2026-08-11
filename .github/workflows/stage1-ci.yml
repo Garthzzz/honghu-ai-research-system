@@ -84,6 +84,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Set up Node for browser contract tests
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
       - name: Set up the supported Python runtime
         uses: actions/setup-python@v6
         with:

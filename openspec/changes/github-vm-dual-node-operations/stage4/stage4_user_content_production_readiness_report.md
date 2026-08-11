@@ -15,8 +15,9 @@ PR #7 已按人工批准合并到 `main`，merge commit 为 `c5b20fbf99e63104f78
 - 显式 backend routing：runtime override 必须是完整、可审计配置；无 merge、无失败后 SQLite fallback。
 - operation-level repository：SQLite 与 PostgreSQL adapter 分离；PostgreSQL reader/writer 使用不同连接身份和最小权限。
 - API compatibility：list/create/update/soft-delete 支持稳定 note key、expected revision、idempotency 和明确错误分类；S0 不伪造 revision/soft-delete，也不再暴露不可审计硬删除。
+- 浏览器 mutation identity：create 的 note/operation identity 与 payload SHA256 在结果明确前持久化；uncertain response 重试复用同一 identity，内容变化被阻断，成功或明确失败后才释放。同一 scope 的并发双击共享一次请求，并发改内容 fail-closed；通用 coordinator 的 create/delete replay 与并发竞态由真实 JavaScript 执行测试覆盖。
 - 安全边界：签名 session、权限、CSRF、Git 外 Credential Manager；audit actor 只来自认证 principal，客户端 body actor 被忽略。
-- stable identity：只读冻结 company、industry、industry_q、theme；legacy identity 唯一，允许经核验的历史 alias 汇聚到同一 stable identity。
+- stable identity：只读冻结 company、industry、industry_q、theme；company stable key 同时包含 ticker 与 venue。COHU 多对一 alias 由显式用户批准清单约束；TER 因 research.db 缺 venue，使用现有 verified financial identity、US exchange 供应链身份与 yfinance 行情来源形成显式 venue override。任何未批准重复直接 fail-closed。
 - PostgreSQL runtime：reader/writer role 分离，production 仅允许受保护传输，凭据缺失即失败。
 - readiness preflight：production topology、恢复、仓库治理、operator/approver/window 任一证据缺失均返回 BLOCKED，不会自授权。
 
@@ -26,13 +27,13 @@ PR #7 已按人工批准合并到 `main`，merge commit 为 `c5b20fbf99e63104f78
 
 | 证据 | 结果 | SHA256 |
 |---|---|---|
-| stable identity mapping | 774 条；681 company、44 industry、44 industry_q、5 theme；collision=0；alias group=1 | `f95259b764c71fc5adac7e7cb14694074f2598b2e262bc6ede6072738d3e4d6d` |
-| mapping manifest | source/row/schema/content watermark 聚合身份 | `736584c1822957adbc663852f835ff6d6d7e6d35eba32d36ada37dc05fb8a294` |
-| adapter PostgreSQL rehearsal | PASS；migration×2、ACL、CRUD/软删除、S2→S3、S4、alias、dump/side restore | `180883b288485c488e0a8727bd45efb4325922c0fac10d7894ad38c97b22ec2d` |
-| readiness input | 未伪造 production 现场证据 | `941ceb537b65000551701c8d9b48a88a9b1fd7aebd99c0f8d2a5929225fc084f` |
-| readiness result | `BLOCKED`、29 个细分 blocker、production authorization=false | `73639b275de2399a329fa32f2e4e1e3a479364c1761b157be78df37cb04f8ea1` |
+| stable identity mapping v2 | 774 条；681 company、44 industry、44 industry_q、5 theme；collision=0；unapproved alias=0；approved alias group=1；reviewed venue override=1 | `3dafbaacb89eca6a8a53bb1a374e2a948cb951accf20247964653a815fc8fe86` |
+| mapping manifest | source/row/schema/content watermark、ticker/venue、alias approval 聚合身份 | `867b71f2737b817f12e6e4097a6dfbc83e91835efbcd49198832bd0824b2470c` |
+| adapter PostgreSQL rehearsal | PASS；migration×2、ACL、CRUD/软删除、S2→S3、S4、alias、dump/side restore | `10f3a7fc661b6c0933dde07ad504d234c3521dda5cac6b9a4149237ef7ba278a` |
+| readiness input | 未伪造 production 现场证据 | `de10aadf818e7e557a85f3f1bbc72bec49fa9115af53924023ce4f7d225e69be` |
+| readiness result | BLOCKED；保留 topology/recovery/governance/window 与 evidence-body 验证门禁 | `fe5eeb5f4c923e014505e9f84f9c8894f0c71eacf18337a052195f89e9179766` |
 
-identity mapping 尚无人工 approval reference，所以即使其机器校验通过，也仍不能进入 S2。
+COHU alias 与 TER venue override 已具有逐项批准引用，但整份 frozen mapping 尚无 cutover-level approval reference，所以即使机器校验通过，也仍不能进入 S2。
 
 ## 4. 真实 PostgreSQL dev/test 演练
 
@@ -57,17 +58,18 @@ identity mapping 尚无人工 approval reference，所以即使其机器校验�
 3. VM 外副本、基础备份、WAL/等价增量、整库 restore、旁路单域 restore、authority recovery 及 target RPO/RTO 演练；
 4. 仓库公司控制权或批准例外、第二管理员/交接、2FA/账号恢复和公司控制 deploy credential；
 5. operator、approver、维护窗口、writer fence 与 rollback/recovery decision tree 的单元级批准。
+6. readiness preflight 逐项验证现场 evidence 本体、引用关系与环境/时点身份；当前 boolean/reference/SHA 形状检查不能单独证明 production 事实。
 
 因此当前尚不具备向用户申请“立即执行首个 production cutover”的条件。下一轮若获授权，应先在不进入 S2 的前提下关闭上述现场 readiness gate；只有 preflight 变为 ready-to-request 后，才能再次申请独立的 production cutover 授权。
 
 ## 6. 验收
 
-- core tests：621 passed、21 skipped、55 subtests passed；
-- Stage 4 定向 tests：32 passed；
+- core tests：625 passed、21 skipped、55 subtests passed；
+- Stage 4/browser 定向 tests：37 passed；
 - compile：PASS；
 - 隔离 PostgreSQL rehearsal：PASS；
 - live SQLite unchanged：PASS；
-- DeepSeek：2 轮，第二轮无有效增量后停止；
+- DeepSeek：1 轮，无新的可复现 must-fix 后停止；
 - production operations：未执行。
 
 最终 commit、push/PR run 与 required-check identity 在分支推送后补入本轮 HALT 汇报；不把 PR 临时 merge SHA 当作实现 identity。

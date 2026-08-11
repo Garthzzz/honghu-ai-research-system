@@ -12,6 +12,31 @@ from typing import Any
 
 
 ENTITY_TABLES = ("company", "industry", "theme")
+ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_ALIAS_APPROVALS = ROOT / "config/migration/stage4_identity_mapping_approvals.json"
+
+TICKER_SUFFIX_VENUES = {
+    "SH": "shanghai",
+    "SZ": "shenzhen",
+    "BJ": "beijing",
+    "HK": "hong-kong",
+    "T": "tokyo",
+    "KS": "korea-main",
+    "KQ": "korea-kosdaq",
+    "TW": "taiwan-main",
+    "TWO": "taiwan-otc",
+    "VI": "vienna",
+    "DE": "germany",
+    "ST": "stockholm",
+}
+MARKET_VENUES = {
+    "美股": "us",
+    "美国": "us",
+    "us": "us",
+    "港股": "hong-kong",
+    "香港": "hong-kong",
+}
+LISTING_STATUS_VENUES = {"us": "us", "hk": "hong-kong"}
 
 
 class IdentityMappingError(RuntimeError):
@@ -25,7 +50,7 @@ class IdentityMappingResolver:
             for key, value in manifest.items()
             if key not in {"generated_at", "manifest_sha256"}
         }
-        if manifest.get("schema_version") != "honghu.user_content_identity_mapping.v1":
+        if manifest.get("schema_version") != "honghu.user_content_identity_mapping.v2":
             raise IdentityMappingError("unsupported identity mapping schema")
         if manifest.get("manifest_sha256") != _sha(core):
             raise IdentityMappingError("identity mapping manifest hash mismatch")
@@ -68,6 +93,87 @@ def _file_sha(path: Path) -> str:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _load_identity_approvals(
+    path: str | Path | None,
+) -> tuple[dict[tuple[str, str], dict[str, Any]], dict[tuple[str, str], dict[str, Any]]]:
+    if path is None:
+        return {}, {}
+    approval_path = Path(path).resolve()
+    payload = json.loads(approval_path.read_text(encoding="utf-8"))
+    if payload.get("schema_version") not in {
+        "honghu.identity_alias_approvals.v1",
+        "honghu.identity_mapping_approvals.v2",
+    }:
+        raise IdentityMappingError("unsupported identity mapping approval schema")
+    approval_file_sha256 = _file_sha(approval_path)
+    approvals: dict[tuple[str, str], dict[str, Any]] = {}
+    claimed_legacy: set[tuple[str, str]] = set()
+    for item in payload.get("aliases") or []:
+        entity_type = str(item.get("entity_type") or "").strip()
+        stable_key = str(item.get("stable_key") or "").strip()
+        legacy_ids = sorted({str(value).strip() for value in item.get("legacy_ids") or []})
+        if entity_type != "company" or not stable_key or len(legacy_ids) < 2:
+            raise IdentityMappingError("alias approval must identify one company stable key and at least two legacy ids")
+        for field in ("approval_reference", "approved_by", "rationale"):
+            if not str(item.get(field) or "").strip():
+                raise IdentityMappingError(f"alias approval missing {field}: {stable_key}")
+        group_key = (entity_type, stable_key)
+        if group_key in approvals:
+            raise IdentityMappingError(f"duplicate alias approval group: {stable_key}")
+        for legacy_id in legacy_ids:
+            legacy_key = (entity_type, legacy_id)
+            if legacy_key in claimed_legacy:
+                raise IdentityMappingError(f"legacy identity appears in multiple alias approvals: {legacy_id}")
+            claimed_legacy.add(legacy_key)
+        approvals[group_key] = {
+            **item,
+            "entity_type": entity_type,
+            "stable_key": stable_key,
+            "legacy_ids": legacy_ids,
+            "approval_file_sha256": approval_file_sha256,
+        }
+    overrides: dict[tuple[str, str], dict[str, Any]] = {}
+    for item in payload.get("identity_overrides") or []:
+        entity_type = str(item.get("entity_type") or "").strip()
+        legacy_id = str(item.get("legacy_id") or "").strip()
+        ticker = _canonical_text(item.get("ticker")).upper()
+        venue = _canonical_text(item.get("venue"))
+        if entity_type != "company" or not legacy_id or not ticker or not venue:
+            raise IdentityMappingError("identity override must identify company legacy id, ticker and venue")
+        for field in ("approval_reference", "approved_by", "rationale"):
+            if not str(item.get(field) or "").strip():
+                raise IdentityMappingError(f"identity override missing {field}: company:{legacy_id}")
+        key = (entity_type, legacy_id)
+        if key in overrides:
+            raise IdentityMappingError(f"duplicate identity override: {entity_type}:{legacy_id}")
+        overrides[key] = {
+            **item,
+            "entity_type": entity_type,
+            "legacy_id": legacy_id,
+            "ticker": ticker,
+            "venue": venue,
+            "approval_file_sha256": approval_file_sha256,
+        }
+    return approvals, overrides
+
+
+def _company_venue(row: dict[str, Any]) -> tuple[str | None, str | None]:
+    ticker = _canonical_text(row.get("ticker")).upper()
+    if "." in ticker:
+        suffix = ticker.rsplit(".", 1)[1]
+        venue = TICKER_SUFFIX_VENUES.get(suffix)
+        if not venue:
+            raise IdentityMappingError(f"unsupported ticker venue suffix: {ticker}")
+        return venue, "ticker_exchange_suffix"
+    market = _canonical_text(row.get("market"))
+    if market in MARKET_VENUES:
+        return MARKET_VENUES[market], "normalized_market"
+    listing_status = _canonical_text(row.get("listing_status"))
+    if listing_status in LISTING_STATUS_VENUES:
+        return LISTING_STATUS_VENUES[listing_status], "normalized_listing_status"
+    return None, None
 
 
 def _table_rows(conn: sqlite3.Connection, table: str) -> list[dict[str, Any]]:
@@ -127,8 +233,11 @@ def _mapping_record(
     basis: str,
     row: dict[str, Any],
     source_watermark: dict[str, Any],
+    identity_components: dict[str, Any] | None = None,
+    alias_approval: dict[str, Any] | None = None,
+    identity_override: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    record = {
         "entity_type": entity_type,
         "source_database": "research.db",
         "source_table": source_table,
@@ -146,9 +255,30 @@ def _mapping_record(
             }
         ),
     }
+    if identity_components:
+        record["identity_components"] = identity_components
+    if alias_approval:
+        record["alias_approval"] = {
+            "approval_reference": alias_approval["approval_reference"],
+            "approved_by": alias_approval["approved_by"],
+            "rationale": alias_approval["rationale"],
+            "approval_file_sha256": alias_approval["approval_file_sha256"],
+        }
+    if identity_override:
+        record["identity_override"] = {
+            "approval_reference": identity_override["approval_reference"],
+            "approved_by": identity_override["approved_by"],
+            "rationale": identity_override["rationale"],
+            "approval_file_sha256": identity_override["approval_file_sha256"],
+        }
+    return record
 
 
-def build_identity_mapping(database: str | Path) -> dict[str, Any]:
+def build_identity_mapping(
+    database: str | Path,
+    *,
+    alias_approvals: str | Path | None = None,
+) -> dict[str, Any]:
     database_path = Path(database).resolve()
     if not database_path.is_file():
         raise FileNotFoundError(database_path)
@@ -181,8 +311,14 @@ def build_identity_mapping(database: str | Path) -> dict[str, Any]:
         }
 
     mappings: list[dict[str, Any]] = []
+    approvals, identity_overrides = _load_identity_approvals(alias_approvals)
+    approval_by_legacy: dict[tuple[str, str], dict[str, Any]] = {}
+    for approval in approvals.values():
+        for legacy_id in approval["legacy_ids"]:
+            approval_by_legacy[(approval["entity_type"], legacy_id)] = approval
     legacy_seen: dict[tuple[str, str], str] = {}
     stable_aliases: dict[tuple[str, str], list[str]] = {}
+    used_identity_overrides: set[tuple[str, str]] = set()
 
     def add(record: dict[str, Any]) -> None:
         legacy_key = (record["entity_type"], record["legacy_id"])
@@ -203,12 +339,51 @@ def build_identity_mapping(database: str | Path) -> dict[str, Any]:
         ticker = _canonical_text(row.get("ticker")).upper()
         market = _canonical_text(row.get("market"))
         name = _canonical_text(row.get("name"))
+        alias_approval = approval_by_legacy.get(("company", legacy_id))
+        identity_override = identity_overrides.get(("company", legacy_id))
+        if alias_approval and identity_override:
+            raise IdentityMappingError(
+                f"company identity cannot use alias approval and venue override together: {legacy_id}"
+            )
         if ticker:
-            stable_key = f"company:ticker:{ticker}"
-            basis = "normalized_ticker"
+            venue, venue_basis = _company_venue(row)
+            if alias_approval:
+                stable_key = alias_approval["stable_key"]
+                basis = "approved_ticker_venue_alias"
+                stable_prefix = f"company:security:{ticker}:venue:"
+                if not stable_key.startswith(stable_prefix) or not stable_key[len(stable_prefix):]:
+                    raise IdentityMappingError(
+                        f"approved alias stable key conflicts with ticker/venue for company:{legacy_id}"
+                    )
+                approved_venue = stable_key[len(stable_prefix):]
+                if venue and approved_venue != venue:
+                    raise IdentityMappingError(
+                        f"approved alias venue conflicts with source venue for company:{legacy_id}"
+                    )
+                venue = approved_venue
+                venue_basis = venue_basis or "approved_alias_venue"
+            elif identity_override:
+                if identity_override["ticker"] != ticker:
+                    raise IdentityMappingError(
+                        f"identity override ticker mismatch for company:{legacy_id}"
+                    )
+                venue = identity_override["venue"]
+                venue_basis = "approved_identity_override"
+                stable_key = f"company:security:{ticker}:venue:{venue}"
+                basis = "normalized_ticker_and_approved_venue"
+                used_identity_overrides.add(("company", legacy_id))
+            else:
+                if not venue:
+                    raise IdentityMappingError(
+                        f"ticker is not exchange-qualified and market is unavailable: company:{legacy_id}:{ticker}"
+                    )
+                stable_key = f"company:security:{ticker}:venue:{venue}"
+                basis = "normalized_ticker_and_venue"
         elif name:
             stable_key = f"company:name-market:{_sha([name, market])}"
             basis = "normalized_name_and_market_fallback"
+            venue = None
+            venue_basis = None
         else:
             raise IdentityMappingError(f"company identity empty: {legacy_id}")
         add(
@@ -220,6 +395,14 @@ def build_identity_mapping(database: str | Path) -> dict[str, Any]:
                 basis=basis,
                 row=row,
                 source_watermark=table_watermarks["company"],
+                identity_components={
+                    "ticker": ticker or None,
+                    "venue": venue,
+                    "venue_basis": venue_basis,
+                    "market": market or None,
+                },
+                alias_approval=alias_approval,
+                identity_override=identity_override,
             )
         )
 
@@ -258,22 +441,47 @@ def build_identity_mapping(database: str | Path) -> dict[str, Any]:
         )
 
     mappings.sort(key=lambda item: (item["entity_type"], item["legacy_id"]))
-    alias_groups = [
-        {
-            "entity_type": entity_type,
-            "stable_key": stable_key,
-            "legacy_ids": sorted(legacy_ids),
-        }
-        for (entity_type, stable_key), legacy_ids in sorted(stable_aliases.items())
-        if len(legacy_ids) > 1
-    ]
+    alias_groups = []
+    used_approvals: set[tuple[str, str]] = set()
+    for (entity_type, stable_key), legacy_ids in sorted(stable_aliases.items()):
+        if len(legacy_ids) <= 1:
+            continue
+        approval = approvals.get((entity_type, stable_key))
+        normalized_ids = sorted(legacy_ids)
+        if approval is None or approval["legacy_ids"] != normalized_ids:
+            raise IdentityMappingError(
+                f"stable identity collision is not an explicitly approved alias: {entity_type}:{stable_key}:{normalized_ids}"
+            )
+        used_approvals.add((entity_type, stable_key))
+        alias_groups.append(
+            {
+                "entity_type": entity_type,
+                "stable_key": stable_key,
+                "legacy_ids": normalized_ids,
+                "approval_reference": approval["approval_reference"],
+                "approved_by": approval["approved_by"],
+                "rationale": approval["rationale"],
+                "approval_file_sha256": approval["approval_file_sha256"],
+            }
+        )
+    unused = sorted(set(approvals) - used_approvals)
+    if unused:
+        raise IdentityMappingError(f"alias approvals do not match a current collision group: {unused}")
+    unused_overrides = sorted(set(identity_overrides) - used_identity_overrides)
+    if unused_overrides:
+        raise IdentityMappingError(
+            f"identity overrides were not required by current source data: {unused_overrides}"
+        )
     manifest_core = {
-        "schema_version": "honghu.user_content_identity_mapping.v1",
+        "schema_version": "honghu.user_content_identity_mapping.v2",
         "source_database": str(database_path),
         "source_database_sha256": _file_sha(database_path),
         "source_tables": table_watermarks,
         "mappings": mappings,
         "collision_count": 0,
+        "unapproved_alias_count": 0,
+        "alias_approval_count": len(used_approvals),
+        "identity_override_count": len(used_identity_overrides),
         "alias_group_count": len(alias_groups),
         "alias_groups": alias_groups,
     }
@@ -284,8 +492,13 @@ def build_identity_mapping(database: str | Path) -> dict[str, Any]:
     }
 
 
-def write_identity_mapping(database: str | Path, output: str | Path) -> dict[str, Any]:
-    manifest = build_identity_mapping(database)
+def write_identity_mapping(
+    database: str | Path,
+    output: str | Path,
+    *,
+    alias_approvals: str | Path | None = DEFAULT_ALIAS_APPROVALS,
+) -> dict[str, Any]:
+    manifest = build_identity_mapping(database, alias_approvals=alias_approvals)
     output_path = Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(
@@ -298,8 +511,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Build a read-only Stage 4 identity mapping")
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--alias-approvals",
+        type=Path,
+        default=DEFAULT_ALIAS_APPROVALS,
+    )
     args = parser.parse_args()
-    result = write_identity_mapping(args.database, args.output)
+    result = write_identity_mapping(
+        args.database,
+        args.output,
+        alias_approvals=args.alias_approvals,
+    )
     print(
         json.dumps(
             {
