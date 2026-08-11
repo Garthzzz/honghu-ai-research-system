@@ -8,7 +8,7 @@
 
 > **非生产设计与演练 PASS；首个 production cutover 仍 BLOCKED。**
 
-本轮 authority-control 受验收实现 identity 为 `8c5c5e58d9efb65827b23a08fd15801d7bd11757`；push run `31495248015` 与 PR run `31495252243` 均通过两个 required jobs。PR #7 继续保持 open、未合并，Stage 4 人工 HALT 未批准。
+本轮 delete-first authority 修复实现 identity 为 `ba927f66143869497be3ea6af9c9bb69439ad6ab`；它统一 create/update/soft-delete 的 S2 首笔正式 mutation 语义并绑定最新 Git 外 rehearsal evidence。PR #7 继续保持 open、未合并，Stage 4 人工 HALT 未批准；最终 branch head 的 push/PR required CI 由本轮 HALT 报告按 GitHub 实际状态核验。
 
 因此尚不具备申请 `user_content_notes` 实际进入 production S2 的条件。本轮 HALT 后应先关闭应用 adapter、稳定身份全量映射、写接口安全、production PostgreSQL 现场拓扑、VM 外备份/restore、仓库 production authority 和维护窗口批准等 gate。
 
