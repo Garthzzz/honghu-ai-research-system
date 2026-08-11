@@ -1,0 +1,73 @@
+{
+  "schema_version": "honghu.stage4_first_unit_contract.v1",
+  "status": "nonproduction_rehearsal_passed_production_blocked",
+  "cutover_unit": "user_content_notes",
+  "current_state": "S0",
+  "current_authoritative_backend": "research.db SQLite",
+  "production_cutover_authorized": false,
+  "selection_facts": {
+    "live_row_count": 0,
+    "owned_tables": ["research.db.analyst_note"],
+    "actual_mutation_paths": ["create or update analyst note", "soft delete analyst note"],
+    "scheduled_runner": false
+  },
+  "known_blockers": [
+    "the production application adapter is not wired to the additive q-label and text-entity compatibility contract",
+    "legacy numeric id and stable note/entity identity are only proven with synthetic mappings, not a full live mapping freeze",
+    "current production API has no expected revision or idempotency contract and hard-deletes notes",
+    "shared identity dependency mapping is not fully frozen and verified",
+    "manual write authentication, CSRF and least-privilege production role are not evidenced",
+    "production PostgreSQL topology, off-VM backup and restore evidence do not yet exist",
+    "application repository production-authority governance gate remains open"
+  ],
+  "nonproduction_rehearsal": {
+    "status": "pass",
+    "environment": "loopback PostgreSQL dev/test on a non-production port",
+    "migration_applied_twice": true,
+    "covered": [
+      "S1 abandon to S0",
+      "S2 verification then return to S1 with no formal write",
+      "first formal mutation and S2-to-S3 authority revision in one transaction",
+      "uncertain-response idempotent replay",
+      "stale revision conflict",
+      "soft delete",
+      "text Q label, text theme id, nullable title and legacy raw timestamp compatibility",
+      "least-privilege writer, reader and unit-specific controller roles",
+      "pg_dump side restore",
+      "live SQLite schema and file hashes unchanged"
+    ],
+    "evidence_location": "Git-excluded cache/migration/stage4_entry/user_content_rehearsal.json"
+  },
+  "state_contract": {
+    "S0": "SQLite is the only authority; PostgreSQL use is dev/test or offline rehearsal only",
+    "S1": "production structure, backup, identity mapping and backfill are ready while SQLite remains the only writer",
+    "S2": "short cutover fence; SQLite mutation paths are fenced and PostgreSQL accepts classified verification writes only",
+    "S3": "first durable formal PostgreSQL business write exists; PostgreSQL is the only authority and SQLite is not a direct rollback target",
+    "S4": "observation passed; legacy SQLite mutation path is permanently fenced or removed"
+  },
+  "s2_evidence": [
+    "cutover epoch",
+    "SQLite final authoritative watermark",
+    "verification-write classification",
+    "PostgreSQL audit and commit watermark",
+    "unique writer identity",
+    "operator and approval identity"
+  ],
+  "uncertain_response_rule": "If absence of a durable PostgreSQL business commit cannot be proven, classify the unit as S3 and reconcile by stable operation identity; never retry against SQLite.",
+  "reconciliation": [
+    "source and target active/deleted counts",
+    "stable note key and legacy id mapping uniqueness",
+    "verified entity identity mapping",
+    "q label and nullable-field compatibility",
+    "created and updated time semantics",
+    "revision, audit and idempotency invariants",
+    "create/update/delete/list route behavior",
+    "backend routing and writer fence"
+  ],
+  "recovery": {
+    "S0_S1": "abandon the PostgreSQL candidate without changing SQLite authority",
+    "S2_without_formal_write": "restore SQLite writer only after stop-write, watermark, audit and human approval prove no required PostgreSQL write exists",
+    "S2_uncertain_or_S3": "forward repair PostgreSQL, roll application code only if schema-compatible, or restore to a side environment and selectively repair production",
+    "S4": "legacy SQLite is an audit baseline; reverse migration requires a separately approved migration"
+  }
+}

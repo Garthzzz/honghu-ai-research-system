@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。production PostgreSQL cutover、live SQLite 修改/迁移、计划任务迁移、production writer/backend、Viewer 或 runner 切换及阶段 4 均未获授权。
+> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。用户现仅授权阶段 4 的设计、非生产准备、隔离演练和证据构建；production PostgreSQL cutover、live SQLite 修改/迁移、计划任务迁移、production writer/backend、Viewer 或 runner 切换以及进入 S2/S3 均未获授权。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -133,7 +133,7 @@
 **前置条件**：阶段 3 通过；target RPO/RTO、生产拓扑、备份位置和维护窗口获批。  
 **回滚/恢复边界**：S1 可放弃试点；S2 是短时切换栅栏，只有 PostgreSQL writer 已停写且水位、审计和人工批准共同证明尚无必须保留的新写入，才可恢复 SQLite writer；无法证明时按 S3。S3/S4 的旧 SQLite 仅作迁移基线、审计和有限修复材料，不是无损 production rollback target。
 
-- [ ] [本阶段必须] 按共享身份、事务依赖、写入复杂度、数据量、停机容忍和现有 ledger 确定切换单元顺序；`sentiment` 默认靠后但以 inventory 审计为准。
+- [x] [本阶段必须] 按共享身份、事务依赖、写入复杂度、数据量、停机容忍和现有 ledger 确定切换单元顺序；`sentiment` 默认靠后但以 inventory 审计为准。2026-08-11 已形成 `stage4_cutover_sequence.v1`，首单元为 `user_content_notes`；该完成项只冻结顺序，不授权生产切换。
 - [ ] [本阶段必须] 每个切换单元先完成 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单。
 - [ ] [本阶段必须] 每个切换单元执行源目标计数、关系、时间序列、状态机、稳定身份映射和业务不变量对账；验证相关页面、API、publisher 和写路径。
 - [ ] [本阶段必须] 在短维护窗口切换唯一 writer；优先 shadow read。进入 S2 时 PostgreSQL 是唯一指定 writer、SQLite writer 已停止并冻结；记录 cutover epoch、SQLite 最终权威业务水位、PostgreSQL 首条正式业务 commit 水位、验证写、uncertain response、操作者和证据。首条必须保留的正式写提交即进入 S3，无法证明未提交的 uncertain response 按 S3。任何连接失败不得静默回写 SQLite；未经独立批准不得 shadow write。
