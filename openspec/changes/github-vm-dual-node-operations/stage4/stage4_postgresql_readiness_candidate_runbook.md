@@ -88,10 +88,14 @@ $ConfigSha = (Get-FileHash `
     --source-archive $Archive `
     --source-url 'https://get.enterprisedb.com/postgresql/postgresql-17.10-2-windows-x64-binaries.zip' `
     --off-vm-root '<APPROVED_OFF_VM_PATH>' `
-    --off-vm-host-id '<OFF_VM_HOST_ID>'
+    --off-vm-host-id '<APPROVED_DERIVED_STORAGE_IDENTITY_SHA256>'
 ```
 
-`--off-vm-root` 必须是另一故障域；本机另一个盘符不成立。若暂无该条件，省略最后两个参数，并接受 `engineering_partial`。
+`--off-vm-root` 必须是另一故障域；本机另一个盘符不成立。`--off-vm-host-id`
+传入的是事先批准的 endpoint-derived storage identity SHA256，执行器仍会从 UNC
+server/share、DNS 与存储卷身份独立探测并比对，不能用调用方自由文本冒充异机身份。
+若暂无该条件，省略最后两个参数，并接受 `engineering_partial`。恢复证据必须同时包含
+`recovery_set_manifest.json`；bundle 构建时通过 `--recovery-set-manifest` 显式纳入并校验。
 
 ## 结果判定与清理
 

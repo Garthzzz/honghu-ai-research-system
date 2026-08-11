@@ -1,5 +1,5 @@
 {
-  "schema_version": "honghu.stage4_user_content_readiness_bundle.v2",
+  "schema_version": "honghu.stage4_user_content_readiness_bundle.v3",
   "cutover_unit": "user_content_notes",
   "production_cutover_authorized": false,
   "evidence_cutoff_utc": null,
@@ -15,6 +15,7 @@
     "application_contract": {"evidence_type": "application_contract", "path": "", "sha256": ""},
     "postgresql_topology": {"evidence_type": "postgresql_topology", "path": "", "sha256": ""},
     "recovery": {"evidence_type": "recovery", "path": "", "sha256": ""},
+    "recovery_set_manifest": {"evidence_type": "recovery_set_manifest", "path": "", "sha256": ""},
     "repository_governance": {"evidence_type": "repository_governance", "path": "", "sha256": ""},
     "cutover_decision": {"evidence_type": "cutover_decision", "path": "", "sha256": ""}
   }

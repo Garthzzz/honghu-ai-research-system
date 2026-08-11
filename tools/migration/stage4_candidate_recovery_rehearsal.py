@@ -16,6 +16,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from tools.migration.stage4_recovery_set import (
+    assert_restore_sources,
+    build_recovery_set,
+    measured_recovery,
+    verify_recovery_set,
+)
 from tools.migration.stage4_user_content_rehearsal import (
     run_rehearsal as run_authority_control_rehearsal,
 )
@@ -269,6 +275,7 @@ def run_rehearsal(
     cluster = candidate_root / "cluster"
     archive = candidate_root / "wal-archive"
     base_backup = candidate_root / "base-backup"
+    restore_cluster = candidate_root / "restore-workspace"
     logical_dump = candidate_root / "candidate.dump"
     restore_helper = candidate_root / "restore_wal.py"
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -292,7 +299,6 @@ def run_rehearsal(
     lifecycle: list[dict[str, str]] = []
     primary_running = False
     restore_running = False
-    restore_cluster = base_backup
     started = time.perf_counter()
     def phase(name: str) -> None:
         progress = {
@@ -404,7 +410,9 @@ def run_rehearsal(
             user=admin_user,
             password=admin_password,
             sql=(
-                "CREATE TABLE public.synthetic_recovery(id integer PRIMARY KEY,payload text NOT NULL);"
+                "CREATE TABLE public.synthetic_recovery("
+                "id integer PRIMARY KEY,payload text NOT NULL,"
+                "created_at timestamptz NOT NULL DEFAULT clock_timestamp());"
                 "INSERT INTO public.synthetic_recovery VALUES(1,'before-backup');"
                 f"GRANT CONNECT ON DATABASE {database} TO {','.join(ROLE_NAMES.values())};"
                 f"GRANT USAGE ON SCHEMA public TO {','.join(ROLE_NAMES.values())};"
@@ -546,15 +554,48 @@ def run_rehearsal(
         )
         phase("physical_base_backup_created")
         base_backup_id = tree_identity(base_backup)
-        before_archive_count = len([path for path in archive.iterdir() if path.is_file()])
-        post_backup_write = _psql(
-            bin_dir, host=host, port=port, database=database, user=admin_user, password=admin_password, sql="INSERT INTO public.synthetic_recovery VALUES(3,'after-backup');SELECT pg_switch_wal();"
+        sentinel_operation_id = f"stage4-recovery-{secrets.token_hex(12)}"
+        sentinel_payload = f"post-backup:{sentinel_operation_id}"
+        target_row = _psql(
+            bin_dir,
+            host=host,
+            port=port,
+            database=database,
+            user=admin_user,
+            password=admin_password,
+            sql=(
+                "BEGIN;"
+                f"INSERT INTO public.synthetic_recovery(id,payload) VALUES(3,'{sentinel_payload}');"
+                "COMMIT;"
+                "SELECT pg_current_wal_flush_lsn()::text||'|'||"
+                "to_char(clock_timestamp() AT TIME ZONE 'UTC',"
+                "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"')||'|'||"
+                "pg_walfile_name(pg_current_wal_flush_lsn());"
+            ),
+        ).stdout.strip()
+        target_lines = [line.strip() for line in target_row.splitlines() if line.strip()]
+        target_parts = target_lines[-1].split("|") if target_lines else []
+        if len(target_parts) != 3 or not all(target_parts):
+            raise CandidateRehearsalError("post-backup durable target was not captured")
+        recovery_target_lsn, durable_target_at_utc, required_wal_name = target_parts
+        _psql(
+            bin_dir,
+            host=host,
+            port=port,
+            database=database,
+            user=admin_user,
+            password=admin_password,
+            sql="SELECT pg_switch_wal();",
         )
-        post_backup_lines = [line.strip() for line in post_backup_write.stdout.splitlines() if line.strip()]
-        if not post_backup_lines:
-            raise CandidateRehearsalError("post-backup WAL target was not captured")
-        recovery_target_lsn = post_backup_lines[-1]
-        archived = _wait_for_archived_wal(archive, before_archive_count)
+        required_wal_path = archive / required_wal_name
+        required_wal_deadline = time.monotonic() + 30
+        while not required_wal_path.is_file():
+            if time.monotonic() >= required_wal_deadline:
+                raise CandidateRehearsalError(
+                    f"required WAL segment was not archived: {required_wal_name}"
+                )
+            time.sleep(0.25)
+        archived = [path for path in archive.iterdir() if path.is_file()]
         phase("post_backup_wal_archived")
 
         _run(
@@ -589,11 +630,63 @@ def run_rehearsal(
             raise CandidateRehearsalError("logical side restore did not reproduce dump state")
         phase("logical_side_restore_verified")
 
+        recovery_target = {
+            "sentinel_operation_id": sentinel_operation_id,
+            "sentinel_payload": sentinel_payload,
+            "target_lsn": recovery_target_lsn,
+            "durable_target_at_utc": durable_target_at_utc,
+            "required_wal_files": [required_wal_name],
+            "source_database": database,
+        }
+        recovery_set_root = (
+            off_vm_root / f"{subject['candidate_id']}-{base_backup_id[:12]}"
+            if off_vm_root is not None
+            else candidate_root / "recovery-set-local"
+        )
+        recovery_manifest = build_recovery_set(
+            base_backup=base_backup,
+            wal_archive=archive,
+            destination=recovery_set_root,
+            source_identity={
+                "source_host_id": socket.gethostname(),
+                "postgresql_system_identifier": system_identifier,
+                "base_backup_identity": base_backup_id,
+                "candidate_id": subject["candidate_id"],
+            },
+            target=recovery_target,
+            expected_storage_identity=off_vm_host_id,
+            require_off_vm=off_vm_root is not None,
+        )
+        verified_manifest = verify_recovery_set(
+            recovery_set_root,
+            expected_identity=recovery_manifest["recovery_set_identity"],
+            expected_storage_identity=recovery_manifest["storage_evidence"][
+                "derived_storage_identity"
+            ],
+        )
+        restore_source_base = recovery_set_root / "base_backup"
+        restore_source_wal = recovery_set_root / "wal"
+        assert_restore_sources(recovery_set_root, restore_source_base, restore_source_wal)
+        recovery_manifest_evidence_path = output_dir / "recovery_set_manifest.json"
+        shutil.copy2(
+            recovery_set_root / "recovery_set_manifest.json",
+            recovery_manifest_evidence_path,
+        )
+        phase("recovery_set_verified")
+
         # A physical restore is validated with the source candidate stopped. This
         # avoids two copies of the same cluster identity running concurrently and
         # mirrors the whole-cluster disaster-recovery contract.
         _pg_ctl(bin_dir, cluster, "stop", mode="fast")
         primary_running = False
+
+        # Make the same-host originals unavailable before restore.  The restore
+        # workspace is populated only from the attested recovery set.
+        source_quarantine = candidate_root / "source-artifacts-not-used-for-restore"
+        source_quarantine.mkdir()
+        shutil.move(str(base_backup), str(source_quarantine / "base-backup"))
+        shutil.move(str(archive), str(source_quarantine / "wal-archive"))
+        shutil.copytree(restore_source_base, restore_cluster)
 
         with (restore_cluster / "postgresql.auto.conf").open("a", encoding="utf-8") as handle:
             handle.write(f"\nport={port + 1}\n")
@@ -602,7 +695,7 @@ def run_rehearsal(
                 "restore_command='"
                 f'\"{Path(sys.executable).as_posix()}\" '
                 f'\"{restore_helper.as_posix()}\" '
-                f'\"{archive.as_posix()}/%f\" \"%p\"'
+                f'\"{restore_source_wal.as_posix()}/%f\" \"%p\"'
                 "'\n"
             )
             handle.write("archive_mode='off'\n")
@@ -628,38 +721,58 @@ def run_rehearsal(
             if time.monotonic() >= recovery_deadline:
                 raise CandidateRehearsalError("physical restore did not reach and promote at target LSN")
             time.sleep(0.2)
-        restored_count = _psql(
-            bin_dir, host=host, port=port + 1, database=database, user=admin_user, password=admin_password, sql="SELECT count(*) FROM public.synthetic_recovery;"
+        restored_row = _psql(
+            bin_dir,
+            host=host,
+            port=port + 1,
+            database=database,
+            user=admin_user,
+            password=admin_password,
+            sql=(
+                "SELECT count(*)::text||'|'||"
+                "coalesce(max(payload) FILTER (WHERE id=3),'')||'|'||"
+                "coalesce(to_char((max(created_at) FILTER (WHERE id=3)) AT TIME ZONE 'UTC',"
+                "'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"'),'')||'|'||"
+                "pg_current_wal_lsn()::text FROM public.synthetic_recovery;"
+            ),
         ).stdout.strip()
         restore_seconds = time.perf_counter() - restore_started
-        if restored_count != "2":
-            # Base backup itself must at least be fully readable. Archived post-backup
-            # WAL is recorded independently and is not overstated as PITR success.
-            raise CandidateRehearsalError("physical whole restore failed")
+        restored_parts = restored_row.split("|")
+        if len(restored_parts) != 4 or restored_parts[0] != "2":
+            raise CandidateRehearsalError("physical whole restore row set is incomplete")
+        restored_count, restored_payload, recovered_at_utc, recovered_lsn = restored_parts
+        if restored_payload != sentinel_payload:
+            raise CandidateRehearsalError("post-backup recovery sentinel was not restored")
+        measured = measured_recovery(
+            target=recovery_target,
+            recovered={
+                "sentinel_operation_id": sentinel_operation_id,
+                "target_lsn_reached": True,
+                "recovered_lsn": recovered_lsn,
+                "recovered_watermark_at_utc": recovered_at_utc,
+            },
+            restore_elapsed_seconds=restore_seconds,
+        )
         phase("physical_whole_restore_verified")
-
+        off_vm_verified = bool(
+            verified_manifest["storage_evidence"].get("independent_from_source_host")
+        )
         off_vm = {
-            "verified": False,
-            "storage_host_id": None,
-            "copy_sha256": None,
-            "reason": "no independent off-VM target was supplied",
+            "verified": off_vm_verified,
+            "storage_host_id": verified_manifest["storage_evidence"].get(
+                "endpoint_host"
+            ),
+            "failure_domain_identity": verified_manifest["storage_evidence"].get(
+                "derived_storage_identity"
+            ),
+            "recovery_set_identity": verified_manifest["recovery_set_identity"],
+            "manifest_sha256": sha256_file(
+                recovery_manifest_evidence_path
+            ),
+            "reason": None
+            if off_vm_verified
+            else "recovery set is on the source host; off-VM gate remains blocked",
         }
-        if off_vm_root is not None:
-            if not off_vm_host_id:
-                raise CandidateRehearsalError("off-VM host identity is required")
-            destination = off_vm_root.resolve() / f"{subject['candidate_id']}-{base_backup_id[:12]}"
-            if destination.exists():
-                raise CandidateRehearsalError("off-VM destination already exists")
-            shutil.copytree(base_backup, destination)
-            copied_identity = tree_identity(destination)
-            if copied_identity != base_backup_id:
-                raise CandidateRehearsalError("off-VM copy identity mismatch")
-            off_vm = {
-                "verified": True,
-                "storage_host_id": off_vm_host_id,
-                "copy_sha256": copied_identity,
-                "reason": None,
-            }
 
         observed_at = datetime.now(timezone.utc)
         common = {
@@ -720,18 +833,27 @@ def run_rehearsal(
                     "sha256": authority_rehearsal.get("dump_sha256"),
                 },
                 "wal_or_incremental": {
-                    "start_lsn": "archived-before-base-backup",
-                    "end_lsn": "archived-after-base-backup",
+                    "start_lsn": "captured-by-pg_basebackup",
+                    "end_lsn": recovery_target_lsn,
                     "archive_result": "pass",
                     "archived_files": archive_files,
+                    "required_wal_files": [required_wal_name],
+                },
+                "recovery_set": {
+                    "schema_version": verified_manifest["schema_version"],
+                    "identity": verified_manifest["recovery_set_identity"],
+                    "manifest_sha256": off_vm["manifest_sha256"],
+                    "storage_evidence": verified_manifest["storage_evidence"],
+                    "target": verified_manifest["target"],
+                    "artifact_count": len(verified_manifest["artifacts"]),
+                    "restore_source_contract": "recovery_set_only",
                 },
                 "whole_database_restore": {"result": "pass", "source_backup_id": base_backup_id, "verification_sha256": hashlib.sha256(f"{system_identifier}:{restored_count}".encode()).hexdigest()},
                 "side_restore": {"result": "pass", "source_backup_id": logical_backup_id, "verification_sha256": hashlib.sha256(f"{logical_backup_id}:{side_count}".encode()).hexdigest()},
                 "authority_recovery": {"result": "pass", "source_backup_id": authority_rehearsal.get("dump_sha256"), "verification_sha256": authority_sha, "cutover_unit": "user_content_notes"},
                 "off_vm_storage": off_vm,
                 "measured": {
-                    "rpo_seconds": 0,
-                    "rto_seconds": round(restore_seconds, 3),
+                    **measured,
                     "authority_transition_loss_count": 0,
                     "authority_verification_seconds": float(authority_rehearsal.get("elapsed_seconds") or 0),
                 },

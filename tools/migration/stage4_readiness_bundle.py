@@ -11,7 +11,7 @@ from typing import Any
 
 
 EVIDENCE_SCHEMA = "honghu.stage4_readiness_evidence.v1"
-BUNDLE_SCHEMA = "honghu.stage4_user_content_readiness_bundle.v2"
+BUNDLE_SCHEMA = "honghu.stage4_user_content_readiness_bundle.v3"
 REQUIRED_CHECKS = {"boundary-and-contracts", "python-clean-environment"}
 TRACKED_APPLICATION_SOURCES = (
     "tools/data_platform/user_content_notes.py",
@@ -86,6 +86,7 @@ def build_bundle(
     adapter_rehearsal_path: Path,
     topology_path: Path,
     recovery_path: Path,
+    recovery_set_manifest_path: Path,
     github_repository: str,
 ) -> dict[str, Any]:
     evidence_root.mkdir(parents=True, exist_ok=True)
@@ -95,6 +96,7 @@ def build_bundle(
     adapter = _read_json(adapter_rehearsal_path)
     topology = _read_json(topology_path)
     recovery = _read_json(recovery_path)
+    recovery_set_manifest = _read_json(recovery_set_manifest_path)
 
     if topology.get("subject") != subject or recovery.get("subject") != subject:
         raise ValueError("topology/recovery subject does not match bundle subject")
@@ -105,11 +107,13 @@ def build_bundle(
     copied_adapter = evidence_root / "adapter_rehearsal.json"
     copied_topology = evidence_root / "postgresql_topology.json"
     copied_recovery = evidence_root / "recovery.json"
+    copied_recovery_set_manifest = evidence_root / "recovery_set_manifest.json"
     for source, target in (
         (mapping_path, copied_mapping),
         (adapter_rehearsal_path, copied_adapter),
         (topology_path, copied_topology),
         (recovery_path, copied_recovery),
+        (recovery_set_manifest_path, copied_recovery_set_manifest),
     ):
         _copy_evidence_file(source, target)
 
@@ -222,6 +226,7 @@ def build_bundle(
         "application_contract": application_file,
         "postgresql_topology": copied_topology,
         "recovery": copied_recovery,
+        "recovery_set_manifest": copied_recovery_set_manifest,
         "repository_governance": repository_file,
         "cutover_decision": cutover_file,
     }
@@ -257,6 +262,7 @@ def main() -> int:
     parser.add_argument("--adapter-rehearsal", type=Path, required=True)
     parser.add_argument("--topology", type=Path, required=True)
     parser.add_argument("--recovery", type=Path, required=True)
+    parser.add_argument("--recovery-set-manifest", type=Path, required=True)
     parser.add_argument("--github-repository", default="Garthzzz/honghu-ai-research-system")
     args = parser.parse_args()
     bundle = build_bundle(
@@ -273,6 +279,7 @@ def main() -> int:
         adapter_rehearsal_path=args.adapter_rehearsal.resolve(),
         topology_path=args.topology.resolve(),
         recovery_path=args.recovery.resolve(),
+        recovery_set_manifest_path=args.recovery_set_manifest.resolve(),
         github_repository=args.github_repository,
     )
     print(json.dumps(bundle, ensure_ascii=False))

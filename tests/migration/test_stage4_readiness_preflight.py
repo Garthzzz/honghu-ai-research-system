@@ -22,6 +22,11 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def _sha_json(payload: dict) -> str:
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
 def _envelope(evidence_type: str, payload: dict) -> dict:
     return {
         "schema_version": "honghu.stage4_readiness_evidence.v1",
@@ -77,6 +82,32 @@ def _bundle(tmp_path: Path) -> tuple[dict, dict[str, Path]]:
         "tests/viewer/test_analyst_note_browser_mutations.py",
         "tests/migration/test_stage4_user_content_rehearsal.py",
     )
+    recovery_set_core = {
+        "schema_version": "honghu.stage4_recovery_set.v2",
+        "created_at_utc": "2026-08-12T00:00:00Z",
+        "source_identity": {"source_host_id": "vm-1"},
+        "storage_evidence": {
+            "kind": "windows_unc",
+            "failure_domain": "remote_host_storage",
+            "independent_from_source_host": True,
+            "derived_storage_identity": "8" * 64,
+        },
+        "target": {
+            "sentinel_operation_id": "op-sentinel",
+            "target_lsn": "0/200",
+            "durable_target_at_utc": "2026-08-12T00:00:00Z",
+            "required_wal_files": ["000000010000000000000001"],
+        },
+        "artifacts": [
+            {"path": "base_backup/PG_VERSION", "role": "base_backup", "size": 3, "sha256": "9" * 64},
+            {"path": "wal/000000010000000000000001", "role": "wal", "size": 3, "sha256": "a" * 64},
+            {"path": "target.json", "role": "metadata", "size": 3, "sha256": "b" * 64},
+        ],
+    }
+    recovery_set = {
+        **recovery_set_core,
+        "recovery_set_identity": _sha_json(recovery_set_core),
+    }
     artifacts = {
         "identity_mapping_manifest": _write(tmp_path / "mapping.json", mapping),
         "identity_mapping_approval": _write(
@@ -188,6 +219,12 @@ def _bundle(tmp_path: Path) -> tuple[dict, dict[str, Path]]:
                         "end_lsn": "0/200",
                         "archive_result": "pass",
                     },
+                    "recovery_set": {
+                        "schema_version": "honghu.stage4_recovery_set.v2",
+                        "identity": recovery_set["recovery_set_identity"],
+                        "storage_evidence": recovery_set["storage_evidence"],
+                        "target": recovery_set["target"],
+                    },
                     "whole_database_restore": {
                         "result": "pass",
                         "source_backup_id": "base-1",
@@ -207,7 +244,8 @@ def _bundle(tmp_path: Path) -> tuple[dict, dict[str, Path]]:
                     "off_vm_storage": {
                         "verified": True,
                         "storage_host_id": "backup-host-2",
-                        "copy_sha256": "5" * 64,
+                        "failure_domain_identity": "8" * 64,
+                        "recovery_set_identity": recovery_set["recovery_set_identity"],
                     },
                     "measured": {
                         "rpo_seconds": 60,
@@ -217,6 +255,9 @@ def _bundle(tmp_path: Path) -> tuple[dict, dict[str, Path]]:
                     },
                 },
             ),
+        ),
+        "recovery_set_manifest": _write(
+            tmp_path / "recovery-set-manifest.json", recovery_set
         ),
         "repository_governance": _write(
             tmp_path / "repository.json",
@@ -256,7 +297,7 @@ def _bundle(tmp_path: Path) -> tuple[dict, dict[str, Path]]:
         ),
     }
     bundle = {
-        "schema_version": "honghu.stage4_user_content_readiness_bundle.v2",
+        "schema_version": "honghu.stage4_user_content_readiness_bundle.v3",
         "cutover_unit": "user_content_notes",
         "production_cutover_authorized": False,
         "evidence_cutoff_utc": "2026-08-13T00:00:00Z",
@@ -324,8 +365,22 @@ def test_tampered_artifact_and_cross_environment_evidence_fail_closed(tmp_path) 
 def test_same_vm_backup_cannot_masquerade_as_off_vm(tmp_path) -> None:
     bundle, artifacts = _bundle(tmp_path)
     recovery = json.loads(artifacts["recovery"].read_text(encoding="utf-8"))
-    recovery["payload"]["off_vm_storage"]["storage_host_id"] = "vm-1"
+    manifest = json.loads(
+        artifacts["recovery_set_manifest"].read_text(encoding="utf-8")
+    )
+    manifest["storage_evidence"]["failure_domain"] = "source_host"
+    manifest["storage_evidence"]["independent_from_source_host"] = False
+    core = {key: value for key, value in manifest.items() if key != "recovery_set_identity"}
+    manifest["recovery_set_identity"] = _sha_json(core)
+    _write(artifacts["recovery_set_manifest"], manifest)
+    recovery["payload"]["recovery_set"]["identity"] = manifest["recovery_set_identity"]
+    recovery["payload"]["recovery_set"]["storage_evidence"] = manifest["storage_evidence"]
+    recovery["payload"]["off_vm_storage"]["recovery_set_identity"] = manifest["recovery_set_identity"]
+    recovery["payload"]["off_vm_storage"]["failure_domain_identity"] = "8" * 64
     _write(artifacts["recovery"], recovery)
     bundle["artifacts"]["recovery"]["sha256"] = _sha(artifacts["recovery"])
+    bundle["artifacts"]["recovery_set_manifest"]["sha256"] = _sha(
+        artifacts["recovery_set_manifest"]
+    )
     result = evaluate_readiness(root=ROOT, evidence=bundle, evidence_root=tmp_path)
     assert "same-host storage cannot be claimed as off-VM" in result["engineering_blockers"]

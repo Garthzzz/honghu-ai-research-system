@@ -14,13 +14,14 @@ from tools.data_platform.routing import AuthorityState, Backend, load_cutover_ro
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 GIT_SHA = re.compile(r"^[0-9a-f]{40}$")
 EVIDENCE_SCHEMA = "honghu.stage4_readiness_evidence.v1"
-BUNDLE_SCHEMA = "honghu.stage4_user_content_readiness_bundle.v2"
+BUNDLE_SCHEMA = "honghu.stage4_user_content_readiness_bundle.v3"
 REQUIRED_ARTIFACTS = {
     "identity_mapping_manifest": "identity_mapping_manifest",
     "identity_mapping_approval": "identity_mapping_approval",
     "application_contract": "application_contract",
     "postgresql_topology": "postgresql_topology",
     "recovery": "recovery",
+    "recovery_set_manifest": "recovery_set_manifest",
     "repository_governance": "repository_governance",
     "cutover_decision": "cutover_decision",
 }
@@ -281,10 +282,14 @@ def _validate_topology(artifact: dict[str, Any], blockers: list[str]) -> None:
     _require({"create", "rotate", "old_credential_rejected", "revoke", "revoked_credential_rejected"} <= credential_events, "credential lifecycle is incomplete", blockers)
 
 
-def _validate_recovery(recovery: dict[str, Any], topology: dict[str, Any], blockers: list[str]) -> None:
+def _validate_recovery(
+    recovery: dict[str, Any],
+    topology: dict[str, Any],
+    recovery_set_manifest: dict[str, Any],
+    blockers: list[str],
+) -> None:
     payload = recovery.get("payload") or {}
     topology_payload = topology.get("payload") or {}
-    source_host = str((topology_payload.get("host") or {}).get("host_id") or "")
     system_id = str((topology_payload.get("postgresql") or {}).get("system_identifier") or "")
     _require(payload.get("source_system_identifier") == system_id, "recovery source cluster identity mismatch", blockers)
     backup = payload.get("base_backup") or {}
@@ -313,9 +318,85 @@ def _validate_recovery(recovery: dict[str, Any], topology: dict[str, Any], block
     authority = payload.get("authority_recovery") or {}
     _require(authority.get("cutover_unit") == "user_content_notes", "authority recovery is for another cutover unit", blockers)
     storage = payload.get("off_vm_storage") or {}
+    recovery_set = payload.get("recovery_set") or {}
+    _require(
+        recovery_set_manifest.get("schema_version")
+        == "honghu.stage4_recovery_set.v2",
+        "recovery-set manifest schema is unsupported",
+        blockers,
+    )
+    manifest_core = {
+        key: value
+        for key, value in recovery_set_manifest.items()
+        if key != "recovery_set_identity"
+    }
+    manifest_identity = _sha256_json(manifest_core)
+    _require(
+        recovery_set_manifest.get("recovery_set_identity") == manifest_identity,
+        "recovery-set manifest identity mismatch",
+        blockers,
+    )
+    _require(
+        recovery_set.get("identity") == manifest_identity,
+        "recovery evidence references another recovery set",
+        blockers,
+    )
+    manifest_target = recovery_set_manifest.get("target") or {}
+    manifest_artifacts = recovery_set_manifest.get("artifacts") or []
+    artifact_roles = {item.get("role") for item in manifest_artifacts}
+    available_wal = {
+        str(item.get("path") or "").split("/", 1)[1]
+        for item in manifest_artifacts
+        if item.get("role") == "wal" and str(item.get("path") or "").startswith("wal/")
+    }
+    required_wal = set(manifest_target.get("required_wal_files") or [])
+    _require(
+        {"base_backup", "wal", "metadata"} <= artifact_roles,
+        "recovery set does not contain base backup, WAL and target metadata",
+        blockers,
+    )
+    _require(
+        bool(required_wal) and required_wal <= available_wal,
+        "recovery set WAL cannot reach the declared target",
+        blockers,
+    )
+    _require(
+        bool(manifest_target.get("sentinel_operation_id"))
+        and bool(manifest_target.get("target_lsn"))
+        and bool(manifest_target.get("durable_target_at_utc")),
+        "recovery target sentinel/watermark is incomplete",
+        blockers,
+    )
+    manifest_storage = recovery_set_manifest.get("storage_evidence") or {}
+    _require(
+        manifest_storage == recovery_set.get("storage_evidence"),
+        "recovery storage evidence differs from the recovery-set manifest",
+        blockers,
+    )
+    _require(
+        manifest_target == recovery_set.get("target"),
+        "recovery target differs from the recovery-set manifest",
+        blockers,
+    )
     _require(storage.get("verified") is True, "off-VM recovery copy is not verified", blockers)
-    _require(bool(storage.get("storage_host_id")) and storage.get("storage_host_id") != source_host, "same-host storage cannot be claimed as off-VM", blockers)
-    _require(SHA256.fullmatch(str(storage.get("copy_sha256") or "")) is not None, "off-VM copy identity missing", blockers)
+    _require(
+        manifest_storage.get("independent_from_source_host") is True
+        and manifest_storage.get("failure_domain") == "remote_host_storage",
+        "same-host storage cannot be claimed as off-VM",
+        blockers,
+    )
+    _require(
+        SHA256.fullmatch(str(storage.get("failure_domain_identity") or "")) is not None
+        and storage.get("failure_domain_identity")
+        == manifest_storage.get("derived_storage_identity"),
+        "off-VM failure-domain identity is missing or inconsistent",
+        blockers,
+    )
+    _require(
+        storage.get("recovery_set_identity") == manifest_identity,
+        "off-VM storage references another recovery set",
+        blockers,
+    )
     measured = payload.get("measured") or {}
     _require(float(measured.get("rpo_seconds", -1)) >= 0 and float(measured.get("rpo_seconds", 10**9)) <= 300, "human-authored data measured RPO exceeds approved target", blockers)
     _require(float(measured.get("rto_seconds", -1)) >= 0 and float(measured.get("rto_seconds", 10**9)) <= 14400, "human-authored data measured RTO exceeds approved target", blockers)
@@ -395,7 +476,7 @@ def evaluate_readiness(
 
     loaded, artifact_identities = _load_artifacts(evidence, evidence_root or root, blockers)
     for name, artifact in loaded.items():
-        if name == "identity_mapping_manifest":
+        if name in {"identity_mapping_manifest", "recovery_set_manifest"}:
             continue
         _validate_subject_and_time(name=name, artifact=artifact, subject=subject, cutoff=cutoff, blockers=blockers)
 
@@ -411,8 +492,13 @@ def evaluate_readiness(
         )
     if "postgresql_topology" in loaded:
         _validate_topology(loaded["postgresql_topology"], blockers)
-    if {"recovery", "postgresql_topology"} <= loaded.keys():
-        _validate_recovery(loaded["recovery"], loaded["postgresql_topology"], blockers)
+    if {"recovery", "postgresql_topology", "recovery_set_manifest"} <= loaded.keys():
+        _validate_recovery(
+            loaded["recovery"],
+            loaded["postgresql_topology"],
+            loaded["recovery_set_manifest"],
+            blockers,
+        )
     if "repository_governance" in loaded:
         _validate_governance(loaded["repository_governance"], blockers, humans)
     if "cutover_decision" in loaded:

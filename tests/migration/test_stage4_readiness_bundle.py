@@ -84,6 +84,17 @@ def _inputs(tmp_path: Path) -> dict[str, Path]:
         "adapter_rehearsal_path": adapter_path,
         "topology_path": _write(tmp_path / "topology.json", _envelope("postgresql_topology")),
         "recovery_path": _write(tmp_path / "recovery.json", _envelope("recovery")),
+        "recovery_set_manifest_path": _write(
+            tmp_path / "recovery-set-manifest.json",
+            {
+                "schema_version": "honghu.stage4_recovery_set.v2",
+                "recovery_set_identity": "a" * 64,
+                "source_identity": {},
+                "storage_evidence": {},
+                "target": {},
+                "artifacts": [],
+            },
+        ),
     }
 
 
@@ -123,6 +134,7 @@ def test_bundle_binds_typed_artifacts_and_real_github_facts(tmp_path, monkeypatc
         "application_contract",
         "postgresql_topology",
         "recovery",
+        "recovery_set_manifest",
         "repository_governance",
         "cutover_decision",
     }
