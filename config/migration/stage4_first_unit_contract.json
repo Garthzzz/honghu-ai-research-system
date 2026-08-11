@@ -1,5 +1,5 @@
 {
-  "schema_version": "honghu.stage4_first_unit_contract.v1",
+  "schema_version": "honghu.stage4_first_unit_contract.v2",
   "status": "nonproduction_rehearsal_passed_production_blocked",
   "cutover_unit": "user_content_notes",
   "current_state": "S0",
@@ -15,7 +15,7 @@
     "the production application adapter is not wired to the additive q-label and text-entity compatibility contract",
     "legacy numeric id and stable note/entity identity are only proven with synthetic mappings, not a full live mapping freeze",
     "current production API has no expected revision or idempotency contract and hard-deletes notes",
-    "shared identity dependency mapping is not fully frozen and verified",
+    "shared identity dependency mapping is only proven with synthetic initial and incremental mappings; the production read-only identity resolver and evidence workflow are not implemented",
     "manual write authentication, CSRF and least-privilege production role are not evidenced",
     "production PostgreSQL topology, off-VM backup and restore evidence do not yet exist",
     "application repository production-authority governance gate remains open"
@@ -28,11 +28,14 @@
       "S1 abandon to S0",
       "S2 verification then return to S1 with no formal write",
       "first formal mutation and S2-to-S3 authority revision in one transaction",
+      "S3-to-S4 preserves PostgreSQL backend, writer, epoch and watermarks and requires a separate non-empty approval",
+      "wrong S4 backend, missing or reused approval and writer drift fail closed",
       "uncertain-response idempotent replay",
       "stale revision conflict",
       "soft delete",
       "text Q label, text theme id, nullable title and legacy raw timestamp compatibility",
       "least-privilege writer, reader and unit-specific controller roles",
+      "unmapped new shared identities fail closed and controlled incremental mapping is audited outside S2",
       "pg_dump side restore",
       "live SQLite schema and file hashes unchanged"
     ],
@@ -44,6 +47,20 @@
     "S2": "short cutover fence; SQLite mutation paths are fenced and PostgreSQL accepts classified verification writes only",
     "S3": "first durable formal PostgreSQL business write exists; PostgreSQL is the only authority and SQLite is not a direct rollback target",
     "S4": "observation passed; legacy SQLite mutation path is permanently fenced or removed"
+  },
+  "state_invariants": {
+    "S0_S1": "backend is sqlite_transition and writer, epoch, SQLite final watermark and formal commit are absent",
+    "S2": "backend is postgresql_production; writer, epoch, SQLite final watermark and approval exist; formal commit is absent",
+    "S3_S4": "backend is postgresql_production; writer, epoch, SQLite final watermark, formal commit and approval exist",
+    "S3_to_S4": "a new approval is required and backend, writer, epoch, SQLite final watermark and first formal commit are preserved"
+  },
+  "dependency_mapping_lifecycle": {
+    "authority": "shared identity remains SQLite-authoritative until its own cutover unit migrates",
+    "initial_freeze": "S1 records mappings with source watermark, stable key, evidence identity, actor and approval",
+    "new_entity": "note mutation fails closed until a controller registers a non-conflicting audited mapping",
+    "allowed_mapping_states": ["S1", "S3", "S4"],
+    "forbidden_mapping_state": "S2",
+    "retirement": "after shared_identity cutover, replace the bridge with canonical PostgreSQL references in a separately approved contract release"
   },
   "s2_evidence": [
     "cutover epoch",
@@ -69,5 +86,6 @@
     "S2_without_formal_write": "restore SQLite writer only after stop-write, watermark, audit and human approval prove no required PostgreSQL write exists",
     "S2_uncertain_or_S3": "forward repair PostgreSQL, roll application code only if schema-compatible, or restore to a side environment and selectively repair production",
     "S4": "legacy SQLite is an audit baseline; reverse migration requires a separately approved migration"
-  }
+  },
+  "pre_s2_recovery_gate": "This unit must have off-VM backup and tested authority/user-content restore evidence before production S2; Stage 5 system-wide recovery acceptance does not substitute for this gate."
 }

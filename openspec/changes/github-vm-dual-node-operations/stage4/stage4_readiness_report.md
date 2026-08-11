@@ -52,7 +52,9 @@
 - 当前 API create 无 expected revision/idempotency，delete 是硬删除；
 - SQLite 自增 entity/note id 不是跨环境稳定身份。
 
-新的 0002 不改 live SQLite、不改写 0001 migration，而是 additive 增加 `q_label`、文本 legacy entity id、stable entity key、legacy note/time、兼容 read view、authority/audit/mapping 和 v2 mutation contract。
+新的 0002 不改 live SQLite、不改写 0001 migration，而是 additive 增加 `q_label`、文本 legacy entity id、stable entity key、legacy note/time、兼容 read view、authority/audit/mapping 和 v2 mutation contract。状态表与转换函数共同约束 S0/S1 只能指向 SQLite、S2/S3/S4 只能指向 PostgreSQL；S3→S4 必须保留 backend、writer、epoch、SQLite final watermark 和 first formal commit，并使用不同于 S3 当前记录的新批准引用。controller 只能执行固定首单元 wrapper，不能调用 generic transition。
+
+`user_content_notes` 早于 `shared_identity` 切换时采用过渡 mapping bridge：S1 冻结初始映射，S2 完全禁止映射变更；S1/S3/S4 的新增实体必须以 expected authority revision、source watermark、source evidence identity、operator、approval 和 reason 受控登记并写审计。映射冲突或未登记实体的业务写入均 fail-closed；`shared_identity` 切换并完成对账后退役该 bridge。
 
 ## 5. 非生产演练结果
 
@@ -67,10 +69,12 @@
 - Q6、文本 theme id、nullable title、legacy 原始时间兼容；
 - writer 无 base INSERT，reader 只读 active view，controller 只有首单元 wrapper；
 - writer identity 同时匹配 authority row 与 `session_user`；
-- pg_dump 到旁路库 restore 后 authority=S3、2 条 note、1 条 soft delete、Q6 legacy 行和 4 条 authority revision 均可核验；
+- wrong backend、缺失批准、复用 S3 批准、writer drift 和未映射新实体均在真实数据库中失败；受控增量 mapping 后新实体才可写入；
+- 正确 S3→S4 后 authority=S4，backend/writer/epoch/watermark/formal commit 均保持；
+- pg_dump 到旁路库 restore 后 authority=S4、3 条 note、1 条 soft delete、Q6 legacy 行、5 条 authority revision 和 3 条 mapping audit 均可核验；
 - 演练数据库、角色和 listener 已清除；四套 live SQLite 前后哈希不变。
 
-Git 外 rehearsal evidence SHA256 为 `e0383fac…6e3d`。这只证明 dev/test 合同，不是 measured production RPO/RTO。
+Git 外 rehearsal evidence SHA256 为 `2bfb62e5…87fef`。这只证明 dev/test 合同，不是 measured production RPO/RTO。
 
 ## 6. S0—S4 与恢复边界
 
@@ -87,7 +91,7 @@ S3 后故障只允许 PG 前向修复、schema-compatible code rollback 或旁�
 尚未关闭：
 
 1. production PostgreSQL 版本/资源/服务/网络/凭据现场决策；
-2. VM 外备份、满足目标的 WAL/增量路径、整库与旁路单域 restore；
+2. 首单元进入 production S2 前必须具备该 unit 的 VM 外备份、restore 与 recovery evidence，以及满足目标的 WAL/增量路径；Stage 5 的系统级任务迁移、空机恢复和 measured RPO/RTO 不替代这一前置 gate；
 3. authority control 零 acknowledged loss 的真实恢复证据；
 4. Viewer repository/adapter 接线并保持 S0 默认、无 silent fallback；
 5. company/industry/theme stable mapping 全量冻结与验证；
@@ -100,14 +104,14 @@ S3 后故障只允许 PG 前向修复、schema-compatible code rollback 或旁�
 
 ## 8. DeepSeek review
 
-共 2 轮。第一轮唯一有效增量是确认 Q 字段类型冲突，Codex接受问题但拒绝修改 live SQLite，改为 additive compatibility。其“uncertain 时回滚 SQLite”和“无证据强制 HA”与已批准合同冲突，拒绝。第二轮无 must-fix，所列 10 项几乎全部是已实现控制的重复误判，并虚构 Docker/CDC；无信息增量后停止第三轮。详细判断已追加到 `debate_summary.md`。
+初版 Stage 4 已完成 2 轮；本次 authority-control 收口另完成 2 轮窄范围复核。第一轮对“批准引用可能形式复用”的提醒有价值，Codex据此把 S4 独立批准从文档要求提升为数据库级不变量并增加真实失败用例；其余 mapping、row lock、恢复证据意见均为已有控制或明确 blocker。第二轮仍把摘要中明确存在的 expected revision、ACL、失败用例和事务审计反写成缺失，并错误要求 S4 transition 触发 restore，全部因与真实 SQL/演练冲突而拒绝。连续无有效新增后停止第三轮。详细判断已追加到 `debate_summary.md`。
 
 ## 9. 确定性验收
 
 - clean-core：597 passed、21 skipped、55 subtests；618 tests collected。
-- Stage 4 定向测试：5 passed；真实 PostgreSQL rehearsal PASS。
+- Stage 4 定向测试：6 个 pytest 全部通过；另有 1 次真实隔离 PostgreSQL rehearsal PASS。两者是不同测试层，不合并写成“6 passed”。
 - compile：PASS。
-- tracked boundary：809 files、29,020,166 bytes，PASS。
+- tracked boundary：821 files、29,137,397 bytes，PASS。
 - SQLite ratchet：PASS，无新增 debt。
 - OpenSpec strict：PASS。
 - `git diff --check`：PASS。

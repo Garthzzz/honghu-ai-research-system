@@ -361,3 +361,19 @@ DeepSeek 返回 5 项 must-fix。`q_number` 类型不一致是成立的问题：
 Codex完成两次真实 dev/test 演练：migration 重复应用，S1 放弃、S2 零正式写撤回、首个正式 mutation 与 S3 authority revision 原子提交、uncertain-response 幂等 replay、stale conflict、软删除、文本 Q/主题身份/null title/原始时间兼容、最小权限 ACL、pg_dump 旁路 restore 均通过；四套 live SQLite 在演练窗口前后 schema 和文件 hash 不变。独立安全复核又把 writer identity 绑定到 `session_user`，controller 只获首单元 wrapper，writer 无基础表 DML，reader 只读 active view。
 
 第二轮 DeepSeek verdict 为 approve、无 must-fix，但 10 项 should-fix 几乎全部重复声称已实现能力不存在：SQL 已为全部 SECURITY DEFINER 固定 search_path，PUBLIC/base ACL 已撤销，row lock+expected revision、idempotency、soft delete、dump/restore、authority transition、session identity 和合成 legacy backfill 均有真实测试；CSRF 被正确保留为 production 前 blocker。它还在 accepted controls 中虚构 Docker 和 CDC，而本轮明确没有这些系统，故拒绝。第二轮没有新的可复现信息，停止第三轮；外部 verdict 不构成 production 授权。
+
+## 阶段 4 authority control-plane 收口复核（2026-08-11 追加）
+
+> 实际轮次：2 轮。Codex 先独立修复状态/后端不变量、S3→S4 批准与参数保持、unit wrapper 权限和 shared-identity mapping 生命周期，并完成真实隔离 PostgreSQL 17 演练；发送给 DeepSeek 的只有脱敏状态机、权限边界和聚合测试结论，没有发送 key、源码全文、数据库内容、papers、用户内容、内网地址、凭据或 Git 外原始 evidence。
+
+### 第一轮：批准引用复用的有效提醒
+
+DeepSeek关于 backend、writer、epoch、SQLite watermark、mapping fail-closed 和 off-VM recovery 的大多数意见，都是输入中已经明确存在的控制或 production S2 前 blocker。Codex逐项对照 SQL 后确认：generic transition 对 authority row 使用 `FOR UPDATE` 与 expected state/revision，mapping registration 也锁定 authority row并校验 expected revision，controller 只有 unit wrapper 权限，故没有据此引入新锁系统。
+
+其“批准应当正式授权”的抽象提醒揭示了一个仍可收紧的语义：文档要求 S4 使用新批准，但函数原先只要求非空，理论上可复用 S3 当前 approval reference。Codex接受这一点，把“新批准”提升为数据库级不变量：S3→S4 若复用当前批准引用即以 `22023` 失败，并在真实 PostgreSQL 演练加入反例。
+
+### 第二轮：收紧后的真实数据库复核
+
+第二轮输入明确给出了行锁、expected revision、唯一约束、错误 backend/缺失及复用批准/writer drift/未映射实体等真实失败结果，以及 S4 dump/旁路 restore。DeepSeek仍逐项声称这些控制不存在，并错误建议 S3→S4 时从备份恢复数据、把 measured production RPO/RTO 当作当前演练要求；这些建议混淆 authority transition 与 disaster restore，也违反“off-VM recovery 是进入 production S2 前 blocker、当前没有 measured production SLA”的合同，全部拒绝。
+
+两轮后没有新的可复现信息增量，停止第三轮。最终依据是 SQL 约束、真实 PostgreSQL rehearsal、least-privilege ACL、旁路 restore、live SQLite 前后哈希和最终 CI；DeepSeek 不构成 production 授权。

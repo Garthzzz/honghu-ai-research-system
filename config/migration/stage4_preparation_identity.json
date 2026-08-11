@@ -19,14 +19,14 @@
   },
   "first_unit": "user_content_notes",
   "tracked_contract_sha256": {
-    "0002_user_content_notes_cutover_expand.sql": "306c464fd29c980f68282252b6c3d3ce1c4bddc7f1a1b96ae245cecd63cb9664",
-    "0002_user_content_notes_role_grants.sql": "f0370f3e4598491ee82e104e638406521d0c73b1d4b80026c37ea12d828e9155",
-    "0002_user_content_notes_cutover_rehearsal.sql": "ba8059484c10337cdffa9b3e57927b2a717e817c99be6207b116268de7fefe28",
-    "stage4_user_content_rehearsal.py": "87af7bbd89f4a981898b1f69d8434aeaedfbe8fb7870361d8db1589c70aeb1b2"
+    "0002_user_content_notes_cutover_expand.sql": "d12726c778307052c4940997e08210ce0db50ec8346787d14888d35c06c9ce3d",
+    "0002_user_content_notes_role_grants.sql": "bf516f1f5b64bb047a3dc1b54dcd15369082eae5ef1d822ba405204668bfc72a",
+    "0002_user_content_notes_cutover_rehearsal.sql": "1d370c2612b11b38dd16f8ace943f8041329042bd6b22cff0060ab8e9ca7e0c1",
+    "stage4_user_content_rehearsal.py": "2f1cfaf6a50a24dac3fa3da7902573f358de15763cc45911cb2d8beb1843bae4"
   },
   "git_excluded_rehearsal_evidence": {
     "path_class": "cache/migration/stage4_entry",
-    "evidence_sha256": "e0383fac40f5150930aef8a98c38b9a7ea49e2c647fcf178e0c34e8311f56e3d",
+    "evidence_sha256": "2bfb62e5e4fffadf45b96460e240130d483838c98555af8f4c6b779559b87fef",
     "status": "pass",
     "production_cutover_authorized": false
   },

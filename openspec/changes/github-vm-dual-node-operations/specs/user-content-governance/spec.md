@@ -56,3 +56,10 @@ An empty or low-row legacy user-content table MAY be replaced by the new governe
 #### Scenario: `analyst_note` is empty but thesis records exist
 - **WHEN** the user-content pilot is designed
 - **THEN** the empty table MAY use the new model directly, while existing thesis/hypothesis records SHALL receive an explicit preservation and validation plan
+
+### Requirement: User-content references remain fail-closed while shared identity is transitional
+User-content writers SHALL reference only verified stable identities or audited legacy mappings and SHALL NOT create, infer, or overwrite shared identity as a side effect of a note mutation.
+
+#### Scenario: A note targets a newly created SQLite-authoritative entity
+- **WHEN** shared identity has not yet cut over and the entity is absent from the dependent unit mapping snapshot
+- **THEN** the note mutation SHALL fail until a controller records an approved, source-watermarked and audited mapping outside S2; identity ambiguity or mapping collision SHALL remain blocked

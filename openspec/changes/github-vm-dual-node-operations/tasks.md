@@ -134,7 +134,7 @@
 **回滚/恢复边界**：S1 可放弃试点；S2 是短时切换栅栏，只有 PostgreSQL writer 已停写且水位、审计和人工批准共同证明尚无必须保留的新写入，才可恢复 SQLite writer；无法证明时按 S3。S3/S4 的旧 SQLite 仅作迁移基线、审计和有限修复材料，不是无损 production rollback target。
 
 - [x] [本阶段必须] 按共享身份、事务依赖、写入复杂度、数据量、停机容忍和现有 ledger 确定切换单元顺序；`sentiment` 默认靠后但以 inventory 审计为准。2026-08-11 已形成 `stage4_cutover_sequence.v1`，首单元为 `user_content_notes`；该完成项只冻结顺序，不授权生产切换。
-- [ ] [本阶段必须] 每个切换单元先完成 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单。
+- [ ] [本阶段必须] 每个切换单元进入 S2 前先完成该 unit 所需的 VM 外 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的真实恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单；不得机械推迟到阶段 5，阶段 5 只做整体任务迁移、空机恢复和 measured RPO/RTO 收口。
 - [ ] [本阶段必须] 每个切换单元执行源目标计数、关系、时间序列、状态机、稳定身份映射和业务不变量对账；验证相关页面、API、publisher 和写路径。
 - [ ] [本阶段必须] 在短维护窗口切换唯一 writer；优先 shadow read。进入 S2 时 PostgreSQL 是唯一指定 writer、SQLite writer 已停止并冻结；记录 cutover epoch、SQLite 最终权威业务水位、PostgreSQL 首条正式业务 commit 水位、验证写、uncertain response、操作者和证据。首条必须保留的正式写提交即进入 S3，无法证明未提交的 uncertain response 按 S3。任何连接失败不得静默回写 SQLite；未经独立批准不得 shadow write。
 - [ ] [本阶段必须] 保留研究 staging/reviewer/publisher、financial revision/reconciliation、用户内容 revision/audit 和任务 ledger；验证 publication/release identity、幂等 retry、expected revision、stale conflict 和依赖簇事务原子性。

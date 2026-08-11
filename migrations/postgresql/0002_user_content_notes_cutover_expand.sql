@@ -15,12 +15,30 @@ CREATE TABLE IF NOT EXISTS operations.cutover_unit_authority (
     sqlite_final_watermark jsonb,
     postgresql_first_formal_commit jsonb,
     state_revision bigint NOT NULL DEFAULT 1 CHECK (state_revision > 0),
-    approval_reference text,
+    approval_reference text NOT NULL CHECK (btrim(approval_reference) <> ''),
     updated_by text NOT NULL,
     updated_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-    CHECK (state NOT IN ('S2', 'S3', 'S4') OR writer_identity IS NOT NULL),
-    CHECK (state NOT IN ('S2', 'S3', 'S4') OR cutover_epoch IS NOT NULL),
-    CHECK (state NOT IN ('S3', 'S4') OR postgresql_first_formal_commit IS NOT NULL)
+    CHECK (
+        (state IN ('S0', 'S1') AND authoritative_backend = 'sqlite_transition') OR
+        (state IN ('S2', 'S3', 'S4') AND authoritative_backend = 'postgresql_production')
+    ),
+    CHECK (
+        (state IN ('S0', 'S1')
+            AND writer_identity IS NULL
+            AND cutover_epoch IS NULL
+            AND sqlite_final_watermark IS NULL
+            AND postgresql_first_formal_commit IS NULL) OR
+        (state = 'S2'
+            AND nullif(btrim(writer_identity), '') IS NOT NULL
+            AND nullif(btrim(cutover_epoch), '') IS NOT NULL
+            AND sqlite_final_watermark IS NOT NULL
+            AND postgresql_first_formal_commit IS NULL) OR
+        (state IN ('S3', 'S4')
+            AND nullif(btrim(writer_identity), '') IS NOT NULL
+            AND nullif(btrim(cutover_epoch), '') IS NOT NULL
+            AND sqlite_final_watermark IS NOT NULL
+            AND postgresql_first_formal_commit IS NOT NULL)
+    )
 );
 
 CREATE TABLE IF NOT EXISTS audit.cutover_unit_authority_revision (
@@ -35,10 +53,17 @@ CREATE TABLE IF NOT EXISTS audit.cutover_unit_authority_revision (
     sqlite_final_watermark jsonb,
     postgresql_first_formal_commit jsonb,
     actor text NOT NULL,
-    approval_reference text,
+    approval_reference text NOT NULL CHECK (btrim(approval_reference) <> ''),
     reason text NOT NULL,
     occurred_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-    UNIQUE (cutover_unit, state_revision)
+    UNIQUE (cutover_unit, state_revision),
+    CHECK (
+        (to_state IN ('S0', 'S1') AND authoritative_backend = 'sqlite_transition') OR
+        (to_state IN ('S2', 'S3', 'S4') AND authoritative_backend = 'postgresql_production')
+    ),
+    CHECK (to_state NOT IN ('S2', 'S3', 'S4') OR nullif(btrim(writer_identity), '') IS NOT NULL),
+    CHECK (to_state NOT IN ('S2', 'S3', 'S4') OR nullif(btrim(cutover_epoch), '') IS NOT NULL),
+    CHECK (to_state NOT IN ('S3', 'S4') OR postgresql_first_formal_commit IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS operations.cutover_verification_write (
@@ -60,9 +85,35 @@ CREATE TABLE IF NOT EXISTS operations.cutover_dependency_mapping (
     legacy_id text NOT NULL,
     stable_key text NOT NULL,
     source_watermark jsonb NOT NULL,
+    source_evidence_identity text NOT NULL CHECK (btrim(source_evidence_identity) <> ''),
+    mapping_revision bigint NOT NULL DEFAULT 1 CHECK (mapping_revision > 0),
+    approval_reference text NOT NULL CHECK (btrim(approval_reference) <> ''),
+    verified_by text NOT NULL CHECK (btrim(verified_by) <> ''),
     verified_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     PRIMARY KEY (cutover_unit, entity_type, source_database, source_table, legacy_id),
+    UNIQUE (cutover_unit, entity_type, legacy_id),
     UNIQUE (cutover_unit, entity_type, stable_key)
+);
+
+CREATE TABLE IF NOT EXISTS audit.cutover_dependency_mapping_revision (
+    audit_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    cutover_unit text NOT NULL,
+    entity_type text NOT NULL,
+    source_database text NOT NULL,
+    source_table text NOT NULL,
+    legacy_id text NOT NULL,
+    stable_key text NOT NULL,
+    mapping_revision bigint NOT NULL CHECK (mapping_revision > 0),
+    source_watermark jsonb NOT NULL,
+    source_evidence_identity text NOT NULL CHECK (btrim(source_evidence_identity) <> ''),
+    actor text NOT NULL CHECK (btrim(actor) <> ''),
+    approval_reference text NOT NULL CHECK (btrim(approval_reference) <> ''),
+    reason text NOT NULL CHECK (btrim(reason) <> ''),
+    occurred_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    UNIQUE (
+        cutover_unit, entity_type, source_database, source_table,
+        legacy_id, mapping_revision
+    )
 );
 
 ALTER TABLE user_content.analyst_note
@@ -128,8 +179,27 @@ DECLARE
     v_current operations.cutover_unit_authority%ROWTYPE;
     v_next_revision bigint;
 BEGIN
-    IF nullif(p_actor, '') IS NULL OR nullif(p_reason, '') IS NULL THEN
-        RAISE EXCEPTION 'actor and reason are required' USING ERRCODE = '22023';
+    IF nullif(btrim(p_actor), '') IS NULL
+       OR nullif(btrim(p_reason), '') IS NULL
+       OR nullif(btrim(p_approval_reference), '') IS NULL THEN
+        RAISE EXCEPTION 'actor, approval reference and reason are required'
+            USING ERRCODE = '22023';
+    END IF;
+    IF p_to_state IN ('S0', 'S1') AND p_backend <> 'sqlite_transition' THEN
+        RAISE EXCEPTION 'S0/S1 authority backend must remain SQLite'
+            USING ERRCODE = '22023';
+    END IF;
+    IF p_to_state IN ('S2', 'S3', 'S4') AND p_backend <> 'postgresql_production' THEN
+        RAISE EXCEPTION 'S2/S3/S4 authority backend must remain PostgreSQL'
+            USING ERRCODE = '22023';
+    END IF;
+    IF p_to_state IN ('S0', 'S1') AND (
+        p_writer_identity IS NOT NULL OR
+        p_cutover_epoch IS NOT NULL OR
+        p_sqlite_final_watermark IS NOT NULL
+    ) THEN
+        RAISE EXCEPTION 'S0/S1 cannot carry writer, epoch or SQLite watermark'
+            USING ERRCODE = '22023';
     END IF;
 
     SELECT * INTO v_current
@@ -171,17 +241,11 @@ BEGIN
         RAISE EXCEPTION 'disallowed cutover transition % -> %', p_expected_state, p_to_state
             USING ERRCODE = '22023';
     END IF;
-    IF p_to_state IN ('S0', 'S1') AND p_backend <> 'sqlite_transition' THEN
-        RAISE EXCEPTION 'S0/S1 authority backend must remain SQLite' USING ERRCODE = '22023';
-    END IF;
-    IF p_to_state = 'S2' AND p_backend <> 'postgresql_production' THEN
-        RAISE EXCEPTION 'S2 authority backend must be PostgreSQL' USING ERRCODE = '22023';
-    END IF;
     IF p_to_state = 'S2' AND (
-        nullif(p_writer_identity, '') IS NULL OR
-        nullif(p_cutover_epoch, '') IS NULL OR
+        nullif(btrim(p_writer_identity), '') IS NULL OR
+        nullif(btrim(p_cutover_epoch), '') IS NULL OR
         p_sqlite_final_watermark IS NULL OR
-        nullif(p_approval_reference, '') IS NULL
+        p_backend <> 'postgresql_production'
     ) THEN
         RAISE EXCEPTION 'S2 requires writer, epoch, SQLite watermark and approval reference'
             USING ERRCODE = '22023';
@@ -189,6 +253,16 @@ BEGIN
     IF p_expected_state = 'S2' AND p_to_state = 'S1'
        AND v_current.postgresql_first_formal_commit IS NOT NULL THEN
         RAISE EXCEPTION 'S2 cannot return to S1 after a formal commit' USING ERRCODE = '55000';
+    END IF;
+    IF p_expected_state = 'S3' AND p_to_state = 'S4' AND (
+        p_backend <> v_current.authoritative_backend OR
+        p_writer_identity IS DISTINCT FROM v_current.writer_identity OR
+        p_cutover_epoch IS DISTINCT FROM v_current.cutover_epoch OR
+        p_sqlite_final_watermark IS DISTINCT FROM v_current.sqlite_final_watermark OR
+        p_approval_reference = v_current.approval_reference
+    ) THEN
+        RAISE EXCEPTION 'S3 to S4 must preserve authority identity and use a new approval reference'
+            USING ERRCODE = '22023';
     END IF;
 
     v_next_revision := v_current.state_revision + 1;
@@ -272,7 +346,6 @@ CREATE OR REPLACE FUNCTION operations.transition_user_content_notes(
     p_expected_state text,
     p_expected_revision bigint,
     p_to_state text,
-    p_backend text,
     p_writer_identity text,
     p_cutover_epoch text,
     p_sqlite_final_watermark jsonb,
@@ -286,7 +359,13 @@ SET search_path = pg_catalog, operations, audit, user_content
 AS $$
     SELECT * FROM operations.transition_cutover_unit(
         'user_content_notes', p_expected_state, p_expected_revision,
-        p_to_state, p_backend, p_writer_identity, p_cutover_epoch,
+        p_to_state,
+        CASE
+            WHEN p_to_state IN ('S0', 'S1') THEN 'sqlite_transition'
+            WHEN p_to_state IN ('S2', 'S3', 'S4') THEN 'postgresql_production'
+            ELSE NULL
+        END,
+        p_writer_identity, p_cutover_epoch,
         p_sqlite_final_watermark, p_actor, p_approval_reference, p_reason
     );
 $$;
@@ -305,6 +384,111 @@ AS $$
         'user_content_notes', p_writer_identity, p_verification_key,
         p_request_hash, p_result_payload
     );
+$$;
+
+CREATE OR REPLACE FUNCTION operations.register_user_content_notes_dependency_mapping(
+    p_expected_authority_revision bigint,
+    p_entity_type text,
+    p_source_database text,
+    p_source_table text,
+    p_legacy_id text,
+    p_stable_key text,
+    p_source_watermark jsonb,
+    p_source_evidence_identity text,
+    p_actor text,
+    p_approval_reference text,
+    p_reason text
+) RETURNS TABLE(legacy_id text, stable_key text, mapping_revision bigint)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, operations, audit, user_content
+AS $$
+DECLARE
+    v_authority operations.cutover_unit_authority%ROWTYPE;
+    v_existing operations.cutover_dependency_mapping%ROWTYPE;
+BEGIN
+    IF p_expected_authority_revision IS NULL
+       OR nullif(btrim(p_entity_type), '') IS NULL
+       OR nullif(btrim(p_source_database), '') IS NULL
+       OR nullif(btrim(p_source_table), '') IS NULL
+       OR nullif(btrim(p_legacy_id), '') IS NULL
+       OR nullif(btrim(p_stable_key), '') IS NULL
+       OR p_source_watermark IS NULL
+       OR nullif(btrim(p_source_evidence_identity), '') IS NULL
+       OR nullif(btrim(p_actor), '') IS NULL
+       OR nullif(btrim(p_approval_reference), '') IS NULL
+       OR nullif(btrim(p_reason), '') IS NULL THEN
+        RAISE EXCEPTION 'mapping registration requires authority revision, source evidence, approval and reason'
+            USING ERRCODE = '22023';
+    END IF;
+
+    SELECT * INTO v_authority
+      FROM operations.cutover_unit_authority a
+     WHERE a.cutover_unit = 'user_content_notes'
+     FOR UPDATE;
+    IF NOT FOUND OR v_authority.state NOT IN ('S1', 'S3', 'S4') THEN
+        RAISE EXCEPTION 'dependency mapping changes are fenced in the current authority state'
+            USING ERRCODE = '42501';
+    END IF;
+    IF v_authority.state_revision <> p_expected_authority_revision THEN
+        RAISE EXCEPTION 'stale cutover authority revision for dependency mapping'
+            USING ERRCODE = '40001';
+    END IF;
+
+    SELECT * INTO v_existing
+      FROM operations.cutover_dependency_mapping m
+     WHERE m.cutover_unit = 'user_content_notes'
+       AND m.entity_type = p_entity_type
+       AND m.source_database = p_source_database
+       AND m.source_table = p_source_table
+       AND m.legacy_id = p_legacy_id
+     FOR UPDATE;
+    IF FOUND THEN
+        IF v_existing.stable_key <> p_stable_key
+           OR v_existing.source_watermark <> p_source_watermark
+           OR v_existing.source_evidence_identity <> p_source_evidence_identity THEN
+            RAISE EXCEPTION 'dependency mapping identity conflict'
+                USING ERRCODE = '23505';
+        END IF;
+        RETURN QUERY SELECT
+            v_existing.legacy_id, v_existing.stable_key, v_existing.mapping_revision;
+        RETURN;
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM operations.cutover_dependency_mapping m
+         WHERE m.cutover_unit = 'user_content_notes'
+           AND m.entity_type = p_entity_type
+           AND m.stable_key = p_stable_key
+    ) THEN
+        RAISE EXCEPTION 'stable dependency identity is already mapped'
+            USING ERRCODE = '23505';
+    END IF;
+
+    INSERT INTO operations.cutover_dependency_mapping(
+        cutover_unit, entity_type, source_database, source_table,
+        legacy_id, stable_key, source_watermark, source_evidence_identity,
+        mapping_revision, approval_reference, verified_by
+    ) VALUES (
+        'user_content_notes', p_entity_type, p_source_database, p_source_table,
+        p_legacy_id, p_stable_key, p_source_watermark, p_source_evidence_identity,
+        1, p_approval_reference, p_actor
+    ) RETURNING * INTO v_existing;
+
+    INSERT INTO audit.cutover_dependency_mapping_revision(
+        cutover_unit, entity_type, source_database, source_table,
+        legacy_id, stable_key, mapping_revision, source_watermark,
+        source_evidence_identity, actor, approval_reference, reason
+    ) VALUES (
+        'user_content_notes', p_entity_type, p_source_database, p_source_table,
+        p_legacy_id, p_stable_key, v_existing.mapping_revision, p_source_watermark,
+        p_source_evidence_identity, p_actor, p_approval_reference, p_reason
+    );
+
+    RETURN QUERY SELECT
+        v_existing.legacy_id, v_existing.stable_key, v_existing.mapping_revision;
+END;
 $$;
 
 CREATE OR REPLACE FUNCTION user_content.put_analyst_note_v2(
@@ -356,7 +540,8 @@ BEGIN
      WHERE m.cutover_unit = 'user_content_notes'
        AND m.entity_type = p_entity_type
        AND m.legacy_id = p_legacy_entity_id
-       AND m.stable_key = p_entity_key;
+       AND m.stable_key = p_entity_key
+       AND nullif(btrim(m.source_evidence_identity), '') IS NOT NULL;
     IF NOT FOUND THEN
         RAISE EXCEPTION 'unverified entity identity mapping' USING ERRCODE = '23503';
     END IF;
@@ -564,10 +749,13 @@ REVOKE ALL ON FUNCTION operations.record_cutover_verification(
     text, text, text, text, jsonb
 ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION operations.transition_user_content_notes(
-    text, bigint, text, text, text, text, jsonb, text, text, text
+    text, bigint, text, text, text, jsonb, text, text, text
 ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION operations.record_user_content_notes_verification(
     text, text, text, jsonb
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION operations.register_user_content_notes_dependency_mapping(
+    bigint, text, text, text, text, text, jsonb, text, text, text, text
 ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION user_content.put_analyst_note_v2(
     text, text, text, text, text, text, text, text, text,

@@ -92,6 +92,16 @@
 - create/update 只能引用已验证映射；缺失或冲突必须 fail-closed；
 - dependency identity 在首单元切换窗口内发生不兼容变更时停止切换，不能跨 SQLite/PostgreSQL 分别提交后假定原子性。
 
+由于研究工作仍可能在 `shared_identity` 保持 SQLite authority 期间新增 company、industry 或 theme，首单元不能把 S1 映射冻结误解成“以后永不新增实体”。过渡期采用受控增量映射：
+
+- note writer 不得自动创建实体或猜测 stable key；新实体尚无映射时 mutation 以外键语义 fail-closed；
+- S2 是短时切换栅栏，禁止增加或修改 dependency mapping；
+- S1、S3、S4 只有首单元 controller wrapper 可以登记新映射，且必须提交 expected authority revision、source database/table/id、stable key、只读 source watermark、source evidence identity、operator、approval reference 和 reason；
+- legacy id 或 stable key 与既有记录冲突时停止登记，不允许覆盖；相同证据的重复登记只返回原 mapping，不生成第二个逻辑映射；
+- 每次新映射写入不可变 mapping audit；应用 writer 只接受审计可追溯且 evidence identity 非空的映射；
+- production 前仍须由只读 identity resolver 真实验证 SQLite authority 中的实体，当前合成 rehearsal 只证明数据库控制语义；
+- `shared_identity` 切换到 PostgreSQL 后，映射桥通过后续独立 contract 收敛为 canonical foreign-key/reference；不得让它长期成为第二套 identity authority。
+
 ## 5. S0—S4 与 writer fencing
 
 | 状态 | 权威与允许动作 | 放弃、恢复和证据 |
@@ -105,6 +115,8 @@
 authority transition 的 acknowledgement 必须和 audit ledger 同等持久；无法证明 S2 没有新 commit 时按 S3。应用连接失败不得自动 fallback SQLite。
 
 每次状态变更必须记录 operator、人工批准引用、expected state/revision、writer identity、原因和证据 identity。所谓 acknowledgement 是调用方确认状态事务已提交且对应 audit revision 可读，不是某个人可以批准丢数据；任何已 acknowledgement 的 authority transition 都不允许丢失。S2 首条正式业务写和 S2→S3 authority revision 必须在同一 PostgreSQL 事务内提交，调用方只有在事务成功返回后才 acknowledgement；响应不确定时以幂等 operation identity 查询和重放对账，不根据客户端异常推断回滚。
+
+数据库约束和 transition function 必须同时执行状态不变量：S0/S1 只能是 SQLite backend 且不得携带 writer/epoch/watermark/formal commit；S2—S4 只能是 PostgreSQL backend；S2 必须具有 writer、epoch、SQLite final watermark 且没有 formal commit；S3/S4 还必须具有 first formal commit。所有状态变更都要求非空 actor、approval reference 和 reason。S3→S4 只确认稳定观察与恢复 gate 已通过，不是 writer rotation；它必须保留 S3 的 backend、writer、epoch、SQLite final watermark 和 first formal watermark，并以新的可审计 S4 approval 写入下一 authority revision。
 
 Writer fence 必须作用于可审计 mutation operation，而不是粗暴按整个 Flask 进程判断。一个进程可以同时包含不同单元的 read/write path；首单元只切 analyst-note 的 repository/route，不迫使其他 Viewer 数据域一并切换。
 
@@ -154,10 +166,12 @@ Writer fence 必须作用于可审计 mutation operation，而不是粗暴按整
 
 - authority control：零 acknowledged loss；未持久化/未复制到合格恢复介质前不得 acknowledgement。
 - analyst note：目标 RPO 不超过 5 分钟、RTO 不超过 4 小时；这是 target，不是已达 SLA。
-- production 切换前必须完成 VM 外备份、可恢复的基础备份与增量/WAL 方案、恢复凭据隔离，以及真实 restore rehearsal。
+- 首单元进入 production S2 前必须完成该 unit 所需的 VM 外备份、可恢复的基础备份与增量/WAL 方案、恢复凭据隔离，以及真实 restore rehearsal；不得把这项前置机械推迟到 Stage 5。
 - 同时演练整库恢复和旁路单域恢复；单域逻辑错误不得原地把整个 database 回退到旧时间点。
 - 恢复后必须先验证 authority state，再开放任何 production writer。
 - 当前目标不要求凭空增加 HA 节点；若共置拓扑的实测恢复无法达到目标 RPO/RTO，才由证据触发独立数据库主机、额外副本或其他拓扑变更的单独设计。
+
+Stage 5 负责在各获批 unit 已具备切换级恢复证据后，完成任务 runner 迁移、整库/空机恢复和 measured RPO/RTO 的系统级收口；它不补办某个 unit 在进入 S2 前就应具备的 backup/restore gate。
 
 ## 8. 监控与退出门槛
 

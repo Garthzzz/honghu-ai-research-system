@@ -16,6 +16,8 @@
 - [x] 通过新增文本 `q_label` 而不是修改 live SQLite 修正 Q 标签；补齐 nullable title、legacy id/原始时间、stable note/entity identity、legacy mapping 和 API compatibility 合同。
 - [x] 建立 authority state、epoch、watermark、verification/formal write 分类和审计合同。
 - [x] 让 S2 首个 formal mutation 与 S3 authority revision 原子提交，并要求 operator、approval reference、expected state/revision 和 writer identity。
+- [x] 以数据库约束和 controller wrapper 双重固定 S0—S4 backend/state invariant；S3→S4 保留 authority identity、formal watermark，并要求不可复用的独立批准引用。
+- [x] 明确 shared identity 仍由 SQLite authority 管理期间的 mapping bridge：S2 冻结；S1/S3/S4 仅允许带 expected authority revision、source evidence、批准和审计的增量登记；未映射实体 fail-closed。
 - [ ] 建立显式 backend route 和 operation-level writer fence；默认保持 SQLite/S0，production PG 路由必须双重显式授权。
 - [ ] 对 create/update/soft-delete/list 增加 repository-level dev/test adapter 与 fail-closed 测试；不接通 production endpoint。
 
@@ -30,6 +32,7 @@
 - [x] 验证 least privilege、无 DDL 应用角色、无跨单元写权限和无 silent SQLite fallback。
 - [x] 生成 Git 外 rehearsal evidence，记录 migration/config/source/target/restore identity；测试库和 listener 完成后销毁。
 - [x] 演练前后验证四套 live SQLite 文件身份不变。
+- [x] 真实覆盖 S3→S4 正常路径，以及 wrong backend、missing/reused approval、writer drift 和 unmapped identity 的 fail-closed 路径。
 
 **退出条件：** 所有状态与失败路径可复算，测试没有连接 production。
 
@@ -48,7 +51,7 @@
 - [x] DeepSeek 对实现和演练摘要进行第二轮脱敏复核；Codex 独立 revision。
 - [x] 更新 `debate_summary.md`，不复制外部模型原文。
 - [x] 生成 Stage 4 completion/readiness report 与 final identity；原始 live/rehearsal evidence 留在 Git 外。
-- [ ] 提交 feature branch，等待 push/PR required CI 绿色。
+- [ ] 将本轮 authority-control 修订提交到仍为 open/未合并的 PR #7，并等待新 head 的 push/PR required CI 绿色；旧绿色 head 不作为本轮证据。
 - [ ] HALT，等待用户决定是否批准首单元实际 production 执行；不得进入 S2/S3。
 
 **本轮不会勾选：** `tasks.md` 中任何要求实际切换 production writer、产生正式 PG 新写入、完成 S3/S4 或稳定观察期的项目。

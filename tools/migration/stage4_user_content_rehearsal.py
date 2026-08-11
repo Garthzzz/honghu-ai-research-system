@@ -42,14 +42,22 @@ def _tool(bin_dir: Path, name: str) -> str:
 
 
 def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
+    result = subprocess.run(
         command,
         text=True,
         capture_output=True,
-        check=True,
+        check=False,
         encoding="utf-8",
         errors="replace",
     )
+    if result.returncode != 0:
+        executable = Path(command[0]).name
+        detail = "\n".join(part.strip() for part in (result.stdout, result.stderr) if part.strip())
+        raise RuntimeError(
+            f"{executable} exited with code {result.returncode}"
+            + (f":\n{detail}" if detail else "")
+        )
+    return result
 
 
 def _live_file_hashes(data_root: Path) -> dict[str, str]:
@@ -175,7 +183,9 @@ def run_rehearsal(
                 f"'reader_view_select',has_table_privilege('{reader_role}',"
                 "'user_content.analyst_note_read_v1','SELECT'),"
                 f"'controller_transition_execute',has_function_privilege('{controller_role}',"
-                "'operations.transition_user_content_notes(text,bigint,text,text,text,text,jsonb,text,text,text)','EXECUTE'),"
+                "'operations.transition_user_content_notes(text,bigint,text,text,text,jsonb,text,text,text)','EXECUTE'),"
+                f"'controller_mapping_execute',has_function_privilege('{controller_role}',"
+                "'operations.register_user_content_notes_dependency_mapping(bigint,text,text,text,text,text,jsonb,text,text,text,text)','EXECUTE'),"
                 f"'controller_generic_transition_execute',has_function_privilege('{controller_role}',"
                 "'operations.transition_cutover_unit(text,text,bigint,text,text,text,text,jsonb,text,text,text)','EXECUTE'));",
             ]
@@ -187,6 +197,7 @@ def run_rehearsal(
             "reader_base_select": False,
             "reader_view_select": True,
             "controller_transition_execute": True,
+            "controller_mapping_execute": True,
             "controller_generic_transition_execute": False,
         }
         if acl_result != expected_acl:
@@ -203,6 +214,8 @@ def run_rehearsal(
                 f"writer_role={writer_role}",
                 "-v",
                 f"writer_identity={writer_role}",
+                "-v",
+                f"controller_role={controller_role}",
                 "-A",
                 "-t",
                 *connection,
@@ -239,6 +252,9 @@ def run_rehearsal(
                     "'note_count',(SELECT count(*) FROM user_content.analyst_note),"
                     "'soft_deleted_count',(SELECT count(*) FROM user_content.analyst_note "
                     "WHERE deleted_at IS NOT NULL),"
+                    "'dependency_mapping_audit_count',(SELECT count(*) "
+                    "FROM audit.cutover_dependency_mapping_revision "
+                    "WHERE cutover_unit='user_content_notes'),"
                     "'q6_legacy_count',(SELECT count(*) FROM user_content.analyst_note "
                     "WHERE q_label='Q6' AND legacy_note_id=42 AND title IS NULL));",
                 ]
@@ -250,10 +266,10 @@ def run_rehearsal(
         schema_unchanged = _schema_identity(before_schema) == _schema_identity(after_schema)
         if not schema_unchanged:
             raise RuntimeError("live SQLite schema changed during the isolated rehearsal")
-        if rehearsal_result.get("status") != "pass" or restore_result.get("authority_state") != "S3":
+        if rehearsal_result.get("status") != "pass" or restore_result.get("authority_state") != "S4":
             raise RuntimeError("Stage 4 rehearsal or side restore invariant failed")
         return {
-            "schema_version": "honghu.stage4_user_content_rehearsal_evidence.v1",
+            "schema_version": "honghu.stage4_user_content_rehearsal_evidence.v2",
             "status": "pass",
             "environment": "postgresql_devtest",
             "host": host,

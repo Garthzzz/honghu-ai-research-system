@@ -34,11 +34,17 @@ def test_stage4_expand_preserves_0001_and_adds_cutover_contract() -> None:
     assert "CUTOVER_UNIT_AUTHORITY" in upper
     assert "CUTOVER_UNIT_AUTHORITY_REVISION" in upper
     assert "CUTOVER_DEPENDENCY_MAPPING" in upper
+    assert "CUTOVER_DEPENDENCY_MAPPING_REVISION" in upper
     assert "POSTGRESQL_FIRST_FORMAL_COMMIT" in upper
+    assert "S2/S3/S4 AUTHORITY BACKEND MUST REMAIN POSTGRESQL" in upper
+    assert "S3 TO S4 MUST PRESERVE AUTHORITY IDENTITY AND USE A NEW APPROVAL REFERENCE" in upper
+    assert "ACTOR, APPROVAL REFERENCE AND REASON ARE REQUIRED" in upper
     assert "S2 CANNOT RETURN TO S1 AFTER A FORMAL COMMIT" in upper
     assert "POSTGRESQL ANALYST-NOTE WRITER IS FENCED" in upper
     assert "P_WRITER_IDENTITY <> SESSION_USER" in upper
     assert "UNVERIFIED ENTITY IDENTITY MAPPING" in upper
+    assert "REGISTER_USER_CONTENT_NOTES_DEPENDENCY_MAPPING" in upper
+    assert "DEPENDENCY MAPPING CHANGES ARE FENCED IN THE CURRENT AUTHORITY STATE" in upper
     assert "PUT_ANALYST_NOTE_V2" in upper
     assert "SOFT_DELETE_ANALYST_NOTE_V2" in upper
     assert "REVOKE ALL ON FUNCTION" in upper
@@ -55,6 +61,7 @@ def test_stage4_role_grants_keep_application_roles_off_base_tables() -> None:
     assert "GRANT SELECT ON USER_CONTENT.ANALYST_NOTE_READ_V1" in upper
     assert "GRANT EXECUTE ON FUNCTION USER_CONTENT.PUT_ANALYST_NOTE_V2" in upper
     assert "GRANT EXECUTE ON FUNCTION OPERATIONS.TRANSITION_USER_CONTENT_NOTES" in upper
+    assert "GRANT EXECUTE ON FUNCTION OPERATIONS.REGISTER_USER_CONTENT_NOTES_DEPENDENCY_MAPPING" in upper
     assert "GRANT EXECUTE ON FUNCTION OPERATIONS.TRANSITION_CUTOVER_UNIT" not in upper
     assert "GRANT INSERT ON USER_CONTENT.ANALYST_NOTE" not in upper
 
@@ -69,6 +76,13 @@ def test_stage4_rehearsal_covers_state_and_compatibility_failures() -> None:
     assert "Q6" in upper
     assert "AI_DATACENTER" in upper
     assert "FORMAL-CREATE-1" in upper
+    assert "S4 WITH SQLITE BACKEND UNEXPECTEDLY SUCCEEDED" in upper
+    assert "S4 WITHOUT APPROVAL UNEXPECTEDLY SUCCEEDED" in upper
+    assert "S4 WITH WRITER DRIFT UNEXPECTEDLY SUCCEEDED" in upper
+    assert "S4 WITH REUSED APPROVAL UNEXPECTEDLY SUCCEEDED" in upper
+    assert "STAGE4-S4-APPROVED" in upper
+    assert "UNMAPPED DEPENDENCY UNEXPECTEDLY SUCCEEDED" in upper
+    assert "STAGE4-INCREMENTAL-MAPPING-APPROVED" in upper
     assert "STALE UPDATE UNEXPECTEDLY SUCCEEDED" in upper
     assert "SOFT_DELETE_ANALYST_NOTE_V2" in upper
     assert "AUTHORITY_STATE" in upper

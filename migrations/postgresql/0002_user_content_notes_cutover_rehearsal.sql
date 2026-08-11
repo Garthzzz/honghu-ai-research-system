@@ -38,20 +38,29 @@ SELECT * FROM operations.transition_cutover_unit(
     'watermark and audit prove no formal write'
 );
 
--- Initialize the actual first-unit authority in S0 and prove its writer is fenced.
-SELECT * FROM operations.transition_cutover_unit(
-    'user_content_notes', 'ABSENT', 0, 'S0', 'sqlite_transition',
-    NULL, NULL, NULL, 'rehearsal', 'stage4-design-only', 'initialize S0'
+-- Initialize the actual first-unit authority, enter S1, and prove its writer is fenced.
+SET SESSION AUTHORIZATION :"controller_role";
+SELECT * FROM operations.transition_user_content_notes(
+    'ABSENT', 0, 'S0', NULL, NULL, NULL,
+    'rehearsal', 'stage4-s0-approved', 'initialize S0'
 );
-
-INSERT INTO operations.cutover_dependency_mapping(
-    cutover_unit, entity_type, source_database, source_table,
-    legacy_id, stable_key, source_watermark
-) VALUES
-    ('user_content_notes', 'theme', 'research.db', 'theme',
-     'ai_datacenter', 'theme:ai_datacenter', '{"fixture":"theme-v1"}'::jsonb),
-    ('user_content_notes', 'company', 'research.db', 'company',
-     '1', 'company:300308.SZ:A-share', '{"fixture":"company-v1"}'::jsonb);
+SELECT * FROM operations.transition_user_content_notes(
+    'S0', 1, 'S1', NULL, NULL, NULL,
+    'rehearsal', 'stage4-s1-approved', 'prepare mapping and backfill'
+);
+SELECT * FROM operations.register_user_content_notes_dependency_mapping(
+    2, 'theme', 'research.db', 'theme', 'ai_datacenter',
+    'theme:ai_datacenter', '{"fixture":"theme-v1"}'::jsonb,
+    'sha256:theme-v1', 'rehearsal', 'stage4-mapping-approved',
+    'verified theme identity from the read-only source snapshot'
+);
+SELECT * FROM operations.register_user_content_notes_dependency_mapping(
+    2, 'company', 'research.db', 'company', '1',
+    'company:300308.SZ:A-share', '{"fixture":"company-v1"}'::jsonb,
+    'sha256:company-v1', 'rehearsal', 'stage4-mapping-approved',
+    'verified company identity from the read-only source snapshot'
+);
+RESET SESSION AUTHORIZATION;
 
 SET SESSION AUTHORIZATION :"writer_role";
 DO $$
@@ -62,7 +71,7 @@ BEGIN
             'general', NULL, 'must be fenced', 'rehearsal', 0,
             'fenced-idempotency', 'fenced-hash', 'honghu_stage4_writer_rehearsal'
         );
-        RAISE EXCEPTION 'S0 business write unexpectedly succeeded';
+        RAISE EXCEPTION 'S1 business write unexpectedly succeeded';
     EXCEPTION WHEN insufficient_privilege THEN
         NULL;
     END;
@@ -82,25 +91,23 @@ INSERT INTO user_content.analyst_note(
     '2026-08-11 09:00:00', '2026-08-11 09:00:00'
 );
 
-SELECT * FROM operations.transition_cutover_unit(
-    'user_content_notes', 'S0', 1, 'S1', 'sqlite_transition',
-    NULL, NULL, NULL, 'rehearsal', 'stage4-design-only', 'backfill reconciled'
-);
-SELECT * FROM operations.transition_cutover_unit(
-    'user_content_notes', 'S1', 2, 'S2', 'postgresql_production',
+SET SESSION AUTHORIZATION :"controller_role";
+SELECT * FROM operations.transition_user_content_notes(
+    'S1', 2, 'S2',
     :'writer_identity', 'epoch-user-content',
     '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
-    'rehearsal', 'stage4-design-only', 'enter controlled S2'
+    'rehearsal', 'stage4-s2-approved', 'enter controlled S2'
 );
 
-SELECT operations.record_cutover_verification(
-    'user_content_notes', :'writer_identity',
+SELECT operations.record_user_content_notes_verification(
+    :'writer_identity',
     'verification-1', 'verification-hash-1', '{"ok":true}'::jsonb
 );
-SELECT operations.record_cutover_verification(
-    'user_content_notes', :'writer_identity',
+SELECT operations.record_user_content_notes_verification(
+    :'writer_identity',
     'verification-1', 'verification-hash-1', '{"ok":true}'::jsonb
 );
+RESET SESSION AUTHORIZATION;
 
 -- The first formal write and S2 -> S3 transition occur in one transaction.
 SET SESSION AUTHORIZATION :"writer_role";
@@ -109,6 +116,43 @@ SELECT * FROM user_content.put_analyst_note_v2(
     'theme:ai_datacenter', 'Q6', 'thesis', NULL,
     'first formal note', 'rehearsal', 0,
     'formal-create-1', 'formal-create-hash-1', 'honghu_stage4_writer_rehearsal'
+);
+
+-- A shared-identity row created after the initial mapping freeze cannot be
+-- referenced until a controller records a separately evidenced mapping.
+DO $$
+BEGIN
+    BEGIN
+        PERFORM * FROM user_content.put_analyst_note_v2(
+            'analyst-note:new-company', 'company', '2',
+            'company:688041.SH:A-share', NULL, 'general', NULL,
+            'must remain fenced before mapping', 'rehearsal', 0,
+            'unmapped-company-1', 'unmapped-company-hash-1',
+            'honghu_stage4_writer_rehearsal'
+        );
+        RAISE EXCEPTION 'unmapped dependency unexpectedly succeeded';
+    EXCEPTION WHEN foreign_key_violation THEN
+        NULL;
+    END;
+END $$;
+RESET SESSION AUTHORIZATION;
+
+SET SESSION AUTHORIZATION :"controller_role";
+SELECT * FROM operations.register_user_content_notes_dependency_mapping(
+    4, 'company', 'research.db', 'company', '2',
+    'company:688041.SH:A-share', '{"fixture":"company-v2"}'::jsonb,
+    'sha256:company-v2', 'rehearsal', 'stage4-incremental-mapping-approved',
+    'verified a new SQLite-authoritative company after note cutover'
+);
+RESET SESSION AUTHORIZATION;
+
+SET SESSION AUTHORIZATION :"writer_role";
+SELECT * FROM user_content.put_analyst_note_v2(
+    'analyst-note:new-company', 'company', '2',
+    'company:688041.SH:A-share', NULL, 'general', NULL,
+    'mapped after controlled evidence', 'rehearsal', 0,
+    'mapped-company-1', 'mapped-company-hash-1',
+    'honghu_stage4_writer_rehearsal'
 );
 -- Simulated uncertain client response: replay the same operation identity.
 SELECT * FROM user_content.put_analyst_note_v2(
@@ -149,10 +193,77 @@ SELECT * FROM user_content.soft_delete_analyst_note_v2(
 );
 RESET SESSION AUTHORIZATION;
 
+-- S3 -> S4 requires a new approval, preserves the PostgreSQL authority
+-- identity, and rejects both a wrong backend and parameter drift.
+DO $$
+BEGIN
+    BEGIN
+        PERFORM * FROM operations.transition_cutover_unit(
+            'user_content_notes', 'S3', 4, 'S4', 'sqlite_transition',
+            'honghu_stage4_writer_rehearsal', 'epoch-user-content',
+            '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
+            'rehearsal', 'stage4-s4-approved', 'wrong backend must fail'
+        );
+        RAISE EXCEPTION 'S4 with SQLite backend unexpectedly succeeded';
+    EXCEPTION WHEN invalid_parameter_value THEN
+        NULL;
+    END;
+END $$;
+
+SET SESSION AUTHORIZATION :"controller_role";
+DO $$
+BEGIN
+    BEGIN
+        PERFORM * FROM operations.transition_user_content_notes(
+            'S3', 4, 'S4', 'honghu_stage4_writer_rehearsal',
+            'epoch-user-content',
+            '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
+            'rehearsal', NULL, 'missing approval must fail'
+        );
+        RAISE EXCEPTION 'S4 without approval unexpectedly succeeded';
+    EXCEPTION WHEN invalid_parameter_value THEN
+        NULL;
+    END;
+    BEGIN
+        PERFORM * FROM operations.transition_user_content_notes(
+            'S3', 4, 'S4', 'different-writer', 'epoch-user-content',
+            '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
+            'rehearsal', 'stage4-s4-approved', 'writer drift must fail'
+        );
+        RAISE EXCEPTION 'S4 with writer drift unexpectedly succeeded';
+    EXCEPTION WHEN invalid_parameter_value THEN
+        NULL;
+    END;
+    BEGIN
+        PERFORM * FROM operations.transition_user_content_notes(
+            'S3', 4, 'S4', 'honghu_stage4_writer_rehearsal',
+            'epoch-user-content',
+            '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
+            'rehearsal', 'stage4-s2-approved', 'reused approval must fail'
+        );
+        RAISE EXCEPTION 'S4 with reused approval unexpectedly succeeded';
+    EXCEPTION WHEN invalid_parameter_value THEN
+        NULL;
+    END;
+END $$;
+SELECT * FROM operations.transition_user_content_notes(
+    'S3', 4, 'S4', 'honghu_stage4_writer_rehearsal',
+    'epoch-user-content',
+    '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
+    'rehearsal', 'stage4-s4-approved',
+    'observation and recovery gates approved for S4'
+);
+RESET SESSION AUTHORIZATION;
+
 DO $$
 DECLARE
     v_state text;
+    v_backend text;
+    v_writer text;
+    v_epoch text;
+    v_watermark jsonb;
     v_formal jsonb;
+    v_approval text;
     v_q_label text;
     v_entity_id bigint;
     v_legacy_entity_id text;
@@ -160,12 +271,18 @@ DECLARE
     v_revision bigint;
     v_deleted timestamptz;
 BEGIN
-    SELECT state, postgresql_first_formal_commit
-      INTO v_state, v_formal
+    SELECT state, authoritative_backend, writer_identity, cutover_epoch,
+           sqlite_final_watermark, postgresql_first_formal_commit,
+           approval_reference
+      INTO v_state, v_backend, v_writer, v_epoch, v_watermark, v_formal, v_approval
       FROM operations.cutover_unit_authority
      WHERE cutover_unit = 'user_content_notes';
-    IF v_state <> 'S3' OR v_formal IS NULL THEN
-        RAISE EXCEPTION 'formal write did not durably establish S3';
+    IF v_state <> 'S4' OR v_backend <> 'postgresql_production'
+       OR v_writer <> 'honghu_stage4_writer_rehearsal'
+       OR v_epoch <> 'epoch-user-content'
+       OR v_watermark <> '{"source_count":1,"source_max_legacy_id":42}'::jsonb
+       OR v_formal IS NULL OR v_approval <> 'stage4-s4-approved' THEN
+        RAISE EXCEPTION 'S4 did not preserve the approved PostgreSQL authority identity';
     END IF;
     SELECT q_label, entity_id, legacy_entity_id_text, title
       INTO v_q_label, v_entity_id, v_legacy_entity_id, v_title
@@ -200,6 +317,10 @@ SELECT jsonb_build_object(
     'user_content_audit_count', (SELECT count(*) FROM audit.user_content_revision),
     'idempotency_count', (SELECT count(*) FROM operations.idempotency_record),
     'verification_count', (SELECT count(*) FROM operations.cutover_verification_write),
+    'dependency_mapping_audit_count', (
+        SELECT count(*) FROM audit.cutover_dependency_mapping_revision
+         WHERE cutover_unit = 'user_content_notes'
+    ),
     's1_abandon_state', (
         SELECT state FROM operations.cutover_unit_authority
          WHERE cutover_unit = 'rehearsal_s1_abandon'
