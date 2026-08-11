@@ -8,6 +8,7 @@ import pytest
 
 from tools.migration.stage4_identity_mapping import build_identity_mapping
 from tools.migration.stage4_readiness_bundle import build_bundle
+from tools.migration.stage4_readiness_bundle import _copy_evidence_file
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -17,6 +18,15 @@ SUBJECT = {
     "commit_sha": "a" * 40,
     "config_sha256": "b" * 64,
 }
+
+
+def test_evidence_already_in_bundle_root_is_idempotent(tmp_path) -> None:
+    artifact = tmp_path / "postgresql_topology.json"
+    artifact.write_text('{"identity":"same-file"}\n', encoding="utf-8")
+    before = artifact.read_bytes()
+
+    assert _copy_evidence_file(artifact, artifact) == artifact.resolve()
+    assert artifact.read_bytes() == before
 
 
 def _write(path: Path, payload: dict) -> Path:

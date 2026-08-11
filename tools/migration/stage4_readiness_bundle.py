@@ -39,6 +39,15 @@ def _write(path: Path, payload: dict[str, Any]) -> Path:
     return path
 
 
+def _copy_evidence_file(source: Path, target: Path) -> Path:
+    """Copy an input into the bundle unless it is already the target artifact."""
+    source_resolved = source.resolve()
+    target_resolved = target.resolve()
+    if source_resolved != target_resolved:
+        shutil.copyfile(source_resolved, target_resolved)
+    return target_resolved
+
+
 def _envelope(
     evidence_type: str,
     subject: dict[str, str],
@@ -102,7 +111,7 @@ def build_bundle(
         (topology_path, copied_topology),
         (recovery_path, copied_recovery),
     ):
-        shutil.copyfile(source, target)
+        _copy_evidence_file(source, target)
 
     approval_payload = {
         "mapping_manifest_sha256": mapping["manifest_sha256"],
