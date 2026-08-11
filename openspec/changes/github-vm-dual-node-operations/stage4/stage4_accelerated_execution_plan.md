@@ -10,7 +10,7 @@
 
 - [x] 实现完整 off-VM recovery set、sentinel WAL replay、真实 measured RPO/RTO 和 storage identity。
 - [x] 增加缺 WAL、WAL gap、manifest/hash 篡改、sentinel 缺失、same/fake host、copy mismatch 和 local-artifact 混用反例。
-- [ ] 重建 recovery/readiness evidence，修正最终 PR/governance identity binding。
+- [x] 重建 recovery/readiness evidence，修正最终 PR/governance identity binding。
 - [ ] 完整本地/PG/边界/OpenSpec/CI 验收；合并 PR #9 并核验 main CI。
 
 ## Milestone 2：Production PostgreSQL 现场执行包

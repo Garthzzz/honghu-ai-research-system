@@ -1,40 +1,50 @@
 {
-  "schema_version": "honghu.stage4_readiness_evidence_identity.v1",
+  "schema_version": "honghu.stage4_readiness_evidence_identity.v2",
   "cutover_unit": "user_content_notes",
   "status": "PRODUCTION READINESS BLOCKED",
   "production_cutover_authorized": false,
-  "implementation_commit_sha": "817bcc068db546a45be78e9fbccd9e2930a00d53",
-  "repository_evidence": {
-    "pull_request": 9,
-    "branch": "feature/stage4-production-readiness",
-    "push_run_id": 31533518956,
-    "pull_request_run_id": 31533523864,
+  "implementation_identity": {
+    "commit_sha": "de3fd1ef3ad6d10ccef1f3dbdb2826530197d812",
+    "tree_sha": "d0be7bcb3a7a2a4d25f04cb0a4d1166ae831a762",
+    "parent_core_commit_sha": "817bcc068db546a45be78e9fbccd9e2930a00d53",
+    "push_run_id": 31541123718,
+    "pull_request_run_id": 31541126825,
     "required_checks": {
       "boundary-and-contracts": "success",
       "python-clean-environment": "success"
     }
   },
+  "final_governance_binding_contract": {
+    "pull_request": 9,
+    "branch": "feature/stage4-production-readiness",
+    "rule": "The final PR head and tree are bound by that commit's GitHub runtime Stage-1/Stage-2 artifacts and its own push/pull_request checks. Earlier run IDs are historical only and MUST NOT be represented as the final PR identity.",
+    "final_head_pending_until_governance_commit": true
+  },
   "mapping_business_identities": {
     "snapshot_identity_sha256": "967111d03e4e798fa7a193941d577faf33983007da91b30a8133177ad2693208",
     "manifest_sha256": "cb6ce219f5b67454155b35a03a29b947d42791c9e1fe4323ba2bf9145a14b79f",
+    "mapping_artifact_sha256": "23d734acc0290892af7ce922a08ba3e3ed5a93c7d28f22484500a4b1a1e56614",
     "approval_bundle_sha256": "f13b5a1f7512282755422109f103225649c50f4ec024dbe670047c84f1ac17f1",
     "approval_status": "pending_user_cutover_approval"
   },
   "local_candidate_evidence": {
-    "environment_id": "local-production-readiness-candidate",
-    "candidate_id": "stage4-user-content-notes-local-817bcc0",
-    "topology_sha256": "56a4b5045564aa6462ebbe5f9c631f964c05f09b801b73f70f2059b2c454e8d6",
-    "recovery_sha256": "bf0ea7a7921c44c5d95ddba590b67e9cb794ce1ffbb14df35e864d3567254355",
-    "readiness_bundle_payload_sha256": "0150340c1c4ca692793e50f4f662206c959ca7a02e29d41c83e6b9786e9d9646",
-    "readiness_bundle_file_sha256": "fee7d11e1e4f5bc6deb59964fa06008144e1c80650fcf69c8ef3ad1f57acbd4a",
-    "readiness_result_file_sha256": "18a75b1d8301befcf1721cfeddbd4931c605bdee3f29b46a09fe9b71e12f8a4b",
+    "environment_id": "local-stage4-recoveryset-rehearsal",
+    "candidate_id": "stage4-recoveryset-de3fd1e",
+    "topology_sha256": "3f258ee86d0e9f1c07f634119d36738ecde9c4f51e52c73ac4b193786c6d9502",
+    "recovery_sha256": "02d71fdeaf73a8fceaf07021122e481816e74a44f4185f73abce9c99e0ffcfab",
+    "recovery_set_identity": "9075bebb2883d2b98f41e88767ada3c9b8a9d601ac520ce8639692a8c7605931",
+    "recovery_set_manifest_sha256": "f01acff984ed799eb25e7b6cd893d3f5c97cdb28ebd2e87e5aafae6d5bc3aa6f",
+    "readiness_bundle_file_sha256": "40e2140dc462b70c12f971f62f7576a5e783289b0b5b41df81b15a4730a8cdff",
+    "readiness_result_file_sha256": "3d91fc4298c5156f06950c3af794630a0426cb60079fc13a162b144f8a47356d",
+    "measured_rpo_seconds": 0.025,
+    "measured_rto_seconds": 0.748,
+    "restore_source_contract": "recovery_set_only",
     "raw_evidence_storage": "git_excluded",
     "off_vm_verified": false
   },
   "engineering_blockers": [
     "off-VM recovery copy is not verified",
-    "same-host storage cannot be claimed as off-VM",
-    "off-VM copy identity missing"
+    "same-host storage cannot be claimed as off-VM"
   ],
-  "generated_at": "2026-08-12T04:41:18+08:00"
+  "generated_at": "2026-08-12T06:17:27+08:00"
 }
