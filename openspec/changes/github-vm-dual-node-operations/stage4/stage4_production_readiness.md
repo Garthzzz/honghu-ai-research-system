@@ -62,7 +62,7 @@ target 与 measured 必须分开。Stage 3 已批准的目标是 authority trans
 | first formal watermark | S3/S4 必有且能关联幂等 operation | 按 S3 保守处理，禁止 SQLite fallback |
 | writer | 只有批准 session role 可执行首单元函数 | 撤销凭据并 fence |
 | idempotency/revision | duplicate retry 同结果；stale update 显式冲突 | 停止发布新 writer release |
-| mapping | legacy id 与 stable key 唯一、source watermark/evidence 可验证；S2 映射冻结，S1/S3/S4 增量登记有 expected authority revision、approval 和 audit | 拒绝 mutation |
+| mapping | legacy identity 唯一且 source watermark/evidence 可验证；已核验的多个 legacy alias 可汇聚到同一 stable identity并逐条审计；S2 映射冻结，S1/S3/S4 增量登记有 expected authority revision、approval 和 audit | 拒绝 mutation |
 | audit | 每次 create/update/delete 和 state transition 无 gap | fence writer并恢复 audit |
 | backup/WAL | freshness 达到 target，最近 restore evidence 有效 | 不进入 S2或保持停写 |
 | SQLite fence | S2 后 mutation path 不可达 | 任何双 writer 立即停止 cutover |

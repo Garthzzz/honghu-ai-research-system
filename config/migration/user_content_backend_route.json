@@ -1,0 +1,13 @@
+{
+  "schema_version": "honghu.user_content_route.v1",
+  "cutover_unit": "user_content_notes",
+  "route_revision": 1,
+  "authority_state": "S0",
+  "backend": "sqlite_transition",
+  "sqlite_writer_enabled": true,
+  "production_postgresql_enabled": false,
+  "writer_identity": null,
+  "approval_reference": null,
+  "writer_operation": "analyst_note_mutation",
+  "transaction_boundary": "one analyst-note mutation under the owning authority"
+}

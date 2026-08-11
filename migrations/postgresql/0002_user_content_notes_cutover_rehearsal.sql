@@ -60,6 +60,21 @@ SELECT * FROM operations.register_user_content_notes_dependency_mapping(
     'sha256:company-v1', 'rehearsal', 'stage4-mapping-approved',
     'verified company identity from the read-only source snapshot'
 );
+-- A legacy database may contain multiple historical aliases for one canonical
+-- security.  Legacy identities remain unique and auditable; the stable
+-- business identity is intentionally many-to-one.
+SELECT * FROM operations.register_user_content_notes_dependency_mapping(
+    2, 'company', 'research.db', 'company', '554',
+    'company:COHU:US-equity', '{"fixture":"company-alias-v1"}'::jsonb,
+    'sha256:company-alias-v1', 'rehearsal', 'stage4-mapping-approved',
+    'verified first legacy alias for one canonical security'
+);
+SELECT * FROM operations.register_user_content_notes_dependency_mapping(
+    2, 'company', 'research.db', 'company', '491',
+    'company:COHU:US-equity', '{"fixture":"company-alias-v2"}'::jsonb,
+    'sha256:company-alias-v2', 'rehearsal', 'stage4-mapping-approved',
+    'verified second legacy alias for the same canonical security'
+);
 RESET SESSION AUTHORIZATION;
 
 SET SESSION AUTHORIZATION :"writer_role";
@@ -378,6 +393,11 @@ SELECT jsonb_build_object(
     'dependency_mapping_audit_count', (
         SELECT count(*) FROM audit.cutover_dependency_mapping_revision
          WHERE cutover_unit = 'user_content_notes'
+    ),
+    'stable_alias_count', (
+        SELECT count(*) FROM operations.cutover_dependency_mapping
+         WHERE cutover_unit = 'user_content_notes'
+           AND stable_key = 'company:COHU:US-equity'
     ),
     's1_abandon_state', (
         SELECT state FROM operations.cutover_unit_authority

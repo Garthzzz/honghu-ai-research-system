@@ -387,3 +387,21 @@ DeepSeek关于 backend、writer、epoch、SQLite watermark、mapping fail-closed
 第二轮已进一步明确 authority row 使用 `FOR UPDATE`、应用 writer 无 operations schema/helper 权限、legacy row 以 revision 1 接受首笔 delete、旁路 restore 只是灾备验证。DeepSeek仍声称 authority 没有行锁、writer 应直接取得内部 helper 权限，并再次混淆业务 restore 与旁路恢复；这些意见与真实实现和最小权限合同相反，也没有给出可复现触发输入，全部拒绝。连续两轮没有有效增量后停止第三轮。
 
 最终依据是：失败的 missing delete 后 unit-specific S2 verification 仍成功；对非空 backfill 的首笔 soft-delete 与 audit、idempotency、first-formal watermark 和 S2→S3 revision 同事务；uncertain-response replay 不产生重复 revision；S4 与 pg_dump 旁路恢复均保留 delete-first watermark；live SQLite 前后 schema 和文件哈希不变。audit actor 必须来自可信认证 principal 仍是下一轮 adapter/auth production blocker，未被本轮演练冒充为已实现。
+
+## 阶段 4 `user_content_notes` production-readiness 收口复核（2026-08-12 追加）
+
+> 实际轮次：2 轮，其中第一轮在实现前审查有界设计，第二轮在实现与真实 PostgreSQL 演练后审查聚合事实。Codex没有向外部模型发送 key、Cookie、源码全文、数据库行、papers、用户内容、内网地址、凭据或 Git 外原始 evidence。
+
+### Codex 独立实现与真实修订
+
+Codex先审计 live Viewer 的 analyst-note 写路径，确认原实现直接使用 SQLite、请求 body 可提供 actor、没有认证/授权/CSRF、DELETE 为硬删除。修订建立显式 S0/SQLite 默认 route、无 fallback 的 operation-level repository、独立 PostgreSQL reader/writer role、可信 session principal、权限与 CSRF、Git 外 Credential Manager 配置，以及 fail-closed production readiness preflight。tracked 默认 route 仍为 S0，production route、凭据、拓扑和恢复证据缺一即关闭，未改变 live Viewer backend。
+
+只读 stable-identity freeze 发现真实 legacy 别名：两个历史 company id 都指向 COHU。最初“一条 stable key 只能对应一个 legacy id”的假设因此被否定。Codex把合同修订为“legacy identity 唯一、stable identity 允许经核验的多对一 alias”，逐 alias 保存 watermark、evidence、批准和审计，并在真实 PostgreSQL 演练中验证两个 alias 可同时登记且旁路恢复后仍为两条。最终 mapping 共 774 条、collision 0、alias group 1；原始映射保留在 Git 外。
+
+### DeepSeek意见与 Codex判断
+
+第一轮中唯一有价值的抽象提醒是应用侧必须独立证明 SQLite writer fence，不能只依赖“PG enabled”；该要求已进入显式 route 和 repository factory。其余把既有 SQL revision/idempotency/mapping 当作缺失、要求修改 live SQLite、统一 UUID 或建立内容 Git 同步的意见，与冻结合同和代码事实冲突，拒绝。
+
+第二轮在收到明确的实现与测试摘要后，仍建议 S0 双写、失败时 SQLite/PG 互相 fallback、按用户 hash 分片灰度、Redis/JWT、动态配置中心、固定 7 天观察期和新审批系统。这些建议不仅没有可复现的项目内触发路径，还直接违反“单一权威 writer、禁止双写和 silent fallback、不扩张基础设施”的已批准合同，全部拒绝。第二轮未产生有效信息增量，停止第三轮。
+
+最终依据是 621 个 core pytest、55 个 subtest、32 个 Stage 4 定向测试、真实 PostgreSQL 17 migration/ACL/adapter/alias/dump/restore 演练、四套 live SQLite 前后哈希不变、OpenSpec strict 与远端 required CI，而不是外部 reviewer verdict。production topology、VM 外 backup/WAL/restore、repository 公司控制权和正式 cutover window 仍由 preflight 如实保持 BLOCKED。

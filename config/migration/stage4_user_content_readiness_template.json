@@ -1,0 +1,64 @@
+{
+  "schema_version": "honghu.stage4_user_content_production_readiness.v1",
+  "cutover_unit": "user_content_notes",
+  "production_cutover_authorized": false,
+  "evidence_cutoff_utc": null,
+  "identity_mapping": {
+    "verified": false,
+    "manifest_sha256": "",
+    "source_database_sha256": "",
+    "mapping_count": 0,
+    "collision_count": null,
+    "alias_group_count": null,
+    "approval_reference": ""
+  },
+  "application_contract": {
+    "adapter_rehearsal_verified": false,
+    "adapter_rehearsal_sha256": "",
+    "default_s0_route_verified": false,
+    "no_silent_fallback_verified": false,
+    "reader_writer_roles_distinct": false,
+    "api_auth_csrf_revision_idempotency_verified": false,
+    "trusted_principal_actor_verified": false,
+    "s3_forward_repair_verified": false,
+    "schema_compatible_code_rollback_verified": false
+  },
+  "postgresql_topology": {
+    "approved": false,
+    "decision_reference": "",
+    "supported_version_verified": false,
+    "binary_provenance_sha256": "",
+    "capacity_evidence_sha256": "",
+    "service_lifecycle_evidence_sha256": "",
+    "network_scope_evidence_sha256": "",
+    "protected_transport_evidence_sha256": "",
+    "role_acl_evidence_sha256": "",
+    "credential_lifecycle_evidence_sha256": ""
+  },
+  "recovery": {
+    "off_vm_copy_verified": false,
+    "base_backup_evidence_sha256": "",
+    "wal_or_equivalent_incremental_evidence_sha256": "",
+    "whole_database_restore_evidence_sha256": "",
+    "side_restore_evidence_sha256": "",
+    "authority_recovery_evidence_sha256": "",
+    "target_rpo_rto_met_in_rehearsal": false
+  },
+  "repository_governance": {
+    "production_authority_approved": false,
+    "company_control_or_approved_exception": false,
+    "second_company_admin_or_handover": false,
+    "two_factor_and_account_recovery_verified": false,
+    "branch_protection_verified": false,
+    "company_controlled_deploy_credential_ready": false,
+    "approval_reference": ""
+  },
+  "cutover_window": {
+    "operator_identified": false,
+    "approver_identified": false,
+    "maintenance_window_approved": false,
+    "writer_fence_plan_verified": false,
+    "rollback_recovery_decision_tree_approved": false,
+    "approval_reference": ""
+  }
+}

@@ -78,6 +78,18 @@
   </div>
 </div>
 
+<div class="an-auth" id="analystNoteAuth" aria-live="polite">
+  <div>
+    <strong>研究员笔记身份</strong>
+    <span class="an-auth-status">正在检查安全配置…</span>
+  </div>
+  <div class="an-auth-controls" hidden>
+    <label>账号 <input class="an-auth-subject" autocomplete="username"></label>
+    <label>密码 <input class="an-auth-password" type="password" autocomplete="current-password"></label>
+    <button class="btn btn-secondary an-auth-login" type="button">登录</button>
+  </div>
+</div>
+
 {% if is_pcb_equipment %}
 <div class="explainer">
   <span class="ex-row"><b>财务口径：</b>净利率按同期间归母或可归属净利润除以营业收入重算；毛利率保留公司报表或财务数据源口径。跨零、亏损及低基数期间直接展示状态，不强算误导性同比。</span>
@@ -449,6 +461,55 @@ whenLandscapePlotly(()=>{drawLandscape('companyShareChart',LANDSCAPE.share);draw
 
 // ── 研究员补充 / 反共识(2c-G:AI 一致预期 + 反共识,选填)─────
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':s;return d.innerHTML;}
+const analystNoteSession={ready:false,authenticated:false,csrfToken:'',principal:null,permissions:[]};
+async function refreshAnalystNoteSession(){
+  const panel=document.getElementById('analystNoteAuth');
+  if(!panel)return analystNoteSession;
+  const status=panel.querySelector('.an-auth-status');
+  const controls=panel.querySelector('.an-auth-controls');
+  try{
+    const response=await fetch('/api/user-content/session',{credentials:'same-origin'});
+    const payload=await response.json();
+    analystNoteSession.ready=Boolean(payload.security_ready);
+    analystNoteSession.authenticated=Boolean(payload.authenticated);
+    analystNoteSession.csrfToken=payload.csrf_token||'';
+    analystNoteSession.principal=payload.principal||null;
+    analystNoteSession.permissions=payload.permissions||[];
+    if(!analystNoteSession.ready){
+      status.textContent='当前未配置可信身份，笔记读取和写入保持关闭。';
+      controls.hidden=true;
+    }else if(analystNoteSession.authenticated){
+      status.textContent='已登录：'+analystNoteSession.principal;
+      controls.hidden=true;
+    }else{
+      status.textContent='请登录后读取或写入研究员笔记。';
+      controls.hidden=false;
+    }
+  }catch(error){
+    status.textContent='身份服务不可用，笔记功能保持关闭。';
+    controls.hidden=true;
+  }
+  return analystNoteSession;
+}
+document.querySelector('#analystNoteAuth .an-auth-login')?.addEventListener('click',async()=>{
+  const panel=document.getElementById('analystNoteAuth');
+  const status=panel.querySelector('.an-auth-status');
+  const subject=panel.querySelector('.an-auth-subject').value.trim();
+  const password=panel.querySelector('.an-auth-password').value;
+  status.textContent='登录中…';
+  try{
+    const response=await fetch('/api/user-content/login',{
+      method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':analystNoteSession.csrfToken},
+      body:JSON.stringify({subject,password})
+    });
+    const payload=await response.json();
+    if(!response.ok||!payload.ok)throw new Error(payload.error||'登录失败');
+    panel.querySelector('.an-auth-password').value='';
+    await refreshAnalystNoteSession();
+  }catch(error){status.textContent=error.message||'登录失败';}
+});
+refreshAnalystNoteSession();
 // 轻量把 consensus_view(含 ^src:N / **粗体** / - bullet)转可读 HTML;^src 上标走全站 trace 委托
 function srcify(s){
   let h = esc(s);
@@ -495,27 +556,36 @@ document.querySelectorAll('.an-editor').forEach(ed => {
     const ta = ed.querySelector('.an-new-note'), st = ed.querySelector('.an-note-status');
     const content = ta.value.trim();
     if (!content) { st.textContent = '内容为空'; return; }
+    await refreshAnalystNoteSession();
+    if(!analystNoteSession.authenticated){st.textContent='请先登录研究员身份';return;}
     st.textContent = '提交中…';
+    const operationId=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+'-'+Math.random();
     try {
-      const r = await (await fetch('/api/analyst_note', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ entity_type:'company', entity_id: cid, content })
-      })).json();
-      if (r.ok) { ta.value=''; st.textContent=' 已添加'; await reloadNotes(ed, cid); }
-      else st.textContent = '失败:' + (r.error||'');
+      const response=await fetch('/api/analyst_note', {
+        method: 'POST',credentials:'same-origin',
+        headers: {'Content-Type':'application/json','X-CSRF-Token':analystNoteSession.csrfToken,'X-Idempotency-Key':operationId},
+        body: JSON.stringify({ entity_type:'company', entity_id: cid, content, expected_revision:0 })
+      });
+      const r=await response.json();
+      if (response.ok&&r.ok) { ta.value=''; st.textContent=' 已添加'; await reloadNotes(ed, cid); }
+      else st.textContent = '失败:' + (r.error||r.code||'');
     } catch (e) { st.textContent = '网络错误'; }
   });
 });
 
 async function reloadNotes(ed, cid) {
   const ul = ed.querySelector('.an-note-list');
+  await refreshAnalystNoteSession();
+  if(!analystNoteSession.authenticated){ul.innerHTML='<li class="an-empty">登录后查看研究员笔记</li>';return;}
   try {
-    const r = await (await fetch('/api/analyst_note/company/' + cid)).json();
-    if (r.ok && r.notes.length) {
+    const response=await fetch('/api/analyst_note/company/' + cid,{credentials:'same-origin'});
+    const r=await response.json();
+    if (response.ok&&r.ok && r.notes.length) {
       ul.innerHTML = r.notes.map(n =>
         '<li><span class="an-note-meta">' + esc(n.created_at) + ' · ' + esc(n.author) +
         '</span><span class="an-note-body">' + esc(n.content) + '</span></li>').join('');
-    } else { ul.innerHTML = '<li class="an-empty">暂无笔记</li>'; }
+    } else if(response.ok&&r.ok){ ul.innerHTML = '<li class="an-empty">暂无笔记</li>'; }
+    else{ul.innerHTML='<li class="an-empty">'+esc(r.error||'笔记读取失败')+'</li>';}
   } catch (e) { ul.innerHTML = '<li class="an-empty">加载失败</li>'; }
 }
 </script>

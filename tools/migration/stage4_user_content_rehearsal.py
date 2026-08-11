@@ -9,6 +9,12 @@ import time
 from pathlib import Path
 from typing import Any
 
+from tools.data_platform.routing import AuthorityState, Backend, CutoverRoute
+from tools.data_platform.user_content_notes import (
+    AnalystNoteMutation,
+    AnalystNoteWriterFenced,
+    PostgresAnalystNoteRepository,
+)
 from tools.migration.sqlite_inventory import audit_live_schema
 
 
@@ -73,6 +79,159 @@ def _schema_identity(audit: dict[str, Any]) -> dict[str, Any]:
             },
         }
         for database, detail in audit["databases"].items()
+    }
+
+
+def _run_adapter_rehearsal(
+    *,
+    host: str,
+    port: int,
+    database: str,
+    username: str,
+    reader_role: str,
+    writer_role: str,
+) -> dict[str, Any]:
+    """Exercise the real repository against the isolated PostgreSQL database."""
+
+    import psycopg
+    from psycopg import sql
+
+    def connection_factory(role: str):
+        def connect():
+            connection = psycopg.connect(
+                host=host,
+                port=port,
+                dbname=database,
+                user=username,
+                sslmode="disable",
+            )
+            connection.execute(
+                sql.SQL("SET SESSION AUTHORIZATION {}").format(sql.Identifier(role))
+            )
+            return connection
+
+        return connect
+
+    common = dict(
+        cutover_unit="user_content_notes",
+        backend=Backend.POSTGRESQL_PRODUCTION,
+        writer_operation="analyst_note_mutation",
+        transaction_boundary="one note mutation plus revision, audit and idempotency",
+        sqlite_writer_enabled=False,
+        production_postgresql_enabled=True,
+        writer_identity=writer_role,
+        approval_reference="stage4-s4-approved",
+    )
+    stale_route = CutoverRoute(authority_state=AuthorityState.S3, **common)
+    stale_repository = PostgresAnalystNoteRepository(
+        connection_factory(reader_role), connection_factory(writer_role), stale_route
+    )
+    stale_route_fenced = False
+    try:
+        stale_repository.list_notes(
+            entity_type="theme",
+            legacy_entity_id="ai_datacenter",
+            entity_key="theme:ai_datacenter",
+            q_label=None,
+        )
+    except AnalystNoteWriterFenced:
+        stale_route_fenced = True
+    if not stale_route_fenced:
+        raise RuntimeError("stale adapter route was not fenced")
+
+    route = CutoverRoute(authority_state=AuthorityState.S4, **common)
+    repository = PostgresAnalystNoteRepository(
+        connection_factory(reader_role), connection_factory(writer_role), route
+    )
+    note_key = "analyst-note:adapter-rehearsal"
+    created = repository.put(
+        AnalystNoteMutation(
+            note_key=note_key,
+            entity_type="theme",
+            legacy_entity_id="ai_datacenter",
+            entity_key="theme:ai_datacenter",
+            q_label="Q6",
+            note_type="thesis",
+            title=None,
+            content="adapter create",
+            expected_revision=0,
+            idempotency_key="adapter-create-1",
+        ),
+        actor="principal:adapter-rehearsal",
+    )
+    updated = repository.put(
+        AnalystNoteMutation(
+            note_key=note_key,
+            entity_type="theme",
+            legacy_entity_id="ai_datacenter",
+            entity_key="theme:ai_datacenter",
+            q_label="Q6",
+            note_type="thesis",
+            title=None,
+            content="adapter update",
+            expected_revision=1,
+            idempotency_key="adapter-update-1",
+        ),
+        actor="principal:adapter-rehearsal",
+    )
+    visible_before_delete = repository.list_notes(
+        entity_type="theme",
+        legacy_entity_id="ai_datacenter",
+        entity_key="theme:ai_datacenter",
+        q_label="Q6",
+    )
+    deleted = repository.soft_delete(
+        note_key=note_key,
+        expected_revision=2,
+        idempotency_key="adapter-delete-1",
+        actor="principal:adapter-rehearsal",
+    )
+    replayed = repository.soft_delete(
+        note_key=note_key,
+        expected_revision=2,
+        idempotency_key="adapter-delete-1",
+        actor="principal:adapter-rehearsal",
+    )
+    visible_after_delete = repository.list_notes(
+        entity_type="theme",
+        legacy_entity_id="ai_datacenter",
+        entity_key="theme:ai_datacenter",
+        q_label="Q6",
+    )
+
+    with connection_factory(reader_role)() as connection:
+        compatibility_row = connection.execute(
+            """SELECT id, entity_type, entity_id, q_number, note_type,
+                      title, content, author, created_at, updated_at
+                 FROM user_content.analyst_note_read_v1
+                ORDER BY id LIMIT 1"""
+        ).fetchone()
+    if compatibility_row is None:
+        raise RuntimeError("schema-compatible reader rehearsal returned no row")
+    if not any(row.note_key == note_key for row in visible_before_delete):
+        raise RuntimeError("adapter-created note was not visible through the reader role")
+    if any(row.note_key == note_key for row in visible_after_delete):
+        raise RuntimeError("soft-deleted adapter note remained in the active read view")
+    if not (
+        created.revision == 1
+        and updated.revision == 2
+        and deleted.revision == 3
+        and replayed.revision == 3
+        and replayed.deleted
+    ):
+        raise RuntimeError("adapter revision or idempotent-delete contract failed")
+    return {
+        "status": "pass",
+        "stale_route_fenced": stale_route_fenced,
+        "reader_writer_roles_distinct": reader_role != writer_role,
+        "create_revision": created.revision,
+        "update_revision": updated.revision,
+        "delete_revision": deleted.revision,
+        "idempotent_delete_revision": replayed.revision,
+        "active_before_delete": True,
+        "active_after_delete": False,
+        "schema_compatible_reader": True,
+        "authority_state_after_adapter": "S4",
     }
 
 
@@ -184,6 +343,12 @@ def run_rehearsal(
                 "'user_content.analyst_note','SELECT'),"
                 f"'reader_view_select',has_table_privilege('{reader_role}',"
                 "'user_content.analyst_note_read_v1','SELECT'),"
+                f"'reader_identity_view_select',has_table_privilege('{reader_role}',"
+                "'user_content.analyst_note_identity_v1','SELECT'),"
+                f"'reader_authority_view_select',has_table_privilege('{reader_role}',"
+                "'operations.user_content_notes_authority_v1','SELECT'),"
+                f"'writer_authority_view_select',has_table_privilege('{writer_role}',"
+                "'operations.user_content_notes_authority_v1','SELECT'),"
                 f"'controller_transition_execute',has_function_privilege('{controller_role}',"
                 "'operations.transition_user_content_notes(text,bigint,text,text,text,jsonb,text,text,text)','EXECUTE'),"
                 f"'controller_mapping_execute',has_function_privilege('{controller_role}',"
@@ -199,6 +364,9 @@ def run_rehearsal(
             "writer_soft_delete_execute": True,
             "reader_base_select": False,
             "reader_view_select": True,
+            "reader_identity_view_select": True,
+            "reader_authority_view_select": True,
+            "writer_authority_view_select": True,
             "controller_transition_execute": True,
             "controller_mapping_execute": True,
             "controller_generic_transition_execute": False,
@@ -229,6 +397,14 @@ def run_rehearsal(
             ]
         )
         rehearsal_result = json.loads(rehearsal.stdout.strip().splitlines()[-1])
+        adapter_result = _run_adapter_rehearsal(
+            host=host,
+            port=port,
+            database=database,
+            username=username,
+            reader_role=reader_role,
+            writer_role=writer_role,
+        )
 
         with tempfile.TemporaryDirectory(prefix="honghu-stage4-pg-") as temporary:
             dump_path = Path(temporary) / "stage4-user-content.dump"
@@ -264,6 +440,10 @@ def run_rehearsal(
                     "'dependency_mapping_audit_count',(SELECT count(*) "
                     "FROM audit.cutover_dependency_mapping_revision "
                     "WHERE cutover_unit='user_content_notes'),"
+                    "'stable_alias_count',(SELECT count(*) "
+                    "FROM operations.cutover_dependency_mapping "
+                    "WHERE cutover_unit='user_content_notes' "
+                    "AND stable_key='company:COHU:US-equity'),"
                     "'q6_legacy_count',(SELECT count(*) FROM user_content.analyst_note "
                     "WHERE q_label='Q6' AND legacy_note_id=42 AND title IS NULL));",
                 ]
@@ -284,6 +464,8 @@ def run_rehearsal(
             or restore_result.get("authority_state") != "S4"
             or any(rehearsal_result.get(key) != value for key, value in expected_first_formal.items())
             or any(restore_result.get(key) != value for key, value in expected_first_formal.items())
+            or rehearsal_result.get("stable_alias_count") != 2
+            or restore_result.get("stable_alias_count") != 2
         ):
             raise RuntimeError("Stage 4 rehearsal or side restore invariant failed")
         return {
@@ -298,6 +480,7 @@ def run_rehearsal(
             "migration_applied_twice": True,
             "rehearsal_result": rehearsal_result,
             "least_privilege_result": acl_result,
+            "adapter_result": adapter_result,
             "side_restore_result": restore_result,
             "dump_sha256": dump_sha256,
             "live_sqlite_schema_unchanged": True,
