@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出。用户现仅授权阶段 3 的依赖建模、数据访问边界、PostgreSQL dev/test 与非生产低风险切换单元试点；production PostgreSQL、live SQLite 修改/迁移、计划任务迁移、production writer 或 Viewer 切换及阶段 4 均未获授权。
+> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。production PostgreSQL cutover、live SQLite 修改/迁移、计划任务迁移、production writer/backend、Viewer 或 runner 切换及阶段 4 均未获授权。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -118,11 +118,11 @@
 - [x] [本阶段必须] 定义主要 database 的逻辑域、共享身份、role/writer 权限和审计边界；物理拆库必须有证据。
 - [x] [本阶段必须] 定义稳定业务身份与 legacy mapping 合同；保存 SQLite database/table/id 到稳定身份和 PostgreSQL 目标对象的可验证映射，允许内部 surrogate key，不强制全局 UUID。
 - [x] [本阶段必须] 建立 expand–migrate/backfill–application transition–contract migration 合同；破坏性 contract 必须放在后续独立批准 release，每个 migration 说明 compatibility、backup、verification 和 recovery strategy。
-- [ ] [本阶段必须] 在阶段 3 结束、任何 production 数据切换前，按数据类别批准 target RPO/RTO，明确可接受损失/恢复时间、可补抓与不可补抓数据，以及它们对备份、PITR 和部署拓扑的约束。
+- [x] [本阶段必须] 用户已于 2026-08-11 14:25:45 +08:00 批准 `target_rpo_rto_proposal.v2`：migration/cutover authority control 与五类业务/资料恢复目标正式成为后续设计门槛；这是 target 批准，不代表 measured SLA 已达到，也不授权 production 数据切换。
 - [x] [本阶段必须] 选择一个低风险切换单元试点。选择需比较数据量、共享身份、写复杂度、已有 ledger、对账和恢复；不得未经审计固定顺序。
 - [x] [本阶段必须] 为试点验证计数、主外键、业务不变量、revision/audit、性能和恢复；publisher/user-content 更新必须测试稳定 release id、幂等重试、expected/base revision、stale conflict、禁止 silent last-write-wins 和依赖簇原子性。
 - [x] [本阶段必须] 明确用户内容受控导出格式以满足可移植性，但不建立实时 Git 复制。
-- [ ] [HALT] 提交试点设计、测试、对账、rollback rehearsal 和下一域排序建议，等待人工批准。
+- [x] [HALT] 用户已于 2026-08-11 14:25:45 +08:00 完成人工审查并批准阶段 3 退出。批准依据包括 final live drift PASS、两层 inventory/aggregate manifest、PostgreSQL dev/test pilot、最终 evidence identity `2b58252a84161996e3b9c81cf2e1cfe5f28bd30865be85d6d15acac14b5511c6`，以及 PR #5 head `736d7d3e4c535dff9dc465256dedd1deb2db7716` 的 push/PR required CI 全绿；未授权任何阶段 4 production 操作，下一人工 HALT 位于阶段 4 授权前。
 
 **退出条件**：inventory、依赖/事务图、cutover unit registry、唯一 ownership/dependency、重叠检查、权威后端、稳定身份和 migration compatibility 均通过人工审查；target RPO/RTO 已批准；试点在 dev/test 完整通过；没有 live 变更；证明数据访问层不是简单 SQL 字符串替换。
 

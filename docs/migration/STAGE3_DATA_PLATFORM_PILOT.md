@@ -89,7 +89,7 @@ code-only rollback 只在 schema 仍兼容旧代码时成立。forward-only migr
 
 `config/migration/user_content_export.schema.json` 只定义低频受控导出：稳定键、revision、soft-delete、payload hash 和水位。它不是实时 Git 复制，不把用户内容写入应用仓库。
 
-`config/migration/target_rpo_rto_proposal.json` 把 migration/cutover authority control、不可补抓的人工作品/发布 ledger、财务修订、动态任务状态、sentiment raw/aggregate 和 papers/evidence 分开提出目标。权威切换类覆盖 S0—S4、唯一 writer/backend、cutover epoch、水位、路由、验证写、uncertain commit 和审计 ledger；已确认状态要求零丢失，恢复并独立验证前必须继续阻断 production writes，不能并入普通 task/checkpoint 目标。它当前是 `pending_human_approval`：未获人工批准前，禁止 production data cutover；阶段 5 的真实 restore 才能产生 measured RPO/RTO，不能把目标写成已达成事实。
+`config/migration/target_rpo_rto_proposal.json` 把 migration/cutover authority control、不可补抓的人工作品/发布 ledger、财务修订、动态任务状态、sentiment raw/aggregate 和 papers/evidence 分开提出目标。权威切换类覆盖 S0—S4、唯一 writer/backend、cutover epoch、水位、路由、验证写、uncertain commit 和审计 ledger；已确认状态要求零丢失，恢复并独立验证前必须继续阻断 production writes，不能并入普通 task/checkpoint 目标。用户已于 2026-08-11 批准 v2 target；该批准不代表 measured RPO/RTO 已达到，也不授权 production data cutover，阶段 5 的真实 restore 才能产生 measured 结果。
 
 ## 7. 下一切换单元建议
 
