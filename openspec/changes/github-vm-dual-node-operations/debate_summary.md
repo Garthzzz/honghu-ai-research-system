@@ -295,3 +295,53 @@ DeepSeek 返回的 must-fix 同时要求“PID 必须与 `[5000,16332]` 或 `[46
 DeepSeek仍没有返回约定的 verdict/must-fix 结构，而是把输入摘要重写成函数说明；它再次声称 candidate 运行在 8080，并建议“candidate PID 不应在 ForbiddenListenerPids”，与公开部署脚本“candidate 只监听 18080，若其 PID 出现在 production 8080 则失败”的合同相反。它还错误声称 authority identity 包含 PID，而公开实现明确只包含 listener query/presence 布尔，PID 仅在 runtime diagnostics。由于没有任何相对路径、真实触发输入或可复现错误，这些意见全部拒绝，不再据此修改代码。
 
 两轮外部响应连续没有信息增量，故停止第三轮。有效工程证据来自 PowerShell 定向回归、完整本地测试、最终提交自己的 push/PR Actions、exact-commit artifact 与待执行的 VM 现场复验；DeepSeek 不构成阶段 2 退出批准。
+
+## 阶段 3 数据依赖与 PostgreSQL dev/test 试点复核（2026-08-07 追加）
+
+> 实际轮次：2 轮。只发送公开仓库、PR #5、公开提交和脱敏合同/测试摘要；未发送 key、Cookie、数据库内容或行数、papers/evidence、用户内容、内网地址、外部 evidence 或凭据。连续两轮没有可复现的信息增量，停止第三轮。
+
+### 第一轮：初版公开试点
+
+Codex 先独立完成 operation-level SQLite dependency inventory、唯一 cutover ownership registry、显式 backend route、expand-only migration 和隔离 PostgreSQL 17.10 用户笔记试点。DeepSeek 要求把 operation ledger 与 writer lease 写入 live SQLite、用 attached database 保证一致性，并提前增加 Stage 4、复制和监控；这些直接违反“Stage 3 不改 live SQLite、不进入生产”的授权。它还错误声称 dev/test 使用 5432，而公开 `validate_test_target` 明确拒绝 5432、非 loopback 和非测试库前缀。上述意见全部拒绝。
+
+Codex没有因无效 reviewer 意见停止独立复核，随后发现两个真实 SQL 边界：NULL `expected_revision` 可能绕过 SQL 三值比较；只比较调用方声称的 request hash 不能证明 payload 相同。修订在数据库内保存并比较完整 canonical JSON payload，显式拒绝 NULL revision/key/hash，并增加“相同 hash 但 payload 改变”反例。Windows 真机复验还发现 `pg_ctl start` 的长生命周期 server 可继承 capture pipe；启动路径改用外部日志和无继承 pipe，并新增回归。
+
+### 第二轮：收紧后的公开提交
+
+第二轮要求 DeepSeek只报告带相对路径、真实函数/SQL对象和精确触发输入的问题。返回仍把 `validate_test_target` 错放进 `cutover_registry.py`，重复声称代码连接 5432、没有 migration ID/SHA、没有 soft delete/NULL 处理或 payload 校验，并虚构 PR 修改了 Docker、Redis 和 CDC。它还把“NULL revision 必须 fail-closed”倒置为缺陷。这些均与公开源码和测试直接冲突，全部拒绝。
+
+两轮没有有效增量后按约束停止。Stage 3 的有效依据是本地完整测试、真实 PostgreSQL migration/冲突/dump/restore、live SQLite 前后文件 hash、registry 冲突检查、OpenSpec strict 和最终 PR Actions，不是外部 reviewer verdict。
+
+## 阶段 3 live 增量对账设计复核（2026-08-10 追加）
+
+> 实际轮次：2 轮。Codex 先独立审计 live/Git 差异、四库 schema、备份时点和阶段 3 证据，再形成 design/plan；发送给 DeepSeek 的只有脱敏架构摘要、文件类别和聚合计数，没有发送 key、Cookie、源代码、数据库行、papers、用户请求、研究正文、内网地址或原始 evidence。两轮连续没有可复现的信息增量，因此停止第三轮。
+
+### Codex 独立草案与修订
+
+只读审计确认 live 新研究没有改变四库 schema 或 134 张受审业务表集合，但增加了研究专属 SQLite writer；同时 live `app.py` 的新行业分组功能与阶段 2 已验收的 runtime/只读候选能力发生整文件分叉。Codex 因此拒绝整树复制，设计逐功能三方合并，并把研究专属脚本保持在 public Git 外。为避免排除路径从迁移审计中消失，设计采用 deployable inventory、Git 外 live-only addendum 和固定二者 SHA/扫描根/截止时间的 aggregate manifest；production sequencing 不能只拿公开清单。Codex还补充磁盘峰值 gate、现有 external safety backup 工具、研究脚本退役的人工边界变更，以及 staged tree 到 commit/checks 的非自引用证据映射。
+
+### 第一轮：事实被错误改写
+
+DeepSeek 把 134 张表误写成 134 个 SQLite 文件，把“新增至少 13 条 writer operation”改写成 13 个 ownership conflict，并虚构 Git 是 live data authority、RPO/RTO 已批准和 PostgreSQL 用于 analytics。其 must-fix 只是要求实现设计中已经存在的 backup API、ownership 与 addendum，未给出新的触发路径。Codex拒绝这些与输入冲突的结论，但接受其问题方向中唯一合理的抽象提醒：双层清单必须有一个完整审计身份，提交证据必须明确绑定最终树；这两点由 Codex按真实边界独立补强。
+
+### 第二轮：要求违反已批准边界
+
+第二轮把问题严格限制为五个合同并禁止发明事实。DeepSeek仍建议把 live database data 版本化进 Git、把研究内容纳入 immutable application release，并虚构 papers 已经在 public Git 和 8080 是开发端口。这些建议直接违反已批准的 PostgreSQL/live data/artifact 边界和当前阶段禁止事项；它关于 immutable release、backup API 和 exact commit 的建议也都是阶段 2 或当前设计已有能力，没有新增缺口。Codex全部拒绝，不据此扩大范围或上传研究资产。
+
+两轮连续没有有效增量，按用户约束停止第三轮。设计冻结依据是本地代码/DB/备份事实、已批准 capability specs 与确定性门禁；DeepSeek 不构成执行批准或通过证据。
+
+## 阶段 3 最终 RPO/RTO 与 live drift Gate 复核（2026-08-11 追加）
+
+> 实际轮次：2 轮。Codex 先独立补齐 migration/cutover authority-control recovery class，并以既有 Git 外 cutoff 对 live 根执行只读语义漂移检查；发送给 DeepSeek 的只有六类恢复目标、切换控制合同和聚合漂移结论，没有发送 key、Cookie、源码、数据库内容或具体行数、papers/evidence、用户内容、内网地址或原始 evidence。两轮连续没有事实增量，因此停止第三轮。
+
+### Codex 独立修订
+
+新增的 authority-control 类覆盖 cutover unit S0—S4、唯一 writer/backend、cutover epoch、SQLite/PG 水位、路由、验证写、uncertain commit 和审计 ledger。已确认的权威切换状态要求零丢失，只有状态与审计证据持久化后才允许 acknowledgement；目标在一小时内恢复并独立验证，但未验证时 production writes 必须继续保持栅栏，因此 RTO 不会授权不安全恢复。普通 dynamic/task 类明确排除此类状态，其余五类目标不变，全部仍是待人工批准的 target，不是 measured SLA。
+
+只读 drift check 对比了表、列、`user_version`、deployable source/writer path、Git 外 producer/writer path、ownership 和 transaction boundary。上述迁移边界均无变化；已有 research/sentiment 表的普通行数增长不改变 writer、schema 或 ownership，故不被误判为 migration-boundary drift。
+
+### 两轮 DeepSeek 复核与 Codex 判断
+
+第一轮把摘要中明确存在的 S0—S4、唯一 writer、fencing、uncertain-commit reconciliation、audit ledger、ownership 和 Stage 4 gate 全部反写成“缺失”，并错误要求当前提供 measured SLA。Codex逐项以已批准 design/spec 和本轮 proposal 拒绝，没有据此扩大实现。
+
+第二轮明确列出这些既有控制并要求只报告输入能够直接推出的问题；DeepSeek仍逐字重复“没有 ownership/backend matrix、没有 authority 记录、没有 target/measured 计划、没有 aggregate manifest”，与输入和确定性扫描结果直接冲突，也没有提供可复现反例。Codex拒绝全部意见。两轮连续无有效信息增量后停止；最终判断由 OpenSpec、机器清单、只读 drift 结果和远端 CI 负责，DeepSeek 不构成人工批准。

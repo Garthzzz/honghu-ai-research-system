@@ -421,6 +421,81 @@ _IND_NAME_TO_SECTOR = {
 }
 
 
+def _derive_industry_group_assignments(
+    industry_rows: List[Dict[str, Any]],
+    group_configs: Dict[str, Dict[str, Any]],
+    *,
+    relations: List[Dict[str, Any]] | None = None,
+    eligible_names: set[str] | None = None,
+    minimum_relation_votes: int = 2,
+) -> Dict[str, str]:
+    """Derive stable Viewer groups from anchors, parents, and relation votes.
+
+    Configuration keeps only stable top-level anchors. Child industries first
+    inherit their parent's group; relation voting is an optional second pass
+    for views such as value-chain lanes. Ties and weak single-edge evidence
+    stay unassigned instead of manufacturing a category.
+    """
+    rows = [dict(row) for row in industry_rows]
+    by_id = {int(row["id"]): row for row in rows}
+    by_name = {str(row["name"]): row for row in rows}
+    assignments: Dict[str, str] = {}
+    for group_name, config in group_configs.items():
+        for name in config.get("industries") or []:
+            if name in by_name:
+                assignments.setdefault(str(name), str(group_name))
+
+    changed = True
+    while changed:
+        changed = False
+        for row in rows:
+            name = str(row["name"])
+            if name in assignments:
+                continue
+            parent_id = row.get("parent_id")
+            parent = by_id.get(int(parent_id)) if parent_id is not None else None
+            parent_group = assignments.get(str(parent["name"])) if parent else None
+            if parent_group:
+                assignments[name] = parent_group
+                changed = True
+
+    relation_rows = [dict(row) for row in (relations or [])]
+    if relation_rows:
+        allowed = set(by_name if eligible_names is None else eligible_names)
+        changed = True
+        while changed:
+            changed = False
+            for row in rows:
+                name = str(row["name"])
+                if name in assignments or name not in allowed:
+                    continue
+                vote_neighbors: Dict[str, set[int]] = {}
+                industry_id = int(row["id"])
+                for relation in relation_rows:
+                    neighbor_id = None
+                    if int(relation["upstream_id"]) == industry_id:
+                        neighbor_id = int(relation["downstream_id"])
+                    elif int(relation["downstream_id"]) == industry_id:
+                        neighbor_id = int(relation["upstream_id"])
+                    if neighbor_id is None or neighbor_id not in by_id:
+                        continue
+                    neighbor_group = assignments.get(str(by_id[neighbor_id]["name"]))
+                    if neighbor_group:
+                        vote_neighbors.setdefault(neighbor_group, set()).add(neighbor_id)
+                votes = {
+                    group_name: len(neighbor_ids)
+                    for group_name, neighbor_ids in vote_neighbors.items()
+                }
+                ranked = sorted(votes.items(), key=lambda item: (-item[1], item[0]))
+                if not ranked or ranked[0][1] < minimum_relation_votes:
+                    continue
+                if len(ranked) > 1 and ranked[0][1] == ranked[1][1]:
+                    continue
+                assignments[name] = ranked[0][0]
+                changed = True
+    return assignments
+
+
 def industry_color_class(name: Any) -> str:
     """板块名 → 5 色组 class(v2:software紫/silicon橙/optical蓝/network青/infra绿)。"""
     return "tag-" + _IND_NAME_TO_GROUP.get(str(name or ""), "default")
@@ -1120,13 +1195,24 @@ def research_home():
     # 不在 research.db 里制造没有研究正文的空行业。
     deep_by_name = {card["name"]: card for card in deep_cards}
     industry_by_name = {row["name"]: row for row in industries}
+    sector_assignments = _derive_industry_group_assignments(
+        industries,
+        _RESEARCH_SECTORS,
+    )
     sector_groups: List[Dict[str, Any]] = []
     assigned_names: set[str] = set()
     for sector_name, sector_cfg in _RESEARCH_SECTORS.items():
-        member_names = [
+        explicit_names = [
             name for name in (sector_cfg.get("industries") or [])
             if name in industry_by_name
         ]
+        inherited_names = sorted(
+            name for name, assigned_sector in sector_assignments.items()
+            if assigned_sector == sector_name
+            and name in industry_by_name
+            and name not in explicit_names
+        )
+        member_names = [*explicit_names, *inherited_names]
         assigned_names.update(member_names)
         sector_groups.append({
             "name": sector_name,
@@ -1496,22 +1582,51 @@ def industry_chain(industry_id: int):
 @app.route("/ai-chain")
 def ai_macro_chain():
     """跨板块产业链：AI 算力与半导体 + 有色金属与新能源材料。"""
-    configured_names = {
-        name
-        for sector in _RESEARCH_SECTORS.values()
-        for name in (sector.get("industries") or [])
+    industry_rows = [
+        dict(row)
+        for row in query_all("SELECT id, name, parent_id, tier, status FROM industry")
+    ]
+    all_rels = [dict(row) for row in query_all("""
+        SELECT r.*, u.name AS up_name, d.name AS down_name
+        FROM industry_relation r
+        JOIN industry u ON u.id = r.upstream_id
+        JOIN industry d ON d.id = r.downstream_id
+        ORDER BY r.id
+    """)]
+    sector_assignments = _derive_industry_group_assignments(
+        industry_rows,
+        _RESEARCH_SECTORS,
+    )
+    ai_sector_name = "AI算力与半导体产业链"
+    metal_sector_name = "有色金属与新能源材料"
+    direction_configs = {
+        str(direction.get("name")): direction
+        for direction in _AI_CHAIN_DIRECTIONS
+        if str(direction.get("name") or "").strip()
     }
-    configured_names.update(
+    eligible_ai_names = {
+        name for name, sector_name in sector_assignments.items()
+        if sector_name == ai_sector_name
+    }
+    eligible_ai_names.update(
         name
         for direction in _AI_CHAIN_DIRECTIONS
         for name in (direction.get("industries") or [])
     )
+    direction_assignments = _derive_industry_group_assignments(
+        industry_rows,
+        direction_configs,
+        relations=all_rels,
+        eligible_names=eligible_ai_names,
+        minimum_relation_votes=2,
+    )
+    configured_names = set(sector_assignments) | set(direction_assignments)
     # industry_id=11 是旧书签和历史关系使用的稳定身份。数据库迁移前仍
     # 可能叫“云服务器厂商”，公开页先按准确语义展示为“云计算与算力运营”。
     # 迁移完成后名称自然一致，行业 id 和旧链接始终不变。
     covered: Dict[str, Dict[str, Any]] = {}
-    for raw_row in query_all("SELECT id, name, tier, status FROM industry"):
-        row = dict(raw_row)
+    for row in industry_rows:
+        row = dict(row)
         public_name = (
             "云计算与算力运营"
             if int(row["id"]) == 11 and row["name"] == "云服务器厂商"
@@ -1521,13 +1636,6 @@ def ai_macro_chain():
             continue
         row["name"] = public_name
         covered[public_name] = row
-    all_rels = query_all("""
-        SELECT r.*, u.name AS up_name, d.name AS down_name
-        FROM industry_relation r
-        JOIN industry u ON u.id = r.upstream_id
-        JOIN industry d ON d.id = r.downstream_id
-        ORDER BY r.id
-    """)
     cross_rels = []
     for row in all_rels:
         public_row = dict(row)
@@ -1582,15 +1690,14 @@ def ai_macro_chain():
 
     _det = lambda i: url_for("industry_detail", industry_id=i)
 
-    ai_sector_name = "AI算力与半导体产业链"
-    metal_sector_name = "有色金属与新能源材料"
-    ai_names = set((_RESEARCH_SECTORS.get(ai_sector_name) or {}).get("industries") or [])
-    ai_names.update(
-        name
-        for direction in _AI_CHAIN_DIRECTIONS
-        for name in (direction.get("industries") or [])
-    )
-    metal_names = set((_RESEARCH_SECTORS.get(metal_sector_name) or {}).get("industries") or [])
+    ai_names = {
+        name for name, sector_name in sector_assignments.items()
+        if sector_name == ai_sector_name
+    } | set(direction_assignments)
+    metal_names = {
+        name for name, sector_name in sector_assignments.items()
+        if sector_name == metal_sector_name
+    }
 
     def _covered_node(
         name: str,
@@ -1615,7 +1722,24 @@ def ai_macro_chain():
             "url": _det(row["id"]) if row else "",
         }
 
-    chain_directions = list(_AI_CHAIN_DIRECTIONS) or [
+    chain_directions = []
+    for direction in _AI_CHAIN_DIRECTIONS:
+        direction_name = str(direction.get("name") or "")
+        explicit_names = [
+            name for name in (direction.get("industries") or [])
+            if name in covered
+        ]
+        inferred_names = sorted(
+            name for name, assigned_direction in direction_assignments.items()
+            if assigned_direction == direction_name
+            and name in covered
+            and name not in explicit_names
+        )
+        chain_directions.append({
+            **direction,
+            "industries": [*explicit_names, *inferred_names],
+        })
+    chain_directions = chain_directions or [
         {"name": "算力生成", "color": BLUE, "industries": ["半导体设备", "算力芯片", "存储", "AI服务器"]},
         {"name": "数据搬运", "color": TEAL, "industries": ["通信", "光模块", "PCB制造"]},
         {"name": "物理承载", "color": "#7c3aed", "industries": ["液冷"]},
@@ -5838,6 +5962,17 @@ def industry_valuation(industry_id: int):
             "heatmap": _valuation_heatmap(rows),
         }
 
+    # Static Markdown owns methodology, boundaries, reverse checks and the
+    # research conclusion; structured cards below keep using current finance
+    # observations. This mirrors the company-perspective separation.
+    valuation_report = load_md(
+        DOCS_DIR / "industries" / f"{ind['name']}_估值对比.md"
+    )
+    if valuation_report.get("exists"):
+        valuation_report["html"] = wrap_markdown_tables_for_scroll(
+            str(valuation_report["html"])
+        )
+
     return render_template(
         "industry_valuation.html",
         ind=ind,
@@ -5855,6 +5990,7 @@ def industry_valuation(industry_id: int):
         copper_pe_exclusions=copper_pe_exclusions,
         core_keys=VALUATION_CORE_KEYS,
         visualizations_json=json.dumps(visualizations),
+        valuation_report=valuation_report,
     )
 
 # ── 路由:研究员补充 / 反共识(Stage 2c-F 任务 D,梁总点名)────

@@ -1,0 +1,237 @@
+{
+  "schema_version": "honghu.table_ownership.v1",
+  "states": {
+    "current": "S0",
+    "authoritative_backend": "sqlite_transition"
+  },
+  "units": {
+    "shared_identity": {
+      "owner": "data-platform-governance",
+      "risk": "high",
+      "dependencies": [],
+      "objects": {
+        "research.db": [
+          "company",
+          "company_identity_alias",
+          "company_identity_redirect",
+          "company_industry",
+          "company_profile",
+          "company_sub_market_share",
+          "industry",
+          "industry_relation",
+          "researcher",
+          "theme",
+          "theme_company",
+          "theme_industry"
+        ],
+        "financial.db": [
+          "financial_security",
+          "financial_security_company_link"
+        ]
+      }
+    },
+    "research_publication": {
+      "owner": "research-publication-governance",
+      "risk": "high",
+      "dependencies": ["shared_identity"],
+      "objects": {
+        "research.db": [
+          "data_point_peer_group",
+          "industry_data_point",
+          "md_section_version",
+          "source",
+          "source_entity",
+          "source_snapshot"
+        ]
+      }
+    },
+    "dynamic_intelligence": {
+      "owner": "dynamic-intelligence-governance",
+      "risk": "medium",
+      "dependencies": ["shared_identity"],
+      "objects": {
+        "research.db": [
+          "dynamic_seen",
+          "event",
+          "news_item",
+          "opinion_leader",
+          "voice_post"
+        ]
+      }
+    },
+    "operations_governance": {
+      "owner": "operations-governance",
+      "risk": "medium",
+      "dependencies": ["shared_identity", "dynamic_intelligence"],
+      "objects": {
+        "research.db": ["fetch_schedule", "source_review_queue"]
+      }
+    },
+    "user_content_notes": {
+      "owner": "user-content-governance",
+      "risk": "low",
+      "dependencies": ["shared_identity"],
+      "objects": {
+        "research.db": ["analyst_note"]
+      }
+    },
+    "investment_hypotheses": {
+      "owner": "user-content-governance",
+      "risk": "high",
+      "dependencies": ["shared_identity", "research_publication", "dynamic_intelligence"],
+      "objects": {
+        "research.db": [
+          "company_thesis",
+          "hypothesis",
+          "hypothesis_monitoring_signal",
+          "hypothesis_trade",
+          "hypothesis_update",
+          "industry_thesis",
+          "thesis",
+          "thesis_kpi"
+        ]
+      }
+    },
+    "financial_data": {
+      "owner": "financial-data-governance",
+      "risk": "high",
+      "dependencies": ["shared_identity"],
+      "objects": {
+        "financial.db": [
+          "financial_model_input",
+          "financial_model_output",
+          "financial_model_run",
+          "financial_observation",
+          "financial_observation_revision",
+          "financial_reconciliation",
+          "financial_schema_meta",
+          "financial_source_snapshot"
+        ]
+      }
+    },
+    "opportunity_lens": {
+      "owner": "opportunity-publication-governance",
+      "risk": "high",
+      "dependencies": ["shared_identity", "research_publication", "dynamic_intelligence", "financial_data"],
+      "object_prefixes": {"opportunity_lens.db": ["opportunity_"]}
+    },
+    "sentiment_analytics": {
+      "owner": "sentiment-governance",
+      "risk": "very_high",
+      "dependencies": ["shared_identity", "dynamic_intelligence"],
+      "objects": {
+        "sentiment.db": [
+          "company_alias",
+          "company_id_redirect",
+          "event_item",
+          "event_orgid_map",
+          "funda_semi_edges",
+          "funda_semi_nodes",
+          "heat_volume_bucket",
+          "heat_volume_daily",
+          "narrative",
+          "proxy_edge",
+          "proxy_node",
+          "proxy_risk",
+          "proxy_series",
+          "recruit_change_log",
+          "recruit_job",
+          "recruit_source",
+          "retail_window_ledger",
+          "retail_window_source_run",
+          "senti_bucket_ledger",
+          "senti_company",
+          "senti_discussion_daily",
+          "senti_discussion_hourly",
+          "senti_indicator_daily",
+          "senti_indicator_hourly",
+          "senti_kline_hourly",
+          "senti_label_corpus",
+          "senti_meta",
+          "senti_news_bucket",
+          "senti_news_daily",
+          "senti_post",
+          "senti_raw",
+          "senti_raw_window",
+          "senti_retail_bucket",
+          "senti_retail_daily",
+          "senti_retail_trading_daily",
+          "senti_retail_window",
+          "senti_seen",
+          "sentiment_retention_run",
+          "sentiment_retention_window",
+          "sentiment_schema_meta",
+          "stock_kline",
+          "yuqing_feed_raw",
+          "yuqing_fetch_checkpoint",
+          "yuqing_fetch_segment_run"
+        ]
+      }
+    }
+  },
+  "operation_owner_overrides": {
+    "tools/pipeline/ensure_listed_company_profile.py": "shared_identity",
+    "tools/pipeline/refresh_company_financial_metrics.py": "financial_snapshot_bridge",
+    "tools/migrations/015_company_identity_consolidation.py": "identity_consolidation_bridge",
+    "tools/viewer/app.py:api_analyst_note_create": "user_content_notes",
+    "tools/viewer/app.py:api_analyst_note_delete": "user_content_notes",
+    "tools/viewer/app.py:api_company_thesis_upsert": "investment_hypotheses",
+    "tools/viewer/app.py:api_industry_thesis_upsert": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_create": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_edit": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_signal_add": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_signal_check": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_signal_delete": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_trade": "investment_hypotheses",
+    "tools/viewer/app.py:api_hypothesis_trade_delete": "investment_hypotheses",
+    "tools/viewer/app.py:_log_update": "investment_hypotheses",
+    "tools/viewer/app.py:api_event_analyst": "dynamic_intelligence",
+    "tools/viewer/app.py:_resolve_or_create_researcher": "shared_identity",
+    "tools/viewer/app.py:api_researcher_create": "shared_identity"
+  },
+  "operation_only_units": {
+    "financial_snapshot_bridge": {
+      "owner": "financial-data-governance",
+      "risk": "very_high",
+      "dependencies": ["shared_identity", "research_publication", "financial_data"],
+      "disposition": "refactor_or_joint_cutover"
+    },
+    "identity_consolidation_bridge": {
+      "owner": "data-platform-governance",
+      "risk": "very_high",
+      "dependencies": ["shared_identity", "financial_data", "sentiment_analytics"],
+      "disposition": "legacy_migration_only"
+    },
+    "viewer_access_boundary": {
+      "owner": "viewer-governance",
+      "risk": "high",
+      "dependencies": ["shared_identity", "research_publication", "dynamic_intelligence", "financial_data", "opportunity_lens", "sentiment_analytics"],
+      "disposition": "reader_transition"
+    },
+    "release_governance": {
+      "owner": "application-release-governance",
+      "risk": "low",
+      "dependencies": [],
+      "disposition": "non_production_fixture"
+    },
+    "legacy_migration_archive": {
+      "owner": "migration-governance",
+      "risk": "high",
+      "dependencies": [],
+      "disposition": "not_a_future_writer"
+    },
+    "test_fixture_only": {
+      "owner": "test-governance",
+      "risk": "low",
+      "dependencies": [],
+      "disposition": "non_production"
+    },
+    "manual_classification_required": {
+      "owner": "migration-governance",
+      "risk": "unknown",
+      "dependencies": [],
+      "disposition": "blocked_until_reviewed"
+    }
+  },
+  "boundary_change_policy": "human_review_required"
+}

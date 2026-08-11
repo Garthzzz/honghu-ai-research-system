@@ -19,6 +19,14 @@ from tools.pipeline import tushare_provider
 migration = importlib.import_module("tools.migrations.013_company_financial_metrics")
 
 
+class _FixedDateTime(datetime):
+    """Keep fixed-date financial fixtures deterministic across calendar days."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return cls(2026, 7, 15, 12, 0, 0, tzinfo=tz)
+
+
 BASE_SCHEMA = """
 PRAGMA foreign_keys=ON;
 CREATE TABLE industry (
@@ -103,6 +111,9 @@ def _method(field: str, *, inferred: bool = False) -> dict[str, object]:
 
 class CompanyFinancialRefreshTest(unittest.TestCase):
     def setUp(self) -> None:
+        self.datetime_patcher = mock.patch.object(refresh, "datetime", _FixedDateTime)
+        self.datetime_patcher.start()
+        self.addCleanup(self.datetime_patcher.stop)
         self.tempdir = tempfile.TemporaryDirectory()
         self.db_path = Path(self.tempdir.name) / "research-test.db"
         self.financial_db_path = Path(self.tempdir.name) / "financial.db"

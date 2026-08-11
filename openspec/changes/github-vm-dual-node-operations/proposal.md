@@ -52,3 +52,7 @@
 ### 阶段 2 授权边界
 
 用户已于 2026-08-04 批准阶段 1 退出并授权 immutable release、本地 dev/test 边界、health/preflight、代码级回滚和不切换现有生产的 VM 只读并行候选。该批准不包含 PostgreSQL、live SQLite 修改、计划任务迁移、生产 Viewer 切换、VM 写接口或 production authority。仓库在迁移和人工审核期间按用户要求保持 public，每阶段继续执行公开暴露复核。
+
+### 阶段 3 授权边界
+
+用户已于 2026-08-07 批准阶段 2 以 `STAGE 2 PASS WITH HUMAN WAIVER` 退出，并授权阶段 3 的 SQLite 依赖与事务审计、cutover unit/ownership 建模、数据访问和 migration 边界、独立 PostgreSQL dev/test、低风险非生产试点及 target RPO/RTO 提案。该批准不包含 production PostgreSQL、live SQLite 修改或迁移、计划任务迁移、生产 Viewer/writer 切换或阶段 4；阶段 3 结束仍须再次 HALT 并由用户人工批准。

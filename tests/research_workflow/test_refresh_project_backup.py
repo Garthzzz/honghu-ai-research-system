@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import io
 import sqlite3
 import tempfile
 import unittest
@@ -10,6 +11,7 @@ from pathlib import Path
 
 from tools.maintenance.refresh_project_backup import (
     LIVE_DATABASES,
+    _copy_to_zip,
     _filesystem_path,
     refresh_backup,
 )
@@ -19,6 +21,27 @@ TEST_TEMP_ROOT = Path(__file__).resolve().parents[2] / "cache"
 
 
 class RefreshProjectBackupTests(unittest.TestCase):
+    def test_streamed_member_reserves_zip64_headers(self) -> None:
+        class RecordingArchive:
+            def __init__(self) -> None:
+                self.calls: list[dict[str, object]] = []
+
+            def open(self, info, mode, **kwargs):
+                self.calls.append({"info": info, "mode": mode, **kwargs})
+                return io.BytesIO()
+
+        with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp:
+            source = Path(temp) / "large-member.bin"
+            source.write_bytes(b"backup-member")
+            archive = RecordingArchive()
+
+            result = _copy_to_zip(archive, "papers/large-member.bin", source)
+
+            self.assertEqual(result["size"], len(b"backup-member"))
+            self.assertEqual(len(archive.calls), 1)
+            self.assertEqual(archive.calls[0]["mode"], "w")
+            self.assertIs(archive.calls[0]["force_zip64"], True)
+
     def test_windows_filesystem_path_uses_extended_length_prefix(self) -> None:
         path = Path("D:/") / ("长路径" * 100) / "report.pdf"
         converted = str(_filesystem_path(path))

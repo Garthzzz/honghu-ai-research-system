@@ -18,7 +18,7 @@ from tools.portable_paths import canonical_path, relative_path
 
 ROOT = Path(__file__).resolve().parents[2]
 BEIJING = ZoneInfo("Asia/Shanghai")
-SCHEMA_VERSION = "industry_demo.required_cache_bundle.v1"
+SCHEMA_VERSION = "industry_demo.required_cache_bundle.v2"
 DATABASES = (
     "data/research.db",
     "data/sentiment.db",
@@ -69,15 +69,27 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _walk_strings(value: Any) -> Iterable[str]:
+def _walk_strings(
+    value: Any,
+    *,
+    skip_screenshot_references: bool = False,
+) -> Iterable[str]:
     if isinstance(value, str):
         yield value
     elif isinstance(value, dict):
-        for child in value.values():
-            yield from _walk_strings(child)
+        for key, child in value.items():
+            if skip_screenshot_references and "screenshot" in str(key).lower():
+                continue
+            yield from _walk_strings(
+                child,
+                skip_screenshot_references=skip_screenshot_references,
+            )
     elif isinstance(value, list):
         for child in value:
-            yield from _walk_strings(child)
+            yield from _walk_strings(
+                child,
+                skip_screenshot_references=skip_screenshot_references,
+            )
 
 
 def _candidate_from_string(root: Path, value: str) -> set[Path]:
@@ -120,14 +132,22 @@ def _candidate_from_string(root: Path, value: str) -> set[Path]:
     return found
 
 
-def _paths_from_value(root: Path, raw: str) -> set[Path]:
+def _paths_from_value(
+    root: Path,
+    raw: str,
+    *,
+    skip_screenshot_references: bool = False,
+) -> set[Path]:
     values: Iterable[str]
     try:
         parsed = json.loads(raw)
     except (TypeError, ValueError, json.JSONDecodeError):
         values = (raw,)
     else:
-        values = _walk_strings(parsed)
+        values = _walk_strings(
+            parsed,
+            skip_screenshot_references=skip_screenshot_references,
+        )
     found: set[Path] = set()
     for value in values:
         found.update(_candidate_from_string(root, value))
@@ -169,6 +189,8 @@ def _database_paths(root: Path) -> tuple[set[Path], dict[str, int]]:
                     )
                 ]
                 for column in columns:
+                    if "screenshot" in column.lower():
+                        continue
                     query = (
                         f'SELECT DISTINCT "{column}" FROM "{table}" '
                         f'WHERE instr(CAST("{column}" AS TEXT), \'cache/\') > 0 '
@@ -182,7 +204,13 @@ def _database_paths(root: Path) -> tuple[set[Path], dict[str, int]]:
                         if value is None:
                             continue
                         values_seen += 1
-                        found.update(_paths_from_value(root, str(value)))
+                        found.update(
+                            _paths_from_value(
+                                root,
+                                str(value),
+                                skip_screenshot_references=True,
+                            )
+                        )
         counts[relative] = values_seen
     return found, counts
 

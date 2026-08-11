@@ -49,6 +49,12 @@ Application code, PostgreSQL data, user-content revision history, and papers/evi
 ### Requirement: Target and measured recovery objectives are distinct gates
 Target recovery-point and recovery-time objectives SHALL be approved by data class before production data cutover, while measured recovery-point and recovery-time results SHALL be obtained from real whole-database, side-domain, and bare-machine recovery exercises before final production migration acceptance.
 
+The migration/cutover authority-control class SHALL separately protect cutover-unit S0-S4 state, authoritative backend and unique writer identity, cutover epoch, source and target watermarks, routing state, verification-write classification, uncertain-commit reconciliation, and its audit ledger. An authority transition SHALL NOT be acknowledged until those records are durable, and production writes SHALL remain fenced until the recovered authority state is independently verified. This stricter class SHALL NOT be replaced by the ordinary dynamic/task-state objective.
+
+#### Scenario: Authority-control state is unavailable during recovery
+- **WHEN** the system cannot prove the owning cutover unit, authoritative backend, unique writer, cutover epoch, watermarks, or unresolved commit status
+- **THEN** production writes SHALL remain fenced, SQLite write authority SHALL NOT be inferred or restored, and the recovery SHALL be reported as missing its authority-control target rather than reconstructed from application defaults
+
 #### Scenario: Production topology is proposed
 - **WHEN** PostgreSQL co-location, separation, continuous archiving, PITR, replicas, or backup frequency are evaluated
 - **THEN** the proposal SHALL show which data is nearly intolerant of loss, which can be refetched, which cannot be refetched, and which restoration priorities justify the selected controls

@@ -251,6 +251,17 @@ TEXT_EXTENSIONS = {
     ".sql", ".toml", ".txt", ".yaml", ".yml",
 }
 
+# These workflow artifact names are intentionally reused by every research run.
+# A bare basename must not keep an unrelated exact path alive forever. Full
+# POSIX/Windows relative paths remain reference tokens, so real references are
+# still protected.
+AMBIGUOUS_REFERENCE_BASENAMES = {
+    "brief.json",
+    "calculation_ledger.json",
+    "manifest.json",
+    "workflow_request.json",
+}
+
 REFERENCE_SCAN_PREFIXES = (
     ".codex/", "AGENTS.md", "config/", "codex_context/", "docs/", "openspec/",
     "opportunity_lens/", "skills/", "templates/", "tests/", "tools/", "审核代理/",
@@ -703,7 +714,15 @@ def _build_reference_map(
         for token in {
             rel,
             rel.replace("/", "\\"),
-            basename if include_basename and len(basename) >= 8 else "",
+            (
+                basename
+                if (
+                    include_basename
+                    and len(basename) >= 8
+                    and basename.lower() not in AMBIGUOUS_REFERENCE_BASENAMES
+                )
+                else ""
+            ),
         }:
             if token:
                 token_owners[token].add(rel)
