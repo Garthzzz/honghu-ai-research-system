@@ -1,0 +1,19 @@
+{
+  "schema_version": "honghu.postgresql_runtime.v2",
+  "enabled": false,
+  "host": "",
+  "port": 5432,
+  "dbname": "",
+  "sslmode": "verify-full",
+  "reader": {
+    "user": "",
+    "credential_service": "honghu.postgresql.user-content.reader.v1",
+    "credential_account": ""
+  },
+  "writer": {
+    "user": "",
+    "credential_service": "honghu.postgresql.user-content.writer.v1",
+    "credential_account": ""
+  },
+  "connect_timeout_seconds": 5
+}

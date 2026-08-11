@@ -17,6 +17,7 @@ plotly>=5.20
 Pillow>=10.0
 playwright>=1.45
 keyring>=25.0
+psycopg[binary]>=3.2
 
 # 数据源政策：A 股 Wind 仅走项目固定内网 HTTP 代理，Tushare 按字段补缺；
 # 海外以 yfinance 为主，Akshare 继续禁止。Playwright 默认复用本机 Chrome；

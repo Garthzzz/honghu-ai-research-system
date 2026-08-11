@@ -27,6 +27,26 @@
       "sunset_condition": "Remove after all production cutover units have left SQLite and the transition schema auditor is retired."
     },
     {
+      "path": "tools/migration/stage4_identity_mapping.py",
+      "domain": "user-content stable identity migration audit",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "Stage 4 freezes company, industry and theme legacy-to-stable identities through one bounded URI mode=ro connection to the transition-era research database; the tool never mutates SQLite and its row-level output remains outside Git.",
+      "owner": "user-content cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes and shared_identity",
+      "sunset_condition": "Remove after shared_identity is authoritative in PostgreSQL and the transition mapping bridge is retired."
+    },
+    {
+      "path": "tools/migration/stage4_identity_mapping.py",
+      "domain": "user-content stable identity migration audit",
+      "rule": "pragma",
+      "max_count": 2,
+      "reason": "The read-only identity freezer enforces query_only and inspects table metadata to bind schema/content watermarks; it does not execute mutating PRAGMAs.",
+      "owner": "user-content cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes and shared_identity",
+      "sunset_condition": "Remove after shared_identity is authoritative in PostgreSQL and the transition mapping bridge is retired."
+    },
+    {
       "path": "tools/opportunity_lens/silicon_review_recorder.py",
       "domain": "opportunity_lens publication review",
       "rule": "begin_immediate",

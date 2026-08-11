@@ -45,6 +45,8 @@ def test_stage4_expand_preserves_0001_and_adds_cutover_contract() -> None:
     assert "UNVERIFIED ENTITY IDENTITY MAPPING" in upper
     assert "REGISTER_USER_CONTENT_NOTES_DEPENDENCY_MAPPING" in upper
     assert "DEPENDENCY MAPPING CHANGES ARE FENCED IN THE CURRENT AUTHORITY STATE" in upper
+    assert "STABLE BUSINESS IDENTITIES ARE DELIBERATELY MANY-TO-ONE" in upper
+    assert "STABLE DEPENDENCY IDENTITY IS ALREADY MAPPED" not in upper
     assert "PUT_ANALYST_NOTE_V2" in upper
     assert "SOFT_DELETE_ANALYST_NOTE_V2" in upper
     assert "PROMOTE_USER_CONTENT_NOTES_ON_FIRST_FORMAL_MUTATION" in upper
@@ -52,6 +54,8 @@ def test_stage4_expand_preserves_0001_and_adds_cutover_contract() -> None:
     assert "REVOKE ALL ON FUNCTION" in upper
     assert "SECURITY DEFINER" in upper
     assert "ANALYST_NOTE_READ_V1" in upper
+    assert "USER_CONTENT_NOTES_AUTHORITY_V1" in upper
+    assert "ANALYST_NOTE_IDENTITY_V1" in upper
 
 
 def test_stage4_role_grants_keep_application_roles_off_base_tables() -> None:
@@ -61,6 +65,8 @@ def test_stage4_role_grants_keep_application_roles_off_base_tables() -> None:
     upper = sql.upper()
     assert "REVOKE ALL ON ALL TABLES" in upper
     assert "GRANT SELECT ON USER_CONTENT.ANALYST_NOTE_READ_V1" in upper
+    assert "GRANT SELECT ON USER_CONTENT.ANALYST_NOTE_IDENTITY_V1" in upper
+    assert "GRANT SELECT ON OPERATIONS.USER_CONTENT_NOTES_AUTHORITY_V1" in upper
     assert "GRANT EXECUTE ON FUNCTION USER_CONTENT.PUT_ANALYST_NOTE_V2" in upper
     assert "GRANT EXECUTE ON FUNCTION OPERATIONS.TRANSITION_USER_CONTENT_NOTES" in upper
     assert "GRANT EXECUTE ON FUNCTION OPERATIONS.REGISTER_USER_CONTENT_NOTES_DEPENDENCY_MAPPING" in upper
@@ -90,6 +96,8 @@ def test_stage4_rehearsal_covers_state_and_compatibility_failures() -> None:
     assert "STAGE4-S4-APPROVED" in upper
     assert "UNMAPPED DEPENDENCY UNEXPECTEDLY SUCCEEDED" in upper
     assert "STAGE4-INCREMENTAL-MAPPING-APPROVED" in upper
+    assert upper.count("COMPANY:COHU:US-EQUITY") >= 3
+    assert "STABLE_ALIAS_COUNT" in upper
     assert "STALE UPDATE UNEXPECTEDLY SUCCEEDED" in upper
     assert "SOFT_DELETE_ANALYST_NOTE_V2" in upper
     assert "AUTHORITY_STATE" in upper
@@ -128,3 +136,13 @@ def test_rehearsal_cleanup_does_not_mask_primary_failure() -> None:
     assert "primary_error.add_note(message)" in source
     assert "drop database" in source
     assert "drop role" in source
+
+
+def test_rehearsal_executes_real_reader_writer_adapter_contract() -> None:
+    source = (ROOT / "tools/migration/stage4_user_content_rehearsal.py").read_text(
+        encoding="utf-8"
+    )
+    assert "_run_adapter_rehearsal" in source
+    assert "stale_route_fenced" in source
+    assert "schema_compatible_reader" in source
+    assert "reader_writer_roles_distinct" in source

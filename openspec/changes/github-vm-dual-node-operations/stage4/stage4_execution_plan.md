@@ -18,8 +18,8 @@
 - [x] 让 S2 首个合法 create/update/soft-delete formal mutation 与 S3 authority revision 原子提交，并要求 operator、approval reference、expected state/revision 和 writer identity；无效 delete 不得推进 authority。
 - [x] 以数据库约束和 controller wrapper 双重固定 S0—S4 backend/state invariant；S3→S4 保留 authority identity、formal watermark，并要求不可复用的独立批准引用。
 - [x] 明确 shared identity 仍由 SQLite authority 管理期间的 mapping bridge：S2 冻结；S1/S3/S4 仅允许带 expected authority revision、source evidence、批准和审计的增量登记；未映射实体 fail-closed。
-- [ ] 建立显式 backend route 和 operation-level writer fence；默认保持 SQLite/S0，production PG 路由必须双重显式授权。
-- [ ] 对 create/update/soft-delete/list 增加 repository-level dev/test adapter 与 fail-closed 测试；不接通 production endpoint。
+- [x] 建立显式 backend route 和 operation-level writer fence；默认保持 SQLite/S0，production PG 路由必须双重显式授权。
+- [x] 对 create/update/soft-delete/list 增加 repository-level dev/test adapter 与 fail-closed 测试；production 配置缺失时接口关闭，不切换 live backend。
 
 **退出条件：** 代码具备演练能力，但 production backend 仍不可选，live SQLite/Viewer 不变。
 
@@ -28,7 +28,7 @@
 - [x] 仅使用 loopback、非 production 名称和隔离凭据启动 dev/test PostgreSQL。
 - [x] 对空源与非空合成源分别执行 expand、backfill、mapping、count/field/invariant reconciliation。
 - [x] 演练 S1 放弃、S2 在零正式新写下撤回，以及 S2 uncertain response 按 S3 幂等收口。
-- [ ] 在应用 adapter 完成后补演练 S3 前向修复和兼容代码回滚；旁路单域 restore 已完成。
+- [x] 以真实 adapter 的稳定 operation replay 演练 S3 前向修复，并以 additive read view 演练 schema-compatible code read rollback；旁路单域 restore 已完成。
 - [x] 验证 least privilege、无 DDL 应用角色、无跨单元写权限和无 silent SQLite fallback。
 - [x] 生成 Git 外 rehearsal evidence，记录 migration/config/source/target/restore identity；测试库和 listener 完成后销毁。
 - [x] 演练前后验证四套 live SQLite 文件身份不变。
@@ -55,3 +55,18 @@
 - [ ] HALT，等待用户决定是否批准首单元实际 production 执行；不得进入 S2/S3。
 
 **本轮不会勾选：** `tasks.md` 中任何要求实际切换 production writer、产生正式 PG 新写入、完成 S3/S4 或稳定观察期的项目。
+
+## 下一轮：`user_content_notes` production-readiness blocker 收口
+
+- [x] 合并已批准 PR #7，并核验 merge commit `c5b20fbf99e63104f787521173dc8ec8cca70951` 的 main required CI。
+- [x] 只读审计当前 analyst-note API、SQLite/PG repository 差距、认证/CSRF、stable identity、topology/recovery 和 repository governance。
+- [x] 冻结本轮有界设计并完成 DeepSeek 第一轮脱敏反驳；接受独立 SQLite writer fence，拒绝修改 live SQLite、统一 UUID 和 Git 内容同步等越界建议。
+- [x] 建立显式 backend route、operation-level repository、SQLite writer fence 和无 silent fallback 测试；tracked 默认保持 S0/SQLite。
+- [x] 完成 create/update/delete/list 的兼容响应、PG revision/idempotency/soft-delete adapter 和错误分类。
+- [x] 建立可信 principal、最小授权与 CSRF；audit actor 不接受客户端自由字符串，缺少 Git 外安全配置时 fail-closed。
+- [x] 生成 company/industry/theme/industry_q 的 Git 外只读 mapping freeze，验证 legacy identity、层级、watermark、evidence identity 和受审 alias group。
+- [x] 用真实隔离 PostgreSQL 完成 adapter-level S3 forward repair 与 schema-compatible read rollback rehearsal。
+- [x] 建立 production topology/recovery/governance fail-closed preflight；没有现场证据的 gate 保持 blocked，且不会自行授权 production cutover。
+- [ ] 完成实现后 DeepSeek reviewer、完整测试、OpenSpec strict、push/PR CI、readiness evidence 和最终 HALT。
+
+**禁止：** production PostgreSQL 安装/启用、live SQLite 修改、reader/writer/backend 切换、S2/S3、任务或 production Viewer/runner 切换。

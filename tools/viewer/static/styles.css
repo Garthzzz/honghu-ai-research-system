@@ -1706,6 +1706,11 @@ h1 { letter-spacing: -.015em; }
 .cp-flag-todo { background:#fee2e2; color:#b91c1c; font-weight:700; }
 
 /* —— 研究员补充 / 反共识 编辑器 —— */
+.an-auth { display:flex; justify-content:space-between; align-items:center; gap:12px; margin:10px 0 14px; padding:10px 12px; border:1px solid #dbe4f0; border-radius:9px; background:#f8fafc; color:#334155; font-size:12px; }
+.an-auth-status { margin-left:8px; color:#64748b; }
+.an-auth-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.an-auth-controls label { display:flex; align-items:center; gap:5px; color:#475569; }
+.an-auth-controls input { width:135px; border:1px solid #cbd5e1; border-radius:6px; padding:5px 7px; }
 .an-editor { margin-top:10px; border-top:1px dashed #e2e8f0; padding-top:8px; }
 .an-summary { cursor:pointer; font-size:13px; font-weight:600; color:#4f46e5; padding:4px 0; list-style:none; }
 .an-summary::-webkit-details-marker { display:none; }

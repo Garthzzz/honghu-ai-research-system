@@ -62,7 +62,7 @@ target 与 measured 必须分开。Stage 3 已批准的目标是 authority trans
 | first formal watermark | S3/S4 必有且能关联幂等 operation | 按 S3 保守处理，禁止 SQLite fallback |
 | writer | 只有批准 session role 可执行首单元函数 | 撤销凭据并 fence |
 | idempotency/revision | duplicate retry 同结果；stale update 显式冲突 | 停止发布新 writer release |
-| mapping | legacy id 与 stable key 唯一、source watermark/evidence 可验证；S2 映射冻结，S1/S3/S4 增量登记有 expected authority revision、approval 和 audit | 拒绝 mutation |
+| mapping | legacy identity 唯一且 source watermark/evidence 可验证；已核验的多个 legacy alias 可汇聚到同一 stable identity并逐条审计；S2 映射冻结，S1/S3/S4 增量登记有 expected authority revision、approval 和 audit | 拒绝 mutation |
 | audit | 每次 create/update/delete 和 state transition 无 gap | fence writer并恢复 audit |
 | backup/WAL | freshness 达到 target，最近 restore evidence 有效 | 不进入 S2或保持停写 |
 | SQLite fence | S2 后 mutation path 不可达 | 任何双 writer 立即停止 cutover |
@@ -75,6 +75,7 @@ target 与 measured 必须分开。Stage 3 已批准的目标是 authority trans
 - [ ] 应用 repository/adapter 已接入显式 route，默认 S0，production 路由需双重开关；
 - [ ] create/update/delete/list 兼容、authentication、authorization、CSRF 已通过浏览器/API 审核，且 audit actor 由可信认证 principal 派生而非客户端自由字符串；
 - [ ] stable entity mapping 对 company/industry/theme 全量验证，并有 SQLite authority 仍可能新增实体时的只读 resolver、受控增量登记和冲突处置现场证据；
+- [ ] readiness preflight 逐项读取并验证 topology、ACL、credential lifecycle、off-VM backup/restore、repository governance 与 cutover-window evidence 本体及其交叉身份；boolean/reference/SHA 格式检查只能作为入口，不能替代现场事实验证；
 - [ ] production PG topology、角色、凭据、服务和网络现场验收；
 - [ ] 在进入首单元 S2 前完成该 unit 的 VM 外 backup、PITR/等价增量路径、整库和旁路单域 restore 现场演练；Stage 5 的系统级 measured RPO/RTO 不能替代此 gate；
 - [ ] authority control 的零 acknowledged loss 机制有恢复证据；

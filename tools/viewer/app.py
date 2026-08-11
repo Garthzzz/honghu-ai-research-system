@@ -31,6 +31,7 @@ import re
 import sqlite3
 import subprocess
 import traceback
+import uuid
 from bisect import bisect_left, bisect_right
 from datetime import datetime
 from pathlib import Path
@@ -58,11 +59,38 @@ from tools.financial.read_models import (  # noqa: E402
     peer_asset_return_rows as financial_peer_asset_return_rows,
 )
 from tools.financial.valuation import historical_pb_roa, historical_pb_roe  # noqa: E402
+from tools.data_platform.postgres_runtime import (  # noqa: E402
+    build_postgres_connection_factory,
+    load_postgres_runtime_settings,
+)
+from tools.data_platform.routing import (  # noqa: E402
+    Backend as DataBackend,
+    load_cutover_route,
+)
+from tools.data_platform.user_content_notes import (  # noqa: E402
+    AnalystNoteError,
+    AnalystNoteMutation,
+    build_analyst_note_repository,
+)
+from tools.migration.stage4_identity_mapping import (  # noqa: E402
+    IdentityMappingError,
+    IdentityMappingResolver,
+)
 from tools.viewer.lithium_runtime import resolve_inputs as resolve_lithium_inputs  # noqa: E402
 from tools.runtime_paths import (  # noqa: E402
     readonly_candidate_enabled,
     resolve_content_reference,
     resolve_runtime_layout,
+)
+from tools.viewer.user_content_security import (  # noqa: E402
+    UserContentSecurityError,
+    authenticate as authenticate_user_content,
+    clear_principal as clear_user_content_principal,
+    configure_user_content_security,
+    current_principal as current_user_content_principal,
+    ensure_csrf_token as ensure_user_content_csrf_token,
+    load_security_settings,
+    require_principal as require_user_content_principal,
 )
 
 RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
@@ -205,6 +233,38 @@ app = Flask(
 )
 app.config["HONGHU_READ_ONLY_CANDIDATE"] = readonly_candidate_enabled()
 app.config["OPPORTUNITY_LENS_DB_PATH"] = OPPORTUNITY_DB_PATH
+
+USER_CONTENT_TRACKED_ROUTE = ROOT / "config" / "migration" / "user_content_backend_route.json"
+USER_CONTENT_RUNTIME_ROUTE = os.environ.get("HONGHU_USER_CONTENT_ROUTE_CONFIG")
+USER_CONTENT_ROUTE = load_cutover_route(
+    USER_CONTENT_TRACKED_ROUTE,
+    runtime_override=USER_CONTENT_RUNTIME_ROUTE,
+)
+USER_CONTENT_IDENTITY_RESOLVER = (
+    IdentityMappingResolver.from_path(os.environ["HONGHU_USER_CONTENT_IDENTITY_MAPPING"])
+    if os.environ.get("HONGHU_USER_CONTENT_IDENTITY_MAPPING")
+    else None
+)
+USER_CONTENT_POSTGRES_READ_FACTORY = None
+USER_CONTENT_POSTGRES_WRITE_FACTORY = None
+if USER_CONTENT_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
+    runtime_path = os.environ.get("HONGHU_USER_CONTENT_POSTGRES_CONFIG")
+    if not runtime_path:
+        raise RuntimeError("PostgreSQL user-content route requires runtime connection config")
+    if USER_CONTENT_IDENTITY_RESOLVER is None:
+        raise RuntimeError("PostgreSQL user-content route requires a frozen identity mapping")
+    postgres_settings = load_postgres_runtime_settings(runtime_path)
+    USER_CONTENT_POSTGRES_READ_FACTORY = build_postgres_connection_factory(
+        postgres_settings, role="reader"
+    )
+    USER_CONTENT_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
+        postgres_settings, role="writer"
+    )
+
+configure_user_content_security(
+    app,
+    load_security_settings(os.environ.get("HONGHU_USER_CONTENT_SECURITY_CONFIG")),
+)
 
 try:
     from .opportunity_lens_blueprint import opportunity_lens_bp
@@ -603,6 +663,34 @@ def query_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
         return row_to_dict(cur.fetchone())
     finally:
         conn.close()
+
+
+def analyst_note_repository():
+    return build_analyst_note_repository(
+        USER_CONTENT_ROUTE,
+        sqlite_connection_factory=get_db,
+        postgres_read_connection_factory=USER_CONTENT_POSTGRES_READ_FACTORY,
+        postgres_write_connection_factory=USER_CONTENT_POSTGRES_WRITE_FACTORY,
+    )
+
+
+def analyst_note_entity_key(entity_type: str, entity_id: str | int) -> str:
+    if USER_CONTENT_ROUTE.backend is DataBackend.SQLITE_TRANSITION:
+        return f"sqlite-transition:{entity_type}:{entity_id}"
+    if USER_CONTENT_IDENTITY_RESOLVER is None:
+        raise IdentityMappingError("frozen user-content identity mapping is unavailable")
+    return USER_CONTENT_IDENTITY_RESOLVER.resolve(entity_type, entity_id)
+
+
+def _user_content_error(exc: Exception):
+    if isinstance(exc, (UserContentSecurityError, AnalystNoteError)):
+        return jsonify({"ok": False, "error": str(exc), "code": exc.code}), exc.http_status
+    if isinstance(exc, IdentityMappingError):
+        return jsonify(
+            {"ok": False, "error": str(exc), "code": "identity_mapping_missing"}
+        ), 409
+    log.exception("user-content operation failed")
+    return jsonify({"ok": False, "error": "user-content operation failed"}), 500
 
 
 # ── 独立 sentiment.db(情绪/事件/代理/专题);C1:research.db 仅【只读】ATTACH ──
@@ -6003,6 +6091,80 @@ def _note_payload():
     return request.form.to_dict() if request.form else {}
 
 
+def _normalize_note_entity_id(entity_type: str, raw: Any) -> str:
+    value = str(raw or "").strip()
+    if entity_type == "theme":
+        if not value:
+            raise ValueError("theme id is empty")
+        return value
+    return str(int(value))
+
+
+@app.route("/api/user-content/session", methods=["GET"])
+def api_user_content_session():
+    if not app.config.get("HONGHU_USER_CONTENT_SECURITY_READY"):
+        return jsonify(
+            {
+                "ok": True,
+                "security_ready": False,
+                "authenticated": False,
+                "mutation_enabled": False,
+            }
+        )
+    try:
+        principal = current_user_content_principal(app, request)
+        return jsonify(
+            {
+                "ok": True,
+                "security_ready": True,
+                "authenticated": principal is not None,
+                "principal": principal.subject if principal else None,
+                "permissions": sorted(principal.permissions) if principal else [],
+                "csrf_token": ensure_user_content_csrf_token(app),
+                "mutation_enabled": bool(
+                    principal and "analyst_note:write" in principal.permissions
+                ),
+            }
+        )
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/user-content/login", methods=["POST"])
+def api_user_content_login():
+    d = _note_payload()
+    try:
+        principal = authenticate_user_content(
+            app,
+            request,
+            subject=str(d.get("subject") or "").strip(),
+            password=str(d.get("password") or ""),
+            csrf_token=str(request.headers.get("X-CSRF-Token") or d.get("csrf_token") or ""),
+        )
+        return jsonify(
+            {
+                "ok": True,
+                "principal": principal.subject,
+                "permissions": sorted(principal.permissions),
+                "csrf_token": ensure_user_content_csrf_token(app),
+            }
+        )
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/user-content/logout", methods=["POST"])
+def api_user_content_logout():
+    try:
+        require_user_content_principal(
+            app, request, permission="analyst_note:read", csrf=True
+        )
+        clear_user_content_principal()
+        return jsonify({"ok": True})
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
 @app.route("/api/analyst_note", methods=["POST"])
 def api_analyst_note_create():
     d = _note_payload()
@@ -6011,46 +6173,104 @@ def api_analyst_note_create():
     if entity_type not in ("company", "industry", "industry_q", "theme") or not content:
         return jsonify({"ok": False, "error": "entity_type 非法或 content 为空"}), 400
     try:
-        entity_id = int(d.get("entity_id"))
+        entity_id = _normalize_note_entity_id(entity_type, d.get("entity_id"))
     except Exception:
         return jsonify({"ok": False, "error": "entity_id 非法"}), 400
-    conn = get_db()
     try:
-        cur = conn.execute(
-            """INSERT INTO analyst_note(entity_type, entity_id, q_number, note_type, title, content, author)
-               VALUES(?,?,?,?,?,?,?)""",
-            (entity_type, entity_id, (d.get("q_number") or None),
-             (d.get("note_type") or "general"), (d.get("title") or None),
-             content, (d.get("author") or "zhengze")),
+        principal = require_user_content_principal(
+            app, request, permission="analyst_note:write", csrf=True
         )
-        conn.commit()
-        nid = cur.lastrowid
-    finally:
-        conn.close()
-    row = query_one("SELECT * FROM analyst_note WHERE id=?", (nid,))
-    return jsonify({"ok": True, "note": row})
+        expected_revision = int(d.get("expected_revision", 0))
+        idempotency_key = str(
+            request.headers.get("X-Idempotency-Key") or d.get("idempotency_key") or ""
+        ).strip()
+        if not idempotency_key:
+            return jsonify(
+                {"ok": False, "error": "缺少 idempotency key", "code": "idempotency_required"}
+            ), 400
+        note_key = str(d.get("note_key") or f"note:{uuid.uuid4()}").strip()
+        entity_key = analyst_note_entity_key(entity_type, entity_id)
+        mutation = AnalystNoteMutation(
+            note_key=note_key,
+            entity_type=entity_type,
+            legacy_entity_id=entity_id,
+            entity_key=entity_key,
+            q_label=(str(d.get("q_number")).strip() if d.get("q_number") else None),
+            note_type=str(d.get("note_type") or "general").strip(),
+            title=(str(d.get("title")).strip() if d.get("title") else None),
+            content=content,
+            expected_revision=expected_revision,
+            idempotency_key=idempotency_key,
+        )
+        note = analyst_note_repository().put(mutation, actor=principal.subject)
+        return jsonify({"ok": True, "note": note.to_dict()})
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "expected_revision 非法"}), 400
+    except Exception as exc:
+        return _user_content_error(exc)
 
 
-@app.route("/api/analyst_note/<entity_type>/<int:entity_id>", methods=["GET"])
-def api_analyst_note_list(entity_type: str, entity_id: int):
+@app.route("/api/analyst_note/<entity_type>/<entity_id>", methods=["GET"])
+def api_analyst_note_list(entity_type: str, entity_id: str):
     q_number = (request.args.get("q") or "").strip()
-    sql = "SELECT * FROM analyst_note WHERE entity_type=? AND entity_id=?"
-    params: List[Any] = [entity_type, entity_id]
-    if q_number:
-        sql += " AND q_number=?"; params.append(q_number)
-    sql += " ORDER BY created_at DESC, id DESC"
-    return jsonify({"ok": True, "notes": query_all(sql, tuple(params))})
+    try:
+        if entity_type not in ("company", "industry", "industry_q", "theme"):
+            return jsonify({"ok": False, "error": "entity_type 非法"}), 400
+        entity_id = _normalize_note_entity_id(entity_type, entity_id)
+        require_user_content_principal(
+            app, request, permission="analyst_note:read", csrf=False
+        )
+        entity_key = analyst_note_entity_key(entity_type, entity_id)
+        notes = analyst_note_repository().list_notes(
+            entity_type=entity_type,
+            legacy_entity_id=entity_id,
+            entity_key=entity_key,
+            q_label=q_number or None,
+        )
+        return jsonify({"ok": True, "notes": [note.to_dict() for note in notes]})
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+def _delete_analyst_note(note_key: str):
+    d = _note_payload()
+    try:
+        principal = require_user_content_principal(
+            app, request, permission="analyst_note:write", csrf=True
+        )
+        expected_revision = int(d.get("expected_revision"))
+        idempotency_key = str(
+            request.headers.get("X-Idempotency-Key") or d.get("idempotency_key") or ""
+        ).strip()
+        if not idempotency_key:
+            return jsonify(
+                {"ok": False, "error": "缺少 idempotency key", "code": "idempotency_required"}
+            ), 400
+        note = analyst_note_repository().soft_delete(
+            note_key=note_key,
+            expected_revision=expected_revision,
+            idempotency_key=idempotency_key,
+            actor=principal.subject,
+        )
+        return jsonify({"ok": True, "note": note.to_dict()})
+    except (ValueError, TypeError):
+        return jsonify({"ok": False, "error": "expected_revision 非法"}), 400
+    except Exception as exc:
+        return _user_content_error(exc)
 
 
 @app.route("/api/analyst_note/<int:note_id>", methods=["DELETE"])
 def api_analyst_note_delete(note_id: int):
-    conn = get_db()
     try:
-        conn.execute("DELETE FROM analyst_note WHERE id=?", (note_id,))
-        conn.commit()
-    finally:
-        conn.close()
-    return jsonify({"ok": True})
+        note_key = analyst_note_repository().note_key_from_legacy_id(note_id)
+        return _delete_analyst_note(note_key)
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/analyst_note/key/<path:note_key>", methods=["DELETE"])
+def api_analyst_note_delete_by_key(note_key: str):
+    return _delete_analyst_note(note_key)
 
 
 @app.route("/api/company_thesis", methods=["POST"])

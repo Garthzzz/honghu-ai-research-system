@@ -387,3 +387,37 @@ DeepSeek关于 backend、writer、epoch、SQLite watermark、mapping fail-closed
 第二轮已进一步明确 authority row 使用 `FOR UPDATE`、应用 writer 无 operations schema/helper 权限、legacy row 以 revision 1 接受首笔 delete、旁路 restore 只是灾备验证。DeepSeek仍声称 authority 没有行锁、writer 应直接取得内部 helper 权限，并再次混淆业务 restore 与旁路恢复；这些意见与真实实现和最小权限合同相反，也没有给出可复现触发输入，全部拒绝。连续两轮没有有效增量后停止第三轮。
 
 最终依据是：失败的 missing delete 后 unit-specific S2 verification 仍成功；对非空 backfill 的首笔 soft-delete 与 audit、idempotency、first-formal watermark 和 S2→S3 revision 同事务；uncertain-response replay 不产生重复 revision；S4 与 pg_dump 旁路恢复均保留 delete-first watermark；live SQLite 前后 schema 和文件哈希不变。audit actor 必须来自可信认证 principal 仍是下一轮 adapter/auth production blocker，未被本轮演练冒充为已实现。
+
+## 阶段 4 `user_content_notes` production-readiness 收口复核（2026-08-12 追加）
+
+> 实际轮次：2 轮，其中第一轮在实现前审查有界设计，第二轮在实现与真实 PostgreSQL 演练后审查聚合事实。Codex没有向外部模型发送 key、Cookie、源码全文、数据库行、papers、用户内容、内网地址、凭据或 Git 外原始 evidence。
+
+### Codex 独立实现与真实修订
+
+Codex先审计 live Viewer 的 analyst-note 写路径，确认原实现直接使用 SQLite、请求 body 可提供 actor、没有认证/授权/CSRF、DELETE 为硬删除。修订建立显式 S0/SQLite 默认 route、无 fallback 的 operation-level repository、独立 PostgreSQL reader/writer role、可信 session principal、权限与 CSRF、Git 外 Credential Manager 配置，以及 fail-closed production readiness preflight。tracked 默认 route 仍为 S0，production route、凭据、拓扑和恢复证据缺一即关闭，未改变 live Viewer backend。
+
+只读 stable-identity freeze 发现真实 legacy 别名：两个历史 company id 都指向 COHU。最初“一条 stable key 只能对应一个 legacy id”的假设因此被否定。Codex把合同修订为“legacy identity 唯一、stable identity 允许经核验的多对一 alias”，逐 alias 保存 watermark、evidence、批准和审计，并在真实 PostgreSQL 演练中验证两个 alias 可同时登记且旁路恢复后仍为两条。最终 mapping 共 774 条、collision 0、alias group 1；原始映射保留在 Git 外。
+
+### DeepSeek意见与 Codex判断
+
+第一轮中唯一有价值的抽象提醒是应用侧必须独立证明 SQLite writer fence，不能只依赖“PG enabled”；该要求已进入显式 route 和 repository factory。其余把既有 SQL revision/idempotency/mapping 当作缺失、要求修改 live SQLite、统一 UUID 或建立内容 Git 同步的意见，与冻结合同和代码事实冲突，拒绝。
+
+第二轮在收到明确的实现与测试摘要后，仍建议 S0 双写、失败时 SQLite/PG 互相 fallback、按用户 hash 分片灰度、Redis/JWT、动态配置中心、固定 7 天观察期和新审批系统。这些建议不仅没有可复现的项目内触发路径，还直接违反“单一权威 writer、禁止双写和 silent fallback、不扩张基础设施”的已批准合同，全部拒绝。第二轮未产生有效信息增量，停止第三轮。
+
+最终依据是 621 个 core pytest、55 个 subtest、32 个 Stage 4 定向测试、真实 PostgreSQL 17 migration/ACL/adapter/alias/dump/restore 演练、四套 live SQLite 前后哈希不变、OpenSpec strict 与远端 required CI，而不是外部 reviewer verdict。production topology、VM 外 backup/WAL/restore、repository 公司控制权和正式 cutover window 仍由 preflight 如实保持 BLOCKED。
+
+## 阶段 4 PR #8 浏览器幂等与 stable identity 窄范围复核（2026-08-12 追加）
+
+> 实际轮次：1 轮。Codex 先独立检查浏览器并发竞态、774 条只读 identity mapping 和 production-readiness 边界，再向 DeepSeek 发送不含源代码、数据库行、路径、凭据、papers、用户内容或 Git 外 evidence 的脱敏合同摘要。第一轮没有可复现信息增量，按约束停止，不为凑轮次继续调用。
+
+### Codex 独立诊断与修订
+
+原浏览器 create 虽然能在单次 uncertain response 后保存 identity，但两个同内容点击可能在异步 fingerprint 完成前分别创建 identity，或者并发请求先后结束时错误释放 pending identity。Codex增加 scope 级 in-flight 协调：同内容并发共享同一 Promise 且只发送一次 HTTP 请求，并发改内容 fail-closed；sessionStorage 继续只保存 note key、operation id 与 payload SHA256。真实 JavaScript 测试覆盖响应丢失、5xx、明确 4xx、响应解析失败、reload 式重放、双击竞态和并发内容变化。
+
+只读审计确认 399 个有 ticker 的 company 中，348 个 ticker 带交易所后缀、51 个为裸 ticker；ticker 并非全局 qualified。stable key 因此改为 ticker+venue。唯一重复 ticker COHU 的两个 legacy id 按用户确认的显式 alias approval 合并；TER 的 venue 缺口依据既有 verified security、US exchange 与行情来源作 Codex 只读审计 override，但整个 mapping 仍缺 production cutover 人工批准引用，readiness 保持 BLOCKED。任何未批准 collision、未使用 approval/override 或 venue 冲突均 fail-closed。
+
+### DeepSeek 意见与 Codex 判断
+
+DeepSeek要求 stable identity 包含 ticker+venue、显式处理 alias、保留 ACL/idempotency，并在 production 前验证现场 evidence；这些均已实现或明确保留为下一轮 blocker，没有形成新修订。它同时建议 uncertain response 后不要复用 identity、强制 reload；这与已批准的“同一逻辑 mutation 使用同一 operation identity 查询/重放”合同冲突，而且 reload 并不能证明数据库未提交，因此拒绝。其对 Redis、监控或 production preflight 扩建的泛化建议不属于本轮窄范围，也未给出可复现触发输入，未采纳。
+
+本轮外部 reviewer 没有发现新的可复现 must-fix。最终判断仍由真实 JavaScript 状态机测试、完整 core tests、隔离 PostgreSQL rehearsal、只读 live SQLite 哈希、OpenSpec strict 和最终远端 required CI 负责；DeepSeek 不构成 production 授权。

@@ -91,8 +91,7 @@ CREATE TABLE IF NOT EXISTS operations.cutover_dependency_mapping (
     verified_by text NOT NULL CHECK (btrim(verified_by) <> ''),
     verified_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     PRIMARY KEY (cutover_unit, entity_type, source_database, source_table, legacy_id),
-    UNIQUE (cutover_unit, entity_type, legacy_id),
-    UNIQUE (cutover_unit, entity_type, stable_key)
+    UNIQUE (cutover_unit, entity_type, legacy_id)
 );
 
 CREATE TABLE IF NOT EXISTS audit.cutover_dependency_mapping_revision (
@@ -153,10 +152,32 @@ SELECT
     n.content,
     n.author,
     n.revision,
+    n.legacy_note_id,
     n.created_at,
     n.updated_at
 FROM user_content.analyst_note n
 WHERE n.deleted_at IS NULL;
+
+-- Narrow authority projection for the reader and writer adapters.  Application
+-- roles never receive SELECT on the control-plane base table or audit schema.
+CREATE OR REPLACE VIEW operations.user_content_notes_authority_v1 AS
+SELECT
+    a.cutover_unit,
+    a.state,
+    a.authoritative_backend,
+    a.writer_identity,
+    a.cutover_epoch,
+    a.approval_reference,
+    a.state_revision
+FROM operations.cutover_unit_authority a
+WHERE a.cutover_unit = 'user_content_notes';
+
+-- Stable legacy-id resolution remains available after a soft delete so an
+-- uncertain DELETE response can replay the same idempotency identity.
+CREATE OR REPLACE VIEW user_content.analyst_note_identity_v1 AS
+SELECT n.legacy_note_id, n.note_key, n.revision, (n.deleted_at IS NOT NULL) AS deleted
+FROM user_content.analyst_note n
+WHERE n.legacy_note_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION operations.transition_cutover_unit(
     p_cutover_unit text,
@@ -455,16 +476,11 @@ BEGIN
         RETURN;
     END IF;
 
-    IF EXISTS (
-        SELECT 1
-          FROM operations.cutover_dependency_mapping m
-         WHERE m.cutover_unit = 'user_content_notes'
-           AND m.entity_type = p_entity_type
-           AND m.stable_key = p_stable_key
-    ) THEN
-        RAISE EXCEPTION 'stable dependency identity is already mapped'
-            USING ERRCODE = '23505';
-    END IF;
+    -- Stable business identities are deliberately many-to-one: a legacy
+    -- source can contain aliases or duplicate historical rows for the same
+    -- canonical company/security.  Conflict protection belongs to the unique
+    -- legacy identity above; every alias still carries its own evidence,
+    -- approval and audit row.
 
     INSERT INTO operations.cutover_dependency_mapping(
         cutover_unit, entity_type, source_database, source_table,

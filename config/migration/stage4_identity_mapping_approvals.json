@@ -1,0 +1,24 @@
+{
+  "schema_version": "honghu.identity_mapping_approvals.v2",
+  "identity_overrides": [
+    {
+      "entity_type": "company",
+      "legacy_id": "552",
+      "ticker": "TER",
+      "venue": "us",
+      "approval_reference": "codex-readonly-pr8-identity-audit-2026-08-12",
+      "approved_by": "codex-readonly-audit",
+      "rationale": "research.db 缺少 market/listing_status；现有 financial_security 已标记 verified，sentiment 供应链身份记录 exchange=US，历史行情由 yfinance 的 TER 证券取得。"
+    }
+  ],
+  "aliases": [
+    {
+      "entity_type": "company",
+      "stable_key": "company:security:COHU:venue:us",
+      "legacy_ids": ["491", "554"],
+      "approval_reference": "user-confirmed-pr8-review-2026-08-12",
+      "approved_by": "user",
+      "rationale": "Cohu 与科休是 research.db 中同一 COHU 美股主体的英文名和中文名历史重复记录。"
+    }
+  ]
+}

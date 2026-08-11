@@ -1,0 +1,9 @@
+{
+  "schema_version": "honghu.user_content_security.v1",
+  "enabled": false,
+  "require_https": true,
+  "credential_service": "honghu.viewer.user-content.v1",
+  "session_secret_service": "honghu.viewer.session.v1",
+  "session_secret_account": "flask-session",
+  "principals": {}
+}

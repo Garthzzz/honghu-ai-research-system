@@ -9,10 +9,13 @@ REVOKE ALL ON ALL TABLES IN SCHEMA user_content, operations, audit FROM PUBLIC;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA user_content, operations FROM PUBLIC;
 
 GRANT USAGE ON SCHEMA user_content TO :"writer_role", :"reader_role";
-GRANT USAGE ON SCHEMA operations TO :"controller_role";
+GRANT USAGE ON SCHEMA operations TO :"writer_role", :"reader_role", :"controller_role";
 GRANT USAGE ON SCHEMA audit TO :"audit_reader_role";
 
 GRANT SELECT ON user_content.analyst_note_read_v1 TO :"reader_role";
+GRANT SELECT ON user_content.analyst_note_identity_v1 TO :"reader_role";
+GRANT SELECT ON operations.user_content_notes_authority_v1
+    TO :"writer_role", :"reader_role";
 GRANT SELECT ON audit.user_content_revision,
     audit.cutover_unit_authority_revision,
     audit.cutover_dependency_mapping_revision TO :"audit_reader_role";
