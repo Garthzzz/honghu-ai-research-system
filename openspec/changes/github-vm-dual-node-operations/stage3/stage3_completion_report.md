@@ -2,7 +2,7 @@
 
 ## 状态与授权边界
 
-阶段 3 的代码审计、迁移边界、隔离 PostgreSQL dev/test 试点和 2026-08-10 live 增量对账已经完成；本报告不批准阶段 3 退出。`target RPO/RTO` 仍为 `pending_human_approval`，阶段 3 的人工 HALT 仍未批准。
+阶段 3 的代码审计、迁移边界、隔离 PostgreSQL dev/test 试点和 live 增量对账已经完成；本报告不批准阶段 3 退出。`target RPO/RTO` 已补齐 migration/cutover authority control 后进入 `pending_human_approval`，阶段 3 的人工 HALT 仍未批准。
 
 当前四套 SQLite 仍是唯一生产事实源。未安装或启用 production PostgreSQL，未修改 live SQLite，未切换 production writer、Viewer、runner 或计划任务，也未进入阶段 4。
 
@@ -82,6 +82,8 @@ Codex 先独立形成 design/plan，再进行了两轮脱敏 DeepSeek V4 Flash �
 
 Codex在独立复核中补强了：外部安全副本与 `backup/latest` 的不同职责、峰值磁盘门禁、Git 外 aggregate manifest 的强制性、研究 producer 退役需人工调整边界，以及 staged tree 到 commit/checks 的身份绑定。
 
+最终两项 Gate 又完成两轮脱敏 reviewer 复核。DeepSeek 两次都把输入中已明确存在的 authority registry、fencing、target/measured 分层和 aggregate manifest 反写成“缺失”，没有提供可复现的新问题；Codex据确定性合同与扫描结果拒绝，未扩大范围或进入 Stage 4。完整记录追加在 `debate_summary.md`。
+
 ## 尚待人工决定
 
 1. 是否批准 `config/migration/target_rpo_rto_proposal.json`；
@@ -89,6 +91,12 @@ Codex在独立复核中补强了：外部安全副本与 `backup/latest` 的不�
 3. 是否批准阶段 3 退出；
 4. PR #5 是否合并；
 5. 即使阶段 3 退出，任何阶段 4 production cutover 仍需另行授权。
+
+## 最终两项人工 Gate 收口
+
+`target RPO/RTO` proposal 已增加独立的 migration/cutover authority-control 类。已确认的权威切换状态要求零丢失，目标在一小时内恢复并独立验证；该时限不构成不安全恢复写服务的理由，验证未完成时 production writes 必须继续保持栅栏。其余五类目标维持原等级；dynamic/task 类明确排除 backend routing、S0—S4 和 cutover authority，避免较宽松目标覆盖权威状态。
+
+以 Git 外 `stage3_live_delta_identity.json` 为 cutoff 的最终只读 drift check 未发现四套 SQLite schema、deployable source/writer path、Git 外 producer/writer path、ownership 或事务边界变化。仅 `research.db` 与 `sentiment.db` 的普通业务表出现行数增长，不属于 migration-boundary drift。最终 drift evidence 继续保存在 Git 外，防止把 live 数据或内部路径带入 public repository。
 
 ## 工程提交与远端初验
 

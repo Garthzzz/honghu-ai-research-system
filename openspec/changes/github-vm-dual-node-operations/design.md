@@ -321,6 +321,7 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 
 | 数据类别 | 丢失容忍原则 | 恢复优先级与可恢复性 |
 |---|---|---|
+| migration/cutover authority control | 已确认的权威切换记录零丢失；未恢复并独立验证前禁止恢复 production writes | 最高；包括 S0—S4、唯一 writer/backend、cutover epoch、SQLite/PG 水位、路由、验证写、uncertain commit 与审计 ledger，不能从应用默认值或旧 SQLite 推断重建 |
 | comment、thesis、hypothesis 等人工内容 | 几乎不可接受已确认修订丢失 | 高；依赖 revision/audit 与数据库备份，通常不可补抓 |
 | 正式研究结果、review 与 publication ledger | 几乎不可接受已发布状态或审计链丢失 | 高；需恢复发布一致性和幂等身份 |
 | 共享身份、migration mapping、task/checkpoint | 极低容忍 | 高；丢失会阻断跨域引用或造成重复/漏抓 |
@@ -330,6 +331,8 @@ VM 偶尔正常或异常关机是预期运行条件。设计不要求停机期�
 | 可重复生成的派生 cache | 可接受重建 | 低；以依赖闭包和重建时间决定 |
 
 阶段 3 结束或阶段 4 开始前，必须按上述类别批准 **target RPO/RTO**：可接受的数据损失、可接受的恢复时间、哪些数据可补抓、哪些不可补抓，以及哪些目标会触发连续归档/PITR、更高频备份、独立主机、额外副本或更短恢复路径。没有获批 target RPO/RTO，不得执行 production 数据切换。
+
+migration/cutover authority control 的目标比普通 task/checkpoint 更严格：cutover transition 只有在权威状态及审计证据已持久化后才能被确认；目标是在一小时内恢复并独立验证该状态，但这一时间目标不能迫使系统不安全地恢复写服务。超过目标或证据不完整时，production writes 必须继续保持栅栏，无法确认的 uncertain commit 按 S3 处理。该数值是待人工批准的 target，不是已经达到的 measured SLA。
 
 每个 cutover unit 必须声明它包含或依赖哪些数据类别，并逐类满足对应 target RPO/RTO；不能用该 unit 中较宽松的数据类别覆盖较严格类别，也不能把当前 SQLite `backup/latest` 计作未来 PostgreSQL 目标已经满足的证据。
 

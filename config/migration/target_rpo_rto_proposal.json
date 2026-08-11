@@ -1,8 +1,16 @@
 {
-  "schema_version": "honghu.target_rpo_rto_proposal.v1",
+  "schema_version": "honghu.target_rpo_rto_proposal.v2",
   "approval_status": "pending_human_approval",
   "decision_gate": "Must be approved before any production data-backend cutover.",
   "targets": [
+    {
+      "class": "migration_cutover_authority_control",
+      "examples": ["cutover unit S0-S4 state", "authoritative backend and unique writer identity", "cutover epoch", "SQLite final authoritative watermark", "PostgreSQL first formal business commit watermark", "routing state", "verification-write classification", "uncertain-commit reconciliation", "authority audit ledger"],
+      "recoverability": "cannot be safely reconstructed from application defaults, business rows or a frozen SQLite copy after an acknowledged authority transition",
+      "target_rpo": "zero acknowledged authority-transition or cutover-control records; acknowledgement is permitted only after the authority state and its audit evidence are durable",
+      "target_rto": "restore and independently verify authority-control state within 1 hour; production writes remain fenced for as long as verification is incomplete",
+      "design_consequence": "protect the authority transition with transactionally consistent or equivalently fail-closed durable records and off-VM recovery; reconcile uncertain commits by stable identity, conservatively treat unresolved writes as S3, and never restore SQLite write authority from defaults or inference"
+    },
     {
       "class": "human_authored_and_publication_control",
       "examples": ["comment", "analyst note", "thesis", "hypothesis", "publication ledger", "audit revision"],
@@ -21,11 +29,11 @@
     },
     {
       "class": "dynamic_intelligence_and_task_state",
-      "examples": ["news", "events", "voice posts", "fetch checkpoint", "schedule ledger"],
+      "examples": ["news", "events", "voice posts", "fetch checkpoint", "task schedule ledger"],
       "recoverability": "partly re-fetchable; provider windows and deleted upstream content may not be",
       "target_rpo": "at most 1 hour for checkpoints and non-reproducible accepted items",
       "target_rto": "restore ingestion coordination within 12 hours",
-      "design_consequence": "checkpoint/ledger has higher durability than re-fetchable payloads; missed-window reconciliation required"
+      "design_consequence": "checkpoint/ledger has higher durability than re-fetchable payloads; missed-window reconciliation required; this class does not include migration authority, backend routing or S0-S4 cutover control"
     },
     {
       "class": "sentiment_raw_windows_and_aggregates",

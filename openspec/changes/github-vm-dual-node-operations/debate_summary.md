@@ -329,3 +329,19 @@ DeepSeek 把 134 张表误写成 134 个 SQLite 文件，把“新增至少 13 �
 第二轮把问题严格限制为五个合同并禁止发明事实。DeepSeek仍建议把 live database data 版本化进 Git、把研究内容纳入 immutable application release，并虚构 papers 已经在 public Git 和 8080 是开发端口。这些建议直接违反已批准的 PostgreSQL/live data/artifact 边界和当前阶段禁止事项；它关于 immutable release、backup API 和 exact commit 的建议也都是阶段 2 或当前设计已有能力，没有新增缺口。Codex全部拒绝，不据此扩大范围或上传研究资产。
 
 两轮连续没有有效增量，按用户约束停止第三轮。设计冻结依据是本地代码/DB/备份事实、已批准 capability specs 与确定性门禁；DeepSeek 不构成执行批准或通过证据。
+
+## 阶段 3 最终 RPO/RTO 与 live drift Gate 复核（2026-08-11 追加）
+
+> 实际轮次：2 轮。Codex 先独立补齐 migration/cutover authority-control recovery class，并以既有 Git 外 cutoff 对 live 根执行只读语义漂移检查；发送给 DeepSeek 的只有六类恢复目标、切换控制合同和聚合漂移结论，没有发送 key、Cookie、源码、数据库内容或具体行数、papers/evidence、用户内容、内网地址或原始 evidence。两轮连续没有事实增量，因此停止第三轮。
+
+### Codex 独立修订
+
+新增的 authority-control 类覆盖 cutover unit S0—S4、唯一 writer/backend、cutover epoch、SQLite/PG 水位、路由、验证写、uncertain commit 和审计 ledger。已确认的权威切换状态要求零丢失，只有状态与审计证据持久化后才允许 acknowledgement；目标在一小时内恢复并独立验证，但未验证时 production writes 必须继续保持栅栏，因此 RTO 不会授权不安全恢复。普通 dynamic/task 类明确排除此类状态，其余五类目标不变，全部仍是待人工批准的 target，不是 measured SLA。
+
+只读 drift check 对比了表、列、`user_version`、deployable source/writer path、Git 外 producer/writer path、ownership 和 transaction boundary。上述迁移边界均无变化；已有 research/sentiment 表的普通行数增长不改变 writer、schema 或 ownership，故不被误判为 migration-boundary drift。
+
+### 两轮 DeepSeek 复核与 Codex 判断
+
+第一轮把摘要中明确存在的 S0—S4、唯一 writer、fencing、uncertain-commit reconciliation、audit ledger、ownership 和 Stage 4 gate 全部反写成“缺失”，并错误要求当前提供 measured SLA。Codex逐项以已批准 design/spec 和本轮 proposal 拒绝，没有据此扩大实现。
+
+第二轮明确列出这些既有控制并要求只报告输入能够直接推出的问题；DeepSeek仍逐字重复“没有 ownership/backend matrix、没有 authority 记录、没有 target/measured 计划、没有 aggregate manifest”，与输入和确定性扫描结果直接冲突，也没有提供可复现反例。Codex拒绝全部意见。两轮连续无有效信息增量后停止；最终判断由 OpenSpec、机器清单、只读 drift 结果和远端 CI 负责，DeepSeek 不构成人工批准。
