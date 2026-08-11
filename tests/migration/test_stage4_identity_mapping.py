@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import json
+import threading
 
 import pytest
 
@@ -10,6 +11,7 @@ from tools.migration.stage4_identity_mapping import (
     IdentityMappingResolver,
     build_identity_mapping,
 )
+from tools.migration import stage4_identity_mapping as mapping_module
 
 
 def _database(path, *, duplicate_ticker: bool = False, cycle: bool = False):
@@ -74,6 +76,17 @@ def test_mapping_uses_business_identity_and_hierarchy(tmp_path) -> None:
         item for item in result["mappings"] if item["legacy_id"] == "2" and item["entity_type"] == "company"
     )
     assert fallback["basis"] == "normalized_name_and_market_fallback"
+    assert result["schema_version"] == "honghu.user_content_identity_mapping.v3"
+    assert result["source_snapshot"]["transaction_contract"] == {
+        "mode": "explicit_read_transaction",
+        "query_only": True,
+        "tables_read_in_one_snapshot": ["company", "industry", "theme"],
+    }
+    assert len(result["source_snapshot"]["snapshot_identity_sha256"]) == 64
+    assert (
+        result["source_snapshot"]["database_file_diagnostics"]["role"]
+        == "diagnostic_only_not_transaction_snapshot_identity"
+    )
     assert len(result["manifest_sha256"]) == 64
     resolver = IdentityMappingResolver(result)
     assert resolver.resolve("company", 1) == "company:security:000001.SZ:venue:shenzhen"
@@ -135,3 +148,44 @@ def test_industry_parent_cycle_fails_closed(tmp_path) -> None:
     _database(path, cycle=True)
     with pytest.raises(IdentityMappingError, match="cycle"):
         build_identity_mapping(path)
+
+
+def test_all_identity_tables_are_bound_to_one_wal_snapshot(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "research.db"
+    _database(path)
+    with sqlite3.connect(path) as setup:
+        setup.execute("PRAGMA journal_mode=WAL")
+
+    company_read = threading.Event()
+    writer_done = threading.Event()
+    original = mapping_module._table_rows
+
+    def intercepted(conn, table):
+        rows = original(conn, table)
+        if table == "company":
+            company_read.set()
+            assert writer_done.wait(timeout=5)
+        return rows
+
+    def writer():
+        assert company_read.wait(timeout=5)
+        with sqlite3.connect(path, timeout=5) as connection:
+            connection.execute("INSERT INTO industry VALUES(12,'later identity',NULL)")
+            connection.commit()
+        writer_done.set()
+
+    monkeypatch.setattr(mapping_module, "_table_rows", intercepted)
+    thread = threading.Thread(target=writer, daemon=True)
+    thread.start()
+    result = build_identity_mapping(path)
+    thread.join(timeout=5)
+    assert not thread.is_alive()
+
+    mapped_industries = {
+        item["legacy_id"]
+        for item in result["mappings"]
+        if item["entity_type"] == "industry"
+    }
+    assert mapped_industries == {"10", "11"}
+    with sqlite3.connect(path) as connection:
+        assert connection.execute("SELECT count(*) FROM industry").fetchone()[0] == 3

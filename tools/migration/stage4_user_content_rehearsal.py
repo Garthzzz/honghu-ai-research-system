@@ -90,6 +90,8 @@ def _run_adapter_rehearsal(
     username: str,
     reader_role: str,
     writer_role: str,
+    sslmode: str = "disable",
+    password: str | None = None,
 ) -> dict[str, Any]:
     """Exercise the real repository against the isolated PostgreSQL database."""
 
@@ -103,7 +105,8 @@ def _run_adapter_rehearsal(
                 port=port,
                 dbname=database,
                 user=username,
-                sslmode="disable",
+                password=password,
+                sslmode=sslmode,
             )
             connection.execute(
                 sql.SQL("SET SESSION AUTHORIZATION {}").format(sql.Identifier(role))
@@ -244,6 +247,8 @@ def run_rehearsal(
     username: str,
     database: str,
     live_data_root: Path,
+    sslmode: str = "disable",
+    password: str | None = None,
 ) -> dict[str, Any]:
     validate_rehearsal_target(host, port, database)
     restore_database = f"{database}_restore"
@@ -404,6 +409,8 @@ def run_rehearsal(
             username=username,
             reader_role=reader_role,
             writer_role=writer_role,
+            sslmode=sslmode,
+            password=password,
         )
 
         with tempfile.TemporaryDirectory(prefix="honghu-stage4-pg-") as temporary:
@@ -527,6 +534,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--database", default="honghu_stage4_user_content")
     parser.add_argument("--live-data-root", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--sslmode", choices=("disable", "require"), default="disable")
     args = parser.parse_args(argv)
     evidence = run_rehearsal(
         root=args.root.resolve(),
@@ -536,6 +544,7 @@ def main(argv: list[str] | None = None) -> int:
         username=args.username,
         database=args.database,
         live_data_root=args.live_data_root.resolve(),
+        sslmode=args.sslmode,
     )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
