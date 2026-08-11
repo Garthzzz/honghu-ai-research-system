@@ -8,6 +8,8 @@
 
 > **非生产设计与演练 PASS；首个 production cutover 仍 BLOCKED。**
 
+本轮 authority-control 受验收实现 identity 为 `8c5c5e58d9efb65827b23a08fd15801d7bd11757`；push run `31495248015` 与 PR run `31495252243` 均通过两个 required jobs。PR #7 继续保持 open、未合并，Stage 4 人工 HALT 未批准。
+
 因此尚不具备申请 `user_content_notes` 实际进入 production S2 的条件。本轮 HALT 后应先关闭应用 adapter、稳定身份全量映射、写接口安全、production PostgreSQL 现场拓扑、VM 外备份/restore、仓库 production authority 和维护窗口批准等 gate。
 
 ## 2. Live 与 Stage 3 一致性

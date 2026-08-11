@@ -51,7 +51,7 @@
 - [x] DeepSeek 对实现和演练摘要进行第二轮脱敏复核；Codex 独立 revision。
 - [x] 更新 `debate_summary.md`，不复制外部模型原文。
 - [x] 生成 Stage 4 completion/readiness report 与 final identity；原始 live/rehearsal evidence 留在 Git 外。
-- [ ] 将本轮 authority-control 修订提交到仍为 open/未合并的 PR #7，并等待新 head 的 push/PR required CI 绿色；旧绿色 head 不作为本轮证据。
+- [x] authority-control 实现提交 `8c5c5e58d9efb65827b23a08fd15801d7bd11757` 已推送到仍为 open/未合并的 PR #7；push run `31495248015` 与 PR run `31495252243` 的两个 required jobs 均绿色。后续治理状态提交不得改写该实现或复用旧 SHA 作为新实现证据，其自身 required CI 在最终 HALT 报告中按 GitHub 实际状态核验。
 - [ ] HALT，等待用户决定是否批准首单元实际 production 执行；不得进入 S2/S3。
 
 **本轮不会勾选：** `tasks.md` 中任何要求实际切换 production writer、产生正式 PG 新写入、完成 S3/S4 或稳定观察期的项目。
