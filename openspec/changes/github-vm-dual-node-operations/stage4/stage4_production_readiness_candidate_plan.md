@@ -38,7 +38,7 @@
 ## Gate F：最终验证与 PR
 
 - [x] DeepSeek 已完成两轮脱敏复核；第二轮重复现有控制并混淆 stable mapping 与认证 identity，没有新的可复现缺口，按“无增量提前停止”结束。
-- [x] 正式 clean-clone core（635 passed、21 skipped、55 subtests）、Stage 4/browser targeted（36 passed）、本机真实 PostgreSQL/recovery rehearsal、compile 与 OpenSpec strict 通过。原始全仓 `pytest` 另有 22 个受治理 artifact 模块缺少 Git 外输入，按既有 test-tier 合同不计入 clean-clone core，结果不被隐瞒或改写。
+- [x] 最终正式 clean-clone core（636 passed、21 skipped、55 subtests）、Stage 4/browser targeted（36 passed）、本机真实 PostgreSQL/recovery rehearsal、compile 与 OpenSpec strict 通过。原始全仓 `pytest` 另有 22 个受治理 artifact 模块缺少 Git 外输入，按既有 test-tier 合同不计入 clean-clone core，结果不被隐瞒或改写。
 - [x] tracked boundary 通过；SQLite ratchet 对 identity freezer 的五个只读 metadata PRAGMA 采用有 owner、上限和退出条件的显式例外后通过。最终 staged boundary 在提交前再次执行。
-- [ ] 生成最终 identity binding、readiness report，push readiness branch 并核验 push/PR CI。
-- [ ] 只输出 `READY TO REQUEST FIRST PRODUCTION CUTOVER` 或 `PRODUCTION READINESS BLOCKED`，随后 HALT。
+- [x] 最终实现提交、mapping、local candidate、typed bundle、readiness result、PR #9 与两条 required CI 已写入脱敏 identity binding；原始 evidence 保持 Git 外。
+- [x] 本轮结论固定为 `PRODUCTION READINESS BLOCKED`，完成治理提交及其 CI 后 HALT。

@@ -38,11 +38,17 @@ Human decisions 被单独列出，不伪装成工程失败：mapping 最终批�
 
 ## 提交前验证
 
-- 正式 clean-clone core：635 passed、21 skipped、55 subtests；collect-only 共 656 tests。
+- 最终正式 clean-clone core：636 passed、21 skipped、55 subtests；新增 1 个 same-file bundle assembly 幂等回归。
 - Stage 4 migration/browser/data-platform 定向回归：36 passed，Node 浏览器合同通过。
 - compile、OpenSpec strict、tracked boundary 与 SQLite dependency ratchet 通过。
 - 原始全仓 `pytest` 会进入 22 个明确登记的 governed-artifact integration 模块；在 clean clone 缺少 Git 外研究包、工作簿和 live 只读快照时产生 42 failed、41 errors。该结果保留为测试分层事实，不通过 skip、xfail、上传受限 artifact 或降低合同伪装成通过。
-- 本机隔离 PostgreSQL/recovery rehearsal 的最终 evidence 需在实现提交后重新生成并绑定该提交；VM/off-VM gate 仍保持 blocked。
+- 本机隔离 PostgreSQL/recovery rehearsal 已在实现提交后重新生成并绑定该提交；VM/off-VM gate 仍保持 blocked。
+
+## 最终 evidence identity
+
+实现提交为 `817bcc068db546a45be78e9fbccd9e2930a00d53`，PR #9 的 push run `31533518956` 与 pull_request run `31533523864` 两项 required checks 均为 success。最终本机 candidate topology identity 为 `56a4b504...e8d6`，recovery identity 为 `bf0ea7a7...4355`；typed readiness bundle payload identity 为 `0150340c...9646`，verifier 结果文件 identity 为 `18a75b1d...8a4b`。完整脱敏绑定见 `config/migration/stage4_readiness_evidence_identity.json`，原始数据库、恢复、凭据和现场 evidence 未进入 Git。
+
+Verifier 只留下三项同一根因的工程 blocker：没有真实 VM 外恢复副本、没有不同故障域 host identity、没有 off-VM copy identity。mapping、repository/operator/approver/maintenance/S2 等仍是 human decisions，不能用工程证据替代。
 
 ## 下一步
 
