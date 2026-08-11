@@ -128,7 +128,7 @@ Writer fence 必须作用于可审计 mutation operation，而不是粗暴按整
 - 既有 0001 migration SHA 保持不变；新的 0002 只增加 authority/audit/mapping/兼容列与 v2 operation，旧函数在 application transition 窗口内保留但不授予 production writer。
 - S0 初始化 authority row；迁移角色直写 backfill，业务 writer 在 S0/S1 被数据库侧拒绝。
 - S1→S2 要求 expected revision、cutover epoch、SQLite final watermark、批准引用和唯一 writer identity；verification 只写控制面验证 ledger，不写业务 note。
-- S2 的首个 formal note mutation 在同一事务内写业务 row、idempotency/audit 和 S3 authority revision；S3/S4 后才允许后续业务 mutation。
+- S2 的首个合法 formal note mutation 无论是 create、update 还是 soft delete，都在同一事务内写业务 row、idempotency/audit 和 S3 authority revision；缺失对象、stale revision 或重复键冲突不得推进 authority。S3/S4 后继续使用同一 mutation 合同。
 - S1 backfill 从一致 SQLite 基线读取；当前 0 行仍必须执行 source/target count、字段类型和空集证明，不能跳过。
 - 如果正式窗口前出现新 SQLite note，先重新基线并迁移全部行；保留 legacy id mapping、时间和文本，不把本地时间字符串无依据解释为其他时区。
 
@@ -161,6 +161,7 @@ Writer fence 必须作用于可审计 mutation operation，而不是粗暴按整
 - migration、unit writer、viewer read、audit/backup 分离角色；应用角色无 DDL，首单元 writer 无跨单元写权限；
 - 凭据不进入 Git、命令行日志或 release，轮换和撤销可执行；
 - 当前个人账号仓库尚未满足 production authority 公司治理 gate，因此 production release authority 必须在真实切换授权前单独关闭。
+- production adapter 必须从可信认证 principal 派生 audit actor；当前 SQL 参数中的 author/actor 只是非生产合同载体，不能被解释为允许客户端自由声明审计身份。
 
 ### 7.2 备份和恢复
 

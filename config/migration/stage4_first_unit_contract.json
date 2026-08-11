@@ -15,6 +15,7 @@
     "the production application adapter is not wired to the additive q-label and text-entity compatibility contract",
     "legacy numeric id and stable note/entity identity are only proven with synthetic mappings, not a full live mapping freeze",
     "current production API has no expected revision or idempotency contract and hard-deletes notes",
+    "the production adapter must derive audit actor from a trusted authenticated principal rather than accept a client-controlled actor string",
     "shared identity dependency mapping is only proven with synthetic initial and incremental mappings; the production read-only identity resolver and evidence workflow are not implemented",
     "manual write authentication, CSRF and least-privilege production role are not evidenced",
     "production PostgreSQL topology, off-VM backup and restore evidence do not yet exist",
@@ -27,7 +28,8 @@
     "covered": [
       "S1 abandon to S0",
       "S2 verification then return to S1 with no formal write",
-      "first formal mutation and S2-to-S3 authority revision in one transaction",
+      "first formal create, update or soft-delete mutation and S2-to-S3 authority revision in one transaction",
+      "non-empty backfill whose first formal operation is soft delete, including uncertain-response replay",
       "S3-to-S4 preserves PostgreSQL backend, writer, epoch and watermarks and requires a separate non-empty approval",
       "wrong S4 backend, missing or reused approval and writer drift fail closed",
       "uncertain-response idempotent replay",
@@ -39,7 +41,7 @@
       "pg_dump side restore",
       "live SQLite schema and file hashes unchanged"
     ],
-    "evidence_location": "Git-excluded cache/migration/stage4_entry/user_content_rehearsal.json"
+    "evidence_location": "Git-excluded cache/migration/stage4_entry/user_content_rehearsal_v2.json"
   },
   "state_contract": {
     "S0": "SQLite is the only authority; PostgreSQL use is dev/test or offline rehearsal only",

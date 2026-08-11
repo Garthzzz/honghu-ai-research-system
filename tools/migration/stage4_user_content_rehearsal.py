@@ -178,6 +178,8 @@ def run_rehearsal(
                 "'user_content.analyst_note','INSERT'),"
                 f"'writer_v2_execute',has_function_privilege('{writer_role}',"
                 "'user_content.put_analyst_note_v2(text,text,text,text,text,text,text,text,text,bigint,text,text,text)','EXECUTE'),"
+                f"'writer_soft_delete_execute',has_function_privilege('{writer_role}',"
+                "'user_content.soft_delete_analyst_note_v2(text,text,bigint,text,text,text)','EXECUTE'),"
                 f"'reader_base_select',has_table_privilege('{reader_role}',"
                 "'user_content.analyst_note','SELECT'),"
                 f"'reader_view_select',has_table_privilege('{reader_role}',"
@@ -194,6 +196,7 @@ def run_rehearsal(
         expected_acl = {
             "writer_direct_insert": False,
             "writer_v2_execute": True,
+            "writer_soft_delete_execute": True,
             "reader_base_select": False,
             "reader_view_select": True,
             "controller_transition_execute": True,
@@ -252,6 +255,12 @@ def run_rehearsal(
                     "'note_count',(SELECT count(*) FROM user_content.analyst_note),"
                     "'soft_deleted_count',(SELECT count(*) FROM user_content.analyst_note "
                     "WHERE deleted_at IS NOT NULL),"
+                    "'first_formal_operation_scope',(SELECT postgresql_first_formal_commit->>"
+                    "'operation_scope' FROM operations.cutover_unit_authority "
+                    "WHERE cutover_unit='user_content_notes'),"
+                    "'first_formal_object_key',(SELECT postgresql_first_formal_commit->>"
+                    "'object_key' FROM operations.cutover_unit_authority "
+                    "WHERE cutover_unit='user_content_notes'),"
                     "'dependency_mapping_audit_count',(SELECT count(*) "
                     "FROM audit.cutover_dependency_mapping_revision "
                     "WHERE cutover_unit='user_content_notes'),"
@@ -266,7 +275,16 @@ def run_rehearsal(
         schema_unchanged = _schema_identity(before_schema) == _schema_identity(after_schema)
         if not schema_unchanged:
             raise RuntimeError("live SQLite schema changed during the isolated rehearsal")
-        if rehearsal_result.get("status") != "pass" or restore_result.get("authority_state") != "S4":
+        expected_first_formal = {
+            "first_formal_operation_scope": "user_content.soft_delete_analyst_note_v2",
+            "first_formal_object_key": "analyst-note:research.db:42",
+        }
+        if (
+            rehearsal_result.get("status") != "pass"
+            or restore_result.get("authority_state") != "S4"
+            or any(rehearsal_result.get(key) != value for key, value in expected_first_formal.items())
+            or any(restore_result.get(key) != value for key, value in expected_first_formal.items())
+        ):
             raise RuntimeError("Stage 4 rehearsal or side restore invariant failed")
         return {
             "schema_version": "honghu.stage4_user_content_rehearsal_evidence.v2",

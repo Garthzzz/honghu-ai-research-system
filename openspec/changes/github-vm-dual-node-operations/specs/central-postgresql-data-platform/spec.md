@@ -114,6 +114,10 @@ SQLite backups, consistency checks, and migration manifests SHALL be retained as
 - **WHEN** the first formal PostgreSQL business write is durably committed
 - **THEN** the cutover unit SHALL transition immediately from S2 to S3 and record the transition in the audit ledger
 
+#### Scenario: The first formal mutation is a delete
+- **WHEN** a valid create, update, or soft-delete is the first must-preserve business mutation after a non-empty backfill
+- **THEN** that mutation, its revision/audit/idempotency records, the first-formal watermark, and the S2-to-S3 authority revision SHALL commit atomically; a missing object or stale revision SHALL fail without advancing authority
+
 #### Scenario: Commit response is uncertain
 - **WHEN** PostgreSQL may have committed but the caller did not receive a conclusive response
 - **THEN** the system SHALL resolve the result through stable business identity, idempotency identity, or ledger; until non-commit is proven, the unit SHALL be treated as S3 and SHALL NOT restore the SQLite writer

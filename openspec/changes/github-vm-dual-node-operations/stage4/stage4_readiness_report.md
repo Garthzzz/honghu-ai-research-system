@@ -65,7 +65,7 @@
 - 0001/0002 各重复应用两次；
 - S1 放弃回到 S0；
 - S2 verification 后在无 formal write 的证据下回到 S1；
-- 首个 formal mutation 与 S2→S3 authority revision 同事务；
+- 非空 backfill 后首笔 formal operation 真实采用 soft delete，并与 revision/audit/idempotency、first-formal watermark 及 S2→S3 authority revision 同事务；同一 operation identity 的 uncertain-response replay 不重复推进 authority；
 - uncertain-response 使用同一 idempotency identity 重放；
 - stale revision 冲突、update、soft delete；
 - Q6、文本 theme id、nullable title、legacy 原始时间兼容；
@@ -73,10 +73,10 @@
 - writer identity 同时匹配 authority row 与 `session_user`；
 - wrong backend、缺失批准、复用 S3 批准、writer drift 和未映射新实体均在真实数据库中失败；受控增量 mapping 后新实体才可写入；
 - 正确 S3→S4 后 authority=S4，backend/writer/epoch/watermark/formal commit 均保持；
-- pg_dump 到旁路库 restore 后 authority=S4、3 条 note、1 条 soft delete、Q6 legacy 行、5 条 authority revision 和 3 条 mapping audit 均可核验；
+- pg_dump 到旁路库 restore 后 authority=S4、3 条 note、2 条 soft delete、Q6 legacy 行、5 条 authority revision 和 3 条 mapping audit 均可核验；
 - 演练数据库、角色和 listener 已清除；四套 live SQLite 前后哈希不变。
 
-Git 外 rehearsal evidence SHA256 为 `2bfb62e5…87fef`。这只证明 dev/test 合同，不是 measured production RPO/RTO。
+Git 外 rehearsal evidence SHA256 为 `d07ac1cd…75d5c`。这只证明 dev/test 合同，不是 measured production RPO/RTO。
 
 ## 6. S0—S4 与恢复边界
 
@@ -97,7 +97,7 @@ S3 后故障只允许 PG 前向修复、schema-compatible code rollback 或旁�
 3. authority control 零 acknowledged loss 的真实恢复证据；
 4. Viewer repository/adapter 接线并保持 S0 默认、无 silent fallback；
 5. company/industry/theme stable mapping 全量冻结与验证；
-6. create/update/delete/list API 兼容及 authentication/authorization/CSRF；
+6. create/update/delete/list API 兼容及 authentication/authorization/CSRF；audit actor 必须来自可信认证 principal，不能信任客户端自由字符串；
 7. 应用仓库成为 production authority 的公司治理 gate；
 8. maintenance window、operator/approver 和首单元 S2 单独授权；
 9. S3 前向修复和 schema-compatible application rollback 的 adapter 级演练。

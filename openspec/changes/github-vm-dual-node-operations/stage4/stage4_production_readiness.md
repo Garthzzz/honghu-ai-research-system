@@ -73,7 +73,7 @@ target 与 measured 必须分开。Stage 3 已批准的目标是 authority trans
 
 - [ ] 最新 live drift 与两层 aggregate manifest 仍覆盖当前系统；
 - [ ] 应用 repository/adapter 已接入显式 route，默认 S0，production 路由需双重开关；
-- [ ] create/update/delete/list 兼容、authentication、authorization、CSRF 已通过浏览器/API 审核；
+- [ ] create/update/delete/list 兼容、authentication、authorization、CSRF 已通过浏览器/API 审核，且 audit actor 由可信认证 principal 派生而非客户端自由字符串；
 - [ ] stable entity mapping 对 company/industry/theme 全量验证，并有 SQLite authority 仍可能新增实体时的只读 resolver、受控增量登记和冲突处置现场证据；
 - [ ] production PG topology、角色、凭据、服务和网络现场验收；
 - [ ] 在进入首单元 S2 前完成该 unit 的 VM 外 backup、PITR/等价增量路径、整库和旁路单域 restore 现场演练；Stage 5 的系统级 measured RPO/RTO 不能替代此 gate；

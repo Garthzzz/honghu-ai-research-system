@@ -377,3 +377,13 @@ DeepSeek关于 backend、writer、epoch、SQLite watermark、mapping fail-closed
 第二轮输入明确给出了行锁、expected revision、唯一约束、错误 backend/缺失及复用批准/writer drift/未映射实体等真实失败结果，以及 S4 dump/旁路 restore。DeepSeek仍逐项声称这些控制不存在，并错误建议 S3→S4 时从备份恢复数据、把 measured production RPO/RTO 当作当前演练要求；这些建议混淆 authority transition 与 disaster restore，也违反“off-VM recovery 是进入 production S2 前 blocker、当前没有 measured production SLA”的合同，全部拒绝。
 
 两轮后没有新的可复现信息增量，停止第三轮。最终依据是 SQL 约束、真实 PostgreSQL rehearsal、least-privilege ACL、旁路 restore、live SQLite 前后哈希和最终 CI；DeepSeek 不构成 production 授权。
+
+## 阶段 4 首笔 soft-delete authority 语义复核（2026-08-11 追加）
+
+> 实际轮次：2 轮。Codex 先独立确认 `soft_delete_analyst_note_v2` 排除 S2 的真实缺口，再以共享内部 authority helper 统一 create、update、soft-delete 的首笔正式 mutation 语义，并执行真实 loopback、非 5432 PostgreSQL 演练。发送给 DeepSeek 的只有脱敏状态、权限边界和聚合测试结论，没有发送 key、源码全文、数据库内容、papers、用户内容、内网地址、凭据或 Git 外原始 evidence。
+
+第一轮把输入已经明确存在的 authority/object revision、固定 operation scope、least-privilege ACL、非空 backfill 和幂等记录反写为缺失，并建议实现本轮明确保留为 production blocker 的完整认证 adapter；还虚构了并不存在的业务 restore mutation。Codex逐项对照 SQL、角色 ACL 和真实演练后拒绝，没有扩大范围。
+
+第二轮已进一步明确 authority row 使用 `FOR UPDATE`、应用 writer 无 operations schema/helper 权限、legacy row 以 revision 1 接受首笔 delete、旁路 restore 只是灾备验证。DeepSeek仍声称 authority 没有行锁、writer 应直接取得内部 helper 权限，并再次混淆业务 restore 与旁路恢复；这些意见与真实实现和最小权限合同相反，也没有给出可复现触发输入，全部拒绝。连续两轮没有有效增量后停止第三轮。
+
+最终依据是：失败的 missing delete 后 unit-specific S2 verification 仍成功；对非空 backfill 的首笔 soft-delete 与 audit、idempotency、first-formal watermark 和 S2→S3 revision 同事务；uncertain-response replay 不产生重复 revision；S4 与 pg_dump 旁路恢复均保留 delete-first watermark；live SQLite 前后 schema 和文件哈希不变。audit actor 必须来自可信认证 principal 仍是下一轮 adapter/auth production blocker，未被本轮演练冒充为已实现。

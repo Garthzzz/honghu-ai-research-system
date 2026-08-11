@@ -47,6 +47,8 @@ def test_stage4_expand_preserves_0001_and_adds_cutover_contract() -> None:
     assert "DEPENDENCY MAPPING CHANGES ARE FENCED IN THE CURRENT AUTHORITY STATE" in upper
     assert "PUT_ANALYST_NOTE_V2" in upper
     assert "SOFT_DELETE_ANALYST_NOTE_V2" in upper
+    assert "PROMOTE_USER_CONTENT_NOTES_ON_FIRST_FORMAL_MUTATION" in upper
+    assert "FORMAL MUTATION AUTHORITY IS FENCED" in upper
     assert "REVOKE ALL ON FUNCTION" in upper
     assert "SECURITY DEFINER" in upper
     assert "ANALYST_NOTE_READ_V1" in upper
@@ -75,6 +77,11 @@ def test_stage4_rehearsal_covers_state_and_compatibility_failures() -> None:
     assert "REHEARSAL_S2_NO_FORMAL_WRITE" in upper
     assert "Q6" in upper
     assert "AI_DATACENTER" in upper
+    assert "FIRST-FORMAL-DELETE-1" in upper
+    assert "MISSING S2 DELETE UNEXPECTEDLY SUCCEEDED" in upper
+    assert "VERIFICATION-AFTER-FAILED-DELETE" in upper
+    assert "USER_CONTENT.SOFT_DELETE_ANALYST_NOTE_V2" in upper
+    assert "DELETE-FIRST FORMAL WATERMARK WAS NOT PRESERVED" in upper
     assert "FORMAL-CREATE-1" in upper
     assert "S4 WITH SQLITE BACKEND UNEXPECTEDLY SUCCEEDED" in upper
     assert "S4 WITHOUT APPROVAL UNEXPECTEDLY SUCCEEDED" in upper

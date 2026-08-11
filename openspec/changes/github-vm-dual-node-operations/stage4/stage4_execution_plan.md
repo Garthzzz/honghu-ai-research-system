@@ -15,7 +15,7 @@
 - [x] 为 `user_content_notes` 增加 additive、可重复的 dev/test migration；不得改写 0001 identity。
 - [x] 通过新增文本 `q_label` 而不是修改 live SQLite 修正 Q 标签；补齐 nullable title、legacy id/原始时间、stable note/entity identity、legacy mapping 和 API compatibility 合同。
 - [x] 建立 authority state、epoch、watermark、verification/formal write 分类和审计合同。
-- [x] 让 S2 首个 formal mutation 与 S3 authority revision 原子提交，并要求 operator、approval reference、expected state/revision 和 writer identity。
+- [x] 让 S2 首个合法 create/update/soft-delete formal mutation 与 S3 authority revision 原子提交，并要求 operator、approval reference、expected state/revision 和 writer identity；无效 delete 不得推进 authority。
 - [x] 以数据库约束和 controller wrapper 双重固定 S0—S4 backend/state invariant；S3→S4 保留 authority identity、formal watermark，并要求不可复用的独立批准引用。
 - [x] 明确 shared identity 仍由 SQLite authority 管理期间的 mapping bridge：S2 冻结；S1/S3/S4 仅允许带 expected authority revision、source evidence、批准和审计的增量登记；未映射实体 fail-closed。
 - [ ] 建立显式 backend route 和 operation-level writer fence；默认保持 SQLite/S0，production PG 路由必须双重显式授权。

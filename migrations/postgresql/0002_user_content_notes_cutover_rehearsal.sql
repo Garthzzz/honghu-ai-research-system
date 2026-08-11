@@ -109,8 +109,47 @@ SELECT operations.record_user_content_notes_verification(
 );
 RESET SESSION AUTHORIZATION;
 
--- The first formal write and S2 -> S3 transition occur in one transaction.
+-- A failed delete cannot advance S2.  The first successful formal operation is
+-- a soft delete of a non-empty backfilled row, and it advances S2 -> S3 in the
+-- same transaction as the note revision, audit and idempotency record.
 SET SESSION AUTHORIZATION :"writer_role";
+DO $$
+BEGIN
+    BEGIN
+        PERFORM * FROM user_content.soft_delete_analyst_note_v2(
+            'analyst-note:missing', 'rehearsal', 1,
+            'missing-delete-1', 'missing-delete-hash-1',
+            'honghu_stage4_writer_rehearsal'
+        );
+        RAISE EXCEPTION 'missing S2 delete unexpectedly succeeded';
+    EXCEPTION WHEN serialization_failure THEN
+        NULL;
+    END;
+END $$;
+RESET SESSION AUTHORIZATION;
+SET SESSION AUTHORIZATION :"controller_role";
+-- Verification writes are accepted only in S2, so this proves the failed
+-- delete did not advance the authority row without granting base-table SELECT.
+SELECT operations.record_user_content_notes_verification(
+    :'writer_identity',
+    'verification-after-failed-delete', 'verification-after-failed-delete-hash',
+    '{"failed_delete_left_authority_in_s2":true}'::jsonb
+);
+RESET SESSION AUTHORIZATION;
+SET SESSION AUTHORIZATION :"writer_role";
+SELECT * FROM user_content.soft_delete_analyst_note_v2(
+    'analyst-note:research.db:42', 'rehearsal', 1,
+    'first-formal-delete-1', 'first-formal-delete-hash-1',
+    'honghu_stage4_writer_rehearsal'
+);
+-- Simulated uncertain client response after the delete commit.
+SELECT * FROM user_content.soft_delete_analyst_note_v2(
+    'analyst-note:research.db:42', 'rehearsal', 1,
+    'first-formal-delete-1', 'first-formal-delete-hash-1',
+    'honghu_stage4_writer_rehearsal'
+);
+
+-- Create and update remain governed formal mutations after S3.
 SELECT * FROM user_content.put_analyst_note_v2(
     'analyst-note:new:idempotent-1', 'theme', 'ai_datacenter',
     'theme:ai_datacenter', 'Q6', 'thesis', NULL,
@@ -264,6 +303,8 @@ DECLARE
     v_watermark jsonb;
     v_formal jsonb;
     v_approval text;
+    v_formal_scope text;
+    v_formal_object_key text;
     v_q_label text;
     v_entity_id bigint;
     v_legacy_entity_id text;
@@ -284,12 +325,19 @@ BEGIN
        OR v_formal IS NULL OR v_approval <> 'stage4-s4-approved' THEN
         RAISE EXCEPTION 'S4 did not preserve the approved PostgreSQL authority identity';
     END IF;
-    SELECT q_label, entity_id, legacy_entity_id_text, title
-      INTO v_q_label, v_entity_id, v_legacy_entity_id, v_title
+    v_formal_scope := v_formal->>'operation_scope';
+    v_formal_object_key := v_formal->>'object_key';
+    IF v_formal_scope <> 'user_content.soft_delete_analyst_note_v2'
+       OR v_formal_object_key <> 'analyst-note:research.db:42' THEN
+        RAISE EXCEPTION 'delete-first formal watermark was not preserved';
+    END IF;
+    SELECT q_label, entity_id, legacy_entity_id_text, title, deleted_at
+      INTO v_q_label, v_entity_id, v_legacy_entity_id, v_title, v_deleted
       FROM user_content.analyst_note
      WHERE legacy_note_id = 42;
     IF v_q_label <> 'Q6' OR v_entity_id IS NOT NULL
-       OR v_legacy_entity_id <> 'ai_datacenter' OR v_title IS NOT NULL THEN
+       OR v_legacy_entity_id <> 'ai_datacenter' OR v_title IS NOT NULL
+       OR v_deleted IS NULL THEN
         RAISE EXCEPTION 'legacy compatibility reconciliation failed';
     END IF;
     SELECT revision, deleted_at INTO v_revision, v_deleted
@@ -313,6 +361,16 @@ SELECT jsonb_build_object(
     'note_count', (SELECT count(*) FROM user_content.analyst_note),
     'soft_deleted_count', (
         SELECT count(*) FROM user_content.analyst_note WHERE deleted_at IS NOT NULL
+    ),
+    'first_formal_operation_scope', (
+        SELECT postgresql_first_formal_commit->>'operation_scope'
+          FROM operations.cutover_unit_authority
+         WHERE cutover_unit = 'user_content_notes'
+    ),
+    'first_formal_object_key', (
+        SELECT postgresql_first_formal_commit->>'object_key'
+          FROM operations.cutover_unit_authority
+         WHERE cutover_unit = 'user_content_notes'
     ),
     'user_content_audit_count', (SELECT count(*) FROM audit.user_content_revision),
     'idempotency_count', (SELECT count(*) FROM operations.idempotency_record),

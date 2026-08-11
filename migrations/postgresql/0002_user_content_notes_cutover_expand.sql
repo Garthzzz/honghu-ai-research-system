@@ -491,6 +491,82 @@ BEGIN
 END;
 $$;
 
+-- Internal authority helper shared by every formal analyst-note mutation.
+-- It is intentionally not granted to application or controller roles: callers
+-- must first satisfy their operation-specific writer, revision, mapping and
+-- idempotency contracts.  Because PostgreSQL functions execute in the caller's
+-- transaction, the business mutation and an S2 -> S3 revision commit or roll
+-- back together.
+CREATE OR REPLACE FUNCTION operations.promote_user_content_notes_on_first_formal_mutation(
+    p_operation_scope text,
+    p_idempotency_key text,
+    p_object_key text,
+    p_actor text
+) RETURNS operations.cutover_unit_authority
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, operations, audit
+AS $$
+DECLARE
+    v_authority operations.cutover_unit_authority%ROWTYPE;
+    v_next_authority_revision bigint;
+BEGIN
+    IF nullif(btrim(p_operation_scope), '') IS NULL
+       OR p_operation_scope NOT IN (
+           'user_content.put_analyst_note_v2',
+           'user_content.soft_delete_analyst_note_v2'
+       )
+       OR nullif(btrim(p_idempotency_key), '') IS NULL
+       OR nullif(btrim(p_object_key), '') IS NULL
+       OR nullif(btrim(p_actor), '') IS NULL THEN
+        RAISE EXCEPTION 'formal mutation identity and actor are required'
+            USING ERRCODE = '22023';
+    END IF;
+
+    SELECT * INTO v_authority
+      FROM operations.cutover_unit_authority a
+     WHERE a.cutover_unit = 'user_content_notes'
+     FOR UPDATE;
+    IF NOT FOUND OR v_authority.state NOT IN ('S2', 'S3', 'S4')
+       OR v_authority.authoritative_backend <> 'postgresql_production' THEN
+        RAISE EXCEPTION 'formal mutation authority is fenced'
+            USING ERRCODE = '42501';
+    END IF;
+
+    IF v_authority.state = 'S2' THEN
+        v_next_authority_revision := v_authority.state_revision + 1;
+        UPDATE operations.cutover_unit_authority a SET
+            state = 'S3',
+            postgresql_first_formal_commit = jsonb_build_object(
+                'operation_scope', p_operation_scope,
+                'idempotency_key', p_idempotency_key,
+                'object_key', p_object_key,
+                'transaction_id', txid_current()::text,
+                'recorded_at', clock_timestamp()
+            ),
+            state_revision = v_next_authority_revision,
+            updated_by = p_actor,
+            updated_at = clock_timestamp()
+        WHERE a.cutover_unit = 'user_content_notes'
+        RETURNING * INTO v_authority;
+        INSERT INTO audit.cutover_unit_authority_revision(
+            cutover_unit, state_revision, from_state, to_state,
+            authoritative_backend, writer_identity, cutover_epoch,
+            sqlite_final_watermark, postgresql_first_formal_commit,
+            actor, approval_reference, reason
+        ) VALUES (
+            'user_content_notes', v_next_authority_revision, 'S2', 'S3',
+            v_authority.authoritative_backend, v_authority.writer_identity,
+            v_authority.cutover_epoch, v_authority.sqlite_final_watermark,
+            v_authority.postgresql_first_formal_commit, p_actor,
+            v_authority.approval_reference,
+            'first formal analyst-note business mutation'
+        );
+    END IF;
+    RETURN v_authority;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION user_content.put_analyst_note_v2(
     p_note_key text,
     p_entity_type text,
@@ -518,7 +594,6 @@ DECLARE
     v_action text;
     v_result jsonb;
     v_request jsonb;
-    v_next_authority_revision bigint;
 BEGIN
     IF p_expected_revision IS NULL OR nullif(p_idempotency_key, '') IS NULL
        OR nullif(p_request_hash, '') IS NULL OR nullif(p_note_key, '') IS NULL THEN
@@ -609,35 +684,9 @@ BEGIN
         v_action := 'update';
     END IF;
 
-    IF v_authority.state = 'S2' THEN
-        v_next_authority_revision := v_authority.state_revision + 1;
-        UPDATE operations.cutover_unit_authority a SET
-            state = 'S3',
-            postgresql_first_formal_commit = jsonb_build_object(
-                'operation_scope', 'user_content.put_analyst_note_v2',
-                'idempotency_key', p_idempotency_key,
-                'note_key', p_note_key,
-                'transaction_id', txid_current()::text,
-                'recorded_at', clock_timestamp()
-            ),
-            state_revision = v_next_authority_revision,
-            updated_by = p_author,
-            updated_at = clock_timestamp()
-        WHERE a.cutover_unit = 'user_content_notes'
-        RETURNING * INTO v_authority;
-        INSERT INTO audit.cutover_unit_authority_revision(
-            cutover_unit, state_revision, from_state, to_state,
-            authoritative_backend, writer_identity, cutover_epoch,
-            sqlite_final_watermark, postgresql_first_formal_commit,
-            actor, approval_reference, reason
-        ) VALUES (
-            'user_content_notes', v_next_authority_revision, 'S2', 'S3',
-            v_authority.authoritative_backend, v_authority.writer_identity,
-            v_authority.cutover_epoch, v_authority.sqlite_final_watermark,
-            v_authority.postgresql_first_formal_commit, p_author,
-            v_authority.approval_reference, 'first formal analyst-note business commit'
-        );
-    END IF;
+    v_authority := operations.promote_user_content_notes_on_first_formal_mutation(
+        'user_content.put_analyst_note_v2', p_idempotency_key, p_note_key, p_author
+    );
 
     v_result := jsonb_build_object(
         'note_key', v_note.note_key, 'revision', v_note.revision, 'deleted', false
@@ -687,7 +736,7 @@ BEGIN
       FROM operations.cutover_unit_authority a
      WHERE a.cutover_unit = 'user_content_notes'
      FOR UPDATE;
-    IF NOT FOUND OR v_authority.state NOT IN ('S3', 'S4')
+    IF NOT FOUND OR v_authority.state NOT IN ('S2', 'S3', 'S4')
        OR v_authority.authoritative_backend <> 'postgresql_production'
        OR v_authority.writer_identity <> p_writer_identity
        OR p_writer_identity <> session_user THEN
@@ -722,6 +771,10 @@ BEGIN
         deleted_at = clock_timestamp()
     WHERE n.note_key = p_note_key
     RETURNING * INTO v_note;
+    v_authority := operations.promote_user_content_notes_on_first_formal_mutation(
+        'user_content.soft_delete_analyst_note_v2',
+        p_idempotency_key, p_note_key, p_actor
+    );
     v_result := jsonb_build_object(
         'note_key', v_note.note_key, 'revision', v_note.revision, 'deleted', true
     );
@@ -756,6 +809,9 @@ REVOKE ALL ON FUNCTION operations.record_user_content_notes_verification(
 ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION operations.register_user_content_notes_dependency_mapping(
     bigint, text, text, text, text, text, jsonb, text, text, text, text
+) FROM PUBLIC;
+REVOKE ALL ON FUNCTION operations.promote_user_content_notes_on_first_formal_mutation(
+    text, text, text, text
 ) FROM PUBLIC;
 REVOKE ALL ON FUNCTION user_content.put_analyst_note_v2(
     text, text, text, text, text, text, text, text, text,
