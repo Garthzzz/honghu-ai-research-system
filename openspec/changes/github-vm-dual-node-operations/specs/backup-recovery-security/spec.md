@@ -63,6 +63,10 @@ The migration/cutover authority-control class SHALL separately protect cutover-u
 - **WHEN** its data class has no approved target RPO/RTO or no recovery design aligned to those targets
 - **THEN** production data cutover SHALL remain blocked
 
+#### Scenario: A first cutover unit is ready to enter S2
+- **WHEN** unit-specific off-VM backup, authority-ledger recovery, and isolated restore evidence have not yet been produced
+- **THEN** S2 SHALL remain blocked and those controls SHALL NOT be deferred to later system-wide runner migration, bare-machine recovery, or measured-RPO/RTO acceptance work
+
 #### Scenario: A cutover unit contains multiple data classes
 - **WHEN** the unit's recovery design is evaluated
 - **THEN** it SHALL identify every included or depended-on class and satisfy each applicable target without using a more tolerant class to waive a stricter one; a transition SQLite archive SHALL NOT count as proof that PostgreSQL recovery targets are met

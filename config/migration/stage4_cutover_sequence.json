@@ -1,0 +1,33 @@
+{
+  "schema_version": "honghu.stage4_cutover_sequence.v1",
+  "status": "design_candidate",
+  "source_registry": "config/migration/cutover_unit_registry.json",
+  "ordering_dimensions": [
+    "dependency readiness",
+    "transaction and writer complexity",
+    "data volume and non-reproducibility",
+    "continuous runner and maintenance-window risk",
+    "existing revision, audit, reconciliation and recovery evidence"
+  ],
+  "production_units": [
+    {"order": 1, "unit": "user_content_notes", "readiness": "preparation_only", "reason": "zero live rows, two actual mutation paths, no scheduler, existing dev/test governance prototype; schema/API/identity/security gaps remain"},
+    {"order": 2, "unit": "shared_identity", "readiness": "blocked_by_stable_identity_design", "reason": "common dependency for most later units; high blast radius requires explicit legacy mapping"},
+    {"order": 3, "unit": "financial_data", "readiness": "blocked_by_identity_and_bridge", "reason": "moderate writer count but non-reproducible revisions/model ledger and financial snapshot bridge"},
+    {"order": 4, "unit": "research_publication", "readiness": "blocked_by_identity_and_publisher_contract", "reason": "largest writer/transaction surface among non-sentiment units; publication concurrency and dependency-cluster atomicity"},
+    {"order": 5, "unit": "dynamic_intelligence", "readiness": "blocked_by_identity_runner_checkpoint", "reason": "continuous ingestion and missed-window risk require unique runner and checkpoint continuity"},
+    {"order": 6, "unit": "operations_governance", "readiness": "blocked_by_identity_dynamic", "reason": "small row volume but controls task/fetch state; cutover authority remains a stricter separate recovery class"},
+    {"order": 7, "unit": "investment_hypotheses", "readiness": "blocked_by_identity_research_dynamic", "reason": "small but non-reproducible human content depending on three prior units"},
+    {"order": 8, "unit": "opportunity_lens", "readiness": "blocked_by_four_upstream_units", "reason": "46 tables and publication semantics depend on identity, research, dynamic and financial"},
+    {"order": 9, "unit": "sentiment_analytics", "readiness": "last_by_default", "reason": "largest data volume and highest checkpoint/window/retention/recovery complexity"}
+  ],
+  "non_independent_units": {
+    "financial_snapshot_bridge": "refactor or include in a jointly approved financial/research boundary",
+    "identity_consolidation_bridge": "legacy migration path; refactor before identity/financial/sentiment cutover",
+    "legacy_migration_archive": "not a future production writer",
+    "release_governance": "non-production fixture",
+    "test_fixture_only": "non-production",
+    "viewer_access_boundary": "reader transition that follows the owned business units",
+    "manual_classification_required": "blocked until explicitly classified"
+  },
+  "production_cutover_authorized": false
+}

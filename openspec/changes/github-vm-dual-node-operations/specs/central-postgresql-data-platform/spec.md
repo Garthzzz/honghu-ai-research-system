@@ -77,6 +77,10 @@ Every writable object, production writer, and indivisible transaction boundary S
 - **WHEN** an operator, application, or audit resolves a writable object
 - **THEN** the authoritative-backend matrix SHALL return one owning unit, one current state, one backend, and one production writer
 
+#### Scenario: Authority state advances to stable operation
+- **WHEN** a controller requests S3 to S4
+- **THEN** database constraints and the transition contract SHALL require PostgreSQL authority, preserve the S3 writer, cutover epoch, source final watermark and first formal commit, require expected revision, actor, reason and a non-empty S4 approval reference distinct from the current S3 approval, and SHALL reject any attempt to restore a SQLite backend, reuse the prior approval, or rewrite those authority identifiers
+
 ### Requirement: Mixed migration has one explicit authoritative backend per cutover unit
 During mixed SQLite/PostgreSQL operation, every cutover unit SHALL declare its authoritative reader/writer backend and SHALL have exactly one production writer.
 
@@ -110,6 +114,10 @@ SQLite backups, consistency checks, and migration manifests SHALL be retained as
 - **WHEN** the first formal PostgreSQL business write is durably committed
 - **THEN** the cutover unit SHALL transition immediately from S2 to S3 and record the transition in the audit ledger
 
+#### Scenario: The first formal mutation is a delete
+- **WHEN** a valid create, update, or soft-delete is the first must-preserve business mutation after a non-empty backfill
+- **THEN** that mutation, its revision/audit/idempotency records, the first-formal watermark, and the S2-to-S3 authority revision SHALL commit atomically; a missing object or stale revision SHALL fail without advancing authority
+
 #### Scenario: Commit response is uncertain
 - **WHEN** PostgreSQL may have committed but the caller did not receive a conclusive response
 - **THEN** the system SHALL resolve the result through stable business identity, idempotency identity, or ledger; until non-commit is proven, the unit SHALL be treated as S3 and SHALL NOT restore the SQLite writer
@@ -121,6 +129,10 @@ SQLite backups, consistency checks, and migration manifests SHALL be retained as
 #### Scenario: PostgreSQL has must-preserve new writes
 - **WHEN** a cutover unit has accepted valid post-cutover data
 - **THEN** the old SQLite SHALL NOT become the production writer by simple configuration rollback and SHALL serve only as baseline, audit, or limited repair input unless a separately approved reverse migration reconciles all newer data
+
+#### Scenario: A new shared-identity object appears before shared identity cutover
+- **WHEN** a migrated dependent unit receives a mutation for a company, industry, theme, or other identity that was created while shared identity remains SQLite-authoritative
+- **THEN** the mutation SHALL fail closed until a unit-specific controller records a non-conflicting mapping with the expected authority revision, read-only source watermark, stable identity, evidence identity, actor, approval and audit; S2 SHALL prohibit mapping changes, and the mapping bridge SHALL NOT become a second identity authority
 
 #### Scenario: Stability window ends
 - **WHEN** a migrated domain passes its approved stability and restore criteria

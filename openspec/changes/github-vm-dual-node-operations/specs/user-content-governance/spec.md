@@ -11,6 +11,14 @@ Comments, theses, hypotheses, Q6 edits, manual events, research requests, confid
 - **WHEN** an authorized delete is requested
 - **THEN** the content SHALL be soft-deleted and remain available to authorized audit and recovery processes
 
+#### Scenario: A backfilled note is the first formal post-cutover deletion
+- **WHEN** a valid soft-delete is the first formal mutation while the owning cutover unit is in S2
+- **THEN** the soft-delete revision, audit, idempotency result, first-formal watermark, and S2-to-S3 authority revision SHALL commit in one transaction under the same writer fence and expected-revision contract as create and update
+
+#### Scenario: Audit actor reaches the production adapter
+- **WHEN** a production user-content mutation is submitted
+- **THEN** the audit actor SHALL be derived from a trusted authenticated principal and SHALL NOT trust a client-controlled free-form actor value
+
 ### Requirement: User-content updates detect stale revisions
 Each durable user-content object SHALL have a stable identity and an expected revision, base version, or equivalent concurrency condition; PostgreSQL transactions SHALL NOT be treated as permission for silent last-write-wins.
 
@@ -56,3 +64,10 @@ An empty or low-row legacy user-content table MAY be replaced by the new governe
 #### Scenario: `analyst_note` is empty but thesis records exist
 - **WHEN** the user-content pilot is designed
 - **THEN** the empty table MAY use the new model directly, while existing thesis/hypothesis records SHALL receive an explicit preservation and validation plan
+
+### Requirement: User-content references remain fail-closed while shared identity is transitional
+User-content writers SHALL reference only verified stable identities or audited legacy mappings and SHALL NOT create, infer, or overwrite shared identity as a side effect of a note mutation.
+
+#### Scenario: A note targets a newly created SQLite-authoritative entity
+- **WHEN** shared identity has not yet cut over and the entity is absent from the dependent unit mapping snapshot
+- **THEN** the note mutation SHALL fail until a controller records an approved, source-watermarked and audited mapping outside S2; identity ambiguity or mapping collision SHALL remain blocked

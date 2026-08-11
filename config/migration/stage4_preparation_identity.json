@@ -1,0 +1,34 @@
+{
+  "schema_version": "honghu.stage4_preparation_identity.v1",
+  "status": "nonproduction_preparation_passed_production_blocked",
+  "stage3_inputs": {
+    "deployable_inventory_sha256": "a48fb886ca432ba171b68ed339077dd48928107c43e2e8a471ddd1408bcc1df4",
+    "live_only_addendum_sha256": "8d0b8fc4e2087ef72bb015c2e900c4f03f898684f66b9a6609a4b11234f2c8dd",
+    "aggregate_manifest_sha256": "13529bd9e2e610686226a4456fca77e4e4d777bd6b865cd070e5c5f355e12151",
+    "object_count": 134,
+    "aggregate_writer_operation_count": 971,
+    "aggregate_transaction_boundary_count": 392
+  },
+  "stage4_entry_drift": {
+    "schema_drift": false,
+    "deployable_path_drift": false,
+    "live_only_path_drift": false,
+    "writer_operation_drift": false,
+    "transaction_boundary_drift": false,
+    "ordinary_row_growth_ignored_as_boundary_drift": true
+  },
+  "first_unit": "user_content_notes",
+  "tracked_contract_sha256": {
+    "0002_user_content_notes_cutover_expand.sql": "845300928e22426901383d344aa791097ce90da404527c2f2d77e1940859cdfd",
+    "0002_user_content_notes_role_grants.sql": "bf516f1f5b64bb047a3dc1b54dcd15369082eae5ef1d822ba405204668bfc72a",
+    "0002_user_content_notes_cutover_rehearsal.sql": "0d199804dfdf44e409aad7d075975444fef68ebf980468f818ac4aada75a9768",
+    "stage4_user_content_rehearsal.py": "4c2ec47322ee46fdae39a97250785ad85626d5624ba4e70d8d0f4a2d170bcc6e"
+  },
+  "git_excluded_rehearsal_evidence": {
+    "path_class": "cache/migration/stage4_entry",
+    "evidence_sha256": "d07ac1cd1784743e84d8b131065597f9132f2cec19a571e1cfae4489bd075d5c",
+    "status": "pass",
+    "production_cutover_authorized": false
+  },
+  "commit_binding": "A Git-excluded final identity will bind the reviewed staged tree, commit SHA and push/PR checks after commit; this file intentionally avoids a self-referential commit hash."
+}
