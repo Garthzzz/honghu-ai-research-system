@@ -500,6 +500,8 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
     if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL Windows service registration failed.' }
     & sc.exe failure HonghuPostgreSQL17 reset= 86400 actions= restart/5000/restart/15000/none/0 | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL Windows service recovery policy failed.' }
+    & sc.exe failureflag HonghuPostgreSQL17 1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL Windows service failure flag failed.' }
     Start-Service -Name 'HonghuPostgreSQL17'
     $deadline = (Get-Date).AddSeconds(60)
     do {
@@ -523,25 +525,74 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
     } until ($listener.Count -gt 0 -or (Get-Date) -gt $deadline)
     if ($listener.Count -eq 0) { throw 'PostgreSQL service did not restart after a normal stop.' }
 
-    $crashPid = [int]$listener[0].OwningProcess
+    $postmasterPidPath = Join-Path $DataDir 'postmaster.pid'
+    if (-not (Test-Path -LiteralPath $postmasterPidPath -PathType Leaf)) {
+        throw 'PostgreSQL postmaster identity file is missing.'
+    }
+    $crashPid = [int](Get-Content -LiteralPath $postmasterPidPath -TotalCount 1)
+    $listenerPids = @($listener | ForEach-Object { [int]$_.OwningProcess } | Sort-Object -Unique)
+    $serviceProcess = Get-CimInstance Win32_Service -Filter "Name='HonghuPostgreSQL17'"
     $crashProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$crashPid"
     if ($null -eq $crashProcess -or -not [string]$crashProcess.ExecutablePath -or
         [System.IO.Path]::GetFullPath([string]$crashProcess.ExecutablePath) -ne [System.IO.Path]::GetFullPath((Join-Path $Bin 'postgres.exe')) -or
-        [string]$crashProcess.CommandLine -notlike "*$DataDir*") {
-        throw 'PostgreSQL listener process identity is not safe for crash-recovery rehearsal.'
+        [string]$crashProcess.CommandLine -notlike "*$DataDir*" -or
+        $listenerPids -notcontains $crashPid -or
+        $null -eq $serviceProcess -or [int]$crashProcess.ParentProcessId -ne [int]$serviceProcess.ProcessId) {
+        throw 'PostgreSQL postmaster/service identity is not safe for crash-recovery rehearsal.'
     }
+    $crashStartedAt = Get-Date
     Stop-Process -Id $crashPid -Force
+    $deadline = (Get-Date).AddSeconds(60)
+    $crashStopped = $false
+    do {
+        Start-Sleep -Seconds 1
+        $crashListener = @(Get-NetTCPConnection -LocalPort 55440 -State Listen -ErrorAction SilentlyContinue)
+        $crashService = Get-Service -Name 'HonghuPostgreSQL17' -ErrorAction SilentlyContinue
+        $crashStopped = ($crashListener.Count -eq 0 -and $null -ne $crashService -and $crashService.Status -eq 'Stopped')
+    } until ($crashStopped -or (Get-Date) -gt $deadline)
+    if (-not $crashStopped) {
+        throw 'PostgreSQL postmaster crash was not reflected as a stopped service.'
+    }
+
+    # pg_ctl runservice deliberately reports SERVICE_STOPPED/S_OK when the
+    # postmaster exits, so SCM failure actions do not automatically restart
+    # this failure mode.  Verify actual database crash recovery through an
+    # explicit, observable service start; monitoring/operator response is part
+    # of the pre-S2 service contract and no high-availability claim is made.
+    Start-Service -Name 'HonghuPostgreSQL17'
     $deadline = (Get-Date).AddSeconds(90)
     $recoveredListener = @()
+    $recoveredPid = $null
     do {
         Start-Sleep -Seconds 1
         $recoveredListener = @(Get-NetTCPConnection -LocalPort 55440 -State Listen -ErrorAction SilentlyContinue)
-    } until (($recoveredListener.Count -gt 0 -and [int]$recoveredListener[0].OwningProcess -ne $crashPid) -or (Get-Date) -gt $deadline)
-    if ($recoveredListener.Count -eq 0 -or [int]$recoveredListener[0].OwningProcess -eq $crashPid) {
-        throw 'PostgreSQL Windows service did not recover after the controlled process crash.'
+        if (Test-Path -LiteralPath $postmasterPidPath -PathType Leaf) {
+            $candidatePid = [int](Get-Content -LiteralPath $postmasterPidPath -TotalCount 1)
+            if ($candidatePid -ne $crashPid -and (Get-Process -Id $candidatePid -ErrorAction SilentlyContinue)) {
+                $recoveredPid = $candidatePid
+            }
+        }
+    } until (($recoveredListener.Count -gt 0 -and $null -ne $recoveredPid) -or (Get-Date) -gt $deadline)
+    if ($recoveredListener.Count -eq 0 -or $null -eq $recoveredPid) {
+        throw 'PostgreSQL did not complete crash recovery after explicit service restart.'
     }
     Invoke-HonghuPsql -Psql (Join-Path $Bin 'psql.exe') -Database postgres -Password $adminPassword -Sql 'SELECT 1;' | Out-Null
-    $primary.phases += @{ name = 'service_lifecycle'; result = 'pass'; normal_restart = $true; crash_recovery = $true; old_pid = $crashPid; recovered_pid = [int]$recoveredListener[0].OwningProcess }
+    $primary.phases += @{
+        name = 'service_lifecycle'
+        result = 'pass'
+        automatic_startup = $true
+        normal_restart = $true
+        service_host_failure_actions_configured = $true
+        postmaster_crash_detected_as_service_stopped = $true
+        postmaster_crash_automatic_restart = $false
+        crash_recovery = $true
+        recovery_start_trigger = 'explicit_start_service_after_detected_postmaster_crash'
+        monitoring_or_operator_start_required = $true
+        crash_recovery_seconds = [math]::Round(((Get-Date) - $crashStartedAt).TotalSeconds, 3)
+        old_pid = $crashPid
+        recovered_pid = $recoveredPid
+    }
+    Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
 
     $roleNames = [ordered]@{
         migration = 'honghu_migration'

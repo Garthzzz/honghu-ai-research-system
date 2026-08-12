@@ -39,6 +39,16 @@ capacity and existing 8080 before creating infrastructure.  It uses loopback
 ports 55440/55441 and never modifies port 8080.  Secrets are created on the VM
 and written only to the invoking Windows principal's Credential Manager.
 
+The Windows service is configured for automatic boot and is tested for normal
+stop/start. PostgreSQL 17 `pg_ctl runservice` reports a crashed postmaster as a
+cleanly stopped service on this host, so SCM failure actions are not represented
+as automatic postmaster recovery. The bootstrap instead proves actual WAL crash
+recovery by validating the postmaster/service process family, observing the
+stopped service and released listener, explicitly starting the service, and
+requiring a new postmaster identity plus a successful database probe. Runtime
+monitoring or an operator must trigger that service start; this co-located
+topology is not advertised as high availability.
+
 ## Failure and retry contract
 
 Each fresh attempt owns an install identity containing launch ID, commit,

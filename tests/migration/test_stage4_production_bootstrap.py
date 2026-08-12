@@ -213,6 +213,21 @@ def test_bootstrap_uses_explicit_portable_cluster_locale_contract() -> None:
     assert "cluster locale/encoding/checksum identity" in verifier
 
 
+def test_service_crash_recovery_uses_postmaster_identity_and_truthful_restart_contract() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "postmaster.pid" in source
+    assert "$listenerPids -notcontains $crashPid" in source
+    assert "Win32_Service" in source
+    assert "ParentProcessId" in source
+    assert "postmaster_crash_detected_as_service_stopped = $true" in source
+    assert "postmaster_crash_automatic_restart = $false" in source
+    assert "explicit_start_service_after_detected_postmaster_crash" in source
+    assert "monitoring_or_operator_start_required = $true" in source
+    assert "did not complete crash recovery after explicit service restart" in source
+
+
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:
     source = (
         ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"

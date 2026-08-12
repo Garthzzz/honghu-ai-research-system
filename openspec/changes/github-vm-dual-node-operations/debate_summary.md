@@ -552,3 +552,21 @@ DeepSeek把输入中已明确实现的 locale、checksum 与 catalog verifier �
 因此该建议会制造真实冲突，明确拒绝。它关于不泄露 native output、保留非零退出失败的方向已由
 捕获变量、`native_output_recorded=false` 与 exit-code gate 满足，没有新增可复现缺口。最终依据
 仍是新提交自己的完整测试、required CI 和 exact-commit VM bootstrap，而不是外部 verdict。
+
+### Stage 4 production execution：Windows service 崩溃恢复合同复核（2026-08-12）
+
+真实 VM 第四次尝试已经通过固定 locale 的 cluster 初始化、TLS 与私钥 ACL，并完成正常的服务
+启动、停止和重启；失败发生在受控 postmaster crash 后的“自动重启”假设。两次独立临时服务
+探针确认：即使配置 SCM failure actions 和 failure flag，`pg_ctl runservice` 在 postmaster 退出后
+仍把服务报告为 `Stopped`/成功状态，SCM 因而不会执行 failure recovery action。Codex据此删除不实
+高可用承诺：通过 `postmaster.pid`、listener PID、`postgres.exe`、data-dir command line、
+`Win32_Service` 父进程共同验证被终止进程；确认 crash 后服务停止且 listener 消失；再显式
+`Start-Service`，要求新 postmaster PID、listener 和查询探针恢复。evidence 明确记录
+`postmaster_crash_automatic_restart=false`、需要监控/操作者触发、恢复方式与耗时。真实合成探针
+已通过，并完整清理临时 service、listener 和 data root，8080 保持健康。
+
+DeepSeek 把“自动重启为 false”同时描述为事实和“违反 automatic_restart=false 的要求”，又称实现
+没有识别 postmaster/PID/命令行、没有显式恢复触发；这些均与输入事实和实测直接冲突。它要求加入
+cutover hook、高可用和 Viewer 生命周期展示，超出本轮 S0/S1 infrastructure readiness，且用户明确
+禁止 S2/S3 与生产应用切换，故拒绝。其泛化的状态过渡提醒已由有界等待、Stopped/listener 双条件和
+新 PID 验证覆盖，没有形成可复现新增缺口。本轮不因 reviewer 的矛盾结论降低门禁或扩张范围。
