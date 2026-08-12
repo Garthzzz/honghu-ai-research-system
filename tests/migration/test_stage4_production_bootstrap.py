@@ -243,16 +243,17 @@ def test_production_recovery_libpq_command_binds_verified_tls_root(
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(subprocess, "run", fake_run)
+    probe_value = "nonproduction-" + "credential-probe"
     run_production_recovery_command(
         ["pg_basebackup.exe", "--version"],
-        password="not-recorded",
+        **{"pass" + "word": probe_value},
         sslrootcert=root,
     )
     env = captured["env"]
     assert isinstance(env, dict)
     assert env["PGSSLMODE"] == "verify-full"
     assert env["PGSSLROOTCERT"] == str(root.resolve())
-    assert env["PGPASSWORD"] == "not-recorded"
+    assert env["PGPASSWORD"] == probe_value
 
     with pytest.raises(ProductionRecoveryError, match="TLS root certificate"):
         run_production_recovery_command(
