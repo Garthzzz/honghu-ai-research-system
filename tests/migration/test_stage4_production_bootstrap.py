@@ -112,6 +112,33 @@ def test_bootstrap_script_is_single_entry_and_preserves_authority() -> None:
     assert "stage4_isolated_entry.py" in source
 
 
+def test_bootstrap_keeps_quant_pristine_and_uses_hash_pinned_isolated_python() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "$BootstrapBasePythonExe = $BootstrapPythonExe" in source
+    assert "-m venv $PythonEnv" in source
+    assert "--require-hashes --requirement" in source
+    assert "tools\\release\\runtime_environment.py" in source
+    assert "python_runtime_executable" in source
+    assert "Completed-install isolated Python runtime verification failed." in source
+
+
+def test_fresh_bootstrap_does_not_pollute_install_root_before_identity() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "honghu-stage4-preflight-{0}" in source
+    assert "$FinalInstallEvidenceRoot = Join-Path $RuntimeRoot 'evidence'" in source
+    identity_write = source.index(
+        "Write-HonghuJsonAtomic -Path $InstallIdentityPath -Value $InstallIdentity"
+    )
+    evidence_promotion = source.index(
+        "$FinalInstallEvidenceRoot = Join-Path $RuntimeRoot 'evidence'"
+    )
+    assert identity_write < evidence_promotion
+
+
 def test_required_wal_range_is_complete_and_bounded() -> None:
     assert _required_wal_names(
         "000000010000000000000001", "000000010000000000000003"

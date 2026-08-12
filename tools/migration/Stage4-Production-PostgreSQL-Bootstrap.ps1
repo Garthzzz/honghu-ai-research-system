@@ -180,6 +180,7 @@ function Invoke-HonghuFailedBootstrapCleanup {
 $RepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path
 $PostgreSQLArchive = (Resolve-Path -LiteralPath $PostgreSQLArchive).Path
 $BootstrapPythonExe = (Resolve-Path -LiteralPath $BootstrapPythonExe).Path
+$BootstrapBasePythonExe = $BootstrapPythonExe
 if (-not [System.IO.Path]::IsPathRooted($ConfigPath)) { $ConfigPath = Join-Path $RepoRoot $ConfigPath }
 $ConfigPath = (Resolve-Path -LiteralPath $ConfigPath).Path
 $RuntimeRoot = Join-Path $InstallRoot 'runtime'
@@ -203,6 +204,11 @@ if ($null -ne $existingService -or (Test-Path -LiteralPath $InstallRoot)) {
     if ($existingIdentity.completed -ne $true -or $existingIdentity.commit_sha -ne $CommitSha) {
         throw 'Existing Stage 4 install is partial, foreign, or belongs to another commit.'
     }
+    $completedPython = [string]$existingIdentity.python_runtime_executable
+    if (-not $completedPython -or -not (Test-Path -LiteralPath $completedPython -PathType Leaf)) {
+        throw 'Completed Stage 4 install has no verified isolated Python runtime.'
+    }
+    $BootstrapPythonExe = (Resolve-Path -LiteralPath $completedPython).Path
     Assert-HonghuAdministrator
     if ((git -C $RepoRoot rev-parse HEAD).Trim().ToLowerInvariant() -ne $CommitSha) {
         throw 'Repo checkout is not the completed install commit.'
@@ -216,6 +222,11 @@ if ($null -ne $existingService -or (Test-Path -LiteralPath $InstallRoot)) {
         (Get-HonghuSha256 $PostgreSQLArchive) -ne $existingIdentity.postgresql_archive_sha256) {
         throw 'Completed-install archive/config identity changed.'
     }
+    $resumeRuntimeVerification = Join-Path $EvidenceRoot ("python_runtime_resume_verify-{0}.json" -f $LaunchId)
+    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\release\runtime_environment.py') `
+        --lockfile (Join-Path $RepoRoot 'requirements.lock.txt') |
+        Set-Content -LiteralPath $resumeRuntimeVerification -Encoding UTF8
+    if ($LASTEXITCODE -ne 0) { throw 'Completed-install isolated Python runtime verification failed.' }
     $resumeVerify = Join-Path $EvidenceRoot ("production_postgresql_resume_verify-{0}.json" -f $LaunchId)
     & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py') `
         --repo-root $RepoRoot --module tools.migration.stage4_production_verify `
@@ -233,6 +244,15 @@ if ($null -ne $existingService -or (Test-Path -LiteralPath $InstallRoot)) {
     } | ConvertTo-Json -Depth 8
     exit 0
 }
+
+# A fresh launch records pre-install failures outside InstallRoot.  InstallRoot
+# must remain absent until host/archive checks pass and an auditable install
+# identity can be written.  Once that identity exists, the evidence is moved
+# under the owned runtime tree.
+$PreInstallEvidenceRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("honghu-stage4-preflight-{0}" -f $LaunchId)
+$EvidenceRoot = $PreInstallEvidenceRoot
+$PrimaryEvidencePath = Join-Path $EvidenceRoot 'bootstrap_primary.json'
+$FinalEvidencePath = Join-Path $EvidenceRoot 'bootstrap_final.json'
 
 $primary = [ordered]@{
     schema_version = 'honghu.stage4_production_postgresql_bootstrap_evidence.v1'
@@ -318,10 +338,22 @@ try {
         commit_sha = $CommitSha
         bootstrap_config_sha256 = Get-HonghuSha256 $ConfigPath
         postgresql_archive_sha256 = Get-HonghuSha256 $PostgreSQLArchive
+        python_lock_sha256 = Get-HonghuSha256 (Join-Path $RepoRoot 'requirements.lock.txt')
+        python_runtime_executable = (Join-Path $InstallRoot 'python-env\Scripts\python.exe')
         created_at = (Get-Date).ToUniversalTime().ToString('o')
         completed = $false
     }
     Write-HonghuJsonAtomic -Path $InstallIdentityPath -Value $InstallIdentity
+    $FinalInstallEvidenceRoot = Join-Path $RuntimeRoot 'evidence'
+    New-Item -ItemType Directory -Force $FinalInstallEvidenceRoot | Out-Null
+    foreach ($preInstallEvidence in @(Get-ChildItem -LiteralPath $PreInstallEvidenceRoot -File -ErrorAction SilentlyContinue)) {
+        Move-Item -LiteralPath $preInstallEvidence.FullName -Destination (Join-Path $FinalInstallEvidenceRoot $preInstallEvidence.Name) -Force
+    }
+    Remove-Item -LiteralPath $PreInstallEvidenceRoot -Recurse -Force -ErrorAction SilentlyContinue
+    $EvidenceRoot = $FinalInstallEvidenceRoot
+    $PrimaryEvidencePath = Join-Path $EvidenceRoot 'bootstrap_primary.json'
+    $FinalEvidencePath = Join-Path $EvidenceRoot 'bootstrap_final.json'
+    Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
     Move-Item -LiteralPath $PgRoot -Destination (Join-Path $InstallRoot 'pgsql')
     Remove-Item -LiteralPath $StagingRoot -Recurse -Force
     $PgRoot = Join-Path $InstallRoot 'pgsql'
@@ -331,6 +363,33 @@ try {
     $WalArchive = Join-Path $InstallRoot 'wal-archive'
     $BackupRoot = Join-Path $InstallRoot 'backup'
     New-Item -ItemType Directory -Force $WalDir, $WalArchive, $BackupRoot, $RuntimeRoot | Out-Null
+
+    # The pre-existing quant interpreter is only a trusted Python 3.10
+    # bootstrap. Never add packages to it. All Stage 4 modules run in a
+    # hash-pinned environment owned by this exact installation.
+    $PythonEnv = Join-Path $InstallRoot 'python-env'
+    $ExecutionPythonExe = Join-Path $PythonEnv 'Scripts\python.exe'
+    & $BootstrapBasePythonExe -I -B -m venv $PythonEnv
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $ExecutionPythonExe -PathType Leaf)) {
+        throw 'Failed to create the isolated Stage 4 Python environment.'
+    }
+    & $ExecutionPythonExe -I -B -m pip install --disable-pip-version-check `
+        --require-hashes --requirement (Join-Path $RepoRoot 'requirements.lock.txt')
+    if ($LASTEXITCODE -ne 0) { throw 'Hash-pinned Stage 4 Python environment installation failed.' }
+    $PythonRuntimeEvidence = Join-Path $EvidenceRoot 'python_runtime_verification.json'
+    & $ExecutionPythonExe -I -B (Join-Path $RepoRoot 'tools\release\runtime_environment.py') `
+        --lockfile (Join-Path $RepoRoot 'requirements.lock.txt') |
+        Set-Content -LiteralPath $PythonRuntimeEvidence -Encoding UTF8
+    if ($LASTEXITCODE -ne 0) { throw 'Isolated Stage 4 Python runtime verification failed.' }
+    $BootstrapPythonExe = (Resolve-Path -LiteralPath $ExecutionPythonExe).Path
+    $primary.phases += @{
+        name = 'isolated_python_runtime'
+        result = 'pass'
+        executable = $BootstrapPythonExe
+        lock_sha256 = Get-HonghuSha256 (Join-Path $RepoRoot 'requirements.lock.txt')
+        evidence_sha256 = Get-HonghuSha256 $PythonRuntimeEvidence
+    }
+    Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
 
     $adminPassword = ConvertTo-HonghuSecretHex
     $passwordFile = Join-Path $RuntimeRoot ("initdb-{0}.pw" -f [guid]::NewGuid().ToString('N'))
