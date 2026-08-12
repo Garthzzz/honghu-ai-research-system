@@ -548,6 +548,17 @@ def test_bootstrap_uses_explicit_portable_cluster_locale_contract() -> None:
     assert "current_setting('data_checksums')" in verifier
     assert "datlocprovider,datlocale" in verifier
     assert "cluster locale/encoding/checksum identity" in verifier
+    assert "current_setting('data_directory')" not in verifier
+
+
+def test_final_production_verifier_preserves_native_failure_output() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "production_verification_command.log" in source
+    assert "$VerificationExitCode = $LASTEXITCODE" in source
+    assert "$VerificationOutput = @(& $BootstrapPythonExe @VerificationArgs 2>&1)" in source
+    assert "Get-HonghuSha256 $VerificationCommandLog" in source
 
 
 def test_service_crash_recovery_uses_postmaster_identity_and_truthful_restart_contract() -> None:

@@ -98,8 +98,7 @@ def verify_production_candidate(
                        current_setting('port'),
                        current_setting('ssl'),
                        current_setting('archive_mode'),
-                       current_setting('archive_command'),
-                       current_setting('data_directory')
+                       current_setting('archive_command')
                 """
             )
             server = cursor.fetchone()
@@ -226,7 +225,6 @@ def verify_production_candidate(
             "ssl": server[4],
             "archive_mode": server[5],
             "archive_command_configured": True,
-            "data_directory": server[7],
         },
         "cluster_contract": {
             "server_encoding": cluster_settings[0],

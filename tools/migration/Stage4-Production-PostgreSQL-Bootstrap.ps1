@@ -921,8 +921,28 @@ GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO honghu_backup;
         $env:PYTHONPATH = $null
         $env:PYTHONNOUSERSITE = '1'
         Push-Location $RepoRoot
-        & $BootstrapPythonExe @VerificationArgs
-        if ($LASTEXITCODE -ne 0) { throw 'Production PostgreSQL evidence verification failed.' }
+        $VerificationCommandLog = Join-Path $EvidenceRoot 'production_verification_command.log'
+        $VerificationOutput = @()
+        $VerificationExitCode = -1
+        $VerificationErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $VerificationOutput = @(& $BootstrapPythonExe @VerificationArgs 2>&1)
+            $VerificationExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $VerificationErrorActionPreference
+        }
+        $VerificationOutputText = (@($VerificationOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+        [IO.File]::WriteAllText(
+            $VerificationCommandLog,
+            $VerificationOutputText,
+            (New-Object Text.UTF8Encoding($false))
+        )
+        if ($VerificationExitCode -ne 0) {
+            throw "Production PostgreSQL evidence verification failed; production_verification_command.log sha256=$(Get-HonghuSha256 $VerificationCommandLog)"
+        }
+        if ($VerificationOutputText) { Write-Output $VerificationOutputText }
     }
     finally {
         Pop-Location
