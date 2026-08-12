@@ -62,7 +62,11 @@ def _tool(bin_dir: Path, name: str) -> Path:
 
 
 def _run(
-    command: list[str], *, password: str | None = None, input_text: str | None = None
+    command: list[str],
+    *,
+    password: str | None = None,
+    input_text: str | None = None,
+    sslrootcert: Path | None = None,
 ) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env.pop("PGSERVICE", None)
@@ -70,6 +74,13 @@ def _run(
     env.pop("PYTHONPATH", None)
     env["PGCONNECT_TIMEOUT"] = "5"
     env["PGSSLMODE"] = "verify-full"
+    if sslrootcert is not None:
+        root = sslrootcert.resolve()
+        if not root.is_file():
+            raise ProductionRecoveryError("libpq TLS root certificate is missing")
+        env["PGSSLROOTCERT"] = str(root)
+    else:
+        env.pop("PGSSLROOTCERT", None)
     if password is not None:
         env["PGPASSWORD"] = password
     result = subprocess.run(
@@ -239,6 +250,7 @@ def run_production_recovery(
             "--no-password",
         ],
         password=backup_password,
+        sslrootcert=Path(str(runtime["sslrootcert"])),
     )
     base_completed = _utc_now()
 

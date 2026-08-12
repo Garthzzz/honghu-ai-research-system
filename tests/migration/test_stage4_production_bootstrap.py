@@ -20,6 +20,8 @@ from tools.migration.stage4_json_io import read_json
 from tools.migration.stage4_production_recovery import (
     _load_json as load_production_recovery_json,
     _required_wal_names,
+    _run as run_production_recovery_command,
+    ProductionRecoveryError,
 )
 from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
 from tools.migration import stage4_isolated_entry as isolated_entry_module
@@ -226,6 +228,37 @@ def test_stage4_json_contract_rejects_utf16_instead_of_guessing_encoding(
 
     with pytest.raises(UnicodeDecodeError):
         read_json(path)
+
+
+def test_production_recovery_libpq_command_binds_verified_tls_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "root.crt"
+    root.write_text("test certificate identity", encoding="utf-8")
+    captured: dict[str, object] = {}
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        captured["command"] = command
+        captured["env"] = kwargs["env"]
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    run_production_recovery_command(
+        ["pg_basebackup.exe", "--version"],
+        password="not-recorded",
+        sslrootcert=root,
+    )
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert env["PGSSLMODE"] == "verify-full"
+    assert env["PGSSLROOTCERT"] == str(root.resolve())
+    assert env["PGPASSWORD"] == "not-recorded"
+
+    with pytest.raises(ProductionRecoveryError, match="TLS root certificate"):
+        run_production_recovery_command(
+            ["pg_basebackup.exe", "--version"],
+            sslrootcert=tmp_path / "missing.crt",
+        )
 
 
 def test_bootstrap_contract_imports_through_isolated_dispatcher() -> None:

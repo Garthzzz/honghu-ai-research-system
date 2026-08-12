@@ -626,3 +626,9 @@ DeepSeek 只收到脱敏后的根因、编码合同、覆盖范围和测试摘�
 精确提交 `0a4d0c1f7d08d605426589e00d6052371ab275bb` 的 VM 运行在 contract preflight 即失败：bootstrap 仍以 `python -I -B` 直接执行 contract 文件，而前一轮引入的共享 JSON helper 需要从 reviewed repo root 导入 `tools.migration`。隔离模式正确忽略了工作目录和 ambient `PYTHONPATH`，因此暴露了入口边界回归。现场随即确认 service、install root 和 55440 listener 均不存在，8080 健康；没有形成数据库或 authority 状态。
 
 Codex 没有撤销隔离或依赖环境变量，而是把 bootstrap contract 纳入既有 allowlisted isolated dispatcher；fresh-install 与 completed-install resume 两条路径均通过显式 `--repo-root`、allowlisted module 和强制 `--` 参数边界执行。回归实际启动 `python -I -B` dispatcher 并导入 contract，同时复核全部 allowlisted invocation 的分隔符、入口签名和 PowerShell 语法。DeepSeek 只收到脱敏后的故障、修订、隔离合同与测试摘要，结论为 `pass`，无 must-fix/should-fix；其判断与真实代码和回归一致，没有信息增量，因此一轮后停止。该复核仍不构成 PostgreSQL 部署、mapping、off-VM recovery、S2/S3 或 cutover 批准。
+
+### Stage 4 production execution：pg_basebackup TLS root 合同复核（2026-08-13）
+
+真实 VM 已通过固定 PostgreSQL 17、TLS 生成与 ACL、service lifecycle/crash recovery、角色凭据 create/rotate/revoke 和 identity mapping；recovery 阶段留下的 run 目录为空，PostgreSQL 日志在同一时点记录 SSL connection EOF。代码审计确认所有 libpq subprocess 均强制 `PGSSLMODE=verify-full`，但 `pg_basebackup` 未继承 psycopg 路径已经显式使用的 runtime `sslrootcert`。Codex 将共享 subprocess helper 扩展为显式 TLS root 输入：解析并验证 root 文件存在，移除 ambient `PGSSLROOTCERT`，再把 exact reviewed root 注入 `pg_basebackup`；缺失 root 继续 fail-closed，密码只在子进程环境中存在且不进入 evidence。
+
+DeepSeek 只收到上述脱敏现场、代码差异和回归摘要，结论为 `pass`、无 must-fix。其唯一 should-fix 是增加“root 路径不存在必须拒绝”的测试，而该测试已经与 exact `PGSSLMODE/PGSSLROOTCERT` 断言在同一 revision 中实现，因此没有信息增量，不再开启第二轮。外部复核不替代 exact-commit CI、真实 VM recovery、off-VM failure domain、mapping approval 或 S2/S3 授权。
