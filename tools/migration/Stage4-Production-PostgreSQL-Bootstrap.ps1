@@ -96,7 +96,11 @@ function Test-HonghuRoleCredential {
     $oldPassword = $env:PGPASSWORD
     try {
         $env:PGPASSWORD = $Password
-        & $Psql -X --set ON_ERROR_STOP=1 --host localhost --port 55440 `
+        # The production listener is intentionally IPv4-loopback only.  On
+        # Windows, localhost may resolve to ::1 first and psql can fail without
+        # reaching 127.0.0.1, so every lifecycle probe uses the exact reviewed
+        # listener address rather than relying on resolver order.
+        & $Psql -X --set ON_ERROR_STOP=1 --host 127.0.0.1 --port 55440 `
             --username $User --dbname $Database --no-password `
             --command 'SELECT 1;' 2>$null | Out-Null
         return ($LASTEXITCODE -eq 0)
@@ -669,7 +673,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         schema_version = 'honghu.postgresql_production_runtime.v1'
         environment_id = 'production'
         application_commit_sha = $CommitSha
-        host = 'localhost'
+        host = '127.0.0.1'
         port = 55440
         dbname = 'honghu_research'
         sslmode = 'verify-full'

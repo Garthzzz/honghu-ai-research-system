@@ -228,6 +228,15 @@ def test_service_crash_recovery_uses_postmaster_identity_and_truthful_restart_co
     assert "did not complete crash recovery after explicit service restart" in source
 
 
+def test_production_runtime_and_credential_probes_use_exact_ipv4_listener() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "--host 127.0.0.1 --port 55440" in source
+    assert "host = '127.0.0.1'" in source
+    assert "--host localhost --port 55440" not in source
+
+
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:
     source = (
         ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"

@@ -570,3 +570,9 @@ DeepSeek 把“自动重启为 false”同时描述为事实和“违反 automat
 cutover hook、高可用和 Viewer 生命周期展示，超出本轮 S0/S1 infrastructure readiness，且用户明确
 禁止 S2/S3 与生产应用切换，故拒绝。其泛化的状态过渡提醒已由有界等待、Stopped/listener 双条件和
 新 PID 验证覆盖，没有形成可复现新增缺口。本轮不因 reviewer 的矛盾结论降低门禁或扩张范围。
+
+随后 exact-commit VM bootstrap 通过 service lifecycle 后在 credential probe 暴露出独立的
+Windows resolver 缺陷：探针仍使用 `localhost`，宿主优先解析为 `::1`，而经审计的数据库监听
+仅开放 `127.0.0.1`，连接因此被拒绝。通用管理连接本来已经固定 IPv4；Codex将 credential
+探针和 runtime config 一并统一到确切的 `127.0.0.1`，保留 TLS IP SAN 验证，不通过扩大监听
+范围解决。该问题由真实现场发现，DeepSeek本轮没有识别或提供信息增量。
