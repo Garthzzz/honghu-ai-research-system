@@ -495,3 +495,29 @@ pip check、executable/lock evidence、completed retry 和 incomplete 状态”�
 Windows service 不执行 Python；隔离 venv 与 Credential Manager 属于已记录的 Stage 4
 operator principal，未来 application service principal 仍是 S2 前人工 gate。外部 verdict
 不构成 production、mapping、off-VM 或 S2 批准。
+
+### Stage 4 production execution：TLS 与 pre-install retry 复核（2026-08-12）
+
+真实 VM 首次 bootstrap 在创建服务、数据目录和凭据之前失败，原因是官方 PostgreSQL
+17.10 Windows ZIP 不含 `openssl.exe`，而旧入口错误把它列为 archive 必备二进制。Codex
+独立修订为：其余六个 PostgreSQL 二进制和固定版本继续 fail-closed；只有 hash-pinned
+Python 3.10 runtime 完成逐包与 `pip check` 验证后，才以 `cryptography` 生成 RSA-3072、
+SHA256、localhost DNS/IP SAN、CA=false、serverAuth 的证书。生成器 exclusive-create 三个
+TLS 文件，生成后重新加载验证私钥匹配、root 副本和自签名，evidence 只保存证书身份，
+不保存私钥。Windows 私钥在递归服务授权后再次禁用继承，仅 SYSTEM/Administrators 完全
+控制、NetworkService 只读。
+
+pre-install 解压失败也不再留下语义不明的 staging：只有 InstallRoot 尚不存在、服务不
+存在、55440 无 listener，且 staging 严格属于同父目录 `InstallRoot.staging.<32hex>` 时，
+才允许将整目录原子隔离到本 launch 的 failed 路径，并记录主失败、原路径、文件数、总
+字节和文件集 hash；foreign/current/completed/路径冲突或观测不足均拒绝。隔离目录不能
+作为安装复用。
+
+DeepSeek 共复核两轮。第一轮把 Unix `0600` 作为私钥权限要求；Codex接受其最小权限意图，
+按 Windows 服务事实转化成上述 SID ACL，并增加生成后密码学自验。它同时要求继续把真实
+不存在的 `openssl.exe` 列为必需文件，和确定性现场证据冲突，拒绝。第二轮基于公开提交
+`8707a58111def28f682b2436291e07fe6da8f764` 返回 `pass`、无 must-fix/should-fix；其
+accepted-controls 文本仍误写了一次“OpenSSL required binary”，Codex未把这一错误标签
+当作实现事实。最终依据是 672 个 core tests、82 个 Stage 4/browser 定向测试、17 个
+TLS/quarantine 测试、PowerShell parser、compile、OpenSpec strict、tracked/staged boundary
+和 SQLite ratchet；外部 reviewer 不构成 S2/S3、mapping、off-VM 或 cutover 批准。
