@@ -476,3 +476,22 @@ migration role 对通用 transition 的权限。真实 PostgreSQL 17 最小权�
 根据集群 `wal_segment_size` 计算连续 WAL ordinal，而不是把 16 位十六进制后缀机械加一。
 外部 reviewer 没有对该真实问题提供信息增量。后续结论继续由真实 VM、恢复演练、边界门禁和
 required CI 负责，DeepSeek 不构成 mapping、repository governance、S2 或 cutover 批准。
+
+### Stage 4 production execution：隔离 Python runtime 复核（2026-08-12）
+
+VM 只读预检确认，受信任的 Python 3.10 bootstrap 本身没有 `keyring`、
+`cryptography` 和 `psycopg`。Codex没有修改既有 `quant` 环境，而是把正式执行合同
+修订为：在 exact install root 下创建独立 venv，以 tracked
+`requirements.lock.txt` 和 `pip --require-hashes` 安装，再用已有标准
+canonicalization、Python 3.10、逐包版本和 `pip check` verifier 冻结 executable、
+lock hash 与验证 evidence。fresh launch 在写入 exact launch/commit/config/archive
+identity 前不占用 InstallRoot；completed retry 必须重新验证同一 isolated runtime，
+foreign/incomplete/completed 三种安装状态继续 fail-closed 分流。
+
+DeepSeek收到上述脱敏事实后仍把“必须给出 install root、hash lock、canonicalization、
+pip check、executable/lock evidence、completed retry 和 incomplete 状态”逐项列为缺失，
+并建议使用与 Windows 项目无关的 `/opt/quant/venv`。这些意见与输入及真实实现直接冲突，
+没有提供可复现触发路径，因此拒绝。其背后的权限边界由 Codex独立复核：PostgreSQL
+Windows service 不执行 Python；隔离 venv 与 Credential Manager 属于已记录的 Stage 4
+operator principal，未来 application service principal 仍是 S2 前人工 gate。外部 verdict
+不构成 production、mapping、off-VM 或 S2 批准。
