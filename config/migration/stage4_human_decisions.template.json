@@ -1,0 +1,9 @@
+{
+  "schema_version": "honghu.stage4_human_decisions.v1",
+  "mapping": {"approved": false, "approval_reference": null},
+  "repository_authority": {"approved": false, "approval_reference": null},
+  "operator": {"approved": false, "approval_reference": null},
+  "approver": {"approved": false, "approval_reference": null},
+  "maintenance_window": {"approved": false, "approval_reference": null},
+  "enter_s2": {"approved": false, "approval_reference": null}
+}

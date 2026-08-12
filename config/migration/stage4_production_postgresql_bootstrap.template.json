@@ -1,0 +1,41 @@
+{
+  "schema_version": "honghu.stage4_production_postgresql_bootstrap.v1",
+  "environment_id": "production",
+  "postgresql": {
+    "version": "17.10",
+    "archive_file": "postgresql-17.10-2-windows-x64-binaries.zip",
+    "archive_sha256": "ef9b1e5e23d2e8a83914ba13d9dc536a72210fba53fd1808ff1f7e06bb22b106",
+    "source_url": "https://get.enterprisedb.com/postgresql/postgresql-17.10-2-windows-x64-binaries.zip",
+    "service_name": "HonghuPostgreSQL17",
+    "service_account": "NT AUTHORITY\\NetworkService",
+    "host": "127.0.0.1",
+    "port": 55440,
+    "restore_test_port": 55441,
+    "database": "honghu_research",
+    "install_root": "D:\\honghu-postgresql",
+    "tls_verify_name": "localhost",
+    "allowed_cidrs": ["127.0.0.1/32", "::1/128"]
+  },
+  "source": {
+    "production_root": "C:\\industry_demo",
+    "live_data_subdirectory": "data",
+    "tracked_route": "config/migration/user_content_backend_route.json"
+  },
+  "roles": {
+    "migration": "honghu_migration",
+    "reader": "honghu_viewer_reader",
+    "controller": "honghu_controller",
+    "audit_reader": "honghu_audit_reader",
+    "backup": "honghu_backup",
+    "unit_writer_prefix": "honghu_writer_"
+  },
+  "authority_guard": {
+    "allowed_states": ["S0", "S1"],
+    "required_backend": "sqlite_transition",
+    "sqlite_writer_enabled": true,
+    "production_postgresql_enabled": false,
+    "forbid_s2_s3": true,
+    "forbid_formal_business_mutation": true,
+    "forbid_dual_or_shadow_write": true
+  }
+}

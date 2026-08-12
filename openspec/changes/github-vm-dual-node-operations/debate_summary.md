@@ -450,3 +450,29 @@ base/WAL 被移出恢复路径，restore workspace 与 `restore_command` 只从 
 WAL 不足、manifest/hash 篡改、缺 sentinel、同机盘符、伪 storage identity、copy identity
 不符和 set 外恢复源等 fail-closed 测试，以及真实物理恢复结果作为依据；外部 verdict
 不构成 off-VM、mapping、repository governance 或 S2 批准。
+
+## Stage 4 production execution milestone review（2026-08-12 追加）
+
+本轮先由 Codex 独立完成九单元只读 manifest、隔离 PostgreSQL
+staging/catch-up、非空 user-content S1 和最小权限演练，再向 DeepSeek 发送不含
+源码、数据库行、凭据、论文、用户内容、内网地址或 Git 外原始 evidence 的合同摘要。
+
+DeepSeek 返回 `revise`，但其中六项把输入已经明确存在的 source ordinal、hash/count、
+hash-bound mapping approval、revision/audit、sentinel/WAL manifest、exact launch identity
+和完整 artifact verifier 反写为“缺失”；另有一项建议 dual-write 和自动 fallback，直接
+违反已批准的单一 authority 合同，均被 Codex 拒绝。关于 NetworkService 读取 Credential
+Manager 的判断也不成立：PostgreSQL Windows service 不读取应用数据库凭据，凭据属于执行
+bootstrap 的 Windows principal。Codex 接受其背后的边界提醒，显式记录 credential owner，
+并把未来 application service principal 的凭据配置保留为 S2 前 gate。
+
+Codex 继续独立审计后发现一项 DeepSeek 未识别的真实问题：migration role 原先可以执行通用
+`transition_user_content_notes()`，理论上能够请求 S2。实现已改为专用
+`prepare_user_content_notes_authority_s1()`，只允许 `ABSENT→S0` 和 `S0→S1`，并撤销
+migration role 对通用 transition 的权限。真实 PostgreSQL 17 最小权限演练确认合法 S0/S1
+成功，两类 S2 请求均以 SQLSTATE 42501 拒绝，authority 最终仍为
+`S1/sqlite_transition`，无 writer、epoch 或 formal commit。
+
+同一轮独立恢复审计还修复了 PostgreSQL WAL 文件名跨 log/segment 边界的枚举：恢复工具现在
+根据集群 `wal_segment_size` 计算连续 WAL ordinal，而不是把 16 位十六进制后缀机械加一。
+外部 reviewer 没有对该真实问题提供信息增量。后续结论继续由真实 VM、恢复演练、边界门禁和
+required CI 负责，DeepSeek 不构成 mapping、repository governance、S2 或 cutover 批准。

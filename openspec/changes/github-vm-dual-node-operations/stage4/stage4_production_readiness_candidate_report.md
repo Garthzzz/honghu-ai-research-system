@@ -1,5 +1,7 @@
 # Stage 4 production-readiness candidate 收口报告
 
+> 历史状态说明：本文记录的是当时尚无远程通道的候选审计事实。2026-08-12 用户已建立并人工验证 `ssh honghu-vm`；当前执行边界和状态以 `stage4_production_execution_runbook.md` 与 `stage4_production_execution_status.md` 为准。本说明不改写本文的历史证据。
+
 ## 结论
 
 > **PRODUCTION READINESS BLOCKED**

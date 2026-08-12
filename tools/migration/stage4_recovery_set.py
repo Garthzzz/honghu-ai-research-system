@@ -184,8 +184,8 @@ def build_recovery_set(
     destination.mkdir(parents=True)
     shutil.copytree(base_backup, destination / "base_backup")
     (destination / "wal").mkdir()
-    for source in sorted(item for item in wal_archive.iterdir() if item.is_file()):
-        shutil.copy2(source, destination / "wal" / source.name)
+    for name in sorted(required_wal):
+        shutil.copy2(wal_archive / name, destination / "wal" / name)
     (destination / "target.json").write_text(
         json.dumps(target, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
