@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
+from tools.migration.stage4_json_io import read_json
+
 
 SCHEMA_VERSION = "honghu.stage4_unit_snapshot.v1"
 PRODUCTION_UNITS = (
@@ -63,7 +65,7 @@ def _encode(value: Any) -> Any:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = read_json(path)
     if not isinstance(payload, dict):
         raise UnitSnapshotError(f"JSON object required: {path}")
     return payload

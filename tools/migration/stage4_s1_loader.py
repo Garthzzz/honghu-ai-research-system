@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from tools.migration.stage4_unit_s1 import UnitSnapshotError, verify_snapshot
+from tools.migration.stage4_json_io import read_json
 
 
 class Stage4LoadError(RuntimeError):
@@ -15,7 +16,7 @@ class Stage4LoadError(RuntimeError):
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value = read_json(path)
     if not isinstance(value, dict):
         raise Stage4LoadError(f"JSON object required: {path}")
     return value

@@ -21,6 +21,7 @@ from tools.migration.stage4_recovery_set import (
     sha256_json,
     verify_recovery_set,
 )
+from tools.migration.stage4_json_io import read_json
 
 
 class ProductionRecoveryError(RuntimeError):
@@ -32,7 +33,7 @@ def _utc_now() -> str:
 
 
 def _load_json(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = read_json(path)
     if not isinstance(payload, dict):
         raise ProductionRecoveryError(f"JSON object required: {path}")
     return payload

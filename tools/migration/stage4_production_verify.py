@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.migration.stage4_s1_loader import _connection_from_runtime
+from tools.migration.stage4_json_io import read_json
 
 
 class ProductionVerificationError(RuntimeError):
@@ -51,7 +52,7 @@ def _sha(value: Any) -> str:
 def verify_production_candidate(
     *, repo_root: Path, runtime_path: Path, application_commit_sha: str
 ) -> dict[str, Any]:
-    runtime = json.loads(runtime_path.read_text(encoding="utf-8"))
+    runtime = read_json(runtime_path)
     if runtime.get("schema_version") != "honghu.postgresql_production_runtime.v1":
         raise ProductionVerificationError("unsupported production runtime schema")
     if runtime.get("environment_id") != "production":
@@ -61,7 +62,7 @@ def verify_production_candidate(
     if runtime.get("application_route") != "sqlite_transition":
         raise ProductionVerificationError("application route is not SQLite")
     route_path = repo_root / "config/migration/user_content_backend_route.json"
-    route = json.loads(route_path.read_text(encoding="utf-8"))
+    route = read_json(route_path)
     if not (
         route.get("authority_state") in {"S0", "S1"}
         and route.get("backend") == "sqlite_transition"

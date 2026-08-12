@@ -43,8 +43,21 @@ function Write-HonghuJsonAtomic {
     $parent = Split-Path -Parent $Path
     New-Item -ItemType Directory -Force $parent | Out-Null
     $temp = "$Path.$([guid]::NewGuid().ToString('N')).tmp"
-    $Value | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $temp -Encoding UTF8
+    $json = $Value | ConvertTo-Json -Depth 20
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($temp, $json + [Environment]::NewLine, $utf8NoBom)
     Move-Item -LiteralPath $temp -Destination $Path -Force
+}
+
+function Write-HonghuUtf8NoBom {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Text
+    )
+    $parent = Split-Path -Parent $Path
+    if ($parent) { New-Item -ItemType Directory -Force $parent | Out-Null }
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $Text, $utf8NoBom)
 }
 
 function Invoke-HonghuCredential {
@@ -292,10 +305,10 @@ if ($null -ne $existingService -or (Test-Path -LiteralPath $InstallRoot)) {
         throw 'Completed-install archive/config identity changed.'
     }
     $resumeRuntimeVerification = Join-Path $EvidenceRoot ("python_runtime_resume_verify-{0}.json" -f $LaunchId)
-    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\release\runtime_environment.py') `
-        --lockfile (Join-Path $RepoRoot 'requirements.lock.txt') |
-        Set-Content -LiteralPath $resumeRuntimeVerification -Encoding UTF8
+    $resumeRuntimeVerificationText = (& $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\release\runtime_environment.py') `
+        --lockfile (Join-Path $RepoRoot 'requirements.lock.txt') | Out-String)
     if ($LASTEXITCODE -ne 0) { throw 'Completed-install isolated Python runtime verification failed.' }
+    Write-HonghuUtf8NoBom -Path $resumeRuntimeVerification -Text $resumeRuntimeVerificationText
     $resumeVerify = Join-Path $EvidenceRoot ("production_postgresql_resume_verify-{0}.json" -f $LaunchId)
     & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py') `
         --repo-root $RepoRoot --module tools.migration.stage4_production_verify `
@@ -449,10 +462,10 @@ try {
         --require-hashes --requirement (Join-Path $RepoRoot 'requirements.lock.txt')
     if ($LASTEXITCODE -ne 0) { throw 'Hash-pinned Stage 4 Python environment installation failed.' }
     $PythonRuntimeEvidence = Join-Path $EvidenceRoot 'python_runtime_verification.json'
-    & $ExecutionPythonExe -I -B (Join-Path $RepoRoot 'tools\release\runtime_environment.py') `
-        --lockfile (Join-Path $RepoRoot 'requirements.lock.txt') |
-        Set-Content -LiteralPath $PythonRuntimeEvidence -Encoding UTF8
+    $PythonRuntimeEvidenceText = (& $ExecutionPythonExe -I -B (Join-Path $RepoRoot 'tools\release\runtime_environment.py') `
+        --lockfile (Join-Path $RepoRoot 'requirements.lock.txt') | Out-String)
     if ($LASTEXITCODE -ne 0) { throw 'Isolated Stage 4 Python runtime verification failed.' }
+    Write-HonghuUtf8NoBom -Path $PythonRuntimeEvidence -Text $PythonRuntimeEvidenceText
     $BootstrapPythonExe = (Resolve-Path -LiteralPath $ExecutionPythonExe).Path
     $primary.phases += @{
         name = 'isolated_python_runtime'

@@ -613,3 +613,10 @@ DeepSeek收到脱敏后的 dispatcher/CLI 事实与测试摘要，结论为 `app
 fail-closed。bootstrap 的八个隔离入口全部使用同一边界，回归验证重名参数保留、无分隔符拒绝、
 PowerShell 语法以及 recovery help 的真实隔离调用。DeepSeek窄审查结论为 `pass`，无 must-fix
 或 should-fix；未提出新的可复现缺口，因此在一轮后停止。
+### Stage 4 production execution：Windows PowerShell UTF-8 BOM 合同复核（2026-08-13）
+
+真实 VM bootstrap 在 identity mapping 与只读 cross-check 完成后，于 recovery runtime evidence 读取阶段失败。根因是 Windows PowerShell 5.1 的 `Set-Content -Encoding UTF8` 写入 UTF-8 BOM，而 Python 入口按无 BOM `utf-8` 解码；这属于跨运行时序列化合同不一致，不是 PostgreSQL、mapping 或 recovery 数据本身失败。失败后现场已只读确认：`HonghuPostgreSQL17` service 不存在、55440 无 listener、install root 不存在、8080 健康，因此没有形成 production authority 或半安装状态。
+
+Codex 将 Stage 4 原子 JSON writer 固定为 .NET `UTF8Encoding(false)`，所有关键 Stage 4 文件型 JSON reader 统一通过共享 helper 以 `utf-8-sig` 接受有/无 BOM 的 UTF-8；UTF-16、损坏 JSON 和合同字段错误仍然 fail-closed。两个由 Python 输出、再由 PowerShell落盘的 runtime evidence 也改用同一无 BOM writer。回归覆盖有/无 BOM、中文内容、UTF-16 拒绝、真实 Windows PowerShell 无 BOM 字节以及 recovery reader 路径。最终本地证据为 695 个 core tests 通过、94 个 Stage 4/API/browser 定向测试通过、PowerShell parser、compile、OpenSpec strict 与 diff check 通过。
+
+DeepSeek 只收到脱敏后的根因、编码合同、覆盖范围和测试摘要，结论为 `pass`，无 must-fix。其 should-fix 仅重复已经实现的共享 reader、无 BOM writer、验证门禁和合同记录，没有形成信息增量；Codex 逐项以代码和回归验证后不再开启第二轮。本次外部复核不构成 PostgreSQL 部署、mapping approval、off-VM recovery、S2/S3 或 cutover 批准。

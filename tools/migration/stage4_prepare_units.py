@@ -10,6 +10,7 @@ from typing import Any
 
 from tools.migration.stage4_s1_loader import _connection_from_runtime, load_snapshot
 from tools.migration.stage4_unit_s1 import PRODUCTION_UNITS, build_unit_snapshot
+from tools.migration.stage4_json_io import read_json
 
 
 class Stage4PreparationError(RuntimeError):
@@ -32,7 +33,7 @@ def _sha_file(path: Path) -> str:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value = read_json(path)
     if not isinstance(value, dict):
         raise Stage4PreparationError(f"JSON object required: {path}")
     return value

@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from tools.migration.stage4_json_io import read_json
+
 
 class BootstrapContractError(RuntimeError):
     pass
@@ -33,7 +35,7 @@ def _file_sha(path: Path) -> str:
 
 
 def load_and_validate_config(path: Path) -> dict[str, Any]:
-    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload = read_json(path)
     if payload.get("schema_version") != "honghu.stage4_production_postgresql_bootstrap.v1":
         raise BootstrapContractError("unsupported production bootstrap schema")
     if payload.get("environment_id") != "production":
@@ -96,7 +98,7 @@ def validate_inputs(
     if actual_archive_sha != expected_archive_sha:
         raise BootstrapContractError("PostgreSQL archive hash mismatch")
     route_path = repo_root / config["source"]["tracked_route"]
-    route = json.loads(route_path.read_text(encoding="utf-8"))
+    route = read_json(route_path)
     guard = config["authority_guard"]
     if route.get("authority_state") not in guard["allowed_states"]:
         raise BootstrapContractError("tracked route is outside S0/S1")

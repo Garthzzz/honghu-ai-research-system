@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from tools.migration.stage4_json_io import read_json
+
 
 class ExecutionReadinessError(RuntimeError):
     pass
@@ -24,7 +26,7 @@ def _sha_file(path: Path) -> str:
 
 
 def _read(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
+    value = read_json(path)
     if not isinstance(value, dict):
         raise ExecutionReadinessError(f"JSON object required: {path}")
     return value

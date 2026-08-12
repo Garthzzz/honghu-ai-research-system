@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from tools.data_platform.routing import AuthorityState, Backend, load_cutover_route
+from tools.migration.stage4_json_io import read_json
 
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -103,7 +104,7 @@ def _load_artifacts(
             blockers.append(f"{name}: artifact SHA256 mismatch")
             continue
         try:
-            loaded[name] = json.loads(path.read_text(encoding="utf-8"))
+            loaded[name] = read_json(path)
         except (OSError, json.JSONDecodeError) as exc:
             blockers.append(f"{name}: artifact is not readable JSON ({type(exc).__name__})")
     return loaded, identities
@@ -193,7 +194,7 @@ def _validate_application(
                 "adapter rehearsal artifact SHA256 mismatch",
                 blockers,
             )
-            raw_rehearsal = json.loads(rehearsal_path.read_text(encoding="utf-8"))
+            raw_rehearsal = read_json(rehearsal_path)
             _require(raw_rehearsal.get("status") == "pass", "adapter rehearsal did not pass", blockers)
             _require(raw_rehearsal.get("production_cutover_authorized") is False, "adapter rehearsal self-authorized production", blockers)
             _require(raw_rehearsal.get("live_sqlite_schema_unchanged") is True, "adapter rehearsal changed live SQLite schema", blockers)
@@ -471,7 +472,7 @@ def evaluate_readiness(
         "tracked default route is not SQLite/S0",
         blockers,
     )
-    target = json.loads((root / "config/migration/target_rpo_rto_proposal.json").read_text(encoding="utf-8"))
+    target = read_json(root / "config/migration/target_rpo_rto_proposal.json")
     _require(target.get("approval_status") == "approved", "target RPO/RTO is not approved", blockers)
 
     loaded, artifact_identities = _load_artifacts(evidence, evidence_root or root, blockers)
@@ -535,7 +536,7 @@ def main() -> int:
     args = parser.parse_args()
     result = evaluate_readiness(
         root=args.root.resolve(),
-        evidence=json.loads(args.evidence.read_text(encoding="utf-8")),
+        evidence=read_json(args.evidence),
         evidence_root=(args.evidence_root or args.evidence.parent).resolve(),
     )
     rendered = json.dumps(result, ensure_ascii=False, indent=2) + "\n"

@@ -15,7 +15,11 @@ from tools.migration.stage4_production_bootstrap_contract import (
     load_and_validate_config,
     validate_inputs,
 )
-from tools.migration.stage4_production_recovery import _required_wal_names
+from tools.migration.stage4_json_io import read_json
+from tools.migration.stage4_production_recovery import (
+    _load_json as load_production_recovery_json,
+    _required_wal_names,
+)
 from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
 from tools.migration import stage4_isolated_entry as isolated_entry_module
 
@@ -194,6 +198,68 @@ def test_bootstrap_secret_rng_is_windows_powershell_compatible() -> None:
         timeout=30,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+@pytest.mark.parametrize("with_bom", [False, True])
+def test_stage4_json_contract_accepts_utf8_with_or_without_bom(
+    tmp_path: Path, with_bom: bool
+) -> None:
+    path = tmp_path / "runtime.json"
+    raw = json.dumps({"schema_version": "测试", "ok": True}, ensure_ascii=False).encode(
+        "utf-8"
+    )
+    path.write_bytes((b"\xef\xbb\xbf" if with_bom else b"") + raw)
+
+    assert read_json(path) == {"schema_version": "测试", "ok": True}
+    assert load_production_recovery_json(path) == {
+        "schema_version": "测试",
+        "ok": True,
+    }
+
+
+def test_stage4_json_contract_rejects_utf16_instead_of_guessing_encoding(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "runtime.json"
+    path.write_bytes(json.dumps({"ok": True}).encode("utf-16"))
+
+    with pytest.raises(UnicodeDecodeError):
+        read_json(path)
+
+
+def test_bootstrap_writes_json_and_captured_python_evidence_as_utf8_without_bom(
+    tmp_path: Path,
+) -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    atomic_function = source.split("function Write-HonghuJsonAtomic", 1)[1].split(
+        "function Write-HonghuUtf8NoBom", 1
+    )[0]
+    assert "UTF8Encoding($false)" in atomic_function
+    assert "[System.IO.File]::WriteAllText" in atomic_function
+    assert "Set-Content" not in atomic_function
+    assert "Set-Content -LiteralPath $PythonRuntimeEvidence -Encoding UTF8" not in source
+    assert (
+        "Set-Content -LiteralPath $resumeRuntimeVerification -Encoding UTF8"
+        not in source
+    )
+
+    output = tmp_path / "no-bom.json"
+    command = (
+        "$encoding=New-Object System.Text.UTF8Encoding($false);"
+        f"[System.IO.File]::WriteAllText('{output}', '{{\"ok\":true}}', $encoding)"
+    )
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert not output.read_bytes().startswith(b"\xef\xbb\xbf")
+    assert json.loads(output.read_text(encoding="utf-8")) == {"ok": True}
 
 
 def test_bootstrap_uses_explicit_portable_cluster_locale_contract() -> None:
