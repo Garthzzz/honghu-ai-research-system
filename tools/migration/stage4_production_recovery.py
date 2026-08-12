@@ -205,11 +205,40 @@ def _verify_base_backup(bin_dir: Path, base_backup: Path) -> None:
 
 def _pg_ctl(bin_dir: Path, data_dir: Path, action: str) -> None:
     command = [str(_tool(bin_dir, "pg_ctl")), "-D", str(data_dir), "-w"]
+    log_path = data_dir.parent / "restore-postgresql.log"
     if action == "start":
-        command += ["-l", str(data_dir.parent / "restore-postgresql.log"), "start"]
+        command += ["-l", str(log_path), "start"]
     else:
         command += ["-m", "fast", "stop"]
-    _run(command)
+    env = os.environ.copy()
+    env.pop("PGSERVICE", None)
+    env.pop("PGPASSFILE", None)
+    env.pop("PYTHONPATH", None)
+    # pg_ctl on Windows launches postgres through cmd.exe.  Captured stdout or
+    # stderr pipe handles can remain inherited by the server after pg_ctl has
+    # exited, causing subprocess.run(..., capture_output=True) to wait forever.
+    # The dedicated restore log is the evidence sink; child stdio is therefore
+    # deliberately detached from Python pipes.
+    try:
+        result = subprocess.run(
+            command,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            check=False,
+            timeout=90,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise ProductionRecoveryError(
+            f"pg_ctl.exe {action} timed out; restore log sha256="
+            f"{sha256_file(log_path) if log_path.is_file() else 'missing'}"
+        ) from exc
+    if result.returncode != 0:
+        raise ProductionRecoveryError(
+            f"pg_ctl.exe {action} exited with {result.returncode}; restore log sha256="
+            f"{sha256_file(log_path) if log_path.is_file() else 'missing'}"
+        )
 
 
 def _system_identifier(bin_dir: Path, data_dir: Path) -> str:
@@ -237,12 +266,25 @@ def _configure_local_restore(
     production private key.
     """
 
+    # PostgreSQL substitutes %f/%p and then runs restore_command through the
+    # Windows command processor.  cmd.exe's built-in ``copy`` does not accept
+    # ``D:/...`` source paths reliably, so preserve native backslashes.  GUC
+    # quoted strings require each backslash to be escaped in the config file;
+    # the effective command therefore receives one native backslash.
+    wal_template = str(wal_source.resolve() / "%f")
+    restore_command = f'copy /Y "{wal_template}" "%p"'
+    restore_command_config = restore_command.replace("\\", "\\\\").replace("'", "''")
+
     restore_lines = [
         "listen_addresses = '127.0.0.1'",
         f"port = {port}",
         "ssl = off",
         "archive_mode = off",
-        f"restore_command = 'copy /Y \"{wal_source.resolve().as_posix()}/%f\" \"%p\"'",
+        # Do not let the disposable instance inherit the production absolute
+        # log_directory.  pg_ctl's dedicated restore log remains the only
+        # output sink for this isolated process.
+        "logging_collector = off",
+        f"restore_command = '{restore_command_config}'",
         f"recovery_target_lsn = '{target_lsn}'",
         "recovery_target_action = 'promote'",
     ]
@@ -253,6 +295,40 @@ def _configure_local_restore(
         "# Stage 4 disposable loopback restore only\n"
         "host all all 127.0.0.1/32 scram-sha-256\n",
         encoding="ascii",
+    )
+
+
+def _wait_for_recovery_target(
+    connection: Any, target_lsn: str, timeout: float = 60.0
+) -> dict[str, Any]:
+    """Wait for target replay and promotion, not merely hot-standby readiness."""
+
+    deadline = time.monotonic() + timeout
+    last_status: dict[str, Any] | None = None
+    while time.monotonic() < deadline:
+        row = connection.execute(
+            """
+            SELECT pg_is_in_recovery(),
+                   pg_last_wal_replay_lsn()::text,
+                   coalesce(pg_last_wal_replay_lsn() >= %s::pg_lsn, false)
+            """,
+            (target_lsn,),
+        ).fetchone()
+        last_status = {
+            "in_recovery": bool(row[0]),
+            "replayed_lsn": str(row[1]) if row[1] is not None else None,
+            "target_lsn_reached": bool(row[2]),
+        }
+        if not last_status["in_recovery"]:
+            if not last_status["target_lsn_reached"]:
+                raise ProductionRecoveryError(
+                    "restore promoted before reaching the approved target LSN"
+                )
+            return last_status
+        time.sleep(0.25)
+    raise ProductionRecoveryError(
+        "restore did not reach and promote at the approved target LSN within "
+        f"{timeout:.0f}s; last_status={last_status}"
     )
 
 
@@ -405,6 +481,7 @@ def run_production_recovery(
             port=restore_port,
             tls_required=False,
         ) as restored:
+            promotion = _wait_for_recovery_target(restored, str(target_lsn))
             row = restored.execute(
                 """
                 SELECT operation_id,
@@ -423,6 +500,7 @@ def run_production_recovery(
                 "recovered_watermark_at_utc": str(row[1]),
                 "recovered_lsn": str(row[2]),
                 "target_lsn_reached": bool(row[3]),
+                "promotion": promotion,
             }
             authority = restored.execute(
                 """

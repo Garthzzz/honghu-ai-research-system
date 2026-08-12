@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import inspect
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -21,9 +22,11 @@ from tools.migration.stage4_production_recovery import (
     _configure_local_restore,
     _connect as connect_production_recovery,
     _load_json as load_production_recovery_json,
+    _pg_ctl as run_production_recovery_pg_ctl,
     _required_wal_names,
     _run as run_production_recovery_command,
     _verify_base_backup,
+    _wait_for_recovery_target,
     ProductionRecoveryError,
 )
 from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
@@ -337,7 +340,12 @@ def test_disposable_restore_does_not_reuse_production_tls_private_key(
     assert "listen_addresses = '127.0.0.1'" in auto_conf
     assert "port = 55441" in auto_conf
     assert "ssl = off" in auto_conf
+    assert "logging_collector = off" in auto_conf
     assert "recovery_target_lsn = '0/400E528'" in auto_conf
+    expected_wal_template = str((wal_source.resolve() / "%f")).replace("\\", "\\\\")
+    assert f'restore_command = \'copy /Y "{expected_wal_template}" "%p"\'' in auto_conf
+    if os.name == "nt":
+        assert wal_source.resolve().as_posix() not in auto_conf
     assert hba.splitlines()[-1] == "host all all 127.0.0.1/32 scram-sha-256"
     assert "hostssl" not in hba
 
@@ -375,6 +383,77 @@ def test_disposable_restore_connection_is_loopback_and_non_tls(
     assert captured["port"] == 55441
     assert captured["sslmode"] == "disable"
     assert "sslrootcert" not in captured
+
+
+def test_pg_ctl_detaches_child_stdio_to_avoid_windows_pipe_hang(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bin_dir = tmp_path / "bin"
+    data_dir = tmp_path / "restore" / "data"
+    bin_dir.mkdir()
+    data_dir.mkdir(parents=True)
+    (bin_dir / "pg_ctl.exe").write_bytes(b"synthetic")
+    captured: dict[str, object] = {}
+
+    def fake_run(command: list[str], **kwargs: object) -> SimpleNamespace:
+        captured["command"] = command
+        captured.update(kwargs)
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    run_production_recovery_pg_ctl(bin_dir, data_dir, "start")
+
+    assert captured["stdin"] is subprocess.DEVNULL
+    assert captured["stdout"] is subprocess.DEVNULL
+    assert captured["stderr"] is subprocess.DEVNULL
+    assert captured["timeout"] == 90
+    assert "capture_output" not in captured
+    assert captured["command"][-1] == "start"
+
+
+def test_restore_waits_for_target_replay_and_promotion(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeResult:
+        def __init__(self) -> None:
+            self.rows = iter(
+                [
+                    (True, "0/4000120", False),
+                    (True, "0/5000220", True),
+                    (False, "0/5000220", True),
+                ]
+            )
+
+        def fetchone(self) -> tuple[bool, str, bool]:
+            return next(self.rows)
+
+    class FakeConnection:
+        def __init__(self) -> None:
+            self.result = FakeResult()
+
+        def execute(self, _sql: str, _params: tuple[str]) -> FakeResult:
+            return self.result
+
+    monkeypatch.setattr("tools.migration.stage4_production_recovery.time.sleep", lambda _: None)
+    status = _wait_for_recovery_target(FakeConnection(), "0/5000220", timeout=1)
+    assert status == {
+        "in_recovery": False,
+        "replayed_lsn": "0/5000220",
+        "target_lsn_reached": True,
+    }
+
+
+def test_restore_rejects_promotion_before_target() -> None:
+    class FakeResult:
+        def fetchone(self) -> tuple[bool, str, bool]:
+            return (False, "0/4000120", False)
+
+    class FakeConnection:
+        def execute(self, _sql: str, _params: tuple[str]) -> FakeResult:
+            return FakeResult()
+
+    with pytest.raises(ProductionRecoveryError, match="before reaching"):
+        _wait_for_recovery_target(FakeConnection(), "0/5000220", timeout=1)
 
 
 def test_bootstrap_persists_complete_recovery_command_output() -> None:
