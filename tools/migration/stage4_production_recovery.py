@@ -104,21 +104,30 @@ def _run(
     return result
 
 
-def _connect(runtime: dict[str, Any], role: str, *, port: int | None = None) -> Any:
+def _connect(
+    runtime: dict[str, Any],
+    role: str,
+    *,
+    port: int | None = None,
+    host: str | None = None,
+    tls_required: bool = True,
+) -> Any:
     import psycopg
 
     username, password = _password(runtime, role)
-    return psycopg.connect(
-        host=runtime["host"],
-        port=int(port or runtime["port"]),
-        dbname=runtime["dbname"],
-        user=username,
-        password=password,
-        sslmode=runtime["sslmode"],
-        sslrootcert=runtime["sslrootcert"],
-        connect_timeout=5,
-        autocommit=True,
-    )
+    connection_options: dict[str, Any] = {
+        "host": host or runtime["host"],
+        "port": int(port or runtime["port"]),
+        "dbname": runtime["dbname"],
+        "user": username,
+        "password": password,
+        "sslmode": runtime["sslmode"] if tls_required else "disable",
+        "connect_timeout": 5,
+        "autocommit": True,
+    }
+    if tls_required:
+        connection_options["sslrootcert"] = runtime["sslrootcert"]
+    return psycopg.connect(**connection_options)
 
 
 def _wait_for_wal(archive: Path, filename: str, timeout: float = 60.0) -> Path:
@@ -214,6 +223,37 @@ def _system_identifier(bin_dir: Path, data_dir: Path) -> str:
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def _configure_local_restore(
+    *, restore_data: Path, wal_source: Path, port: int, target_lsn: str
+) -> None:
+    """Fence the disposable whole-restore instance to local, non-TLS access.
+
+    A physical backup retains production TLS paths.  Reusing those paths makes
+    the restore depend on the production private key and its NetworkService
+    ACL.  The restore is an ephemeral loopback-only verification instance, so
+    it receives an explicit local SCRAM HBA and never reads or copies the
+    production private key.
+    """
+
+    restore_lines = [
+        "listen_addresses = '127.0.0.1'",
+        f"port = {port}",
+        "ssl = off",
+        "archive_mode = off",
+        f"restore_command = 'copy /Y \"{wal_source.resolve().as_posix()}/%f\" \"%p\"'",
+        f"recovery_target_lsn = '{target_lsn}'",
+        "recovery_target_action = 'promote'",
+    ]
+    with (restore_data / "postgresql.auto.conf").open("a", encoding="utf-8") as handle:
+        handle.write("\n# Stage 4 exact recovery-set restore\n")
+        handle.write("\n".join(restore_lines) + "\n")
+    (restore_data / "pg_hba.conf").write_text(
+        "# Stage 4 disposable loopback restore only\n"
+        "host all all 127.0.0.1/32 scram-sha-256\n",
+        encoding="ascii",
+    )
 
 
 def run_production_recovery(
@@ -345,25 +385,26 @@ def run_production_recovery(
     restore_parent.mkdir(parents=True, exist_ok=False)
     assert_restore_sources(destination, destination / "base_backup", destination / "wal")
     shutil.copytree(destination / "base_backup", restore_data)
-    wal_source = (destination / "wal").resolve().as_posix()
-    restore_lines = [
-        "listen_addresses = '127.0.0.1'",
-        f"port = {int(runtime['port']) + 1}",
-        "archive_mode = off",
-        f"restore_command = 'copy /Y \"{wal_source}/%f\" \"%p\"'",
-        f"recovery_target_lsn = '{target_lsn}'",
-        "recovery_target_action = 'promote'",
-    ]
-    with (restore_data / "postgresql.auto.conf").open("a", encoding="utf-8") as handle:
-        handle.write("\n# Stage 4 exact recovery-set restore\n")
-        handle.write("\n".join(restore_lines) + "\n")
+    restore_port = int(runtime["port"]) + 1
+    _configure_local_restore(
+        restore_data=restore_data,
+        wal_source=destination / "wal",
+        port=restore_port,
+        target_lsn=str(target_lsn),
+    )
     (restore_data / "recovery.signal").touch()
     started = time.monotonic()
     restore_started = False
     try:
         _pg_ctl(bin_dir, restore_data, "start")
         restore_started = True
-        with _connect(runtime, "migration", port=int(runtime["port"]) + 1) as restored:
+        with _connect(
+            runtime,
+            "migration",
+            host="127.0.0.1",
+            port=restore_port,
+            tls_required=False,
+        ) as restored:
             row = restored.execute(
                 """
                 SELECT operation_id,

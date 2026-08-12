@@ -847,8 +847,32 @@ GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO honghu_backup;
         $env:PYTHONPATH = $null
         $env:PYTHONNOUSERSITE = '1'
         Push-Location $RepoRoot
-        & $BootstrapPythonExe @RecoveryArgs
-        if ($LASTEXITCODE -ne 0) { throw 'Production backup/WAL/restore rehearsal failed.' }
+        $RecoveryCommandLog = Join-Path $EvidenceRoot 'recovery_command.log'
+        $RecoveryOutput = @()
+        $RecoveryExitCode = -1
+        $RecoveryErrorActionPreference = $ErrorActionPreference
+        try {
+            # Windows PowerShell converts the first native stderr line into a
+            # NativeCommandError when ErrorActionPreference=Stop.  Capture the
+            # complete child output before deciding on the exit code so the
+            # primary failure can never be reduced to just "Traceback".
+            $ErrorActionPreference = 'Continue'
+            $RecoveryOutput = @(& $BootstrapPythonExe @RecoveryArgs 2>&1)
+            $RecoveryExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $RecoveryErrorActionPreference
+        }
+        $RecoveryOutputText = (@($RecoveryOutput | ForEach-Object { [string]$_ }) -join [Environment]::NewLine)
+        [IO.File]::WriteAllText(
+            $RecoveryCommandLog,
+            $RecoveryOutputText,
+            (New-Object Text.UTF8Encoding($false))
+        )
+        if ($RecoveryExitCode -ne 0) {
+            throw "Production backup/WAL/restore rehearsal failed; recovery_command.log sha256=$(Get-HonghuSha256 $RecoveryCommandLog)"
+        }
+        if ($RecoveryOutputText) { Write-Output $RecoveryOutputText }
     }
     finally {
         Pop-Location

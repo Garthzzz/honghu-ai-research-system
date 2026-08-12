@@ -18,6 +18,8 @@ from tools.migration.stage4_production_bootstrap_contract import (
 )
 from tools.migration.stage4_json_io import read_json
 from tools.migration.stage4_production_recovery import (
+    _configure_local_restore,
+    _connect as connect_production_recovery,
     _load_json as load_production_recovery_json,
     _required_wal_names,
     _run as run_production_recovery_command,
@@ -308,6 +310,81 @@ def test_production_recovery_uses_postgresql_native_backup_manifest(
     (base / "backup_manifest").unlink()
     with pytest.raises(ProductionRecoveryError, match="backup manifest"):
         _verify_base_backup(bin_dir, base)
+
+
+def test_disposable_restore_does_not_reuse_production_tls_private_key(
+    tmp_path: Path,
+) -> None:
+    restore_data = tmp_path / "restore" / "data"
+    restore_data.mkdir(parents=True)
+    (restore_data / "postgresql.auto.conf").write_text(
+        "ssl_cert_file = 'D:/production/tls/server.crt'\n"
+        "ssl_key_file = 'D:/production/tls/server.key'\n",
+        encoding="utf-8",
+    )
+    wal_source = tmp_path / "recovery-set" / "wal"
+    wal_source.mkdir(parents=True)
+
+    _configure_local_restore(
+        restore_data=restore_data,
+        wal_source=wal_source,
+        port=55441,
+        target_lsn="0/400E528",
+    )
+
+    auto_conf = (restore_data / "postgresql.auto.conf").read_text(encoding="utf-8")
+    hba = (restore_data / "pg_hba.conf").read_text(encoding="ascii")
+    assert "listen_addresses = '127.0.0.1'" in auto_conf
+    assert "port = 55441" in auto_conf
+    assert "ssl = off" in auto_conf
+    assert "recovery_target_lsn = '0/400E528'" in auto_conf
+    assert hba.splitlines()[-1] == "host all all 127.0.0.1/32 scram-sha-256"
+    assert "hostssl" not in hba
+
+
+def test_disposable_restore_connection_is_loopback_and_non_tls(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_connect(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setitem(sys.modules, "psycopg", SimpleNamespace(connect=fake_connect))
+    monkeypatch.setattr(
+        "tools.migration.stage4_production_recovery._password",
+        lambda _runtime, _role: ("migration", "synthetic-password"),
+    )
+    runtime = {
+        "host": "localhost",
+        "port": 55440,
+        "dbname": "honghu_research",
+        "sslmode": "verify-full",
+        "sslrootcert": "D:/production/tls/root.crt",
+    }
+
+    connect_production_recovery(
+        runtime,
+        "migration",
+        host="127.0.0.1",
+        port=55441,
+        tls_required=False,
+    )
+    assert captured["host"] == "127.0.0.1"
+    assert captured["port"] == 55441
+    assert captured["sslmode"] == "disable"
+    assert "sslrootcert" not in captured
+
+
+def test_bootstrap_persists_complete_recovery_command_output() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "recovery_command.log" in source
+    assert "$ErrorActionPreference = 'Continue'" in source
+    assert "@(& $BootstrapPythonExe @RecoveryArgs 2>&1)" in source
+    assert "recovery_command.log sha256=" in source
 
 
 def test_bootstrap_contract_imports_through_isolated_dispatcher() -> None:
