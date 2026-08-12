@@ -567,7 +567,7 @@ def write_identity_mapping(
     return manifest
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build a read-only Stage 4 identity mapping")
     parser.add_argument("--database", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -576,7 +576,7 @@ def main() -> int:
         type=Path,
         default=DEFAULT_ALIAS_APPROVALS,
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     result = write_identity_mapping(
         args.database,
         args.output,

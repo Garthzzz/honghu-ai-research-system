@@ -12,6 +12,7 @@ from tools.migration.stage4_identity_mapping import (
     build_identity_mapping,
 )
 from tools.migration import stage4_identity_mapping as mapping_module
+from tools.migration.stage4_isolated_entry import main as isolated_entry_main
 
 
 def _database(path, *, duplicate_ticker: bool = False, cycle: bool = False):
@@ -92,6 +93,44 @@ def test_mapping_uses_business_identity_and_hierarchy(tmp_path) -> None:
     assert resolver.resolve("company", 1) == "company:security:000001.SZ:venue:shenzhen"
     with pytest.raises(IdentityMappingError, match="unmapped"):
         resolver.resolve("company", 999)
+
+
+def test_isolated_entry_forwards_identity_mapping_arguments(tmp_path) -> None:
+    database = tmp_path / "research.db"
+    output = tmp_path / "identity-mapping.json"
+    approvals = tmp_path / "identity-approvals.json"
+    _database(database)
+    approvals.write_text(
+        json.dumps(
+            {
+                "schema_version": "honghu.identity_mapping_approvals.v2",
+                "identity_overrides": [],
+                "aliases": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = isolated_entry_main(
+        [
+            "--repo-root",
+            str(mapping_module.ROOT),
+            "--module",
+            "tools.migration.stage4_identity_mapping",
+            "--database",
+            str(database),
+            "--output",
+            str(output),
+            "--alias-approvals",
+            str(approvals),
+        ]
+    )
+
+    assert exit_code == 0
+    result = json.loads(output.read_text(encoding="utf-8"))
+    assert result["schema_version"] == "honghu.user_content_identity_mapping.v3"
+    assert len(result["mappings"]) == 7
+    assert len(result["source_snapshot"]["snapshot_identity_sha256"]) == 64
 
 
 def test_duplicate_legacy_aliases_share_one_auditable_stable_identity(tmp_path) -> None:

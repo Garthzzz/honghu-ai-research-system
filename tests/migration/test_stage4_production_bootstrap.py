@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import inspect
 import json
 from pathlib import Path
 import subprocess
@@ -14,6 +15,7 @@ from tools.migration.stage4_production_bootstrap_contract import (
     validate_inputs,
 )
 from tools.migration.stage4_production_recovery import _required_wal_names
+from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -297,6 +299,27 @@ def test_credential_invocation_preserves_specific_non_secret_diagnostic() -> Non
     assert "2>&1" in function
     assert "$exitCode = $LASTEXITCODE" in function
     assert "no diagnostic returned" in function
+
+
+def test_every_isolated_stage4_entrypoint_accepts_forwarded_argv() -> None:
+    """The isolated dispatcher always forwards a remainder list.
+
+    Import-time/local tests can otherwise hide a zero-argument CLI until the
+    exact VM bootstrap reaches that late phase.
+    """
+
+    for module_name, function_name in sorted(ALLOWED_MODULES.items()):
+        module = __import__(module_name, fromlist=[function_name])
+        entrypoint = getattr(module, function_name)
+        parameters = list(inspect.signature(entrypoint).parameters.values())
+        assert parameters, f"{module_name}.{function_name} must accept argv"
+        first = parameters[0]
+        assert first.name == "argv", (
+            f"{module_name}.{function_name} must name its first argument argv"
+        )
+        assert first.default is None, (
+            f"{module_name}.{function_name} argv must default to None"
+        )
 
 
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:

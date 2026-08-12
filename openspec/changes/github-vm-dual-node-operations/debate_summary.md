@@ -591,3 +591,18 @@ Windows PowerShell `NativeCommandError`：脚本级 `ErrorActionPreference=Stop`
 认证探针内部：暂时以 `Continue` 捕获且不输出 native 结果，保存 exit code 后恢复全局策略，
 由调用者分别断言初始/新凭据必须成功、旧/撤销凭据必须失败。没有放宽任何认证合同，也没有
 记录密码或 psql 错误原文；DeepSeek此前未识别该现场兼容缺口。
+
+### Stage 4 production execution：隔离 CLI 参数合同复核（2026-08-12）
+
+真实 VM bootstrap 在已完成隔离 Python runtime、TLS 生成和前置检查后，到 identity mapping
+阶段因入口合同不一致失败：allowlisted dispatcher 始终向模块入口转发参数列表，而
+`stage4_identity_mapping.main()` 仍是唯一的零参数入口。Codex只把该入口统一为
+`main(argv=None)` 并将 `argv` 交给 `argparse`，未改变映射规则、SQLite 只读合同、PostgreSQL
+状态或 authority。回归同时覆盖八个 allowlisted 入口的签名合同，以及通过真实 dispatcher
+对临时 SQLite fixture 执行 identity mapping；另一个只读现场探针成功生成预期 774 条映射。
+
+DeepSeek收到脱敏后的 dispatcher/CLI 事实与测试摘要，结论为 `approve`、无 must-fix。它建议
+对每个入口都增加完整 dispatcher 执行测试和补充开发规范；Codex部分接受“防止全体入口签名
+漂移”的目标，当前全 allowlist 签名门禁已经覆盖，且出错入口已有端到端执行测试。逐一执行
+所有重型 CLI 会引入环境依赖而不增加本缺陷的有效覆盖，因此不扩张；统一入口合同已由代码、
+定向测试和只读现场探针共同证明。外部 reviewer 不构成 mapping、off-VM、S2/S3 或 cutover 批准。
