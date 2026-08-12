@@ -17,7 +17,16 @@ Set-StrictMode -Version Latest
 function ConvertTo-HonghuSecretHex {
     param([int]$ByteCount = 32)
     $bytes = New-Object byte[] $ByteCount
-    [System.Security.Cryptography.RandomNumberGenerator]::Fill($bytes)
+    # Windows PowerShell 5.1 runs on .NET Framework, where the static
+    # RandomNumberGenerator.Fill API is unavailable.  Use the instance API so
+    # the same CSPRNG contract works on both the VM and newer PowerShell/.NET.
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try {
+        $rng.GetBytes($bytes)
+    }
+    finally {
+        $rng.Dispose()
+    }
     return ([System.BitConverter]::ToString($bytes) -replace '-', '').ToLowerInvariant()
 }
 

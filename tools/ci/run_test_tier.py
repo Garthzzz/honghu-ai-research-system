@@ -41,7 +41,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("pytest_args", nargs="*")
     args = parser.parse_args(argv)
     ignores = load_core_ignores(args.manifest.resolve())
-    command = [sys.executable, "-m", "pytest", "-q"]
+    # The repository may contain ignored, exact-commit deployment packages
+    # below cache/.  They are evidence copies, not additional test roots.  An
+    # explicit tests/ root keeps local verification equivalent to a clean CI
+    # clone and prevents pytest import-identity collisions between copies.
+    command = [sys.executable, "-m", "pytest", "-q", "tests"]
     if args.collect_only:
         command.append("--collect-only")
     command.extend(f"--ignore={path}" for path in ignores)

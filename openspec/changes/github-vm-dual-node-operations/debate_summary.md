@@ -521,3 +521,18 @@ accepted-controls 文本仍误写了一次“OpenSSL required binary”，Codex�
 当作实现事实。最终依据是 672 个 core tests、82 个 Stage 4/browser 定向测试、17 个
 TLS/quarantine 测试、PowerShell parser、compile、OpenSpec strict、tracked/staged boundary
 和 SQLite ratchet；外部 reviewer 不构成 S2/S3、mapping、off-VM 或 cutover 批准。
+
+### Stage 4 production execution：Windows PowerShell CSPRNG 兼容复核（2026-08-12）
+
+真实 VM 第二次 bootstrap 在服务、listener、database 和 credential 建立前失败：Windows
+PowerShell 5.1 所在 .NET Framework 没有静态 `RandomNumberGenerator.Fill()`。失败目录按
+launch identity 原子隔离；PostgreSQL service 不存在、55440 无 listener、8080 健康。
+Codex 将通用 secret generator 改为 `RandomNumberGenerator.Create()` 实例，在 `try` 中调用
+`GetBytes()`、在 `finally` 中 `Dispose()`；密码学随机源、字节长度和不记录 secret 的合同均
+未降低。真实 `powershell.exe` 回归执行同一 API，验证输出缓冲区长度和非全零，但不打印随机值。
+
+DeepSeek 仅收到上述脱敏故障、修订和测试摘要。它把已经完成的 `Create/GetBytes/Dispose`
+修订再次列为 must-fix，并泛化要求验证之后才会建立的 listener/service；没有给出当前补丁的
+新反例。Codex 接受其“不得降低密码学随机和资源释放”的方向，但这些要求已由实现与回归覆盖，
+没有据此重复修改或提前宣称 VM bootstrap 通过。外部 verdict 不替代完整测试、最终 CI 和新的
+exact-commit VM 现场执行。

@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -138,6 +139,35 @@ def test_bootstrap_does_not_require_postgresql_archive_openssl() -> None:
     assert "tls_private_key_acl" in source
     assert "/inheritance:r /grant:r" in source
     assert "'*S-1-5-20:R'" in source
+
+
+def test_bootstrap_secret_rng_is_windows_powershell_compatible() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "RandomNumberGenerator]::Fill" not in source
+    assert "RandomNumberGenerator]::Create()" in source
+    assert "$rng.GetBytes($bytes)" in source
+    assert "$rng.Dispose()" in source
+
+    # Exercise the exact .NET instance API under the same Windows PowerShell
+    # host family used by the production-readiness VM.  The generated value is
+    # deliberately not emitted by the command or the test report.
+    command = (
+        "$bytes=New-Object byte[] 32;"
+        "$rng=[System.Security.Cryptography.RandomNumberGenerator]::Create();"
+        "try{$rng.GetBytes($bytes)}finally{$rng.Dispose()};"
+        "if($bytes.Length -ne 32){exit 2};"
+        "if(($bytes | Where-Object {$_ -ne 0}).Count -eq 0){exit 3}"
+    )
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", command],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
 
 
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:
