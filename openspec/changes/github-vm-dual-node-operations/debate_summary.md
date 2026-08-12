@@ -606,3 +606,10 @@ DeepSeek收到脱敏后的 dispatcher/CLI 事实与测试摘要，结论为 `app
 漂移”的目标，当前全 allowlist 签名门禁已经覆盖，且出错入口已有端到端执行测试。逐一执行
 所有重型 CLI 会引入环境依赖而不增加本缺陷的有效覆盖，因此不扩张；统一入口合同已由代码、
 定向测试和只读现场探针共同证明。外部 reviewer 不构成 mapping、off-VM、S2/S3 或 cutover 批准。
+
+下一次 VM bootstrap 进一步暴露了 dispatcher 参数命名空间冲突：外层和 recovery 子命令都使用
+`--repo-root`，旧 `parse_known_args()` 会扫描整段命令并吞掉子命令同名参数。Codex改为强制
+`--` 分隔 dispatcher 与子命令参数；外层只解析前缀，后缀逐 token 原样转发，缺少分隔符时
+fail-closed。bootstrap 的八个隔离入口全部使用同一边界，回归验证重名参数保留、无分隔符拒绝、
+PowerShell 语法以及 recovery help 的真实隔离调用。DeepSeek窄审查结论为 `pass`，无 must-fix
+或 should-fix；未提出新的可复现缺口，因此在一轮后停止。

@@ -6,6 +6,7 @@ import inspect
 import json
 from pathlib import Path
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -16,6 +17,7 @@ from tools.migration.stage4_production_bootstrap_contract import (
 )
 from tools.migration.stage4_production_recovery import _required_wal_names
 from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
+from tools.migration import stage4_isolated_entry as isolated_entry_module
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -320,6 +322,71 @@ def test_every_isolated_stage4_entrypoint_accepts_forwarded_argv() -> None:
         assert first.default is None, (
             f"{module_name}.{function_name} argv must default to None"
         )
+
+
+def test_isolated_dispatcher_preserves_overlapping_child_flags(monkeypatch) -> None:
+    forwarded: list[str] = []
+
+    def entrypoint(argv: list[str] | None = None) -> int:
+        forwarded.extend(argv or [])
+        return 0
+
+    monkeypatch.setattr(
+        isolated_entry_module.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(main=entrypoint),
+    )
+    result = isolated_entry_module.main(
+        [
+            "--repo-root",
+            str(ROOT),
+            "--module",
+            "tools.migration.stage4_production_recovery",
+            "--",
+            "--repo-root",
+            "child-repository",
+            "--runtime",
+            "runtime.json",
+        ]
+    )
+    assert result == 0
+    assert forwarded == [
+        "--repo-root",
+        "child-repository",
+        "--runtime",
+        "runtime.json",
+    ]
+
+
+def test_isolated_dispatcher_rejects_ambiguous_undelimited_arguments() -> None:
+    with pytest.raises(RuntimeError, match="separate dispatcher and module arguments"):
+        isolated_entry_module.main(
+            [
+                "--repo-root",
+                str(ROOT),
+                "--module",
+                "tools.migration.stage4_production_recovery",
+                "--repo-root",
+                "child-repository",
+            ]
+        )
+
+
+def test_bootstrap_delimits_every_isolated_module_invocation() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    lines = source.splitlines()
+    module_lines = [
+        index
+        for index, line in enumerate(lines)
+        if "--module" in line and "tools.migration." in line
+    ]
+    assert len(module_lines) == len(ALLOWED_MODULES) + 1  # production verify also covers resume
+    for module_name in ALLOWED_MODULES:
+        assert module_name in source
+    for index in module_lines:
+        assert lines[index + 1].strip() in {"'--',", "-- `"}
 
 
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:

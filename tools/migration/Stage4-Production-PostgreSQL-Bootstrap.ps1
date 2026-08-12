@@ -299,6 +299,7 @@ if ($null -ne $existingService -or (Test-Path -LiteralPath $InstallRoot)) {
     $resumeVerify = Join-Path $EvidenceRoot ("production_postgresql_resume_verify-{0}.json" -f $LaunchId)
     & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py') `
         --repo-root $RepoRoot --module tools.migration.stage4_production_verify `
+        -- `
         --repo-root $RepoRoot --runtime $RuntimeConfigPath `
         --application-commit-sha $CommitSha --output $resumeVerify
     if ($LASTEXITCODE -ne 0) { throw 'Completed-install production verification failed.' }
@@ -772,6 +773,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         '-I','-B',$IsolatedEntry,
         '--repo-root',$RepoRoot,
         '--module','tools.migration.stage4_identity_mapping',
+        '--',
         '--database',(Join-Path $ProductionRoot 'data\research.db'),
         '--output',$MappingPath,
         '--alias-approvals',(Join-Path $RepoRoot 'config\migration\stage4_identity_mapping_approvals.json')
@@ -780,6 +782,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         '-I','-B',$IsolatedEntry,
         '--repo-root',$RepoRoot,
         '--module','tools.migration.stage4_identity_mapping_crosscheck',
+        '--',
         '--mapping',$MappingPath,
         '--source-data-root',(Join-Path $ProductionRoot 'data'),
         '--output',$MappingCrosscheckPath
@@ -806,6 +809,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         '-I','-B',$IsolatedEntry,
         '--repo-root',$RepoRoot,
         '--module','tools.migration.stage4_production_recovery',
+        '--',
         '--repo-root',$RepoRoot,
         '--runtime',$RuntimeConfigPath,
         '--bin-dir',$Bin,
@@ -833,6 +837,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         '-I','-B',$IsolatedEntry,
         '--repo-root',$RepoRoot,
         '--module','tools.migration.stage4_prepare_units',
+        '--',
         '--source-data-root',(Join-Path $ProductionRoot 'data'),
         '--registry',(Join-Path $RepoRoot 'config\migration\cutover_unit_registry.json'),
         '--route',(Join-Path $RepoRoot 'config\migration\user_content_backend_route.json'),
@@ -858,6 +863,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         '-I','-B',$IsolatedEntry,
         '--repo-root',$RepoRoot,
         '--module','tools.migration.stage4_production_verify',
+        '--',
         '--repo-root',$RepoRoot,
         '--runtime',$RuntimeConfigPath,
         '--application-commit-sha',$CommitSha,
@@ -900,6 +906,7 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         '-I','-B',$IsolatedEntry,
         '--repo-root',$RepoRoot,
         '--module','tools.migration.stage4_repository_governance',
+        '--',
         '--repository','Garthzzz/honghu-ai-research-system',
         '--commit-sha',$CommitSha,
         '--output',$RepositoryGovernancePath
@@ -1011,6 +1018,7 @@ try {
     '-I','-B',(Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py'),
     '--repo-root',$RepoRoot,
     '--module','tools.migration.stage4_execution_bundle',
+    '--',
     '--output-root',$BundleRoot,
     '--environment-id','production',
     '--application-commit-sha',$CommitSha,
@@ -1034,6 +1042,7 @@ try {
     $ReadinessPath = Join-Path $BundleRoot 'execution_readiness.json'
     & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py') `
         --repo-root $RepoRoot --module tools.migration.stage4_execution_readiness `
+        -- `
         --repo-root $RepoRoot --evidence-root $BundleRoot `
         --bundle (Join-Path $BundleRoot 'execution_bundle.json') --output $ReadinessPath
     $ReadinessExitCode = $LASTEXITCODE

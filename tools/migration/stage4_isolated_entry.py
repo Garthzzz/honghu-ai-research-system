@@ -26,10 +26,18 @@ ALLOWED_MODULES = {
 
 
 def main(argv: list[str] | None = None) -> int:
+    values = list(sys.argv[1:] if argv is None else argv)
+    try:
+        separator = values.index("--")
+    except ValueError as exc:
+        raise RuntimeError(
+            "isolated Stage 4 invocation must separate dispatcher and module arguments with --"
+        ) from exc
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, required=True)
     parser.add_argument("--module", choices=sorted(ALLOWED_MODULES), required=True)
-    args, remainder = parser.parse_known_args(argv)
+    args = parser.parse_args(values[:separator])
+    remainder = values[separator + 1 :]
     root = args.repo_root.resolve()
     if not (root / "AGENTS.md").is_file():
         raise RuntimeError("reviewed repository root is missing AGENTS.md")

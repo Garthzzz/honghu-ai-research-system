@@ -117,6 +117,7 @@ def test_isolated_entry_forwards_identity_mapping_arguments(tmp_path) -> None:
             str(mapping_module.ROOT),
             "--module",
             "tools.migration.stage4_identity_mapping",
+            "--",
             "--database",
             str(database),
             "--output",
