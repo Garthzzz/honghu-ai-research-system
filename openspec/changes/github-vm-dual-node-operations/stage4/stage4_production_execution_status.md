@@ -25,6 +25,17 @@ The final evidence bundle remains Git-excluded and is verified by hash.
 - A least-privilege rehearsal proved the migration principal can prepare S0/S1
   but receives SQLSTATE 42501 for both its S2 attempt and the generic transition
   function.
+- The admitted SSH channel is suitable for package transfer, identity checks,
+  service observation and non-secret evidence collection.  A real VM probe
+  proved that its non-interactive Windows logon cannot access the invoking
+  user's WinVault (`WinError 1312`; native `cmdkey` also fails).  The exact
+  bootstrap therefore performs this capability check before long installation
+  work and requires one interactive VM launch for final credential injection.
+- A clean-checkout failure also proved that the former keyring helper filename
+  was excluded by the broad credential-path ignore rule.  The bridge is now a
+  tracked deployment input, the bootstrap checks its presence explicitly and
+  clean-checkout tests guard the closure.  No credential value or raw failure
+  evidence is tracked.
 
 ## Human/external gates deliberately not self-approved
 
@@ -34,6 +45,8 @@ The final evidence bundle remains Git-excluded and is verified by hash.
 - future application service-principal credential provisioning;
 - independent off-VM recovery copy and restore proof;
 - explicit authorization to enter S2.
+- one interactive VM execution of the exact bootstrap under the approved
+  credential-owner principal; SSH alone cannot satisfy this Windows boundary.
 
 No item above may be converted to `pass` by a Boolean declaration or a fabricated
 hash.  PostgreSQL installation and the final unit states are updated only from

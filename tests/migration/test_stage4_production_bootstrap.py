@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 import subprocess
@@ -250,6 +251,52 @@ def test_expected_rejected_credentials_are_classified_by_native_exit_code() -> N
     assert "$exitCode = $LASTEXITCODE" in function
     assert "return ($exitCode -eq 0)" in function
     assert "$ErrorActionPreference = $oldErrorAction" in function
+
+
+def test_keyring_bridge_is_tracked_deployment_input() -> None:
+    bootstrap = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    bridge = ROOT / "tools/migration/stage4_keyring_bridge.py"
+    assert bridge.is_file()
+    assert "tools\\migration\\stage4_keyring_bridge.py" in bootstrap
+    assert "stage4_credential_helper.py" not in bootstrap
+    assert "Tracked keyring bridge is absent from the deployment closure" in bootstrap
+    assert "Assert-HonghuCredentialManagerSession -ProbeId $LaunchId" in bootstrap
+    assert "run the exact bootstrap from an interactive VM session" in bootstrap
+
+
+def test_keyring_bridge_forces_winvault_and_sanitizes_session_failure() -> None:
+    bridge = ROOT / "tools/migration/stage4_keyring_bridge.py"
+    source = bridge.read_text(encoding="utf-8")
+    assert "WinVaultKeyring" in source
+    assert "keyring.set_keyring(WinVaultKeyring())" in source
+    assert "winvault_logon_session_unavailable" in source
+    assert "raise SystemExit(f\"keyring operation failed: {_failure_label(exc)}\")" in source
+
+    spec = importlib.util.spec_from_file_location("stage4_keyring_bridge", bridge)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    class MissingLogonSession(OSError):
+        winerror = 1312
+
+    assert module._failure_label(MissingLogonSession()) == "winvault_logon_session_unavailable"
+    assert module._failure_label(RuntimeError("probe")) == "builtins.RuntimeError"
+
+
+def test_credential_invocation_preserves_specific_non_secret_diagnostic() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    function = source.split("function Invoke-HonghuCredential", 1)[1].split(
+        "function Assert-HonghuCredentialManagerSession", 1
+    )[0]
+    assert "$ErrorActionPreference = 'Continue'" in function
+    assert "2>&1" in function
+    assert "$exitCode = $LASTEXITCODE" in function
+    assert "no diagnostic returned" in function
 
 
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:

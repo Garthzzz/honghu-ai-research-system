@@ -1,5 +1,13 @@
 # DeepSeek V4 Flash 架构交叉审核摘要
 
+## Stage 4 production execution：部署闭包与 WinVault 会话复核（2026-08-12）
+
+真实 exact-checkout VM 执行确认了两个独立问题。第一，bootstrap 动态调用的旧 helper 因文件名命中宽泛的 credential 路径忽略规则，只存在于本地工作树而不在 Git/deployment closure；本地测试因此误通过，VM clean checkout 在凭据阶段才失败。修订把它替换为中性命名、明确 tracked 的 `stage4_keyring_bridge.py`，bootstrap 在调用前验证文件存在，clean-clone 回归同时验证引用路径和实体文件。真实 credential 路径的忽略规则没有放宽。
+
+第二，同一 VM 的 Windows OpenSSH 非交互登录实测对 WinVault 返回 WinError 1312，原生 `cmdkey` set 也失败。这是登录会话能力，不是 PostgreSQL、密码或包版本问题。bootstrap 现在在解压和锁定依赖安装前执行可逆的合成 Credential Manager capability probe；失败时明确要求在批准 principal 的 VM 交互桌面运行同一 exact package，不再消耗十余分钟后返回泛化错误。正式 bridge 强制 `WinVaultKeyring`、只从 stdin 接收 secret、不打印 secret，并把 1312 归一为不含敏感内容的诊断标签。
+
+DeepSeek 只收到上述脱敏事实和测试汇总，返回 `approve`、无 must-fix。Codex接受其增加 WinError 1312 确定性单元测试及补清交互 principal/runbook 的建议。关于“自动扫描并删除所有遗留 probe”的建议未采用：probe target 只含非生产合成值，强行枚举本地化 Credential Manager 输出会引入误删并发/其他条目的新风险；现有调用在 `finally` 删除，本次现场 set 本身失败，没有残留条目。最终依据仍是 clean checkout、真实 VM 1312/`cmdkey` 探针、686 个 core tests、67 个 Stage 4/API/browser tests、OpenSpec、parser/compile、边界门禁和最终 required CI；外部 reviewer 不构成 interactive VM、off-VM、mapping、repository governance 或 S2 批准。
+
 > 首次审查日期：2026-08-03  
 > 首次审查轮次：2 轮；未进行第三轮，因为前两轮已显示同一前提偏差，继续扩张没有信息增量。  
 > 数据边界：只发送脱敏架构摘要；未发送 key、Cookie、个人信息、数据库内容、论文原文或未批准材料。

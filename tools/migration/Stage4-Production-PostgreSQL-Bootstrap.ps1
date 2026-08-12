@@ -57,10 +57,58 @@ function Invoke-HonghuCredential {
     $payload = @{ action = $Action; service = $Service; account = $Account }
     if ($Action -eq 'set') { $payload.password = $Password }
     $json = $payload | ConvertTo-Json -Compress
-    $helper = Join-Path $RepoRoot 'tools\migration\stage4_credential_helper.py'
-    $result = $json | & $BootstrapPythonExe -I -B $helper
-    if ($LASTEXITCODE -ne 0) { throw "Credential Manager $Action failed for $Service/$Account" }
+    # This helper must be part of the exact tracked deployment closure.  Its
+    # neutral filename intentionally avoids the repository's broad protection
+    # rule for paths that may themselves contain credential material.
+    $helper = Join-Path $RepoRoot 'tools\migration\stage4_keyring_bridge.py'
+    if (-not (Test-Path -LiteralPath $helper -PathType Leaf)) {
+        throw "Tracked keyring bridge is absent from the deployment closure: $helper"
+    }
+    $oldErrorAction = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $result = $json | & $BootstrapPythonExe -I -B $helper 2>&1
+        $exitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $oldErrorAction
+    }
+    if ($exitCode -ne 0) {
+        $reason = (($result | ForEach-Object { [string]$_ }) -join ' ').Trim()
+        if (-not $reason) { $reason = 'no diagnostic returned' }
+        throw "Credential Manager $Action failed for $Service/$Account`: $reason"
+    }
     return $result | ConvertFrom-Json
+}
+
+function Assert-HonghuCredentialManagerSession {
+    param([Parameter(Mandatory = $true)][string]$ProbeId)
+    # cmdkey is used only as an early capability probe.  The synthetic value is
+    # never a production password; production entries are written later via
+    # the stdin-only WinVault bridge.  This prevents a 10+ minute install from
+    # running in a non-interactive SSH logon that cannot access WinVault.
+    $target = "honghu.stage4.session-probe.$ProbeId"
+    $synthetic = ConvertTo-HonghuSecretHex
+    $oldErrorAction = $ErrorActionPreference
+    $setExitCode = $null
+    try {
+        $ErrorActionPreference = 'Continue'
+        & cmdkey.exe "/generic:$target" '/user:stage4-session-probe' "/pass:$synthetic" 2>&1 | Out-Null
+        $setExitCode = $LASTEXITCODE
+    }
+    finally {
+        & cmdkey.exe "/delete:$target" 2>&1 | Out-Null
+        $ErrorActionPreference = $oldErrorAction
+    }
+    if ($setExitCode -ne 0) {
+        throw 'Windows Credential Manager is unavailable in the current logon session; run the exact bootstrap from an interactive VM session.'
+    }
+    return [ordered]@{
+        store = 'windows_credential_manager'
+        session_access = 'verified'
+        probe_entry_removed = $true
+        synthetic_secret_only = $true
+    }
 }
 
 function Invoke-HonghuPsql {
@@ -295,6 +343,8 @@ try {
     & $BootstrapPythonExe -c "import sys; assert sys.version_info[:2] == (3,10)"
     if ($LASTEXITCODE -ne 0) { throw 'Bootstrap Python is not 3.10.' }
 
+    $credentialSession = Assert-HonghuCredentialManagerSession -ProbeId $LaunchId
+
     New-Item -ItemType Directory -Force $EvidenceRoot | Out-Null
     $InputIdentityPath = Join-Path $EvidenceRoot 'bootstrap_input_identity.json'
     & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_production_bootstrap_contract.py') `
@@ -338,7 +388,7 @@ try {
         $existing = @(Get-ChildItem -LiteralPath $InstallRoot -Force -ErrorAction SilentlyContinue)
         if ($existing.Count -gt 0) { throw 'InstallRoot is not empty and has no verified completed bootstrap identity.' }
     }
-    $primary.phases += @{ name = 'host_preflight'; result = 'pass'; viewer_8080 = $true; free_bytes = [int64]$drive.Free; required_free_bytes = $requiredFreeBytes; live_sqlite_bytes = $liveDatabaseBytes }
+    $primary.phases += @{ name = 'host_preflight'; result = 'pass'; viewer_8080 = $true; free_bytes = [int64]$drive.Free; required_free_bytes = $requiredFreeBytes; live_sqlite_bytes = $liveDatabaseBytes; credential_manager_session = $credentialSession }
     Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
 
     $StagingRoot = "$InstallRoot.staging.$([guid]::NewGuid().ToString('N'))"

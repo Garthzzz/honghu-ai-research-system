@@ -22,7 +22,11 @@ green.  It contains the exact clean checkout, the reviewed PostgreSQL 17.10
 binary archive and a package manifest.  It contains no database, papers,
 credentials, browser state, TLS private key, runtime evidence or user content.
 
-The VM entry point is one elevated PowerShell invocation:
+The VM entry point is one elevated PowerShell invocation. It must be launched
+from the approved principal's interactive VM desktop session: Windows OpenSSH
+network logons on the current host cannot access that user's WinVault and are
+therefore rejected by an early, reversible Credential Manager capability probe
+before archive extraction or dependency installation.
 
 ```powershell
 & '<PACKAGE>\repo\tools\migration\Stage4-Production-PostgreSQL-Bootstrap.ps1' `
@@ -38,6 +42,12 @@ The bootstrap verifies the archive/config/route/checkout identities, available
 capacity and existing 8080 before creating infrastructure.  It uses loopback
 ports 55440/55441 and never modifies port 8080.  Secrets are created on the VM
 and written only to the invoking Windows principal's Credential Manager.
+The keyring bridge is an explicit tracked deployment input, forces the Windows
+WinVault backend and receives secrets only through stdin. The broad Git ignore
+rule for credential-bearing paths remains unchanged; real credential material
+is never placed in Git. Missing bridge files and unavailable WinVault sessions
+fail closed with a specific diagnostic instead of running a long installation
+and returning a generic credential error.
 
 The Windows service is configured for automatic boot and is tested for normal
 stop/start. PostgreSQL 17 `pg_ctl runservice` reports a crashed postmaster as a

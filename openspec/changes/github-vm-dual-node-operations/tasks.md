@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。用户现仅授权阶段 4 的设计、非生产准备、隔离演练和证据构建；production PostgreSQL cutover、live SQLite 修改/迁移、计划任务迁移、production writer/backend、Viewer 或 runner 切换以及进入 S2/S3 均未获授权。
+> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。用户现已授权阶段 4 production PostgreSQL 基础设施、恢复能力以及各切换单元的 migration/S1 准备，但未授权任何单元进入 S2/S3、正式 PostgreSQL 业务写入、live SQLite 修改/迁移、计划任务迁移、production writer/backend、Viewer 或 runner 切换。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -138,7 +138,7 @@
 - [x] [Stage 4 readiness 准备] readiness preflight 已改为读取 typed evidence 本体并校验 hash、subject、时效、交叉引用、S0 route、应用 rehearsal、PostgreSQL topology/TLS/ACL/credential、backup/WAL/restore、repository governance 和 cutover decision；伪 boolean/hash、篡改、跨环境、过期及同主机冒充 off-VM 均 fail-closed。
 - [x] [Stage 4 readiness 准备] 浏览器 uncertain mutation identity 已跨 reload/tab 持久化并绑定可信 principal/payload；跨 tab 原生互斥、长 pending、精确 replay、principal/payload 变化 fail-closed 已有执行测试。没有重构数据库既有 idempotency、revision 或 authority 合同。
 - [x] [Stage 4 readiness 准备] 本机隔离 PostgreSQL 17.10 候选已真实完成 TLS、角色 ACL、Credential Manager 创建/轮换/撤销、服务启停/crash recovery、base backup+WAL、整库恢复、逻辑旁路恢复和 authority-control migration/adapter/side restore；候选不使用 production 端口，live SQLite 前后不变。该证据明确不是 VM 或 off-VM 证据。
-- [ ] [Stage 4 readiness blocker] VM 候选与另一故障域 off-VM copy/restore 尚无现场证据。当前没有可用的 SSH/SMB/WinRM 安全通道，也没有获确认的独立恢复位置；不得用同 VM 盘符替代。已提供人工 runbook，保持 `PRODUCTION READINESS BLOCKED`。
+- [ ] [Stage 4 readiness blocker] `honghu-vm` SSH 通道已于 2026-08-12 验证并用于 exact-package 执行，不再是 blocker；但 Windows OpenSSH 非交互登录实测无法访问调用用户的 Windows Credential Manager（WinError 1312，`cmdkey` 同样失败），因此正式凭据注入需要在 VM 交互桌面运行同一 exact bootstrap。另一故障域 off-VM copy/restore 仍无现场证据，不得用同 VM 盘符替代。两项均不得用布尔声明或伪 hash 关闭。
 - [ ] [本阶段必须] 每个切换单元进入 S2 前先完成该 unit 所需的 VM 外 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的真实恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单；不得机械推迟到阶段 5，阶段 5 只做整体任务迁移、空机恢复和 measured RPO/RTO 收口。
 - [ ] [本阶段必须] 每个切换单元执行源目标计数、关系、时间序列、状态机、稳定身份映射和业务不变量对账；验证相关页面、API、publisher 和写路径。
 - [ ] [本阶段必须] 在短维护窗口切换唯一 writer；优先 shadow read。进入 S2 时 PostgreSQL 是唯一指定 writer、SQLite writer 已停止并冻结；记录 cutover epoch、SQLite 最终权威业务水位、PostgreSQL 首条正式业务 commit 水位、验证写、uncertain response、操作者和证据。首条必须保留的正式写提交即进入 S3，无法证明未提交的 uncertain response 按 S3。任何连接失败不得静默回写 SQLite；未经独立批准不得 shadow write。
