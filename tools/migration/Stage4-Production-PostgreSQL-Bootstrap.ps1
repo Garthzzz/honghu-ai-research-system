@@ -405,8 +405,39 @@ try {
     $passwordFile = Join-Path $RuntimeRoot ("initdb-{0}.pw" -f [guid]::NewGuid().ToString('N'))
     try {
         Set-Content -LiteralPath $passwordFile -Value $adminPassword -NoNewline -Encoding ascii
-        & (Join-Path $Bin 'initdb.exe') --pgdata $DataDir --waldir $WalDir --username honghu_admin --auth-host scram-sha-256 --auth-local scram-sha-256 --encoding UTF8 --pwfile $passwordFile
-        if ($LASTEXITCODE -ne 0) { throw 'initdb failed.' }
+        # Never inherit the Windows host's legacy code-page locale.  The
+        # PostgreSQL 17 builtin provider gives a portable UTF-8 contract.
+        # Capture native stderr and judge the command by its exit code so a
+        # localized warning cannot become a PowerShell terminating error.
+        $previousErrorActionPreference = $ErrorActionPreference
+        try {
+            $ErrorActionPreference = 'Continue'
+            $initdbOutput = & (Join-Path $Bin 'initdb.exe') `
+                --pgdata $DataDir --waldir $WalDir --username honghu_admin `
+                --auth-host scram-sha-256 --auth-local scram-sha-256 `
+                --encoding $bootstrapConfig.postgresql.encoding `
+                --locale-provider $bootstrapConfig.postgresql.locale_provider `
+                --builtin-locale $bootstrapConfig.postgresql.builtin_locale `
+                --text-search-config $bootstrapConfig.postgresql.text_search_config `
+                --data-checksums --pwfile $passwordFile 2>&1
+            $initdbExitCode = $LASTEXITCODE
+        }
+        finally {
+            $ErrorActionPreference = $previousErrorActionPreference
+        }
+        if ($initdbExitCode -ne 0) { throw 'initdb failed.' }
+        $primary.phases += @{
+            name = 'cluster_initialization_contract'
+            result = 'pass'
+            encoding = $bootstrapConfig.postgresql.encoding
+            locale_provider = $bootstrapConfig.postgresql.locale_provider
+            builtin_locale = $bootstrapConfig.postgresql.builtin_locale
+            text_search_config = $bootstrapConfig.postgresql.text_search_config
+            data_checksums = [bool]$bootstrapConfig.postgresql.data_checksums
+            native_exit_code = $initdbExitCode
+            native_output_recorded = $false
+        }
+        Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
     }
     finally {
         if (Test-Path -LiteralPath $passwordFile) { Remove-Item -LiteralPath $passwordFile -Force }
@@ -594,6 +625,13 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         sslrootcert = (Join-Path $TlsDir 'root.crt')
         service_name = 'HonghuPostgreSQL17'
         application_route = 'sqlite_transition'
+        cluster_contract = @{
+            encoding = $bootstrapConfig.postgresql.encoding
+            locale_provider = $bootstrapConfig.postgresql.locale_provider
+            builtin_locale = $bootstrapConfig.postgresql.builtin_locale
+            text_search_config = $bootstrapConfig.postgresql.text_search_config
+            data_checksums = [bool]$bootstrapConfig.postgresql.data_checksums
+        }
         credential_owner_principal = [Security.Principal.WindowsIdentity]::GetCurrent().Name
         credential_scope = 'stage4_operator_and_migration_only'
         break_glass = @{

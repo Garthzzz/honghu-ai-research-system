@@ -536,3 +536,19 @@ DeepSeek 仅收到上述脱敏故障、修订和测试摘要。它把已经完�
 新反例。Codex 接受其“不得降低密码学随机和资源释放”的方向，但这些要求已由实现与回归覆盖，
 没有据此重复修改或提前宣称 VM bootstrap 通过。外部 verdict 不替代完整测试、最终 CI 和新的
 exact-commit VM 现场执行。
+
+### Stage 4 production execution：PG17 locale 初始化合同复核（2026-08-12）
+
+真实 VM 第三次尝试在 service、listener 与数据库 authority 建立前因宿主中文 code-page locale
+失败；PowerShell 还把 `initdb` 的本地化 stderr warning 升格为 terminating error。Codex 没有修改
+系统 locale，而是把 PG17 cluster 固定为 builtin `C.UTF-8`、UTF8、`simple` text search 和 data
+checksums；配置 validator 对任一 drift fail-closed。`initdb` stderr 被捕获且不写 evidence，成败只
+由 native exit code 决定。最终 verifier 再从真实 server 与 `pg_database` 反查 encoding、text
+search、checksum、locale provider 与 locale，不能靠配置自证。隔离的同版 `initdb` probe 已建立
+`PG_VERSION=17` cluster；没有注册 service 或 listener，也没有触碰 8080。
+
+DeepSeek把输入中已明确实现的 locale、checksum 与 catalog verifier 再次列为 must-fix，并虚构
+“PostgreSQL 应监听 8080 且 24 秒内就绪”；8080 是现有 Viewer，PostgreSQL 固定端口是 55440，
+因此该建议会制造真实冲突，明确拒绝。它关于不泄露 native output、保留非零退出失败的方向已由
+捕获变量、`native_output_recorded=false` 与 exit-code gate 满足，没有新增可复现缺口。最终依据
+仍是新提交自己的完整测试、required CI 和 exact-commit VM bootstrap，而不是外部 verdict。

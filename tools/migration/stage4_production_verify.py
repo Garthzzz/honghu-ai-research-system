@@ -103,6 +103,21 @@ def verify_production_candidate(
             )
             server = cursor.fetchone()
             cursor.execute(
+                """
+                SELECT current_setting('server_encoding'),
+                       current_setting('default_text_search_config'),
+                       current_setting('data_checksums')
+                """
+            )
+            cluster_settings = cursor.fetchone()
+            cursor.execute(
+                """
+                SELECT pg_encoding_to_char(encoding),datlocprovider,datlocale
+                  FROM pg_database WHERE datname=current_database()
+                """
+            )
+            database_locale = cursor.fetchone()
+            cursor.execute(
                 "SELECT ssl,version,cipher FROM pg_stat_ssl WHERE pid=pg_backend_pid()"
             )
             tls = cursor.fetchone()
@@ -159,6 +174,21 @@ def verify_production_candidate(
         raise ProductionVerificationError("port/TLS/WAL archive contract is not active")
     if not tls or tls[0] is not True:
         raise ProductionVerificationError("verified production connection is not protected by TLS")
+    expected_cluster = runtime.get("cluster_contract") or {}
+    if not (
+        cluster_settings[0] == expected_cluster.get("encoding") == "UTF8"
+        and str(cluster_settings[1]).endswith(".simple")
+        and expected_cluster.get("text_search_config") == "simple"
+        and cluster_settings[2] == "on"
+        and expected_cluster.get("data_checksums") is True
+        and database_locale[0] == "UTF8"
+        and database_locale[1] == "b"
+        and database_locale[2] == expected_cluster.get("builtin_locale") == "C.UTF-8"
+        and expected_cluster.get("locale_provider") == "builtin"
+    ):
+        raise ProductionVerificationError(
+            "cluster locale/encoding/checksum identity differs from reviewed contract"
+        )
     expected_migrations = []
     for name in (
         "0001_user_content_notes_expand.sql",
@@ -196,6 +226,14 @@ def verify_production_candidate(
             "archive_mode": server[5],
             "archive_command_configured": True,
             "data_directory": server[7],
+        },
+        "cluster_contract": {
+            "server_encoding": cluster_settings[0],
+            "default_text_search_config": cluster_settings[1],
+            "data_checksums": cluster_settings[2],
+            "database_encoding": database_locale[0],
+            "database_locale_provider": database_locale[1],
+            "database_locale": database_locale[2],
         },
         "tls": {"verified": bool(tls[0]), "version": tls[1], "cipher": tls[2]},
         "credential_presence": credential_presence,

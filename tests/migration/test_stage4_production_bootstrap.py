@@ -85,6 +85,27 @@ def test_bootstrap_contract_rejects_broader_network(tmp_path: Path) -> None:
         load_and_validate_config(config)
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("encoding", "WIN1252"),
+        ("locale_provider", "libc"),
+        ("builtin_locale", "Chinese (Simplified)_China.936"),
+        ("text_search_config", "english"),
+        ("data_checksums", False),
+    ],
+)
+def test_bootstrap_contract_rejects_cluster_locale_or_checksum_drift(
+    tmp_path: Path, field: str, value: object
+) -> None:
+    config, _, _ = _fixture(tmp_path)
+    payload = json.loads(config.read_text(encoding="utf-8"))
+    payload["postgresql"][field] = value
+    config.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(BootstrapContractError, match="cluster locale"):
+        load_and_validate_config(config)
+
+
 def test_bootstrap_contract_rejects_archive_tamper(tmp_path: Path) -> None:
     config, archive, repo = _fixture(tmp_path)
     archive.write_bytes(b"tampered")
@@ -168,6 +189,28 @@ def test_bootstrap_secret_rng_is_windows_powershell_compatible() -> None:
         timeout=30,
     )
     assert completed.returncode == 0, completed.stderr
+
+
+def test_bootstrap_uses_explicit_portable_cluster_locale_contract() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "--locale-provider $bootstrapConfig.postgresql.locale_provider" in source
+    assert "--builtin-locale $bootstrapConfig.postgresql.builtin_locale" in source
+    assert "--text-search-config $bootstrapConfig.postgresql.text_search_config" in source
+    assert "--data-checksums" in source
+    assert "$initdbExitCode = $LASTEXITCODE" in source
+    assert "native_output_recorded = $false" in source
+    assert "cluster_initialization_contract" in source
+    assert "cluster_contract = @{" in source
+
+    verifier = (
+        ROOT / "tools/migration/stage4_production_verify.py"
+    ).read_text(encoding="utf-8")
+    assert "current_setting('server_encoding')" in verifier
+    assert "current_setting('data_checksums')" in verifier
+    assert "datlocprovider,datlocale" in verifier
+    assert "cluster locale/encoding/checksum identity" in verifier
 
 
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:

@@ -13,6 +13,11 @@
     "restore_test_port": 55441,
     "database": "honghu_research",
     "install_root": "D:\\honghu-postgresql",
+    "encoding": "UTF8",
+    "locale_provider": "builtin",
+    "builtin_locale": "C.UTF-8",
+    "text_search_config": "simple",
+    "data_checksums": true,
     "tls_verify_name": "localhost",
     "allowed_cidrs": ["127.0.0.1/32", "::1/128"]
   },

@@ -49,6 +49,20 @@ def load_and_validate_config(path: Path) -> dict[str, Any]:
         raise BootstrapContractError("PostgreSQL archive source is not approved")
     if pg.get("host") != "127.0.0.1":
         raise BootstrapContractError("initial production topology must remain loopback-only")
+    expected_cluster_contract = {
+        "encoding": "UTF8",
+        "locale_provider": "builtin",
+        "builtin_locale": "C.UTF-8",
+        "text_search_config": "simple",
+        "data_checksums": True,
+    }
+    actual_cluster_contract = {
+        key: pg.get(key) for key in expected_cluster_contract
+    }
+    if actual_cluster_contract != expected_cluster_contract:
+        raise BootstrapContractError(
+            "PostgreSQL cluster locale/encoding/checksum contract is not approved"
+        )
     if pg.get("allowed_cidrs") != ["127.0.0.1/32", "::1/128"]:
         raise BootstrapContractError("initial PostgreSQL network scope is broader than approved")
     ports = {int(pg.get("port") or 0), int(pg.get("restore_test_port") or 0)}
