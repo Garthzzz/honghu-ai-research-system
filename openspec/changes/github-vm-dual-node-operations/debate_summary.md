@@ -576,3 +576,10 @@ Windows resolver 缺陷：探针仍使用 `localhost`，宿主优先解析为 `:
 仅开放 `127.0.0.1`，连接因此被拒绝。通用管理连接本来已经固定 IPv4；Codex将 credential
 探针和 runtime config 一并统一到确切的 `127.0.0.1`，保留 TLS IP SAN 验证，不通过扩大监听
 范围解决。该问题由真实现场发现，DeepSeek本轮没有识别或提供信息增量。
+
+下一次 exact-commit 运行的初始/新凭据正向探针已执行，但预期的“旧密码拒绝”触发
+Windows PowerShell `NativeCommandError`：脚本级 `ErrorActionPreference=Stop` 在函数读取
+`LASTEXITCODE` 前终止，因而把正确的拒绝结果误判成 bootstrap 失败。Codex把这一行为限定在
+认证探针内部：暂时以 `Continue` 捕获且不输出 native 结果，保存 exit code 后恢复全局策略，
+由调用者分别断言初始/新凭据必须成功、旧/撤销凭据必须失败。没有放宽任何认证合同，也没有
+记录密码或 psql 错误原文；DeepSeek此前未识别该现场兼容缺口。

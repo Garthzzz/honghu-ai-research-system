@@ -237,6 +237,21 @@ def test_production_runtime_and_credential_probes_use_exact_ipv4_listener() -> N
     assert "--host localhost --port 55440" not in source
 
 
+def test_expected_rejected_credentials_are_classified_by_native_exit_code() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    function = source.split("function Test-HonghuRoleCredential", 1)[1].split(
+        "function Assert-HonghuAdministrator", 1
+    )[0]
+    assert "$oldErrorAction = $ErrorActionPreference" in function
+    assert "$ErrorActionPreference = 'Continue'" in function
+    assert "2>&1" in function
+    assert "$exitCode = $LASTEXITCODE" in function
+    assert "return ($exitCode -eq 0)" in function
+    assert "$ErrorActionPreference = $oldErrorAction" in function
+
+
 def test_preinstall_failure_uses_owned_quarantine_contract() -> None:
     source = (
         ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"

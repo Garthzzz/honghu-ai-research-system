@@ -94,18 +94,25 @@ function Test-HonghuRoleCredential {
         [Parameter(Mandatory = $true)][string]$Password
     )
     $oldPassword = $env:PGPASSWORD
+    $oldErrorAction = $ErrorActionPreference
     try {
         $env:PGPASSWORD = $Password
-        # The production listener is intentionally IPv4-loopback only.  On
-        # Windows, localhost may resolve to ::1 first and psql can fail without
-        # reaching 127.0.0.1, so every lifecycle probe uses the exact reviewed
-        # listener address rather than relying on resolver order.
-        & $Psql -X --set ON_ERROR_STOP=1 --host 127.0.0.1 --port 55440 `
+        # A rejected old/revoked password is an expected negative probe. Under
+        # Windows PowerShell 5.1, a native non-zero exit can become a terminating
+        # NativeCommandError while the script-wide preference is Stop. Capture
+        # only this probe's exit code without printing native output, then let
+        # each caller enforce the intended positive/negative assertion.
+        $ErrorActionPreference = 'Continue'
+        $null = & $Psql -X --set ON_ERROR_STOP=1 --host 127.0.0.1 --port 55440 `
             --username $User --dbname $Database --no-password `
-            --command 'SELECT 1;' 2>$null | Out-Null
-        return ($LASTEXITCODE -eq 0)
+            --command 'SELECT 1;' 2>&1
+        $exitCode = $LASTEXITCODE
+        return ($exitCode -eq 0)
     }
-    finally { $env:PGPASSWORD = $oldPassword }
+    finally {
+        $ErrorActionPreference = $oldErrorAction
+        $env:PGPASSWORD = $oldPassword
+    }
 }
 
 function Assert-HonghuAdministrator {
