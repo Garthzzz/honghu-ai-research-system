@@ -296,7 +296,9 @@ if ($null -ne $existingService -or (Test-Path -LiteralPath $InstallRoot)) {
         throw 'Repo checkout is not the completed install commit.'
     }
     $resumeInput = Join-Path $EvidenceRoot 'bootstrap_resume_input_identity.json'
-    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_production_bootstrap_contract.py') `
+    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py') `
+        --repo-root $RepoRoot --module tools.migration.stage4_production_bootstrap_contract `
+        -- `
         --config $ConfigPath --repo-root $RepoRoot --commit-sha $CommitSha `
         --archive $PostgreSQLArchive --output $resumeInput
     if ($LASTEXITCODE -ne 0) { throw 'Completed-install input identity verification failed.' }
@@ -361,7 +363,9 @@ try {
 
     New-Item -ItemType Directory -Force $EvidenceRoot | Out-Null
     $InputIdentityPath = Join-Path $EvidenceRoot 'bootstrap_input_identity.json'
-    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_production_bootstrap_contract.py') `
+    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py') `
+        --repo-root $RepoRoot --module tools.migration.stage4_production_bootstrap_contract `
+        -- `
         --config $ConfigPath --repo-root $RepoRoot --commit-sha $CommitSha `
         --archive $PostgreSQLArchive --output $InputIdentityPath
     if ($LASTEXITCODE -ne 0) { throw 'Bootstrap contract preflight failed.' }

@@ -620,3 +620,9 @@ PowerShell 语法以及 recovery help 的真实隔离调用。DeepSeek窄审查�
 Codex 将 Stage 4 原子 JSON writer 固定为 .NET `UTF8Encoding(false)`，所有关键 Stage 4 文件型 JSON reader 统一通过共享 helper 以 `utf-8-sig` 接受有/无 BOM 的 UTF-8；UTF-16、损坏 JSON 和合同字段错误仍然 fail-closed。两个由 Python 输出、再由 PowerShell落盘的 runtime evidence 也改用同一无 BOM writer。回归覆盖有/无 BOM、中文内容、UTF-16 拒绝、真实 Windows PowerShell 无 BOM 字节以及 recovery reader 路径。最终本地证据为 695 个 core tests 通过、94 个 Stage 4/API/browser 定向测试通过、PowerShell parser、compile、OpenSpec strict 与 diff check 通过。
 
 DeepSeek 只收到脱敏后的根因、编码合同、覆盖范围和测试摘要，结论为 `pass`，无 must-fix。其 should-fix 仅重复已经实现的共享 reader、无 BOM writer、验证门禁和合同记录，没有形成信息增量；Codex 逐项以代码和回归验证后不再开启第二轮。本次外部复核不构成 PostgreSQL 部署、mapping approval、off-VM recovery、S2/S3 或 cutover 批准。
+
+### Stage 4 production execution：isolated bootstrap import 边界复核（2026-08-13）
+
+精确提交 `0a4d0c1f7d08d605426589e00d6052371ab275bb` 的 VM 运行在 contract preflight 即失败：bootstrap 仍以 `python -I -B` 直接执行 contract 文件，而前一轮引入的共享 JSON helper 需要从 reviewed repo root 导入 `tools.migration`。隔离模式正确忽略了工作目录和 ambient `PYTHONPATH`，因此暴露了入口边界回归。现场随即确认 service、install root 和 55440 listener 均不存在，8080 健康；没有形成数据库或 authority 状态。
+
+Codex 没有撤销隔离或依赖环境变量，而是把 bootstrap contract 纳入既有 allowlisted isolated dispatcher；fresh-install 与 completed-install resume 两条路径均通过显式 `--repo-root`、allowlisted module 和强制 `--` 参数边界执行。回归实际启动 `python -I -B` dispatcher 并导入 contract，同时复核全部 allowlisted invocation 的分隔符、入口签名和 PowerShell 语法。DeepSeek 只收到脱敏后的故障、修订、隔离合同与测试摘要，结论为 `pass`，无 must-fix/should-fix；其判断与真实代码和回归一致，没有信息增量，因此一轮后停止。该复核仍不构成 PostgreSQL 部署、mapping、off-VM recovery、S2/S3 或 cutover 批准。

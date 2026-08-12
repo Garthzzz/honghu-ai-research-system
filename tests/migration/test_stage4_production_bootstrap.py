@@ -6,6 +6,7 @@ import inspect
 import json
 from pathlib import Path
 import subprocess
+import sys
 from types import SimpleNamespace
 
 import pytest
@@ -227,6 +228,29 @@ def test_stage4_json_contract_rejects_utf16_instead_of_guessing_encoding(
         read_json(path)
 
 
+def test_bootstrap_contract_imports_through_isolated_dispatcher() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-B",
+            str(ROOT / "tools/migration/stage4_isolated_entry.py"),
+            "--repo-root",
+            str(ROOT),
+            "--module",
+            "tools.migration.stage4_production_bootstrap_contract",
+            "--",
+            "--help",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert completed.returncode == 0, completed.stderr
+    assert "--config" in completed.stdout
+
+
 def test_bootstrap_writes_json_and_captured_python_evidence_as_utf8_without_bom(
     tmp_path: Path,
 ) -> None:
@@ -244,6 +268,10 @@ def test_bootstrap_writes_json_and_captured_python_evidence_as_utf8_without_bom(
         "Set-Content -LiteralPath $resumeRuntimeVerification -Encoding UTF8"
         not in source
     )
+    assert source.count(
+        "--module tools.migration.stage4_production_bootstrap_contract `"
+    ) == 2
+    assert "-I -B (Join-Path $RepoRoot 'tools\\migration\\stage4_production_bootstrap_contract.py')" not in source
 
     output = tmp_path / "no-bom.json"
     command = (
@@ -448,7 +476,9 @@ def test_bootstrap_delimits_every_isolated_module_invocation() -> None:
         for index, line in enumerate(lines)
         if "--module" in line and "tools.migration." in line
     ]
-    assert len(module_lines) == len(ALLOWED_MODULES) + 1  # production verify also covers resume
+    # Both bootstrap contract and production verify run once on a fresh install
+    # and once on the completed-install resume path.
+    assert len(module_lines) == len(ALLOWED_MODULES) + 2
     for module_name in ALLOWED_MODULES:
         assert module_name in source
     for index in module_lines:

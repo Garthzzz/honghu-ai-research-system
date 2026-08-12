@@ -19,6 +19,7 @@ ALLOWED_MODULES = {
     "tools.migration.stage4_execution_bundle": "main",
     "tools.migration.stage4_execution_readiness": "main",
     "tools.migration.stage4_prepare_units": "main",
+    "tools.migration.stage4_production_bootstrap_contract": "main",
     "tools.migration.stage4_production_recovery": "main",
     "tools.migration.stage4_production_verify": "main",
     "tools.migration.stage4_repository_governance": "main",
