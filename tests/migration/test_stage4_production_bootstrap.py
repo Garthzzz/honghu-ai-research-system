@@ -21,6 +21,7 @@ from tools.migration.stage4_production_recovery import (
     _load_json as load_production_recovery_json,
     _required_wal_names,
     _run as run_production_recovery_command,
+    _verify_base_backup,
     ProductionRecoveryError,
 )
 from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
@@ -144,6 +145,20 @@ def test_bootstrap_script_is_single_entry_and_preserves_authority() -> None:
     assert "Invoke-WebRequest" not in source
     assert "stage4_prepare_units" in source
     assert "stage4_isolated_entry.py" in source
+    assert "GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO honghu_backup" in source
+    assert "GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO honghu_migration" not in source
+
+
+def test_production_recovery_rotates_wal_with_backup_role() -> None:
+    source = (
+        ROOT / "tools/migration/stage4_production_recovery.py"
+    ).read_text(encoding="utf-8")
+    sentinel_block = source.split(
+        'connection.execute(\n            "INSERT INTO operations.bootstrap_recovery_sentinel', 1
+    )[1].split("required_wal_files =", 1)[0]
+    assert 'with _connect(runtime, "backup") as backup_connection' in sentinel_block
+    assert 'backup_connection.execute("SELECT pg_switch_wal()")' in sentinel_block
+    assert '\n        connection.execute("SELECT pg_switch_wal()")' not in sentinel_block
 
 
 def test_bootstrap_keeps_quant_pristine_and_uses_hash_pinned_isolated_python() -> None:
@@ -260,6 +275,39 @@ def test_production_recovery_libpq_command_binds_verified_tls_root(
             ["pg_basebackup.exe", "--version"],
             sslrootcert=tmp_path / "missing.crt",
         )
+
+
+def test_production_recovery_uses_postgresql_native_backup_manifest(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "backup_manifest").write_text("fixture manifest", encoding="utf-8")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    verifier = bin_dir / "pg_verifybackup.exe"
+    verifier.write_bytes(b"fixture executable")
+    captured: list[list[str]] = []
+
+    def fake_run(command: list[str], **_kwargs: object) -> SimpleNamespace:
+        captured.append(command)
+        return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(
+        "tools.migration.stage4_production_recovery._run", fake_run
+    )
+    _verify_base_backup(bin_dir, base)
+    assert captured == [[
+        str(verifier.resolve()),
+        "--exit-on-error",
+        "--quiet",
+        "--no-parse-wal",
+        str(base),
+    ]]
+
+    (base / "backup_manifest").unlink()
+    with pytest.raises(ProductionRecoveryError, match="backup manifest"):
+        _verify_base_backup(bin_dir, base)
 
 
 def test_bootstrap_contract_imports_through_isolated_dispatcher() -> None:

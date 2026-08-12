@@ -743,6 +743,13 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
     Invoke-HonghuPsql -Psql (Join-Path $Bin 'psql.exe') -Database 'honghu_research' -Password $adminPassword -Sql (Get-Content -Raw $migrationGrantPath) -Variables @(
         'migration_role=honghu_migration'
     ) | Out-Null
+    # The recovery workflow must rotate WAL after its durable sentinel.  Grant
+    # only that catalog function to the dedicated backup role; the migration
+    # role remains unable to control WAL.
+    Invoke-HonghuPsql -Psql (Join-Path $Bin 'psql.exe') -Database 'honghu_research' -Password $adminPassword -Sql @'
+REVOKE EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO honghu_backup;
+'@ | Out-Null
 
     $RuntimeConfig = [ordered]@{
         schema_version = 'honghu.postgresql_production_runtime.v1'

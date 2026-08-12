@@ -176,6 +176,24 @@ def _backup_start_wal(base_backup: Path) -> str:
     return match.group(1)
 
 
+def _verify_base_backup(bin_dir: Path, base_backup: Path) -> None:
+    manifest = base_backup / "backup_manifest"
+    if not manifest.is_file():
+        raise ProductionRecoveryError("base backup has no PostgreSQL backup manifest")
+    # Required WAL is copied, hashed, and replayed separately from the exact
+    # recovery set.  Here PostgreSQL validates every base-backup file against
+    # its native manifest without looking for WAL inside the plain backup.
+    _run(
+        [
+            str(_tool(bin_dir, "pg_verifybackup")),
+            "--exit-on-error",
+            "--quiet",
+            "--no-parse-wal",
+            str(base_backup),
+        ]
+    )
+
+
 def _pg_ctl(bin_dir: Path, data_dir: Path, action: str) -> None:
     command = [str(_tool(bin_dir, "pg_ctl")), "-D", str(data_dir), "-w"]
     if action == "start":
@@ -253,6 +271,7 @@ def run_production_recovery(
         sslrootcert=Path(str(runtime["sslrootcert"])),
     )
     base_completed = _utc_now()
+    _verify_base_backup(bin_dir, source_base)
 
     sentinel_id = f"stage4-production-recovery:{uuid.uuid4().hex}"
     with _connect(runtime, "migration") as connection:
@@ -268,7 +287,11 @@ def run_production_recovery(
                    pg_size_bytes(current_setting('wal_segment_size'))
             """
         ).fetchone()
-        connection.execute("SELECT pg_switch_wal()")
+    # WAL rotation is an operational backup privilege, not a schema-migration
+    # privilege.  Keeping it on the dedicated backup role prevents the
+    # migration writer from acquiring a server-wide WAL control capability.
+    with _connect(runtime, "backup") as backup_connection:
+        backup_connection.execute("SELECT pg_switch_wal()")
     required_wal_files = _required_wal_names(
         _backup_start_wal(source_base),
         str(required_wal),
