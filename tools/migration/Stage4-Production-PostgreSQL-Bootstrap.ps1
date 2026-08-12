@@ -191,6 +191,7 @@ $RuntimeConfigPath = Join-Path $RuntimeRoot 'postgresql_runtime.json'
 $InstallIdentityPath = Join-Path $RuntimeRoot 'bootstrap_install_identity.json'
 $LaunchId = [guid]::NewGuid().ToString('N')
 $CleanupRequired = $false
+$StagingRoot = $null
 $CredentialEntries = New-Object System.Collections.Generic.List[string]
 
 # A completed, exact-identity install is re-entered only through read-only
@@ -325,7 +326,7 @@ try {
     Expand-Archive -LiteralPath $PostgreSQLArchive -DestinationPath $StagingRoot -Force
     $PgRoot = Join-Path $StagingRoot 'pgsql'
     $Bin = Join-Path $PgRoot 'bin'
-    foreach ($name in 'postgres.exe','initdb.exe','pg_ctl.exe','psql.exe','pg_basebackup.exe','pg_controldata.exe','openssl.exe') {
+    foreach ($name in 'postgres.exe','initdb.exe','pg_ctl.exe','psql.exe','pg_basebackup.exe','pg_controldata.exe') {
         if (-not (Test-Path -LiteralPath (Join-Path $Bin $name) -PathType Leaf)) { throw "Approved PostgreSQL archive lacks $name" }
     }
     $versionText = (& (Join-Path $Bin 'postgres.exe') --version | Out-String).Trim()
@@ -404,26 +405,17 @@ try {
 
     $TlsDir = Join-Path $InstallRoot 'tls'
     New-Item -ItemType Directory -Force $TlsDir | Out-Null
-    $OpenSslConfig = Join-Path $RuntimeRoot 'openssl-san.cnf'
-    @'
-[req]
-distinguished_name = dn
-x509_extensions = v3
-prompt = no
-[dn]
-CN = localhost
-[v3]
-subjectAltName = @san
-keyUsage = critical,digitalSignature,keyEncipherment
-extendedKeyUsage = serverAuth
-[san]
-DNS.1 = localhost
-IP.1 = 127.0.0.1
-'@ | Set-Content -LiteralPath $OpenSslConfig -Encoding ascii
-    & (Join-Path $Bin 'openssl.exe') req -x509 -newkey rsa:3072 -sha256 -days 825 -nodes `
-        -keyout (Join-Path $TlsDir 'server.key') -out (Join-Path $TlsDir 'server.crt') -config $OpenSslConfig
+    $TlsEvidencePath = Join-Path $EvidenceRoot 'tls_certificate.json'
+    & $BootstrapPythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_tls_certificate.py') `
+        --output-dir $TlsDir --evidence $TlsEvidencePath --valid-days 825
     if ($LASTEXITCODE -ne 0) { throw 'TLS certificate generation failed.' }
-    Copy-Item -LiteralPath (Join-Path $TlsDir 'server.crt') -Destination (Join-Path $TlsDir 'root.crt') -Force
+    $primary.phases += @{
+        name = 'tls_certificate_generation'
+        result = 'pass'
+        evidence_sha256 = Get-HonghuSha256 $TlsEvidencePath
+        private_key_recorded = $false
+    }
+    Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
 
     $ArchiveCommand = Join-Path $RuntimeRoot 'archive_wal.cmd'
     "@echo off`r`nif exist `"$WalArchive\%~nx1`" exit /b 0`r`ncopy /b /y `"%~1`" `"$WalArchive\%~nx1`" >nul`r`n" | Set-Content -LiteralPath $ArchiveCommand -Encoding ascii
@@ -451,6 +443,18 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
     New-Item -ItemType Directory -Force (Join-Path $InstallRoot 'logs') | Out-Null
     & icacls $InstallRoot /grant '*S-1-5-20:(OI)(CI)M' /T /C | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'NetworkService filesystem ACL failed.' }
+    $ServerKeyPath = Join-Path $TlsDir 'server.key'
+    & icacls $ServerKeyPath /inheritance:r /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' '*S-1-5-20:R' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw 'TLS private-key ACL restriction failed.' }
+    $primary.phases += @{
+        name = 'tls_private_key_acl'
+        result = 'pass'
+        inheritance_removed = $true
+        system_full_control = $true
+        administrators_full_control = $true
+        network_service_read_only = $true
+    }
+    Write-HonghuJsonAtomic -Path $PrimaryEvidencePath -Value $primary
 
     & (Join-Path $Bin 'pg_ctl.exe') register -N 'HonghuPostgreSQL17' -D $DataDir -S auto -U 'NT AUTHORITY\NetworkService'
     if ($LASTEXITCODE -ne 0) { throw 'PostgreSQL Windows service registration failed.' }
@@ -767,6 +771,37 @@ catch {
     throw
 }
 finally {
+    $preInstallRecovery = $null
+    if (-not $CleanupRequired -and $primary.status -eq 'failed' -and
+        $null -ne $StagingRoot -and (Test-Path -LiteralPath $StagingRoot -PathType Container)) {
+        $preInstallRecoveryPath = Join-Path $PreInstallEvidenceRoot 'preinstall_staging_quarantine.json'
+        try {
+            if ($null -ne (Get-Service -Name 'HonghuPostgreSQL17' -ErrorAction SilentlyContinue)) {
+                throw 'Pre-install staging cannot be quarantined while the service exists.'
+            }
+            if (@(Get-NetTCPConnection -LocalPort 55440 -State Listen -ErrorAction SilentlyContinue).Count -gt 0) {
+                throw 'Pre-install staging cannot be quarantined while port 55440 is listening.'
+            }
+            & $BootstrapBasePythonExe -I -B (Join-Path $RepoRoot 'tools\migration\stage4_preinstall_quarantine.py') `
+                --install-root $InstallRoot --staging-root $StagingRoot `
+                --launch-id $LaunchId --primary-failure $primary.primary_failure `
+                --output $preInstallRecoveryPath | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'Pre-install staging quarantine helper failed.' }
+            $preInstallRecovery = Get-Content -Raw -LiteralPath $preInstallRecoveryPath | ConvertFrom-Json
+        }
+        catch {
+            $preInstallRecovery = [ordered]@{
+                schema_version = 'honghu.stage4_preinstall_quarantine_failure.v1'
+                checked_at = (Get-Date).ToUniversalTime().ToString('o')
+                launch_id = $LaunchId
+                staging_root = $StagingRoot
+                primary_failure = $primary.primary_failure
+                recovery_failure = $_.Exception.Message
+                manual_inspection_required = $true
+            }
+            Write-HonghuJsonAtomic -Path $preInstallRecoveryPath -Value $preInstallRecovery
+        }
+    }
     $final = [ordered]@{
         schema_version = 'honghu.stage4_production_postgresql_bootstrap_final.v1'
         checked_at = (Get-Date).ToUniversalTime().ToString('o')
@@ -778,6 +813,7 @@ finally {
         route_state = $null
         production_authority_changed = $false
         s2_or_s3_entered = $false
+        preinstall_staging_recovery = $preInstallRecovery
     }
     try { $final.viewer_8080_ok = [bool](Invoke-RestMethod 'http://127.0.0.1:8080/api/health' -TimeoutSec 10).ok } catch {}
     try {

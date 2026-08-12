@@ -124,6 +124,33 @@ def test_bootstrap_keeps_quant_pristine_and_uses_hash_pinned_isolated_python() -
     assert "Completed-install isolated Python runtime verification failed." in source
 
 
+def test_bootstrap_does_not_require_postgresql_archive_openssl() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    archive_requirements = source.split(
+        "foreach ($name in ", 1
+    )[1].split(") {", 1)[0]
+    assert "openssl.exe" not in archive_requirements
+    assert "stage4_tls_certificate.py" in source
+    assert "tls_certificate.json" in source
+    assert "private_key_recorded = $false" in source
+    assert "tls_private_key_acl" in source
+    assert "/inheritance:r /grant:r" in source
+    assert "'*S-1-5-20:R'" in source
+
+
+def test_preinstall_failure_uses_owned_quarantine_contract() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "$StagingRoot = $null" in source
+    assert "stage4_preinstall_quarantine.py" in source
+    assert "Pre-install staging cannot be quarantined while the service exists." in source
+    assert "Pre-install staging cannot be quarantined while port 55440 is listening." in source
+    assert "preinstall_staging_recovery = $preInstallRecovery" in source
+
+
 def test_fresh_bootstrap_does_not_pollute_install_root_before_identity() -> None:
     source = (
         ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
