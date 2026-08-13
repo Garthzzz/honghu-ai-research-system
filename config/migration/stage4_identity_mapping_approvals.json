@@ -3,6 +3,15 @@
   "identity_overrides": [
     {
       "entity_type": "company",
+      "legacy_id": "21",
+      "ticker": "ACIA",
+      "venue": "us",
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+      "approved_by": "user",
+      "rationale": "Acacia Communications 保留为 2021 年被 Cisco 收购前的独立历史证券主体；不与 Cisco 当前主体合并。"
+    },
+    {
+      "entity_type": "company",
       "legacy_id": "552",
       "ticker": "TER",
       "venue": "us",
@@ -12,6 +21,22 @@
     }
   ],
   "aliases": [
+    {
+      "entity_type": "company",
+      "stable_key": "company:security:688041.SH:venue:shanghai",
+      "legacy_ids": ["330", "336"],
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+      "approved_by": "user",
+      "rationale": "海光与海光信息是 research.db 中同一 688041.SH 上市主体的简称和全称历史记录。"
+    },
+    {
+      "entity_type": "company",
+      "stable_key": "company:security:5802.T:venue:tokyo",
+      "legacy_ids": ["58", "59"],
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+      "approved_by": "user",
+      "rationale": "Sumitomo 与住友电气在当前研究身份中均指向 Sumitomo Electric Industries 的东京证券代码 5802。"
+    },
     {
       "entity_type": "company",
       "stable_key": "company:security:COHU:venue:us",

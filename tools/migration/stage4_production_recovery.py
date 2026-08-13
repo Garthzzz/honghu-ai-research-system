@@ -16,6 +16,7 @@ from typing import Any
 from tools.migration.stage4_recovery_set import (
     assert_restore_sources,
     build_recovery_set,
+    enforce_validated_recovery_retention,
     measured_recovery,
     sha256_file,
     sha256_json,
@@ -243,10 +244,28 @@ def _pg_ctl(bin_dir: Path, data_dir: Path, action: str) -> None:
 
 def _system_identifier(bin_dir: Path, data_dir: Path) -> str:
     output = _run([str(_tool(bin_dir, "pg_controldata")), str(data_dir)]).stdout
+    # pg_controldata localizes field labels on Windows.  The cluster system
+    # identifier itself is an unsigned 64-bit decimal value and is the only
+    # colon-delimited 16--22 digit value in supported pg_controldata output.
+    # Parse the stable value shape instead of assuming an English locale, but
+    # fail closed if output is absent or unexpectedly ambiguous.
+    candidates: list[str] = []
     for line in output.splitlines():
-        if "Database system identifier" in line:
-            return line.split(":", 1)[1].strip()
-    raise ProductionRecoveryError("pg_controldata did not expose system identifier")
+        if ":" not in line:
+            continue
+        value = line.rsplit(":", 1)[1].strip()
+        if re.fullmatch(r"\d{16,22}", value):
+            candidates.append(value)
+    unique = sorted(set(candidates))
+    if len(unique) == 1:
+        return unique[0]
+    if not unique:
+        raise ProductionRecoveryError(
+            "pg_controldata did not expose a locale-independent system identifier"
+        )
+    raise ProductionRecoveryError(
+        "pg_controldata exposed ambiguous system identifier candidates"
+    )
 
 
 def _write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -523,6 +542,21 @@ def run_production_recovery(
         or any(value is not None for value in authority[2:])
     ):
         raise ProductionRecoveryError("restored authority control exceeds S0/S1")
+    retention = (
+        enforce_validated_recovery_retention(
+            destination.parent,
+            current=destination,
+            keep=2,
+        )
+        if require_off_vm
+        else {
+            "policy": "engineering-local-no-off-vm-retention",
+            "keep": None,
+            "retained": [destination.name],
+            "deleted": [],
+            "unvalidated_not_counted_or_deleted": [],
+        }
+    )
     result_core = {
         "schema_version": "honghu.stage4_production_recovery.v1",
         "status": "pass" if require_off_vm else "engineering_partial",
@@ -543,6 +577,7 @@ def run_production_recovery(
             "method": "physical side instance; user_content/operations/audit queried without production mutation",
         },
         "off_vm_verified": bool(require_off_vm),
+        "validated_recovery_retention": retention,
         "application_authority": "sqlite_transition",
         "formal_business_data_written": False,
     }

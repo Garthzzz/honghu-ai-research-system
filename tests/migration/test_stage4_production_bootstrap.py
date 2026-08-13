@@ -25,6 +25,7 @@ from tools.migration.stage4_production_recovery import (
     _pg_ctl as run_production_recovery_pg_ctl,
     _required_wal_names,
     _run as run_production_recovery_command,
+    _system_identifier,
     _verify_base_backup,
     _wait_for_recovery_target,
     ProductionRecoveryError,
@@ -34,6 +35,60 @@ from tools.migration import stage4_isolated_entry as isolated_entry_module
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+@pytest.mark.parametrize(
+    "label",
+    ["Database system identifier", "数据库系统标识符"],
+)
+def test_system_identifier_is_locale_independent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, label: str
+) -> None:
+    bin_dir = tmp_path / "bin"
+    data_dir = tmp_path / "data"
+    bin_dir.mkdir()
+    data_dir.mkdir()
+    (bin_dir / "pg_controldata.exe").write_bytes(b"fixture")
+    output = (
+        "Catalog version: 202406281\n"
+        f"{label}: 7673347824996746592\n"
+        "Database block size: 8192\n"
+    )
+    monkeypatch.setattr(
+        "tools.migration.stage4_production_recovery._run",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout=output),
+    )
+
+    assert _system_identifier(bin_dir, data_dir) == "7673347824996746592"
+
+
+def test_system_identifier_fails_closed_on_missing_or_ambiguous_output(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bin_dir = tmp_path / "bin"
+    data_dir = tmp_path / "data"
+    bin_dir.mkdir()
+    data_dir.mkdir()
+    (bin_dir / "pg_controldata.exe").write_bytes(b"fixture")
+
+    monkeypatch.setattr(
+        "tools.migration.stage4_production_recovery._run",
+        lambda *_args, **_kwargs: SimpleNamespace(stdout="Catalog version: 202406281\n"),
+    )
+    with pytest.raises(ProductionRecoveryError, match="locale-independent"):
+        _system_identifier(bin_dir, data_dir)
+
+    monkeypatch.setattr(
+        "tools.migration.stage4_production_recovery._run",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            stdout=(
+                "Database system identifier: 7673347824996746592\n"
+                "Unexpected identifier: 7673347824996746593\n"
+            )
+        ),
+    )
+    with pytest.raises(ProductionRecoveryError, match="ambiguous"):
+        _system_identifier(bin_dir, data_dir)
 
 
 def _fixture(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -726,10 +781,14 @@ def test_bootstrap_delimits_every_isolated_module_invocation() -> None:
         if "--module" in line and "tools.migration." in line
     ]
     # Both bootstrap contract and production verify run once on a fresh install
-    # and once on the completed-install resume path.
-    assert len(module_lines) == len(ALLOWED_MODULES) + 2
-    for module_name in ALLOWED_MODULES:
-        assert module_name in source
+    # and once on the completed-install resume path.  Other allowlisted modules
+    # (for example the separately approved S1 controller) need not run inside
+    # the infrastructure bootstrap itself.
+    bootstrap_modules = {
+        name for name in ALLOWED_MODULES if name in source
+    }
+    assert len(module_lines) == len(bootstrap_modules) + 2
+    assert bootstrap_modules
     for index in module_lines:
         assert lines[index + 1].strip() in {"'--',", "-- `"}
 

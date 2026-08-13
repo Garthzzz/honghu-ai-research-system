@@ -656,3 +656,24 @@ off-VM recovery、S2/S3 或 cutover 批准。
 Codex 在真实 production PostgreSQL 中发现此前九单元“装载成功”报告并未留下持久记录。根因不是 PostgreSQL 或 VM，而是 psycopg 的 authority guard `SELECT` 先开启隐式外层事务，使每个 `load_snapshot()` 的事务块降为 savepoint；连接关闭时九个单元整体回滚。修订后 guard 连接使用 autocommit，每个 unit 拥有并提交一个顶层事务，连接关闭后再由全新会话逐单元验证 `reconciled`、`formal_business_data=false` 和行数。exact commit `af510bce455a59c47a0007cfc54928951303b48b` 的 push/PR required CI 全绿后，VM 实际装载 9/9 unit、2,244,285 行，source/target identity 全部一致，authority 前后均为空，路由保持 S0/SQLite，8080 正常。
 
 第一轮外部复核在尚未获得 VM 持久化结果时错误要求 staging 记录标记 `formal_business_data=true`，并把 S0/S1 preparation 混同为 authority S1；这会违反“不产生正式 PostgreSQL 业务 mutation”和“不进入 S2/S3”的已批准边界，因此 Codex只接受其“顶层事务必须显式并可复核”的一般方向，拒绝具体状态建议。VM 成功后第二轮只发送脱敏行数、事务、authority 和剩余 gate 摘要；DeepSeek 返回 `pass`、无 findings。Codex核对后停止复核：该结果支持把现状表述为 durable S0/S1 staging，不构成 mapping、off-VM recovery、repository governance、S1 authority 或 S2 批准。
+
+### Stage 4 `user_content_notes` 切换与两份恢复集轮换复核（2026-08-13）
+
+Codex先独立实现首单元生产切换合同：经过批准的 mapping 与 off-VM recovery、S1 reconciliation、
+SQLite writer fence 和最终水位共同约束 S2；首笔 create/update/soft-delete 与 revision、audit、
+idempotency、first-formal watermark 和 S2→S3 在同一 PostgreSQL 事务提交；应用只允许同一 writer
+和 epoch 的 S2→S3 单调观察，用于 uncertain response 的同 identity 重放，并拒绝 silent fallback、
+dual writer、S4/回退和 epoch drift。生产写入口要求 TLS、可信认证 principal、CSRF 和最小 ACL，
+HTTP 8080 写继续拒绝。定向 44 项与 core 735 项、21 skipped、55 subtests 在此实现上通过。
+
+第一轮 DeepSeek 只收到上述脱敏合同、现场尚未执行的明确边界和测试汇总，返回 `pass`、无
+must-fix/should-fix。Codex没有把该结果当作 VM、recovery、S1、S2/S3 或上线证据；独立复核后
+发现设计中的“最多两份验证集”尚未成为代码门禁，因而继续修订。
+
+第二轮只审查恢复集轮换：新集合必须先通过 exact manifest/hash、WAL 目标和 sentinel whole
+restore；之后再次验证 current 及同一受控根下全部有效集合，确认 current 在最新两份窗口内才
+整目录删除第三旧集合。无 manifest、篡改、symlink、根外路径或 current 无效均 fail-closed；
+中断目录不计作有效恢复集，也不由 retention 逻辑自动删除。新增回归证明三份只保留最新两份，
+且 current 无效时旧有效集合不会被删除；55 项 recovery/bootstrap tests 通过。DeepSeek再次
+返回 `pass`、无可复现意见，因此停止后续轮次。失败目录的最终清理由独立 inventory/dry-run
+负责，外部 reviewer 仍不替代真实 off-VM restore 和生产切换验收。

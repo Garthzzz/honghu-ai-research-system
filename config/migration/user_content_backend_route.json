@@ -7,6 +7,7 @@
   "sqlite_writer_enabled": true,
   "production_postgresql_enabled": false,
   "writer_identity": null,
+  "cutover_epoch": null,
   "approval_reference": null,
   "writer_operation": "analyst_note_mutation",
   "transaction_boundary": "one analyst-note mutation under the owning authority"

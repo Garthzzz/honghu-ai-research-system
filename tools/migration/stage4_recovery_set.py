@@ -284,6 +284,72 @@ def verify_recovery_set(
     return manifest
 
 
+def enforce_validated_recovery_retention(
+    root: Path,
+    *,
+    current: Path,
+    keep: int = 2,
+) -> dict[str, Any]:
+    """Retain only the newest fully verified recovery sets.
+
+    The new set is verified before any prior set is removed.  Directories
+    without a valid manifest are reported as unvalidated and deliberately left
+    for the separately audited failed-artifact cleanup; they never count as a
+    recovery copy.  This prevents an interrupted copy from evicting a usable
+    backup while keeping validated-set retention deterministic.
+    """
+
+    if keep < 1:
+        raise RecoverySetError("validated recovery retention must keep at least one set")
+    root = root.resolve()
+    current = current.resolve()
+    if current.parent != root or current.is_symlink():
+        raise RecoverySetError("current recovery set is outside the retention root")
+    current_manifest = verify_recovery_set(current, verify_storage_location=True)
+
+    validated: list[tuple[datetime, Path, dict[str, Any]]] = []
+    unvalidated: list[str] = []
+    for candidate in sorted(path for path in root.iterdir() if path.is_dir()):
+        if candidate.is_symlink() or candidate.resolve().parent != root:
+            unvalidated.append(candidate.name)
+            continue
+        try:
+            manifest = verify_recovery_set(candidate, verify_storage_location=True)
+            created = datetime.fromisoformat(
+                str(manifest["created_at_utc"]).replace("Z", "+00:00")
+            )
+            if created.tzinfo is None:
+                raise ValueError("created_at_utc has no timezone")
+        except (KeyError, ValueError, RecoverySetError):
+            unvalidated.append(candidate.name)
+            continue
+        validated.append((created.astimezone(timezone.utc), candidate.resolve(), manifest))
+
+    if not any(path == current for _, path, _ in validated):
+        raise RecoverySetError("current recovery set disappeared during retention audit")
+    validated.sort(key=lambda item: (item[0], item[1].name), reverse=True)
+    retained = validated[:keep]
+    to_delete = validated[keep:]
+    if current not in {path for _, path, _ in retained}:
+        raise RecoverySetError("newly validated recovery set is not within retention window")
+
+    deleted: list[str] = []
+    for _, candidate, _ in to_delete:
+        if candidate == current or candidate.parent != root or candidate.is_symlink():
+            raise RecoverySetError("retention refused an unsafe recovery-set deletion")
+        shutil.rmtree(candidate)
+        deleted.append(candidate.name)
+
+    return {
+        "policy": "newest_validated_sets_only",
+        "keep": keep,
+        "current_recovery_set_identity": current_manifest["recovery_set_identity"],
+        "retained": [path.name for _, path, _ in retained],
+        "deleted": deleted,
+        "unvalidated_not_counted_or_deleted": sorted(unvalidated),
+    }
+
+
 def assert_restore_sources(recovery_set_root: Path, base_source: Path, wal_source: Path) -> None:
     root = recovery_set_root.resolve()
     expected_base = (root / "base_backup").resolve()

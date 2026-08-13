@@ -10,6 +10,7 @@ from tools.data_platform.user_content_notes import (
     AnalystNoteMutation,
     AnalystNoteWriterFenced,
     SQLiteAnalystNoteRepository,
+    PostgresAnalystNoteRepository,
     build_analyst_note_repository,
     canonical_request_hash,
 )
@@ -116,6 +117,7 @@ def test_missing_postgres_factory_fails_closed(tmp_path) -> None:
         sqlite_writer_enabled=False,
         production_postgresql_enabled=True,
         writer_identity="honghu_user_content_writer",
+        cutover_epoch="epoch-1",
         approval_reference="approved-cutover",
     )
     with pytest.raises(AnalystNoteWriterFenced, match="without a connection factory"):
@@ -131,3 +133,49 @@ def test_request_hash_is_canonical() -> None:
     assert canonical_request_hash({"b": 2, "a": 1}) == canonical_request_hash(
         {"a": 1, "b": 2}
     )
+
+
+def test_s2_route_accepts_only_same_epoch_monotonic_s3_handoff() -> None:
+    route = CutoverRoute(
+        cutover_unit="user_content_notes",
+        backend=Backend.POSTGRESQL_PRODUCTION,
+        writer_operation="analyst_note_mutation",
+        transaction_boundary="one note mutation",
+        authority_state=AuthorityState.S2,
+        sqlite_writer_enabled=False,
+        production_postgresql_enabled=True,
+        writer_identity="writer",
+        cutover_epoch="epoch-1",
+        approval_reference="approval",
+    )
+    repository = PostgresAnalystNoteRepository(lambda: None, lambda: None, route)
+
+    class Cursor:
+        description = [
+            (name,)
+            for name in (
+                "state", "authoritative_backend", "writer_identity",
+                "approval_reference", "cutover_epoch",
+            )
+        ]
+
+        def __init__(self, row):
+            self.row = row
+
+        def execute(self, *_args):
+            return None
+
+        def fetchone(self):
+            return self.row
+
+    repository._assert_authority(
+        Cursor(("S3", "postgresql_production", "writer", "approval", "epoch-1"))
+    )
+    with pytest.raises(AnalystNoteWriterFenced):
+        repository._assert_authority(
+            Cursor(("S3", "postgresql_production", "writer", "approval", "epoch-2"))
+        )
+    with pytest.raises(AnalystNoteWriterFenced):
+        repository._assert_authority(
+            Cursor(("S4", "postgresql_production", "writer", "approval", "epoch-1"))
+        )
