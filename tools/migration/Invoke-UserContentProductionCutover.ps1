@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{40}$')][string]$CommitSha,
     [Parameter(Mandatory = $true)][string]$RepoRoot,
     [Parameter(Mandatory = $true)][string]$RecoveryEvidence,
+    [string]$SecurityProvisionEvidence = '',
     [string]$ProductionRoot = 'C:\industry_demo',
     [string]$InstallRoot = 'D:\honghu-postgresql',
     [string]$ReleaseRoot = 'D:\honghu-user-content-production',
@@ -34,11 +35,14 @@ $Approval = Join-Path $EvidenceRoot 'cutover_approval.json'
 $S2 = Join-Path $EvidenceRoot 'user_content_s2.json'
 $S3 = Join-Path $EvidenceRoot 'user_content_s3.json'
 $FirstMutation = Join-Path $EvidenceRoot 'first_mutation.json'
-$TlsRoot = Join-Path $StateRoot 'user-content-tls'
+$TlsRoot = Join-Path (Join-Path $StateRoot 'user-content-tls') $CommitSha
+if (-not $SecurityProvisionEvidence) {
+    $SecurityProvisionEvidence = Join-Path $EvidenceRoot 'security_provision.json'
+}
 
 foreach ($path in @(
     $Mapping,$MappingApproval,$S1,$Runtime,$ViewerRuntime,$Security,$Decision,
-    $RecoveryEvidence,(Join-Path $Release 'RELEASE_MANIFEST.json'),
+    $RecoveryEvidence,$SecurityProvisionEvidence,(Join-Path $Release 'RELEASE_MANIFEST.json'),
     (Join-Path $TlsRoot 'server.crt'),(Join-Path $TlsRoot 'server.key')
 )) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -47,6 +51,8 @@ foreach ($path in @(
 }
 $recovery = Get-Content -Raw -LiteralPath $RecoveryEvidence | ConvertFrom-Json
 $s1Evidence = Get-Content -Raw -LiteralPath $S1 | ConvertFrom-Json
+$securityEvidence = Get-Content -Raw -LiteralPath $SecurityProvisionEvidence | ConvertFrom-Json
+$securityConfigSha = (Get-FileHash -LiteralPath $Security -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($recovery.status -ne 'pass' -or -not [bool]$recovery.off_vm_verified -or
     $recovery.application_commit_sha -ne $CommitSha) {
     throw 'recovery evidence does not authorize this exact release'
@@ -55,6 +61,18 @@ if ($s1Evidence.state -ne 'S1' -or $s1Evidence.authoritative_backend -ne 'sqlite
     $s1Evidence.application_commit_sha -ne $CommitSha) {
     throw 'S1 evidence does not authorize this exact release'
 }
+if ($securityEvidence.status -ne 'pass' -or
+    $securityEvidence.security_config_sha256 -ne $securityConfigSha -or
+    -not [bool]$securityEvidence.create_verified -or
+    -not [bool]$securityEvidence.rotate_new_accepted -or
+    -not [bool]$securityEvidence.rotate_old_rejected -or
+    -not [bool]$securityEvidence.revoke_rejected -or
+    -not [bool]$securityEvidence.sealed_envelope_removed -or
+    [bool]$securityEvidence.secret_values_recorded -or
+    [bool]$securityEvidence.password_hashes_recorded) {
+    throw 'security provision evidence does not authorize production authentication'
+}
+Invoke-Isolated 'tools.release.cli' @('verify','--release-dir',$Release)
 
 # No authority-changing operation occurs before all immutable inputs above pass.
 & (Join-Path $RepoRoot 'tools\migration\Invoke-UserContentWriterFence.ps1') `

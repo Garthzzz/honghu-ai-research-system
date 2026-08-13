@@ -32,10 +32,14 @@ $Mapping = Join-Path $EvidenceRoot 'identity_mapping.json'
 $MappingApproval = Join-Path $EvidenceRoot 'mapping_approval.json'
 $SnapshotRoot = Join-Path $EvidenceRoot 'unit-snapshot'
 $S1 = Join-Path $EvidenceRoot 'user_content_s1.json'
-$TlsRoot = Join-Path $StateRoot 'user-content-tls'
+$TlsRoot = Join-Path (Join-Path $StateRoot 'user-content-tls') $CommitSha
 $TlsEvidence = Join-Path $EvidenceRoot 'user_content_tls.json'
 
 New-Item -ItemType Directory -Force -Path $EvidenceRoot,$SnapshotRoot | Out-Null
+Invoke-Isolated 'tools.release.cli' @(
+    'build','--repo-root',$RepoRoot,'--deploy-root',$ReleaseRoot,
+    '--commit',$CommitSha,'--quarantine-invalid-inactive'
+)
 Invoke-Isolated 'tools.migration.stage4_runtime_release_binding' @(
     '--source',$RuntimeSource,'--application-commit-sha',$CommitSha,'--output',$RuntimeBound
 )

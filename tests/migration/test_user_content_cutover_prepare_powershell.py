@@ -11,6 +11,9 @@ def test_prepare_stays_in_s1_and_uses_isolated_modules() -> None:
     for fragment in (
         "Invoke-UserContentCutoverPreflight.ps1",
         "stage4_isolated_entry.py",
+        "'tools.release.cli'",
+        "'build','--repo-root'",
+        "'--quarantine-invalid-inactive'",
         "stage4_runtime_release_binding",
         "stage4_user_content_runtime",
         "stage4_identity_mapping",
@@ -18,6 +21,7 @@ def test_prepare_stays_in_s1_and_uses_isolated_modules() -> None:
         "stage4_user_content_approval",
         "stage4_prepare_units",
         "stage4_user_content_s1",
+        "(Join-Path $StateRoot 'user-content-tls') $CommitSha",
         "staging_reconciled_s0_s1_preparation",
         "authority_state = 'S1'",
         "authoritative_backend = 'sqlite_transition'",
