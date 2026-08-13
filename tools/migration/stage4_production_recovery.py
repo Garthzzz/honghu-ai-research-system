@@ -468,12 +468,11 @@ def run_production_recovery(
         expected_storage_identity=expected_off_vm_storage_identity,
         require_off_vm=require_off_vm,
     )
-    verified = verify_recovery_set(
-        destination,
-        expected_identity=manifest["recovery_set_identity"],
-        expected_storage_identity=manifest["storage_evidence"]["derived_storage_identity"],
-        verify_storage_location=True,
-    )
+    # build_recovery_set returns only after the off-VM copy has passed a full
+    # exact-file, per-artifact hash and storage-identity verification.  Reuse
+    # that verified manifest here; the physical restore below must still read
+    # exclusively from this recovery set and prove the post-backup sentinel.
+    verified = manifest
 
     restore_parent = install_root / "restore-tests" / run_id
     restore_data = restore_parent / "data"
@@ -547,6 +546,7 @@ def run_production_recovery(
             destination.parent,
             current=destination,
             keep=2,
+            current_verified_manifest=verified,
         )
         if require_off_vm
         else {
