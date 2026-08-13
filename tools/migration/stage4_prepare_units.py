@@ -74,6 +74,49 @@ def _authority_guard(connection: Any) -> list[dict[str, Any]]:
     return rows
 
 
+def _verify_durable_snapshots(
+    connection: Any, expected: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Prove completed snapshots are visible from a fresh database session."""
+
+    verified: list[dict[str, Any]] = []
+    with connection.cursor() as cursor:
+        for item in expected:
+            cursor.execute(
+                """
+                SELECT s.cutover_unit, s.lifecycle_state, s.formal_business_data,
+                       count(r.source_ordinal)
+                  FROM migration.unit_snapshot s
+                  LEFT JOIN migration.source_row r ON r.snapshot_id=s.snapshot_id
+                 WHERE s.snapshot_id=%s
+                 GROUP BY s.cutover_unit, s.lifecycle_state, s.formal_business_data
+                """,
+                (item["snapshot_id"],),
+            )
+            row = cursor.fetchone()
+            expected_row = (
+                item["cutover_unit"],
+                "reconciled",
+                False,
+                int(item["source_row_count"]),
+            )
+            if row is None or tuple(row) != expected_row:
+                raise Stage4PreparationError(
+                    "loaded snapshot is not durably visible from a fresh session: "
+                    f"{item['cutover_unit']}"
+                )
+            verified.append(
+                {
+                    "cutover_unit": item["cutover_unit"],
+                    "snapshot_id": item["snapshot_id"],
+                    "lifecycle_state": row[1],
+                    "formal_business_data": bool(row[2]),
+                    "source_row_count": int(row[3]),
+                }
+            )
+    return verified
+
+
 def prepare_units(
     *,
     source_data_root: Path,
@@ -114,6 +157,12 @@ def prepare_units(
     failures: list[dict[str, str]] = []
     connection = _connection_from_runtime(runtime_path, "migration")
     try:
+        # psycopg starts an implicit transaction for the first authority SELECT.
+        # Without autocommit, each load_snapshot() transaction becomes a nested
+        # savepoint and connection.close() rolls every apparently successful
+        # unit back.  Keep the guard reads transactionless so every unit loader
+        # owns and commits one real top-level transaction.
+        connection.autocommit = True
         before_authority = _authority_guard(connection)
         for unit in units:
             unit_root = work_root / unit
@@ -166,6 +215,11 @@ def prepare_units(
         connection.close()
     if before_authority != after_authority:
         raise Stage4PreparationError("unit staging changed authority control state")
+    durable_connection = _connection_from_runtime(runtime_path, "migration")
+    try:
+        durable_snapshots = _verify_durable_snapshots(durable_connection, results)
+    finally:
+        durable_connection.close()
     core = {
         "schema_version": "honghu.stage4_all_unit_preparation.v1",
         "application_commit_sha": application_commit_sha,
@@ -173,6 +227,8 @@ def prepare_units(
         "started_at_utc": started,
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         "units": results,
+        "durable_snapshots": durable_snapshots,
+        "transaction_contract": "one_top_level_commit_per_unit_then_fresh_session_verification",
         "failures": failures,
         "authority_before": before_authority,
         "authority_after": after_authority,
