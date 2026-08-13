@@ -88,6 +88,45 @@ def test_build_and_verify_unit_snapshot(tmp_path: Path) -> None:
     assert checked["rows"]["row_count"] == 1
 
 
+def test_snapshot_identity_is_idempotent_per_exact_release_and_distinct_across_releases(
+    tmp_path: Path,
+) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    _database(data / "research.db")
+    registry = tmp_path / "registry.json"
+    _registry(registry)
+
+    first = build_unit_snapshot(
+        unit="user_content_notes",
+        source_data_root=data,
+        registry_path=registry,
+        application_commit_sha="a" * 40,
+        output_dir=tmp_path / "first",
+    )
+    retry = build_unit_snapshot(
+        unit="user_content_notes",
+        source_data_root=data,
+        registry_path=registry,
+        application_commit_sha="a" * 40,
+        output_dir=tmp_path / "retry",
+    )
+    newer_release = build_unit_snapshot(
+        unit="user_content_notes",
+        source_data_root=data,
+        registry_path=registry,
+        application_commit_sha="c" * 40,
+        output_dir=tmp_path / "newer",
+    )
+
+    assert first["source_identity_sha256"] == retry["source_identity_sha256"]
+    assert first["source_identity_sha256"] == newer_release["source_identity_sha256"]
+    assert first["snapshot_id"] == retry["snapshot_id"]
+    assert first["snapshot_id"] != newer_release["snapshot_id"]
+    assert first["snapshot_id"].endswith(":" + "a" * 12)
+    assert newer_release["snapshot_id"].endswith(":" + "c" * 12)
+
+
 def test_snapshot_verifier_rejects_tampered_row(tmp_path: Path) -> None:
     data = tmp_path / "data"
     data.mkdir()
