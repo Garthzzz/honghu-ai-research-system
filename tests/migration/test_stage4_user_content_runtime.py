@@ -26,7 +26,7 @@ def _source(root: Path) -> dict:
                 "credential_service": "reader-service",
                 "credential_account": "reader",
             },
-            "writer": {
+            "writer_user_content_notes": {
                 "user": "writer",
                 "credential_service": "writer-service",
                 "credential_account": "writer",
@@ -62,6 +62,17 @@ def test_runtime_compiler_fails_closed_on_wrong_authority_tls_or_roles(
     with pytest.raises(UserContentRuntimeError, match="SQLite baseline"):
         compile_viewer_runtime(source)
     source = _source(root)
-    source["roles"]["writer"] = dict(source["roles"]["reader"])
+    source["roles"]["writer_user_content_notes"] = dict(source["roles"]["reader"])
     with pytest.raises(UserContentRuntimeError, match="distinct"):
+        compile_viewer_runtime(source)
+
+
+def test_runtime_compiler_rejects_generic_writer_instead_of_unit_role(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root.crt"
+    root.write_text("public certificate", encoding="utf-8")
+    source = _source(root)
+    source["roles"]["writer"] = source["roles"].pop("writer_user_content_notes")
+    with pytest.raises(UserContentRuntimeError, match="writer_user_content_notes"):
         compile_viewer_runtime(source)

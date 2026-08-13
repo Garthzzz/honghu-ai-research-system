@@ -55,7 +55,10 @@ def compile_viewer_runtime(payload: dict[str, Any]) -> dict[str, Any]:
         return result
 
     reader = role("reader")
-    writer = role("writer")
+    # The production bootstrap uses one least-privilege writer per owning
+    # cutover unit.  The generic ``writer`` key was used only by the earlier
+    # isolated fixture and must not be required in production evidence.
+    writer = role("writer_user_content_notes")
     if reader["user"] == writer["user"]:
         raise UserContentRuntimeError("reader and writer roles must remain distinct")
     core = {
