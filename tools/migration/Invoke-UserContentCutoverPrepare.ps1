@@ -45,9 +45,7 @@ Invoke-Isolated 'tools.migration.stage4_user_content_runtime' @(
 Invoke-Isolated 'tools.migration.stage4_identity_mapping' @(
     '--database',(Join-Path $ProductionRoot 'data\research.db'),
     '--output',$Mapping,
-    '--identity-database',(Join-Path $ProductionRoot 'data\financial.db'),
-    '--identity-database',(Join-Path $ProductionRoot 'data\sentiment.db'),
-    '--approval-config',(Join-Path $RepoRoot 'config\migration\stage4_identity_mapping_approvals.json')
+    '--alias-approvals',(Join-Path $RepoRoot 'config\migration\stage4_identity_mapping_approvals.json')
 )
 Invoke-Isolated 'tools.migration.stage4_user_content_approval' @(
     'mapping','--mapping',$Mapping,

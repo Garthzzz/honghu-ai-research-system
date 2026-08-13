@@ -14,6 +14,7 @@ def test_prepare_stays_in_s1_and_uses_isolated_modules() -> None:
         "stage4_runtime_release_binding",
         "stage4_user_content_runtime",
         "stage4_identity_mapping",
+        "--alias-approvals",
         "stage4_user_content_approval",
         "stage4_prepare_units",
         "stage4_user_content_s1",
@@ -25,6 +26,8 @@ def test_prepare_stays_in_s1_and_uses_isolated_modules() -> None:
     ):
         assert fragment in script
     for forbidden in (
+        "--identity-database",
+        "--approval-config",
         "enter-s2",
         "reconcile-s3",
         "Stop-Process",
