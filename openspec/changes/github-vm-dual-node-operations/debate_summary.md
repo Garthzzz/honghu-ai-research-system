@@ -651,3 +651,8 @@ DeepSeek只收到上述脱敏权限边界、失败类型和测试摘要，返回
 四张命名表覆盖 verifier 的已声明读取合同且没有扩大写权。Codex仍以真实 PostgreSQL 角色执行
 而非字符串断言作为主要证据，没有开启无信息增量的第二轮。外部复核不构成 mapping、
 off-VM recovery、S2/S3 或 cutover 批准。
+### Stage 4 production execution：持久化 S0/S1 装载复核（2026-08-13）
+
+Codex 在真实 production PostgreSQL 中发现此前九单元“装载成功”报告并未留下持久记录。根因不是 PostgreSQL 或 VM，而是 psycopg 的 authority guard `SELECT` 先开启隐式外层事务，使每个 `load_snapshot()` 的事务块降为 savepoint；连接关闭时九个单元整体回滚。修订后 guard 连接使用 autocommit，每个 unit 拥有并提交一个顶层事务，连接关闭后再由全新会话逐单元验证 `reconciled`、`formal_business_data=false` 和行数。exact commit `af510bce455a59c47a0007cfc54928951303b48b` 的 push/PR required CI 全绿后，VM 实际装载 9/9 unit、2,244,285 行，source/target identity 全部一致，authority 前后均为空，路由保持 S0/SQLite，8080 正常。
+
+第一轮外部复核在尚未获得 VM 持久化结果时错误要求 staging 记录标记 `formal_business_data=true`，并把 S0/S1 preparation 混同为 authority S1；这会违反“不产生正式 PostgreSQL 业务 mutation”和“不进入 S2/S3”的已批准边界，因此 Codex只接受其“顶层事务必须显式并可复核”的一般方向，拒绝具体状态建议。VM 成功后第二轮只发送脱敏行数、事务、authority 和剩余 gate 摘要；DeepSeek 返回 `pass`、无 findings。Codex核对后停止复核：该结果支持把现状表述为 durable S0/S1 staging，不构成 mapping、off-VM recovery、repository governance、S1 authority 或 S2 批准。
