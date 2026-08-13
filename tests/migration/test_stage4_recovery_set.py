@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -189,3 +190,69 @@ def test_copy_identity_mismatch_and_measured_recovery_contract(
             },
             restore_elapsed_seconds=1,
         )
+
+
+def test_retention_keeps_two_newest_validated_sets_and_reports_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(recovery, "probe_storage_endpoint", _remote_probe)
+    root = tmp_path / "honghu-postgresql"
+    root.mkdir()
+    built: list[tuple[Path, dict[str, object]]] = []
+    start = datetime(2026, 8, 13, tzinfo=timezone.utc)
+    for index in range(3):
+        source = tmp_path / f"source-{index}"
+        base, wal, target = _sources(source)
+        destination = root / f"set-{index}"
+        manifest = recovery.build_recovery_set(
+            base_backup=base,
+            wal_archive=wal,
+            destination=destination,
+            source_identity={"source_host_id": "source-vm", "system_identifier": "123"},
+            target=target,
+            expected_storage_identity="a" * 64,
+            require_off_vm=True,
+        )
+        manifest_path = destination / recovery.MANIFEST_NAME
+        manifest["created_at_utc"] = (start + timedelta(hours=index)).isoformat()
+        core = {key: value for key, value in manifest.items() if key != "recovery_set_identity"}
+        manifest["recovery_set_identity"] = recovery.sha256_json(core)
+        manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+        built.append((destination, manifest))
+    incomplete = root / "interrupted-copy"
+    incomplete.mkdir()
+    (incomplete / "partial.bin").write_bytes(b"partial")
+
+    result = recovery.enforce_validated_recovery_retention(
+        root,
+        current=built[-1][0],
+        keep=2,
+    )
+
+    assert result["retained"] == ["set-2", "set-1"]
+    assert result["deleted"] == ["set-0"]
+    assert result["unvalidated_not_counted_or_deleted"] == ["interrupted-copy"]
+    assert not built[0][0].exists()
+    assert built[1][0].is_dir() and built[2][0].is_dir()
+    assert incomplete.is_dir()
+
+
+def test_retention_never_deletes_prior_set_when_current_is_invalid(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root, _ = _build(tmp_path / "prior", monkeypatch)
+    retention_root = tmp_path / "retention"
+    retention_root.mkdir()
+    prior = retention_root / "prior"
+    root.rename(prior)
+    current = retention_root / "current"
+    current.mkdir()
+    (current / "partial.bin").write_bytes(b"partial")
+
+    with pytest.raises(recovery.RecoverySetError, match="manifest is missing"):
+        recovery.enforce_validated_recovery_retention(
+            retention_root,
+            current=current,
+            keep=2,
+        )
+    assert prior.is_dir()

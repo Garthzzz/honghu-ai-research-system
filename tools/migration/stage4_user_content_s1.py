@@ -283,6 +283,7 @@ def promote_user_content_to_s1(
         "mapping_count": mapping_count,
         "source_note_count": int(source_count),
         "target_note_count": int(matched_count),
+        "authority_revision": authority_revision,
         "actor": actor,
         "approval_reference": approval_reference,
     }

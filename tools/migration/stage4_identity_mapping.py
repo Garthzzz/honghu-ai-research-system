@@ -37,6 +37,9 @@ MARKET_VENUES = {
     "香港": "hong-kong",
 }
 LISTING_STATUS_VENUES = {"us": "us", "hk": "hong-kong"}
+SECURITY_STABLE_KEY_RE = re.compile(
+    r"^company:security:(?P<ticker>.+):venue:(?P<venue>[^:]+)$"
+)
 
 
 class IdentityMappingError(RuntimeError):
@@ -186,6 +189,20 @@ def _company_venue(row: dict[str, Any]) -> tuple[str | None, str | None]:
     if listing_status in LISTING_STATUS_VENUES:
         return LISTING_STATUS_VENUES[listing_status], "normalized_listing_status"
     return None, None
+
+
+def _approved_security_identity(approval: dict[str, Any]) -> tuple[str, str]:
+    stable_key = str(approval.get("stable_key") or "").strip()
+    match = SECURITY_STABLE_KEY_RE.fullmatch(stable_key)
+    if match is None:
+        raise IdentityMappingError(
+            f"approved company alias is not a qualified security identity: {stable_key}"
+        )
+    ticker = _canonical_text(match.group("ticker")).upper()
+    venue = _canonical_text(match.group("venue"))
+    if not ticker or not venue:
+        raise IdentityMappingError(f"approved company alias identity is incomplete: {stable_key}")
+    return ticker, venue
 
 
 def _table_rows(conn: sqlite3.Connection, table: str) -> list[dict[str, Any]]:
@@ -369,40 +386,41 @@ def build_identity_mapping(
             raise IdentityMappingError(
                 f"company identity cannot use alias approval and venue override together: {legacy_id}"
             )
-        if ticker:
+        if alias_approval:
+            approved_ticker, approved_venue = _approved_security_identity(alias_approval)
+            source_venue, source_venue_basis = _company_venue(row) if ticker else (None, None)
+            if ticker and ticker != approved_ticker:
+                raise IdentityMappingError(
+                    f"approved alias ticker conflicts with source ticker for company:{legacy_id}"
+                )
+            if source_venue and source_venue != approved_venue:
+                raise IdentityMappingError(
+                    f"approved alias venue conflicts with source venue for company:{legacy_id}"
+                )
+            ticker = approved_ticker
+            venue = approved_venue
+            venue_basis = source_venue_basis or "approved_alias_security_identity"
+            stable_key = alias_approval["stable_key"]
+            basis = "approved_ticker_venue_alias"
+        elif identity_override:
+            if ticker and identity_override["ticker"] != ticker:
+                raise IdentityMappingError(
+                    f"identity override ticker mismatch for company:{legacy_id}"
+                )
+            ticker = identity_override["ticker"]
+            venue = identity_override["venue"]
+            venue_basis = "approved_identity_override"
+            stable_key = f"company:security:{ticker}:venue:{venue}"
+            basis = "normalized_ticker_and_approved_venue"
+            used_identity_overrides.add(("company", legacy_id))
+        elif ticker:
             venue, venue_basis = _company_venue(row)
-            if alias_approval:
-                stable_key = alias_approval["stable_key"]
-                basis = "approved_ticker_venue_alias"
-                stable_prefix = f"company:security:{ticker}:venue:"
-                if not stable_key.startswith(stable_prefix) or not stable_key[len(stable_prefix):]:
-                    raise IdentityMappingError(
-                        f"approved alias stable key conflicts with ticker/venue for company:{legacy_id}"
-                    )
-                approved_venue = stable_key[len(stable_prefix):]
-                if venue and approved_venue != venue:
-                    raise IdentityMappingError(
-                        f"approved alias venue conflicts with source venue for company:{legacy_id}"
-                    )
-                venue = approved_venue
-                venue_basis = venue_basis or "approved_alias_venue"
-            elif identity_override:
-                if identity_override["ticker"] != ticker:
-                    raise IdentityMappingError(
-                        f"identity override ticker mismatch for company:{legacy_id}"
-                    )
-                venue = identity_override["venue"]
-                venue_basis = "approved_identity_override"
-                stable_key = f"company:security:{ticker}:venue:{venue}"
-                basis = "normalized_ticker_and_approved_venue"
-                used_identity_overrides.add(("company", legacy_id))
-            else:
-                if not venue:
-                    raise IdentityMappingError(
-                        f"ticker is not exchange-qualified and market is unavailable: company:{legacy_id}:{ticker}"
-                    )
-                stable_key = f"company:security:{ticker}:venue:{venue}"
-                basis = "normalized_ticker_and_venue"
+            if not venue:
+                raise IdentityMappingError(
+                    f"ticker is not exchange-qualified and market is unavailable: company:{legacy_id}:{ticker}"
+                )
+            stable_key = f"company:security:{ticker}:venue:{venue}"
+            basis = "normalized_ticker_and_venue"
         elif name:
             stable_key = f"company:name-market:{_sha([name, market])}"
             basis = "normalized_name_and_market_fallback"

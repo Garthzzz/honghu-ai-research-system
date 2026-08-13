@@ -2,9 +2,9 @@
 
 ## 1. 设计状态与边界
 
-本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。阶段 0、阶段 1、阶段 2 和阶段 3 均已完成人工审查；用户已于 2026-08-11 批准 `target_rpo_rto_proposal.v2` 和阶段 3 退出。阶段 4 及后续 production PostgreSQL、live SQLite、writer/backend、Viewer、runner 和任务迁移仍未授权。
+本设计替代原先“VM 长期持有四套 SQLite，本地用快照和 change-set 合并”的目标架构。阶段 0、阶段 1、阶段 2 和阶段 3 均已完成人工审查；用户已于 2026-08-11 批准 `target_rpo_rto_proposal.v2` 和阶段 3 退出。用户随后授权建立 production PostgreSQL 基础设施和 S1，并于 2026-08-13 进一步批准：在 mapping、异机恢复、S1、writer fence 与上线门禁全部通过后，仅对首个 `user_content_notes` 单元执行受控 S2→S3、8080/TLS 前端上线、多端写入与压力测试。该批准不扩展到其他 cutover unit、计划任务、runner-host cutover、SQLite schema/data 修改或通用双写。
 
-阶段 3 不做：production PostgreSQL 安装或切换、live SQLite schema/data 修改、任务迁移、现有生产 Viewer/writer 切换、VM 写接口、资料上传或备份清理。允许在隔离环境建立 PostgreSQL dev/test、执行合成 fixture 与恢复演练，并以只读方式审计 live SQLite 的 schema 和依赖边界。
+阶段 3 当时不做：production PostgreSQL 安装或切换、live SQLite schema/data 修改、任务迁移、现有生产 Viewer/writer 切换、VM 写接口、资料上传或备份清理。Stage 4 当前授权及执行门禁以本节最新边界、tasks 与首单元切换设计为准；历史阶段限制不得被误读成否定后续用户批准。
 
 ## 2. 审计事实与问题定义
 

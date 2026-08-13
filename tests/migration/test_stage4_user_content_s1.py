@@ -11,9 +11,14 @@ from tools.migration.stage4_user_content_s1 import (
     _sha,
     validate_mapping_approval,
 )
+from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_user_content_s1_is_an_allowlisted_isolated_entrypoint() -> None:
+    assert ALLOWED_MODULES["tools.migration.stage4_user_content_s1"] == "main"
 
 
 def _mapping() -> dict:

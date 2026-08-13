@@ -36,6 +36,7 @@ class PostgresRuntimeSettings:
     port: int
     dbname: str
     sslmode: str
+    sslrootcert: str
     connect_timeout_seconds: int
     reader: PostgresRoleSettings
     writer: PostgresRoleSettings
@@ -50,6 +51,7 @@ class PostgresRuntimeSettings:
             port=int(payload.get("port") or 0),
             dbname=str(payload.get("dbname") or ""),
             sslmode=str(payload.get("sslmode") or "require"),
+            sslrootcert=str(payload.get("sslrootcert") or ""),
             connect_timeout_seconds=int(payload.get("connect_timeout_seconds") or 5),
             reader=PostgresRoleSettings.from_mapping(payload.get("reader") or {}),
             writer=PostgresRoleSettings.from_mapping(payload.get("writer") or {}),
@@ -66,6 +68,10 @@ class PostgresRuntimeSettings:
             raise ValueError("PostgreSQL database is required")
         if self.sslmode not in {"require", "verify-ca", "verify-full"}:
             raise ValueError("production PostgreSQL requires protected transport")
+        if self.sslmode in {"verify-ca", "verify-full"}:
+            root = Path(self.sslrootcert).resolve() if self.sslrootcert else None
+            if root is None or not root.is_file():
+                raise ValueError("verified PostgreSQL TLS requires an existing root certificate")
         self.reader.validate()
         self.writer.validate()
         if self.reader.user == self.writer.user:
@@ -109,6 +115,7 @@ def build_postgres_connection_factory(
             user=selected.user,
             password=password,
             sslmode=settings.sslmode,
+            sslrootcert=(settings.sslrootcert or None),
             connect_timeout=settings.connect_timeout_seconds,
         )
 

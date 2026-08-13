@@ -33,6 +33,7 @@ def test_production_backend_requires_explicit_runtime_authorization() -> None:
         sqlite_writer_enabled=False,
         production_postgresql_enabled=True,
         writer_identity="honghu_user_content_writer",
+        cutover_epoch="epoch-001",
         approval_reference="approval-001",
     )
     with pytest.raises(PermissionError, match="explicit runtime authorization"):

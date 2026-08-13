@@ -240,7 +240,8 @@ class PostgresAnalystNoteRepository:
 
     def _assert_authority(self, cursor: Any) -> None:
         cursor.execute(
-            """SELECT state, authoritative_backend, writer_identity, approval_reference
+            """SELECT state, authoritative_backend, writer_identity, approval_reference,
+                      cutover_epoch
                  FROM operations.user_content_notes_authority_v1
                 WHERE cutover_unit = %s""",
             (self.route.cutover_unit,),
@@ -249,11 +250,23 @@ class PostgresAnalystNoteRepository:
         if row is None:
             raise AnalystNoteWriterFenced("PostgreSQL authority row is missing")
         authority = _row_mapping(cursor, row)
+        state_matches = authority["state"] == self.route.authority_state.value
+        # A first formal S2 mutation advances PostgreSQL authority to S3 in the
+        # same transaction.  Until the operator atomically publishes the S3
+        # route and restarts the exact release, only this one-way, same-epoch
+        # handoff is accepted so an uncertain response can replay its stable
+        # idempotency identity.  Backward, S4, writer or epoch drift still fail.
         if (
-            authority["state"] != self.route.authority_state.value
+            self.route.authority_state is AuthorityState.S2
+            and authority["state"] == AuthorityState.S3.value
+        ):
+            state_matches = True
+        if (
+            not state_matches
             or authority["authoritative_backend"] != Backend.POSTGRESQL_PRODUCTION.value
             or authority["writer_identity"] != self.route.writer_identity
             or authority["approval_reference"] != self.route.approval_reference
+            or authority["cutover_epoch"] != self.route.cutover_epoch
         ):
             raise AnalystNoteWriterFenced(
                 "runtime route does not match PostgreSQL cutover authority"

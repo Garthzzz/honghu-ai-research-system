@@ -37,6 +37,7 @@ class CutoverRoute:
     sqlite_writer_enabled: bool = True
     production_postgresql_enabled: bool = False
     writer_identity: str | None = None
+    cutover_epoch: str | None = None
     approval_reference: str | None = None
     route_revision: int = 1
 
@@ -72,6 +73,8 @@ class CutoverRoute:
                 raise ValueError("production PostgreSQL requires writer_identity")
             if not (self.approval_reference or "").strip():
                 raise ValueError("production PostgreSQL requires approval_reference")
+            if not (self.cutover_epoch or "").strip():
+                raise ValueError("production PostgreSQL requires cutover_epoch")
         if self.backend is Backend.POSTGRESQL_PRODUCTION and not allow_production:
             raise PermissionError("production PostgreSQL requires an explicit runtime authorization")
 
@@ -90,6 +93,7 @@ class CutoverRoute:
                 payload.get("production_postgresql_enabled")
             ),
             writer_identity=(str(payload["writer_identity"]) if payload.get("writer_identity") else None),
+            cutover_epoch=(str(payload["cutover_epoch"]) if payload.get("cutover_epoch") else None),
             approval_reference=(
                 str(payload["approval_reference"])
                 if payload.get("approval_reference")

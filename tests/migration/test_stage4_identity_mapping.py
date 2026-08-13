@@ -158,6 +158,60 @@ def test_duplicate_legacy_aliases_share_one_auditable_stable_identity(tmp_path) 
     assert resolver.resolve("company", 1) == resolver.resolve("company", 2)
 
 
+def test_approved_alias_can_qualify_a_tickerless_historical_name(tmp_path) -> None:
+    path = tmp_path / "research.db"
+    _database(path)
+    approvals = _alias_approvals(tmp_path / "aliases.json")
+    result = build_identity_mapping(path, alias_approvals=approvals)
+    records = {
+        item["legacy_id"]: item
+        for item in result["mappings"]
+        if item["entity_type"] == "company"
+    }
+    assert records["2"]["stable_key"] == records["1"]["stable_key"]
+    assert records["2"]["identity_components"] == {
+        "ticker": "000001.SZ",
+        "venue": "shenzhen",
+        "venue_basis": "approved_alias_security_identity",
+        "market": "a股",
+    }
+
+
+def test_identity_override_can_qualify_a_tickerless_historical_entity(tmp_path) -> None:
+    path = tmp_path / "research.db"
+    _database(path)
+    approvals = tmp_path / "overrides.json"
+    approvals.write_text(
+        json.dumps(
+            {
+                "schema_version": "honghu.identity_mapping_approvals.v2",
+                "identity_overrides": [
+                    {
+                        "entity_type": "company",
+                        "legacy_id": "2",
+                        "ticker": "HIST",
+                        "venue": "us",
+                        "approval_reference": "user-approved-historical-security",
+                        "approved_by": "user",
+                        "rationale": "fixture historical entity retained under its former security identity",
+                    }
+                ],
+                "aliases": [],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    result = build_identity_mapping(path, alias_approvals=approvals)
+    record = next(
+        item
+        for item in result["mappings"]
+        if item["entity_type"] == "company" and item["legacy_id"] == "2"
+    )
+    assert record["stable_key"] == "company:security:HIST:venue:us"
+    assert record["identity_components"]["venue_basis"] == "approved_identity_override"
+
+
 def test_duplicate_ticker_is_not_silently_treated_as_alias(tmp_path) -> None:
     path = tmp_path / "research.db"
     _database(path, duplicate_ticker=True)

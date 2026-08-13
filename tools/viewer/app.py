@@ -91,6 +91,7 @@ from tools.viewer.user_content_security import (  # noqa: E402
     ensure_csrf_token as ensure_user_content_csrf_token,
     load_security_settings,
     require_principal as require_user_content_principal,
+    security_settings as current_user_content_security_settings,
 )
 
 RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
@@ -7556,8 +7557,27 @@ def api_health():
             "viewer_mode": (
                 "readonly_candidate"
                 if app.config.get("HONGHU_READ_ONLY_CANDIDATE")
-                else "legacy_live"
+                else (
+                    "production_postgresql"
+                    if os.environ.get("HONGHU_VIEWER_MODE") == "production_postgresql"
+                    else "legacy_live"
+                )
             ),
+            "user_content": {
+                "cutover_unit": USER_CONTENT_ROUTE.cutover_unit,
+                "authority_state": USER_CONTENT_ROUTE.authority_state.value,
+                "backend": USER_CONTENT_ROUTE.backend.value,
+                "sqlite_writer_enabled": USER_CONTENT_ROUTE.sqlite_writer_enabled,
+                "production_postgresql_enabled": (
+                    USER_CONTENT_ROUTE.production_postgresql_enabled
+                ),
+                "security_ready": bool(
+                    app.config.get("HONGHU_USER_CONTENT_SECURITY_READY")
+                ),
+                "https_required": bool(
+                    current_user_content_security_settings(app).require_https
+                ),
+            },
         }
         if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
             deploy_root = os.environ.get("HONGHU_DEPLOY_ROOT")
@@ -7574,6 +7594,22 @@ def api_health():
             payload["candidate_process"] = {
                 "pid": os.getpid(),
                 "launch_id": os.environ.get("HONGHU_CANDIDATE_LAUNCH_ID"),
+                "python_version": ".".join(map(str, sys.version_info[:3])),
+            }
+        elif payload["viewer_mode"] == "production_postgresql":
+            exact_manifest = Path(
+                os.environ.get("HONGHU_RELEASE_MANIFEST") or ""
+            )
+            payload["release"] = {
+                "commit_sha": os.environ.get("HONGHU_RELEASE_COMMIT"),
+                "manifest_sha256": (
+                    hashlib.sha256(exact_manifest.read_bytes()).hexdigest()
+                    if exact_manifest.is_file()
+                    else None
+                ),
+            }
+            payload["production_process"] = {
+                "pid": os.getpid(),
                 "python_version": ".".join(map(str, sys.version_info[:3])),
             }
         return jsonify(payload)

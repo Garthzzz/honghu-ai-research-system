@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。用户现已授权阶段 4 production PostgreSQL 基础设施、恢复能力以及各切换单元的 migration/S1 准备，但未授权任何单元进入 S2/S3、正式 PostgreSQL 业务写入、live SQLite 修改/迁移、计划任务迁移、production writer/backend、Viewer 或 runner 切换。
+> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。用户已授权阶段 4 production PostgreSQL 基础设施、恢复能力以及各切换单元的 migration/S1 准备，并于 2026-08-13 进一步授权在 mapping、异机恢复、S1、writer fence 与上线门禁通过后，仅对首个 `user_content_notes` 单元执行受控 S2→S3、8080/TLS 上线、多端写入和压力测试。其他 cutover unit、计划任务、runner-host cutover、live SQLite schema/data 修改和双写仍未授权；下一人工 HALT 位于首单元最终验收与治理收口后。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实

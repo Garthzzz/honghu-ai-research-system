@@ -5,6 +5,7 @@
   "port": 5432,
   "dbname": "",
   "sslmode": "verify-full",
+  "sslrootcert": "",
   "reader": {
     "user": "",
     "credential_service": "honghu.postgresql.user-content.reader.v1",
