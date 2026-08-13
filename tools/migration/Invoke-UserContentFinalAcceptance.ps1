@@ -17,7 +17,7 @@ function Invoke-Isolated([string]$Module, [string[]]$Arguments) {
 }
 
 $EvidenceRoot = Join-Path $InstallRoot 'runtime\evidence\user-content-final'
-$RecoveryEvidence = Join-Path $EvidenceRoot 'production_recovery_evidence.json'
+$RecoveryEvidence = Join-Path $EvidenceRoot 'production_recovery.json'
 $TlsRoot = Join-Path (Join-Path (Join-Path $InstallRoot 'runtime') 'user-content-tls') $CommitSha
 $Stress = Join-Path $EvidenceRoot 'vm_multi_client_stress.json'
 

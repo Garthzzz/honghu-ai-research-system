@@ -15,6 +15,8 @@ def test_final_acceptance_runs_cutover_then_bounded_stress() -> None:
     health = script.index("final local health is not durable S3")
     assert cutover < stress < health
     assert "'--concurrency','12','--mutation-count','64'" in script
+    assert "production_recovery.json" in script
+    assert "production_recovery_evidence.json" not in script
     assert "independent_lan_and_browser_acceptance" in script
     assert ALLOWED_MODULES["tools.migration.stage4_user_content_acceptance"] == "main"
 
