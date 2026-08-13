@@ -3,7 +3,10 @@
 This file is a tracked, redacted status summary.  It is not authority evidence.
 The final evidence bundle remains Git-excluded and is verified by hash.
 
-## Current independent evidence
+## Pre-bootstrap evidence retained as history
+
+The observations in this section describe the pre-install/readiness snapshot
+and are superseded for current runtime status by the 2026-08-13 section below.
 
 - SSH channel `honghu-vm` was read-only verified as
   `DESKTOP-VGD07J4\zhangzzVM`; port 8080 health returned true.
@@ -51,3 +54,49 @@ The final evidence bundle remains Git-excluded and is verified by hash.
 No item above may be converted to `pass` by a Boolean declaration or a fabricated
 hash.  PostgreSQL installation and the final unit states are updated only from
 the VM execution evidence after the exact commit is deployed.
+
+## Durable production S0/S1 preparation on 2026-08-13
+
+The earlier report-only success was invalid: a guard `SELECT` opened an outer
+psycopg transaction, so the per-unit transaction blocks were savepoints and
+closing the connection rolled every snapshot back.  Exact commit
+`af510bce455a59c47a0007cfc54928951303b48b` corrected this by giving every unit
+one top-level commit and then reopening a fresh database session for durable
+verification.  Its push and pull-request required checks were green before the
+VM run.
+
+The approved interactive VM principal executed the exact package once against
+the existing PostgreSQL 17.10 service.  The task completed successfully in
+about eleven minutes.  All nine non-formal migration snapshots are now visible
+from a fresh session with `lifecycle_state=reconciled` and matching source and
+target identities:
+
+| cutover unit | durable staging rows |
+| --- | ---: |
+| `user_content_notes` | 0 |
+| `shared_identity` | 3,539 |
+| `financial_data` | 53,569 |
+| `research_publication` | 35,012 |
+| `dynamic_intelligence` | 19,091 |
+| `operations_governance` | 38 |
+| `investment_hypotheses` | 37 |
+| `opportunity_lens` | 19,048 |
+| `sentiment_analytics` | 2,113,951 |
+
+The Git-excluded result has evidence identity
+`1904d3bb0f5304647ad933d49805f762fae0a1192c23f22e5c54a04ff0bcd698`;
+the evidence file SHA-256 is
+`4a62976ca0d5f386d4efe7defefe1f593aa4264fd6ba0b87775e0ab99174b7dc`.
+The authority set was empty before and after the run, the tracked route remained
+`S0/sqlite_transition`, no formal PostgreSQL business mutation was written, and
+the production Viewer on port 8080 remained healthy.  This proves durable
+S0/S1 staging preparation; it does **not** claim that any unit has entered an
+authority state beyond S0.
+
+The temporary interactive task was removed after success.  Obsolete exact
+execution directories and incoming packages were removed while the validated
+`af510...` package, automation history, diagnostics, PostgreSQL data, WAL,
+backup and recovery evidence were retained.  The remaining blockers are final
+user approval of the mapping bundle (including four manual items), independent
+off-VM recovery, repository production-authority governance,
+operator/approver/maintenance-window decisions and explicit S2 authorization.
