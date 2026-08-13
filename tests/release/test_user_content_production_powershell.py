@@ -10,7 +10,9 @@ def test_start_contract_uses_exact_python_two_ports_tls_and_pid_binding() -> Non
     text = (ROOT / "tools/release/Start-UserContentProductionViewer.ps1").read_text(
         encoding="utf-8"
     )
-    assert "StartsWith('3.10.')" in text
+    assert "sys.version.split()[0]" in text
+    assert "^3\\.10\\.\\d+$" in text
+    assert 'print(".".join' not in text
     assert "-I', '-B'" in text
     assert "HttpPort = 8080" in text and "HttpsPort = 8443" in text
     assert "https://localhost:$HttpsPort/api/health" in text

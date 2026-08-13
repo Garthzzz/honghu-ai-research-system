@@ -11,6 +11,8 @@ def test_preflight_is_read_only_and_fail_closed() -> None:
     required = (
         "git -C $RepoRoot rev-parse HEAD",
         "status --porcelain --untracked-files=no",
+        "sys.version.split()[0]",
+        "^3\\.10\\.\\d+$",
         "HonghuPostgreSQL17",
         "Get-NetTCPConnection -LocalPort 55440",
         "http://127.0.0.1:8080/api/health",
@@ -30,3 +32,4 @@ def test_preflight_is_read_only_and_fail_closed() -> None:
     )
     for fragment in forbidden:
         assert fragment not in script
+    assert 'print(".".join' not in script

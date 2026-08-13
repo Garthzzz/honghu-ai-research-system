@@ -58,8 +58,9 @@ $dirty = @(& git -C $RepoRoot status --porcelain --untracked-files=no)
 if ($LASTEXITCODE -ne 0 -or $dirty.Count -ne 0) {
     throw 'repository checkout has tracked modifications'
 }
-$version = (& $PythonExe -I -B -c 'import sys; print(".".join(map(str,sys.version_info[:3])))').Trim()
-if ($LASTEXITCODE -ne 0 -or -not $version.StartsWith('3.10.')) {
+$versionOutput = @(& $PythonExe -I -B -c 'import sys;print(sys.version.split()[0])' 2>&1)
+$version = (($versionOutput | ForEach-Object { [string]$_ }) -join '').Trim()
+if ($LASTEXITCODE -ne 0 -or $version -notmatch '^3\.10\.\d+$') {
     throw "approved Python 3.10 is required, got $version"
 }
 
