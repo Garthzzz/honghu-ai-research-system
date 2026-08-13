@@ -107,6 +107,26 @@
       "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition S1 loader is retired."
     },
     {
+      "path": "tools/migration/stage4_user_content_writer_fence.py",
+      "domain": "Stage 4 user-content final SQLite writer fence",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "The approved first-unit cutover captures the final analyst_note watermark through one URI mode=ro connection before and after stopping the legacy Viewer. It executes query_only and rolls the explicit read transaction back; it never mutates SQLite.",
+      "owner": "user-content cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes",
+      "sunset_condition": "Remove after user_content_notes reaches durable S4 and the transition writer-fence capture is retired."
+    },
+    {
+      "path": "tools/migration/stage4_user_content_writer_fence.py",
+      "domain": "Stage 4 user-content final SQLite writer fence",
+      "rule": "pragma",
+      "max_count": 5,
+      "reason": "The final watermark reads only query_only, table_info, schema_version, user_version and quick_check inside the bounded read transaction; no mutating PRAGMA is permitted.",
+      "owner": "user-content cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes",
+      "sunset_condition": "Remove after user_content_notes reaches durable S4 and the transition writer-fence capture is retired."
+    },
+    {
       "path": "tools/opportunity_lens/silicon_review_recorder.py",
       "domain": "opportunity_lens publication review",
       "rule": "begin_immediate",
