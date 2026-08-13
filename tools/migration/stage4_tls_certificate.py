@@ -35,7 +35,13 @@ def _write_new(path: Path, payload: bytes) -> None:
 
 
 def generate_loopback_certificate(
-    *, output_dir: Path, evidence_path: Path, valid_days: int = 825
+    *,
+    output_dir: Path,
+    evidence_path: Path,
+    valid_days: int = 825,
+    subject_common_name: str = "localhost",
+    san_dns: list[str] | None = None,
+    san_ip: list[str] | None = None,
 ) -> dict[str, object]:
     if valid_days < 1 or valid_days > 825:
         raise TlsCertificateError("TLS certificate validity must be between 1 and 825 days")
@@ -51,8 +57,24 @@ def generate_loopback_certificate(
         if target.exists():
             raise TlsCertificateError(f"refusing to overwrite TLS material: {target.name}")
 
+    common_name = subject_common_name.strip()
+    if not common_name or len(common_name) > 64:
+        raise TlsCertificateError("TLS common name is empty or too long")
+    dns_input = ["localhost"] if san_dns is None else san_dns
+    ip_input = ["127.0.0.1"] if san_ip is None else san_ip
+    dns_names = list(dict.fromkeys(item.strip() for item in dns_input))
+    ip_names = list(dict.fromkeys(item.strip() for item in ip_input))
+    if not dns_names and not ip_names:
+        raise TlsCertificateError("TLS certificate requires at least one SAN")
+    if any(not item or len(item) > 253 for item in dns_names):
+        raise TlsCertificateError("TLS DNS SAN is invalid")
+    try:
+        parsed_ips = [ipaddress.ip_address(item) for item in ip_names]
+    except ValueError as exc:
+        raise TlsCertificateError("TLS IP SAN is invalid") from exc
+
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=3072)
-    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "localhost")])
+    subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, common_name)])
     not_before = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(minutes=5)
     not_after = not_before + timedelta(days=valid_days)
     certificate = (
@@ -83,10 +105,8 @@ def generate_loopback_certificate(
         )
         .add_extension(
             x509.SubjectAlternativeName(
-                [
-                    x509.DNSName("localhost"),
-                    x509.IPAddress(ipaddress.ip_address("127.0.0.1")),
-                ]
+                [x509.DNSName(item) for item in dns_names]
+                + [x509.IPAddress(item) for item in parsed_ips]
             ),
             critical=False,
         )
@@ -134,16 +154,16 @@ def generate_loopback_certificate(
     fingerprint = certificate.fingerprint(hashes.SHA256()).hex()
     evidence: dict[str, object] = {
         "schema_version": "honghu.stage4_tls_certificate.v1",
-        "subject_common_name": "localhost",
-        "issuer_common_name": "localhost",
+        "subject_common_name": common_name,
+        "issuer_common_name": common_name,
         "serial_number_hex": format(certificate.serial_number, "x"),
         "not_valid_before_utc": not_before.isoformat(),
         "not_valid_after_utc": not_after.isoformat(),
         "signature_hash_algorithm": "sha256",
         "public_key_algorithm": "rsa",
         "public_key_bits": 3072,
-        "san_dns": ["localhost"],
-        "san_ip": ["127.0.0.1"],
+        "san_dns": dns_names,
+        "san_ip": ip_names,
         "extended_key_usage": ["serverAuth"],
         "basic_constraints_ca": False,
         "key_usage": ["digitalSignature", "keyEncipherment"],
@@ -166,11 +186,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--evidence", type=Path, required=True)
     parser.add_argument("--valid-days", type=int, default=825)
+    parser.add_argument("--common-name", default="localhost")
+    parser.add_argument("--san-dns", action="append")
+    parser.add_argument("--san-ip", action="append")
     args = parser.parse_args(argv)
     result = generate_loopback_certificate(
         output_dir=args.output_dir,
         evidence_path=args.evidence,
         valid_days=args.valid_days,
+        subject_common_name=args.common_name,
+        san_dns=args.san_dns,
+        san_ip=args.san_ip,
     )
     print(json.dumps(result, ensure_ascii=False))
     return 0

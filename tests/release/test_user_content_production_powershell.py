@@ -16,6 +16,11 @@ def test_start_contract_uses_exact_python_two_ports_tls_and_pid_binding() -> Non
     assert "https://localhost:$HttpsPort/api/health" in text
     assert "listener PID mismatch" in text
     assert "postgresql_production" in text
+    assert "--launch-id" in text
+    assert "production_process.launch_id" in text
+    assert "Get-CimInstance Win32_Process" in text
+    assert "process identity mismatch" in text
+    assert "UTF8Encoding" in text
 
 
 def test_stop_contract_refuses_pid_reuse_and_unknown_listener() -> None:
@@ -25,3 +30,6 @@ def test_stop_contract_refuses_pid_reuse_and_unknown_listener() -> None:
     assert "refusing to stop reused PID" in text
     assert "recorded PID does not own port" in text
     assert "did not release" in text
+    assert "Get-CimInstance Win32_Process" in text
+    assert "executable_sha256" in text and "command_line_sha256" in text
+    assert "process identity mismatch" in text

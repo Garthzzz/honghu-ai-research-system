@@ -23,9 +23,12 @@ ALLOWED_MODULES = {
     "tools.migration.stage4_production_recovery": "main",
     "tools.migration.stage4_production_verify": "main",
     "tools.migration.stage4_repository_governance": "main",
+    "tools.migration.stage4_runtime_release_binding": "main",
     "tools.migration.stage4_user_content_s1": "main",
     "tools.migration.stage4_user_content_runtime": "main",
     "tools.migration.stage4_user_content_cutover": "main",
+    "tools.migration.stage4_user_content_approval": "main",
+    "tools.migration.stage4_user_content_writer_fence": "main",
 }
 
 

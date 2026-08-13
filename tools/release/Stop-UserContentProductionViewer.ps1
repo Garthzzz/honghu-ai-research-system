@@ -22,6 +22,19 @@ foreach ($entry in @($record.processes)) {
     if ($process.StartTime.ToUniversalTime().ToString('o') -ne [string]$entry.start_time_utc) {
         throw "refusing to stop reused PID $($entry.pid)"
     }
+    $cim = Get-CimInstance Win32_Process -Filter "ProcessId=$($entry.pid)" -ErrorAction Stop
+    if (-not $cim -or -not $cim.ExecutablePath -or -not $cim.CommandLine) {
+        throw "refusing to stop PID without complete process identity $($entry.pid)"
+    }
+    $actualExecutable = (Get-FileHash -LiteralPath ([string]$cim.ExecutablePath) -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualCommand = ([BitConverter]::ToString(
+        [Security.Cryptography.SHA256]::Create().ComputeHash(
+            [Text.Encoding]::UTF8.GetBytes([string]$cim.CommandLine)
+        )
+    ).Replace('-','').ToLowerInvariant())
+    if ($actualExecutable -ne [string]$entry.executable_sha256 -or $actualCommand -ne [string]$entry.command_line_sha256) {
+        throw "refusing to stop process identity mismatch $($entry.pid)"
+    }
     if (@($listeners.OwningProcess | Sort-Object -Unique) -notcontains [int]$entry.pid) {
         throw "recorded PID does not own port $($entry.port)"
     }

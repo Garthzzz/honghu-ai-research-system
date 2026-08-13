@@ -95,7 +95,7 @@ def promote_user_content_to_s1(
             cursor.execute(
                 """
                 SELECT cutover_unit, lifecycle_state, formal_business_data,
-                       reconciliation
+                       reconciliation, application_commit_sha
                   FROM migration.unit_snapshot
                  WHERE snapshot_id=%s
                  FOR UPDATE
@@ -111,6 +111,11 @@ def promote_user_content_to_s1(
                 or (snapshot[3] or {}).get("status") != "pass"
             ):
                 raise UserContentS1Error("user-content staging snapshot is not reconciled")
+            application_commit_sha = str(snapshot[4])
+            if len(application_commit_sha) != 40 or any(
+                character not in "0123456789abcdef" for character in application_commit_sha
+            ):
+                raise UserContentS1Error("staging snapshot application commit is invalid")
 
             authority = _authority(cursor)
             if authority is None:
@@ -278,6 +283,7 @@ def promote_user_content_to_s1(
         "sqlite_formal_writer_enabled": True,
         "postgresql_formal_business_mutations": False,
         "snapshot_id": snapshot_id,
+        "application_commit_sha": application_commit_sha,
         "mapping_manifest_sha256": mapping["manifest_sha256"],
         "mapping_approval_sha256": approval["approval_sha256"],
         "mapping_count": mapping_count,

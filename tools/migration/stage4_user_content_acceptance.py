@@ -67,14 +67,17 @@ def _put(
     operation_id: str,
     content: str,
     expected_revision: int,
+    entity_type: str = "company",
+    entity_id: str = "330",
+    note_type: str = "stage4_acceptance",
 ) -> dict[str, Any]:
     response = client.post(
         f"{base_url}/api/analyst_note",
         json={
             "note_key": note_key,
-            "entity_type": "company",
-            "entity_id": "330",
-            "note_type": "stage4_acceptance",
+            "entity_type": entity_type,
+            "entity_id": entity_id,
+            "note_type": note_type,
             "title": "Stage 4 production acceptance",
             "content": content,
             "expected_revision": expected_revision,
@@ -86,6 +89,34 @@ def _put(
     if not payload.get("ok"):
         raise AcceptanceError("analyst-note mutation did not succeed")
     return payload["note"]
+
+
+def _expect_error(response: Any, *, status: int, code: str) -> dict[str, Any]:
+    if response.status_code != status:
+        raise AcceptanceError(
+            f"expected HTTP {status}/{code}, got {response.status_code}"
+        )
+    payload = response.json()
+    if payload.get("code") != code:
+        raise AcceptanceError(f"expected error code {code}, got {payload.get('code')}")
+    return payload
+
+
+def _percentiles(values: list[float]) -> dict[str, float]:
+    if not values:
+        raise AcceptanceError("latency sample is empty")
+    ordered = sorted(values)
+
+    def percentile(value: float) -> float:
+        index = min(len(ordered) - 1, max(0, int(round((len(ordered) - 1) * value))))
+        return round(ordered[index] * 1000, 3)
+
+    return {
+        "p50_ms": percentile(0.50),
+        "p95_ms": percentile(0.95),
+        "p99_ms": percentile(0.99),
+        "max_ms": round(max(ordered) * 1000, 3),
+    }
 
 
 def _delete(
@@ -207,13 +238,14 @@ def stress(args: argparse.Namespace) -> dict[str, Any]:
 
     prefix = f"stage4-acceptance:stress:{uuid.uuid4().hex}"
 
-    def create(index: int) -> tuple[str, int]:
+    def create(index: int) -> tuple[str, int, float]:
         key = f"{prefix}:{index}"
         op = f"{prefix}:create:{index}"
         with httpx.Client(verify=str(args.ca_certificate), timeout=20) as client:
             token = _login(
                 client, base_url=args.base_url, principal=args.principal, password=password
             )
+            mutation_started = time.monotonic()
             note = _put(
                 client,
                 base_url=args.base_url,
@@ -223,7 +255,7 @@ def stress(args: argparse.Namespace) -> dict[str, Any]:
                 content=f"concurrent acceptance note {index}",
                 expected_revision=0,
             )
-            return key, int(note["revision"])
+            return key, int(note["revision"]), time.monotonic() - mutation_started
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=args.concurrency) as pool:
         created = list(pool.map(create, range(args.mutation_count)))
@@ -235,9 +267,89 @@ def stress(args: argparse.Namespace) -> dict[str, Any]:
         listed = client.get(f"{args.base_url}/api/analyst_note/company/330")
         listed.raise_for_status()
         listed_keys = {item["note_key"] for item in listed.json().get("notes", [])}
-        if any(key not in listed_keys for key, _ in created):
+        if any(key not in listed_keys for key, _, _ in created):
             raise AcceptanceError("concurrent writes are missing from list read")
-        for index, (key, revision) in enumerate(created):
+        first_key, first_revision, _ = created[0]
+        update_operation = f"{prefix}:update:0"
+        updated = _put(
+            client,
+            base_url=args.base_url,
+            csrf=token,
+            note_key=first_key,
+            operation_id=update_operation,
+            content="updated concurrent acceptance note 0",
+            expected_revision=first_revision,
+        )
+        replayed_update = _put(
+            client,
+            base_url=args.base_url,
+            csrf=token,
+            note_key=first_key,
+            operation_id=update_operation,
+            content="updated concurrent acceptance note 0",
+            expected_revision=first_revision,
+        )
+        if updated.get("revision") != replayed_update.get("revision"):
+            raise AcceptanceError("update replay was not idempotent")
+        stale = client.post(
+            f"{args.base_url}/api/analyst_note",
+            json={
+                "note_key": first_key,
+                "entity_type": "company",
+                "entity_id": "330",
+                "note_type": "stage4_acceptance",
+                "title": "Stage 4 production acceptance",
+                "content": "stale update must not commit",
+                "expected_revision": first_revision,
+            },
+            headers={
+                "X-CSRF-Token": token,
+                "X-Idempotency-Key": f"{prefix}:stale:0",
+            },
+        )
+        _expect_error(stale, status=409, code="stale_revision")
+
+        unauthenticated = httpx.Client(verify=str(args.ca_certificate), timeout=20)
+        try:
+            _expect_error(
+                unauthenticated.get(f"{args.base_url}/api/analyst_note/company/330"),
+                status=401,
+                code="authentication_required",
+            )
+        finally:
+            unauthenticated.close()
+        missing_csrf = client.post(
+            f"{args.base_url}/api/analyst_note",
+            json={"entity_type": "company", "entity_id": "330", "content": "blocked"},
+            headers={"X-Idempotency-Key": f"{prefix}:missing-csrf"},
+        )
+        _expect_error(missing_csrf, status=403, code="csrf_invalid")
+
+        readonly_password = _credential(
+            args.readonly_credential_service, args.readonly_credential_account
+        )
+        with httpx.Client(verify=str(args.ca_certificate), timeout=20) as readonly:
+            readonly_csrf = _login(
+                readonly,
+                base_url=args.base_url,
+                principal=args.readonly_principal,
+                password=readonly_password,
+            )
+            forbidden = readonly.post(
+                f"{args.base_url}/api/analyst_note",
+                json={"entity_type": "company", "entity_id": "330", "content": "blocked"},
+                headers={
+                    "X-CSRF-Token": readonly_csrf,
+                    "X-Idempotency-Key": f"{prefix}:readonly",
+                },
+            )
+            _expect_error(forbidden, status=403, code="permission_denied")
+
+        delete_latencies: list[float] = []
+        for index, (key, revision, _) in enumerate(created):
+            if index == 0:
+                revision = int(updated["revision"])
+            delete_started = time.monotonic()
             _delete(
                 client,
                 base_url=args.base_url,
@@ -246,6 +358,7 @@ def stress(args: argparse.Namespace) -> dict[str, Any]:
                 operation_id=f"{prefix}:delete:{index}",
                 expected_revision=revision,
             )
+            delete_latencies.append(time.monotonic() - delete_started)
     elapsed = time.monotonic() - started
     core = {
         "schema_version": "honghu.user_content_multi_client_stress.v1",
@@ -256,6 +369,14 @@ def stress(args: argparse.Namespace) -> dict[str, Any]:
         "concurrency": args.concurrency,
         "created_count": len(created),
         "soft_deleted_count": len(created),
+        "update_revision": int(updated["revision"]),
+        "update_idempotent_replay": True,
+        "stale_revision_rejected": True,
+        "unauthenticated_read_rejected": True,
+        "missing_csrf_rejected": True,
+        "readonly_principal_write_rejected": True,
+        "create_latency": _percentiles([item[2] for item in created]),
+        "delete_latency": _percentiles(delete_latencies),
         "elapsed_seconds": round(elapsed, 6),
         "plaintext_mutation_rejected": True,
         "credential_recorded": False,
@@ -273,6 +394,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--principal", required=True)
     parser.add_argument("--credential-service", required=True)
     parser.add_argument("--credential-account", required=True)
+    parser.add_argument("--readonly-principal")
+    parser.add_argument("--readonly-credential-service")
+    parser.add_argument("--readonly-credential-account")
     parser.add_argument("--client-identity", required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--concurrency", type=int, default=8)
@@ -282,6 +406,14 @@ def main(argv: list[str] | None = None) -> int:
         raise AcceptanceError("Viewer CA certificate is missing")
     if not 1 <= args.concurrency <= 32 or not 1 <= args.mutation_count <= 200:
         raise AcceptanceError("stress bounds are outside the approved range")
+    if args.mode == "stress" and not all(
+        (
+            args.readonly_principal,
+            args.readonly_credential_service,
+            args.readonly_credential_account,
+        )
+    ):
+        raise AcceptanceError("stress requires a second read-only principal")
     result = first_mutation(args) if args.mode == "first-mutation" else stress(args)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

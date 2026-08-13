@@ -15,8 +15,8 @@
       "legacy_id": "552",
       "ticker": "TER",
       "venue": "us",
-      "approval_reference": "codex-readonly-pr8-identity-audit-2026-08-12",
-      "approved_by": "codex-readonly-audit",
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+      "approved_by": "user",
       "rationale": "research.db 缺少 market/listing_status；现有 financial_security 已标记 verified，sentiment 供应链身份记录 exchange=US，历史行情由 yfinance 的 TER 证券取得。"
     }
   ],

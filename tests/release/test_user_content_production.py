@@ -35,6 +35,7 @@ def _args(tmp_path: Path) -> argparse.Namespace:
         postgres_config=files["postgres"],
         identity_mapping=files["mapping"],
         security_config=files["security"],
+        launch_id="test-launch-id",
     )
 
 
@@ -56,6 +57,7 @@ def test_production_environment_requires_exact_release_and_fenced_route(
     assert __import__("os").environ["HONGHU_USER_CONTENT_ROUTE_CONFIG"] == str(
         args.route_config.resolve()
     )
+    assert __import__("os").environ["HONGHU_PRODUCTION_LAUNCH_ID"] == "test-launch-id"
 
     route = json.loads(args.route_config.read_text(encoding="utf-8"))
     route["sqlite_writer_enabled"] = True

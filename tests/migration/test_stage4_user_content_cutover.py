@@ -18,6 +18,7 @@ def _hashed(payload: dict, field: str = "evidence_sha256") -> dict:
 
 
 def _fixture() -> tuple[dict, dict, dict, dict, dict, dict]:
+    application_commit_sha = "a" * 40
     mapping_core = {
         "schema_version": "honghu.user_content_identity_mapping.v2",
         "source_database": "research.db",
@@ -49,12 +50,14 @@ def _fixture() -> tuple[dict, dict, dict, dict, dict, dict]:
         "source_note_count": 0,
         "target_note_count": 0,
         "authority_revision": 2,
+        "application_commit_sha": application_commit_sha,
     })
     recovery = _hashed({
         "schema_version": "honghu.stage4_production_recovery.v1",
         "status": "pass",
         "whole_database_restore": "pass",
         "off_vm_verified": True,
+        "application_commit_sha": application_commit_sha,
         "target": {"sentinel_operation_id": "sentinel-1"},
         "recovered": {
             "sentinel_operation_id": "sentinel-1",
@@ -68,6 +71,8 @@ def _fixture() -> tuple[dict, dict, dict, dict, dict, dict]:
         "old_listener_absent": True,
         "scheduled_writer_absent": True,
         "production_8080_stopped_for_cutover": True,
+        "application_commit_sha": application_commit_sha,
+        "release_manifest_sha256": "b" * 64,
         "sqlite_final_watermark": {"analyst_note_count": 0, "max_id": None},
     })
     approval_core = {
@@ -83,6 +88,7 @@ def _fixture() -> tuple[dict, dict, dict, dict, dict, dict]:
         "s1_evidence_sha256": s1["evidence_sha256"],
         "recovery_evidence_sha256": recovery["evidence_sha256"],
         "writer_fence_evidence_sha256": fence["evidence_sha256"],
+        "application_commit_sha": application_commit_sha,
     }
     approval = {**approval_core, "approval_sha256": _sha(approval_core)}
     return mapping, mapping_approval, s1, recovery, fence, approval

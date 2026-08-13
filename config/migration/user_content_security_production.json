@@ -1,0 +1,17 @@
+{
+  "schema_version": "honghu.user_content_security.v1",
+  "enabled": true,
+  "require_https": true,
+  "credential_service": "honghu.viewer.user-content.v1",
+  "session_secret_service": "honghu.viewer.session.v1",
+  "session_secret_account": "flask-session",
+  "principals": {
+    "research-operator": [
+      "analyst_note:read",
+      "analyst_note:write"
+    ],
+    "research-auditor": [
+      "analyst_note:read"
+    ]
+  }
+}

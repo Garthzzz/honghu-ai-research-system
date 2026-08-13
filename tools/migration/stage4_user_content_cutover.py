@@ -73,6 +73,9 @@ def validate_enter_s2_inputs(
         raise UserContentCutoverError("S1 note reconciliation is not exact")
     if int(s1.get("authority_revision", 0)) < 1:
         raise UserContentCutoverError("S1 authority revision is missing")
+    application_commit_sha = str(s1.get("application_commit_sha") or "")
+    if len(application_commit_sha) != 40:
+        raise UserContentCutoverError("S1 application commit is missing")
 
     if recovery.get("schema_version") != "honghu.stage4_production_recovery.v1":
         raise UserContentCutoverError("unsupported production recovery evidence")
@@ -91,6 +94,8 @@ def validate_enter_s2_inputs(
         or recovered.get("sentinel_operation_id") != target.get("sentinel_operation_id")
     ):
         raise UserContentCutoverError("post-backup recovery sentinel is not verified")
+    if recovery.get("application_commit_sha") != application_commit_sha:
+        raise UserContentCutoverError("recovery evidence belongs to another application commit")
 
     if fence.get("schema_version") != "honghu.user_content_writer_fence.v1":
         raise UserContentCutoverError("unsupported writer-fence evidence")
@@ -108,6 +113,8 @@ def validate_enter_s2_inputs(
     watermark = fence.get("sqlite_final_watermark")
     if not isinstance(watermark, dict) or watermark.get("analyst_note_count") is None:
         raise UserContentCutoverError("SQLite final watermark is missing")
+    if fence.get("application_commit_sha") != application_commit_sha:
+        raise UserContentCutoverError("writer fence belongs to another application commit")
 
     if approval.get("schema_version") != "honghu.user_content_cutover_approval.v1":
         raise UserContentCutoverError("unsupported production cutover approval")
@@ -123,6 +130,7 @@ def validate_enter_s2_inputs(
         "s1_evidence_sha256": s1.get("evidence_sha256"),
         "recovery_evidence_sha256": recovery.get("evidence_sha256"),
         "writer_fence_evidence_sha256": fence.get("evidence_sha256"),
+        "application_commit_sha": application_commit_sha,
     }
     for field, value in expected.items():
         if approval.get(field) != value:

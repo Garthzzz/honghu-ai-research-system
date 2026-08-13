@@ -7610,6 +7610,7 @@ def api_health():
             }
             payload["production_process"] = {
                 "pid": os.getpid(),
+                "launch_id": os.environ.get("HONGHU_PRODUCTION_LAUNCH_ID"),
                 "python_version": ".".join(map(str, sys.version_info[:3])),
             }
         return jsonify(payload)

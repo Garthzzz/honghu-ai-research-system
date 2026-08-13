@@ -1,0 +1,31 @@
+{
+  "schema_version": "honghu.user_content_cutover_decision.v1",
+  "cutover_unit": "user_content_notes",
+  "approved_by": "user",
+  "approved_at_utc": "2026-08-13T14:17:45Z",
+  "approval_reference": "user-approved-stage4-user-content-cutover-2026-08-13",
+  "mapping_cutover_level_approved": true,
+  "mapping_resolution_scope": "all_774_records_and_explicit_alias_override_decisions",
+  "manual_review_resolutions": [
+    {
+      "legacy_id": "21",
+      "resolution": "retain_historical_acacia_security_identity_ACIA_us"
+    },
+    {
+      "legacy_id": "336",
+      "resolution": "alias_to_haiguang_information_688041_SH"
+    },
+    {
+      "legacy_ids": ["58", "59"],
+      "resolution": "alias_to_sumitomo_electric_5802_T"
+    },
+    {
+      "legacy_id": "552",
+      "resolution": "approve_TER_us_identity_override"
+    }
+  ],
+  "enter_s2_authorized": true,
+  "operator": "principal:codex",
+  "writer_identity": "honghu_user_content_writer",
+  "scope_limit": "user_content_notes_only_no_other_cutover_unit_or_runner_task_migration"
+}

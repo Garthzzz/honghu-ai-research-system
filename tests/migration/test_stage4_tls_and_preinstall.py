@@ -68,6 +68,44 @@ def test_tls_generator_fails_closed_instead_of_overwriting(tmp_path: Path) -> No
     assert (tls_dir / "server.key").read_bytes() == original_key
 
 
+def test_tls_generator_supports_exact_viewer_host_and_lan_sans(tmp_path: Path) -> None:
+    tls_dir = tmp_path / "viewer-tls"
+    evidence = generate_loopback_certificate(
+        output_dir=tls_dir,
+        evidence_path=tmp_path / "evidence/viewer-tls.json",
+        subject_common_name="DESKTOP-VGD07J4",
+        san_dns=["localhost", "DESKTOP-VGD07J4"],
+        san_ip=["127.0.0.1", "10.5.1.240"],
+    )
+    certificate = x509.load_pem_x509_certificate((tls_dir / "server.crt").read_bytes())
+    san = certificate.extensions.get_extension_for_class(x509.SubjectAlternativeName).value
+    assert san.get_values_for_type(x509.DNSName) == ["localhost", "DESKTOP-VGD07J4"]
+    assert san.get_values_for_type(x509.IPAddress) == [
+        ipaddress.ip_address("127.0.0.1"),
+        ipaddress.ip_address("10.5.1.240"),
+    ]
+    assert evidence["subject_common_name"] == "DESKTOP-VGD07J4"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"subject_common_name": ""},
+        {"san_dns": [], "san_ip": []},
+        {"san_dns": ["localhost"], "san_ip": ["not-an-ip"]},
+    ],
+)
+def test_tls_generator_rejects_invalid_viewer_identity(
+    tmp_path: Path, kwargs: dict
+) -> None:
+    with pytest.raises(TlsCertificateError):
+        generate_loopback_certificate(
+            output_dir=tmp_path / "tls",
+            evidence_path=tmp_path / "evidence/tls.json",
+            **kwargs,
+        )
+
+
 def test_preinstall_staging_is_quarantined_with_auditable_identity(tmp_path: Path) -> None:
     install_root = tmp_path / "honghu-postgresql"
     staging = tmp_path / "honghu-postgresql.staging.0123456789abcdef0123456789abcdef"

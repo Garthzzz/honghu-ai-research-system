@@ -39,6 +39,19 @@ function Stop-OwnedProcess([object]$Record) {
     if ($actualStart -ne [string]$Record.start_time_utc) {
         throw "refusing to stop reused PID $($Record.pid)"
     }
+    $cim = Get-CimInstance Win32_Process -Filter "ProcessId=$($Record.pid)" -ErrorAction Stop
+    if (-not $cim -or -not $cim.ExecutablePath -or -not $cim.CommandLine) {
+        throw "refusing to stop PID without complete process identity $($Record.pid)"
+    }
+    $actualExecutable = (Get-FileHash -LiteralPath ([string]$cim.ExecutablePath) -Algorithm SHA256).Hash.ToLowerInvariant()
+    $actualCommand = ([BitConverter]::ToString(
+        [Security.Cryptography.SHA256]::Create().ComputeHash(
+            [Text.Encoding]::UTF8.GetBytes([string]$cim.CommandLine)
+        )
+    ).Replace('-','').ToLowerInvariant())
+    if ($actualExecutable -ne [string]$Record.executable_sha256 -or $actualCommand -ne [string]$Record.command_line_sha256) {
+        throw "refusing to stop process identity mismatch $($Record.pid)"
+    }
     Stop-Process -Id ([int]$Record.pid) -Force
     $process.WaitForExit(10000) | Out-Null
 }
@@ -97,6 +110,8 @@ try {
         [ordered]@{ name='https'; port=$HttpsPort; tls=$true }
     )) {
         $arguments = @($common) + @('--port', [string]$listener.port)
+        $launchId = [guid]::NewGuid().ToString('N')
+        $arguments += @('--launch-id', $launchId)
         if ($listener.tls) {
             $arguments += @('--tls', '--tls-cert', $TlsCertificate, '--tls-key', $TlsPrivateKey)
         }
@@ -108,16 +123,21 @@ try {
         Start-Sleep -Milliseconds 400
         $process.Refresh()
         if ($process.HasExited) { throw "$($listener.name) Viewer exited during start" }
+        $cim = Get-CimInstance Win32_Process -Filter "ProcessId=$($process.Id)" -ErrorAction Stop
+        if (-not $cim -or -not $cim.ExecutablePath -or -not $cim.CommandLine) {
+            throw "$($listener.name) Viewer process identity is incomplete"
+        }
         $records += [ordered]@{
             name = $listener.name
             port = $listener.port
             tls = $listener.tls
             pid = $process.Id
             start_time_utc = $process.StartTime.ToUniversalTime().ToString('o')
-            executable_sha256 = (Get-FileHash -LiteralPath $PythonExe -Algorithm SHA256).Hash.ToLowerInvariant()
+            launch_id = $launchId
+            executable_sha256 = (Get-FileHash -LiteralPath ([string]$cim.ExecutablePath) -Algorithm SHA256).Hash.ToLowerInvariant()
             command_line_sha256 = ([BitConverter]::ToString(
                 [Security.Cryptography.SHA256]::Create().ComputeHash(
-                    [Text.Encoding]::UTF8.GetBytes($argumentString)
+                    [Text.Encoding]::UTF8.GetBytes([string]$cim.CommandLine)
                 )
             ).Replace('-','').ToLowerInvariant())
         }
@@ -128,7 +148,14 @@ try {
         $httpsReady = $false
         try {
             $health = Invoke-RestMethod "http://127.0.0.1:$HttpPort/api/health" -TimeoutSec 2
-            $httpReady = [bool]($health.ok -and $health.user_content.backend -eq 'postgresql_production')
+            $httpRecord = @($records | Where-Object {$_.name -eq 'http'})[0]
+            $httpReady = [bool](
+                $health.ok -and
+                $health.user_content.backend -eq 'postgresql_production' -and
+                $health.release.commit_sha -eq $ExpectedCommit -and
+                [int]$health.production_process.pid -eq [int]$httpRecord.pid -and
+                $health.production_process.launch_id -eq $httpRecord.launch_id
+            )
         } catch {}
         try {
             $probe = @'
@@ -137,8 +164,12 @@ ctx=ssl.create_default_context(cafile=sys.argv[1])
 with urllib.request.urlopen(sys.argv[2], context=ctx, timeout=3) as r:
     p=json.load(r)
 assert p['ok'] and p['user_content']['backend']=='postgresql_production'
+assert p['release']['commit_sha']==sys.argv[3]
+assert int(p['production_process']['pid'])==int(sys.argv[4])
+assert p['production_process']['launch_id']==sys.argv[5]
 '@
-            & $PythonExe -I -B -c $probe $TlsCertificate "https://localhost:$HttpsPort/api/health"
+            $httpsRecord = @($records | Where-Object {$_.name -eq 'https'})[0]
+            & $PythonExe -I -B -c $probe $TlsCertificate "https://localhost:$HttpsPort/api/health" $ExpectedCommit $httpsRecord.pid $httpsRecord.launch_id
             $httpsReady = ($LASTEXITCODE -eq 0)
         } catch {}
         if (-not ($httpReady -and $httpsReady)) { Start-Sleep -Seconds 1 }
@@ -157,7 +188,11 @@ assert p['ok'] and p['user_content']['backend']=='postgresql_production'
         created_at_utc = (Get-Date).ToUniversalTime().ToString('o')
         processes = $records
     }
-    $payload | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $RecordPath -Encoding UTF8
+    [IO.File]::WriteAllText(
+        $RecordPath,
+        (($payload | ConvertTo-Json -Depth 8) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
     $payload | ConvertTo-Json -Depth 8
 } catch {
     foreach ($record in @($records)) {
