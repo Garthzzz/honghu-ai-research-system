@@ -76,7 +76,7 @@ Invoke-Isolated 'tools.release.cli' @('verify','--release-dir',$Release)
 
 # No authority-changing operation occurs before all immutable inputs above pass.
 & (Join-Path $RepoRoot 'tools\migration\Invoke-UserContentWriterFence.ps1') `
-    -PythonExe $PythonExe -ReleaseDir $Release -ExistingProductionRoot $ProductionRoot `
+    -PythonExe $PythonExe -RepoRoot $RepoRoot -ReleaseDir $Release -ExistingProductionRoot $ProductionRoot `
     -StateRoot $StateRoot -OutputPath $Fence -Port 8080 | Out-Null
 
 Invoke-Isolated 'tools.migration.stage4_user_content_approval' @(

@@ -123,3 +123,9 @@ def test_powershell_contract_collects_before_and_after_without_task_mutation() -
     assert "--expected-commit" in source
     assert "stage4_isolated_entry.py" in source
     assert "--module $Module -- capture" in source
+    assert "[Parameter(Mandatory = $true)][string]$RepoRoot" in source
+    assert "$Dispatcher = Join-Path $RepoRoot 'tools\\migration\\stage4_isolated_entry.py'" in source
+    assert "--repo-root $RepoRoot" in source
+    assert "--repo-root $ReleaseDir" not in source
+    assert "(Join-Path $ReleaseDir 'RELEASE_MANIFEST.json')" in source
+    assert "reviewed repository root and immutable release directory must be distinct" in source

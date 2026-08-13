@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$PythonExe,
+    [Parameter(Mandatory = $true)][string]$RepoRoot,
     [Parameter(Mandatory = $true)][string]$ReleaseDir,
     [Parameter(Mandatory = $true)][string]$ExistingProductionRoot,
     [Parameter(Mandatory = $true)][string]$StateRoot,
@@ -21,8 +22,18 @@ function Get-Sha256([object]$Value) {
     return ([BitConverter]::ToString([Security.Cryptography.SHA256]::Create().ComputeHash($bytes))).Replace('-','').ToLowerInvariant()
 }
 
-foreach ($path in @($PythonExe, (Join-Path $ReleaseDir 'tools\migration\stage4_isolated_entry.py'))) {
+foreach ($path in @(
+    $PythonExe,
+    (Join-Path $RepoRoot 'AGENTS.md'),
+    (Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py'),
+    (Join-Path $ReleaseDir 'RELEASE_MANIFEST.json')
+)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "required file missing: $path" }
+}
+$ResolvedRepoRoot = (Resolve-Path -LiteralPath $RepoRoot).Path.TrimEnd('\')
+$ResolvedReleaseDir = (Resolve-Path -LiteralPath $ReleaseDir).Path.TrimEnd('\')
+if ($ResolvedRepoRoot.Equals($ResolvedReleaseDir, [StringComparison]::OrdinalIgnoreCase)) {
+    throw 'reviewed repository root and immutable release directory must be distinct'
 }
 $ResearchDb = Join-Path $ExistingProductionRoot 'data\research.db'
 if (-not (Test-Path -LiteralPath $ResearchDb -PathType Leaf)) { throw 'live research.db is missing' }
@@ -32,10 +43,10 @@ $Before = Join-Path $Runtime 'sqlite_watermark_before_stop.json'
 $After = Join-Path $Runtime 'sqlite_watermark_after_stop.json'
 $Windows = Join-Path $Runtime 'windows_writer_fence_observation.json'
 $WindowsCore = Join-Path $Runtime 'windows_writer_fence_observation.unsealed.json'
-$Dispatcher = Join-Path $ReleaseDir 'tools\migration\stage4_isolated_entry.py'
+$Dispatcher = Join-Path $RepoRoot 'tools\migration\stage4_isolated_entry.py'
 $Module = 'tools.migration.stage4_user_content_writer_fence'
 
-& $PythonExe -I -B $Dispatcher --repo-root $ReleaseDir --module $Module -- capture --database $ResearchDb --output $Before
+& $PythonExe -I -B $Dispatcher --repo-root $RepoRoot --module $Module -- capture --database $ResearchDb --output $Before
 if ($LASTEXITCODE -ne 0) { throw 'pre-stop SQLite watermark failed' }
 
 $health = Invoke-RestMethod "http://127.0.0.1:$Port/api/health" -TimeoutSec 10
@@ -125,11 +136,11 @@ $core = [ordered]@{
     writer_process_matches = $processMatches
 }
 Write-Utf8NoBom $WindowsCore (($core | ConvertTo-Json -Depth 30) + "`n")
-& $PythonExe -I -B $Dispatcher --repo-root $ReleaseDir --module $Module -- seal-windows --input $WindowsCore --output $Windows
+& $PythonExe -I -B $Dispatcher --repo-root $RepoRoot --module $Module -- seal-windows --input $WindowsCore --output $Windows
 if ($LASTEXITCODE -ne 0) { throw 'Windows writer-fence observation sealing failed' }
 Remove-Item -LiteralPath $WindowsCore -Force
 
-& $PythonExe -I -B $Dispatcher --repo-root $ReleaseDir --module $Module -- capture --database $ResearchDb --output $After
+& $PythonExe -I -B $Dispatcher --repo-root $RepoRoot --module $Module -- capture --database $ResearchDb --output $After
 if ($LASTEXITCODE -ne 0) { throw 'post-stop SQLite watermark failed' }
-& $PythonExe -I -B $Dispatcher --repo-root $ReleaseDir --module $Module -- compile --before $Before --after $After --windows-observation $Windows --release-dir $ReleaseDir --expected-commit ((Split-Path -Leaf $ReleaseDir).ToLowerInvariant()) --output $OutputPath
+& $PythonExe -I -B $Dispatcher --repo-root $RepoRoot --module $Module -- compile --before $Before --after $After --windows-observation $Windows --release-dir $ReleaseDir --expected-commit ((Split-Path -Leaf $ReleaseDir).ToLowerInvariant()) --output $OutputPath
 if ($LASTEXITCODE -ne 0) { throw 'writer-fence evidence compilation failed' }

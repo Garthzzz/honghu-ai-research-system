@@ -32,6 +32,7 @@ def test_cutover_orders_all_hard_gates_before_s2_and_s3() -> None:
     assert "security_provision.json" in script
     assert "security provision evidence does not authorize production authentication" in script
     assert "(Join-Path $StateRoot 'user-content-tls') $CommitSha" in script
+    assert "-PythonExe $PythonExe -RepoRoot $RepoRoot -ReleaseDir $Release" in script
 
 
 def test_cutover_does_not_modify_sqlite_or_scheduled_tasks() -> None:
