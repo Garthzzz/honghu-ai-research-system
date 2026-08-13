@@ -47,6 +47,66 @@
       "sunset_condition": "Remove after shared_identity is authoritative in PostgreSQL and the transition mapping bridge is retired."
     },
     {
+      "path": "tools/migration/stage4_identity_mapping_crosscheck.py",
+      "domain": "Stage 4 stable-identity source cross-check",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "The Stage 4 cross-check opens one transaction-consistent, URI mode=ro research snapshot to compare frozen identities with legacy company/security facts; it never mutates SQLite and row-level evidence remains outside Git.",
+      "owner": "user-content and shared-identity cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes and shared_identity",
+      "sunset_condition": "Remove after shared_identity is authoritative in PostgreSQL and the transition cross-check is retired."
+    },
+    {
+      "path": "tools/migration/stage4_identity_mapping_crosscheck.py",
+      "domain": "Stage 4 stable-identity source cross-check",
+      "rule": "pragma",
+      "max_count": 2,
+      "reason": "The read-only cross-check applies query_only and reads bounded SQLite schema metadata before comparing source identities; no mutating PRAGMA is allowed.",
+      "owner": "user-content and shared-identity cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes and shared_identity",
+      "sunset_condition": "Remove after shared_identity is authoritative in PostgreSQL and the transition cross-check is retired."
+    },
+    {
+      "path": "tools/migration/stage4_unit_s1.py",
+      "domain": "Stage 4 cutover-unit source snapshot",
+      "rule": "sqlite3_connect",
+      "max_count": 4,
+      "reason": "The nine-unit preparation tool opens each of the four transition SQLite sources through bounded URI mode=ro connections to create consistent source snapshots and reconciliation manifests; it never writes live SQLite.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "all registered cutover units",
+      "sunset_condition": "Remove after all registered cutover units leave SQLite and source snapshot preparation is retired."
+    },
+    {
+      "path": "tools/migration/stage4_unit_s1.py",
+      "domain": "Stage 4 cutover-unit source snapshot",
+      "rule": "pragma",
+      "max_count": 10,
+      "reason": "The source snapshotter uses only query_only, schema-version and bounded table metadata PRAGMAs to bind a transaction-consistent migration baseline; mutating PRAGMAs are prohibited.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "all registered cutover units",
+      "sunset_condition": "Remove after all registered cutover units leave SQLite and source snapshot preparation is retired."
+    },
+    {
+      "path": "tools/migration/stage4_s1_loader.py",
+      "domain": "Stage 4 PostgreSQL migration staging",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 3,
+      "reason": "The static ratchet recognizes PostgreSQL ON CONFLICT statements in the S1 staging loader as SQLite-shaped syntax. These statements execute only through psycopg against PostgreSQL migration tables and never open or mutate SQLite.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "all registered cutover units",
+      "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition loader is retired."
+    },
+    {
+      "path": "tools/migration/stage4_user_content_s1.py",
+      "domain": "Stage 4 user-content PostgreSQL S1 preparation",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 2,
+      "reason": "The static ratchet recognizes PostgreSQL ON CONFLICT statements used for S1 mapping/backfill as SQLite-shaped syntax. They execute only in the PostgreSQL transaction and do not connect to live SQLite.",
+      "owner": "user-content cutover governance",
+      "future_cutover_unit_candidate": "user_content_notes",
+      "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition S1 loader is retired."
+    },
+    {
       "path": "tools/opportunity_lens/silicon_review_recorder.py",
       "domain": "opportunity_lens publication review",
       "rule": "begin_immediate",

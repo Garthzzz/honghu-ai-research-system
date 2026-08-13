@@ -1,5 +1,13 @@
 # DeepSeek V4 Flash 架构交叉审核摘要
 
+## Stage 4 production execution：部署闭包与 WinVault 会话复核（2026-08-12）
+
+真实 exact-checkout VM 执行确认了两个独立问题。第一，bootstrap 动态调用的旧 helper 因文件名命中宽泛的 credential 路径忽略规则，只存在于本地工作树而不在 Git/deployment closure；本地测试因此误通过，VM clean checkout 在凭据阶段才失败。修订把它替换为中性命名、明确 tracked 的 `stage4_keyring_bridge.py`，bootstrap 在调用前验证文件存在，clean-clone 回归同时验证引用路径和实体文件。真实 credential 路径的忽略规则没有放宽。
+
+第二，同一 VM 的 Windows OpenSSH 非交互登录实测对 WinVault 返回 WinError 1312，原生 `cmdkey` set 也失败。这是登录会话能力，不是 PostgreSQL、密码或包版本问题。bootstrap 现在在解压和锁定依赖安装前执行可逆的合成 Credential Manager capability probe；失败时明确要求在批准 principal 的 VM 交互桌面运行同一 exact package，不再消耗十余分钟后返回泛化错误。正式 bridge 强制 `WinVaultKeyring`、只从 stdin 接收 secret、不打印 secret，并把 1312 归一为不含敏感内容的诊断标签。
+
+DeepSeek 只收到上述脱敏事实和测试汇总，返回 `approve`、无 must-fix。Codex接受其增加 WinError 1312 确定性单元测试及补清交互 principal/runbook 的建议。关于“自动扫描并删除所有遗留 probe”的建议未采用：probe target 只含非生产合成值，强行枚举本地化 Credential Manager 输出会引入误删并发/其他条目的新风险；现有调用在 `finally` 删除，本次现场 set 本身失败，没有残留条目。最终依据仍是 clean checkout、真实 VM 1312/`cmdkey` 探针、686 个 core tests、67 个 Stage 4/API/browser tests、OpenSpec、parser/compile、边界门禁和最终 required CI；外部 reviewer 不构成 interactive VM、off-VM、mapping、repository governance 或 S2 批准。
+
 > 首次审查日期：2026-08-03  
 > 首次审查轮次：2 轮；未进行第三轮，因为前两轮已显示同一前提偏差，继续扩张没有信息增量。  
 > 数据边界：只发送脱敏架构摘要；未发送 key、Cookie、个人信息、数据库内容、论文原文或未批准材料。
@@ -450,3 +458,196 @@ base/WAL 被移出恢复路径，restore workspace 与 `restore_command` 只从 
 WAL 不足、manifest/hash 篡改、缺 sentinel、同机盘符、伪 storage identity、copy identity
 不符和 set 外恢复源等 fail-closed 测试，以及真实物理恢复结果作为依据；外部 verdict
 不构成 off-VM、mapping、repository governance 或 S2 批准。
+
+## Stage 4 production execution milestone review（2026-08-12 追加）
+
+本轮先由 Codex 独立完成九单元只读 manifest、隔离 PostgreSQL
+staging/catch-up、非空 user-content S1 和最小权限演练，再向 DeepSeek 发送不含
+源码、数据库行、凭据、论文、用户内容、内网地址或 Git 外原始 evidence 的合同摘要。
+
+DeepSeek 返回 `revise`，但其中六项把输入已经明确存在的 source ordinal、hash/count、
+hash-bound mapping approval、revision/audit、sentinel/WAL manifest、exact launch identity
+和完整 artifact verifier 反写为“缺失”；另有一项建议 dual-write 和自动 fallback，直接
+违反已批准的单一 authority 合同，均被 Codex 拒绝。关于 NetworkService 读取 Credential
+Manager 的判断也不成立：PostgreSQL Windows service 不读取应用数据库凭据，凭据属于执行
+bootstrap 的 Windows principal。Codex 接受其背后的边界提醒，显式记录 credential owner，
+并把未来 application service principal 的凭据配置保留为 S2 前 gate。
+
+Codex 继续独立审计后发现一项 DeepSeek 未识别的真实问题：migration role 原先可以执行通用
+`transition_user_content_notes()`，理论上能够请求 S2。实现已改为专用
+`prepare_user_content_notes_authority_s1()`，只允许 `ABSENT→S0` 和 `S0→S1`，并撤销
+migration role 对通用 transition 的权限。真实 PostgreSQL 17 最小权限演练确认合法 S0/S1
+成功，两类 S2 请求均以 SQLSTATE 42501 拒绝，authority 最终仍为
+`S1/sqlite_transition`，无 writer、epoch 或 formal commit。
+
+同一轮独立恢复审计还修复了 PostgreSQL WAL 文件名跨 log/segment 边界的枚举：恢复工具现在
+根据集群 `wal_segment_size` 计算连续 WAL ordinal，而不是把 16 位十六进制后缀机械加一。
+外部 reviewer 没有对该真实问题提供信息增量。后续结论继续由真实 VM、恢复演练、边界门禁和
+required CI 负责，DeepSeek 不构成 mapping、repository governance、S2 或 cutover 批准。
+
+### Stage 4 production execution：隔离 Python runtime 复核（2026-08-12）
+
+VM 只读预检确认，受信任的 Python 3.10 bootstrap 本身没有 `keyring`、
+`cryptography` 和 `psycopg`。Codex没有修改既有 `quant` 环境，而是把正式执行合同
+修订为：在 exact install root 下创建独立 venv，以 tracked
+`requirements.lock.txt` 和 `pip --require-hashes` 安装，再用已有标准
+canonicalization、Python 3.10、逐包版本和 `pip check` verifier 冻结 executable、
+lock hash 与验证 evidence。fresh launch 在写入 exact launch/commit/config/archive
+identity 前不占用 InstallRoot；completed retry 必须重新验证同一 isolated runtime，
+foreign/incomplete/completed 三种安装状态继续 fail-closed 分流。
+
+DeepSeek收到上述脱敏事实后仍把“必须给出 install root、hash lock、canonicalization、
+pip check、executable/lock evidence、completed retry 和 incomplete 状态”逐项列为缺失，
+并建议使用与 Windows 项目无关的 `/opt/quant/venv`。这些意见与输入及真实实现直接冲突，
+没有提供可复现触发路径，因此拒绝。其背后的权限边界由 Codex独立复核：PostgreSQL
+Windows service 不执行 Python；隔离 venv 与 Credential Manager 属于已记录的 Stage 4
+operator principal，未来 application service principal 仍是 S2 前人工 gate。外部 verdict
+不构成 production、mapping、off-VM 或 S2 批准。
+
+### Stage 4 production execution：TLS 与 pre-install retry 复核（2026-08-12）
+
+真实 VM 首次 bootstrap 在创建服务、数据目录和凭据之前失败，原因是官方 PostgreSQL
+17.10 Windows ZIP 不含 `openssl.exe`，而旧入口错误把它列为 archive 必备二进制。Codex
+独立修订为：其余六个 PostgreSQL 二进制和固定版本继续 fail-closed；只有 hash-pinned
+Python 3.10 runtime 完成逐包与 `pip check` 验证后，才以 `cryptography` 生成 RSA-3072、
+SHA256、localhost DNS/IP SAN、CA=false、serverAuth 的证书。生成器 exclusive-create 三个
+TLS 文件，生成后重新加载验证私钥匹配、root 副本和自签名，evidence 只保存证书身份，
+不保存私钥。Windows 私钥在递归服务授权后再次禁用继承，仅 SYSTEM/Administrators 完全
+控制、NetworkService 只读。
+
+pre-install 解压失败也不再留下语义不明的 staging：只有 InstallRoot 尚不存在、服务不
+存在、55440 无 listener，且 staging 严格属于同父目录 `InstallRoot.staging.<32hex>` 时，
+才允许将整目录原子隔离到本 launch 的 failed 路径，并记录主失败、原路径、文件数、总
+字节和文件集 hash；foreign/current/completed/路径冲突或观测不足均拒绝。隔离目录不能
+作为安装复用。
+
+DeepSeek 共复核两轮。第一轮把 Unix `0600` 作为私钥权限要求；Codex接受其最小权限意图，
+按 Windows 服务事实转化成上述 SID ACL，并增加生成后密码学自验。它同时要求继续把真实
+不存在的 `openssl.exe` 列为必需文件，和确定性现场证据冲突，拒绝。第二轮基于公开提交
+`8707a58111def28f682b2436291e07fe6da8f764` 返回 `pass`、无 must-fix/should-fix；其
+accepted-controls 文本仍误写了一次“OpenSSL required binary”，Codex未把这一错误标签
+当作实现事实。最终依据是 672 个 core tests、82 个 Stage 4/browser 定向测试、17 个
+TLS/quarantine 测试、PowerShell parser、compile、OpenSpec strict、tracked/staged boundary
+和 SQLite ratchet；外部 reviewer 不构成 S2/S3、mapping、off-VM 或 cutover 批准。
+
+### Stage 4 production execution：Windows PowerShell CSPRNG 兼容复核（2026-08-12）
+
+真实 VM 第二次 bootstrap 在服务、listener、database 和 credential 建立前失败：Windows
+PowerShell 5.1 所在 .NET Framework 没有静态 `RandomNumberGenerator.Fill()`。失败目录按
+launch identity 原子隔离；PostgreSQL service 不存在、55440 无 listener、8080 健康。
+Codex 将通用 secret generator 改为 `RandomNumberGenerator.Create()` 实例，在 `try` 中调用
+`GetBytes()`、在 `finally` 中 `Dispose()`；密码学随机源、字节长度和不记录 secret 的合同均
+未降低。真实 `powershell.exe` 回归执行同一 API，验证输出缓冲区长度和非全零，但不打印随机值。
+
+DeepSeek 仅收到上述脱敏故障、修订和测试摘要。它把已经完成的 `Create/GetBytes/Dispose`
+修订再次列为 must-fix，并泛化要求验证之后才会建立的 listener/service；没有给出当前补丁的
+新反例。Codex 接受其“不得降低密码学随机和资源释放”的方向，但这些要求已由实现与回归覆盖，
+没有据此重复修改或提前宣称 VM bootstrap 通过。外部 verdict 不替代完整测试、最终 CI 和新的
+exact-commit VM 现场执行。
+
+### Stage 4 production execution：PG17 locale 初始化合同复核（2026-08-12）
+
+真实 VM 第三次尝试在 service、listener 与数据库 authority 建立前因宿主中文 code-page locale
+失败；PowerShell 还把 `initdb` 的本地化 stderr warning 升格为 terminating error。Codex 没有修改
+系统 locale，而是把 PG17 cluster 固定为 builtin `C.UTF-8`、UTF8、`simple` text search 和 data
+checksums；配置 validator 对任一 drift fail-closed。`initdb` stderr 被捕获且不写 evidence，成败只
+由 native exit code 决定。最终 verifier 再从真实 server 与 `pg_database` 反查 encoding、text
+search、checksum、locale provider 与 locale，不能靠配置自证。隔离的同版 `initdb` probe 已建立
+`PG_VERSION=17` cluster；没有注册 service 或 listener，也没有触碰 8080。
+
+DeepSeek把输入中已明确实现的 locale、checksum 与 catalog verifier 再次列为 must-fix，并虚构
+“PostgreSQL 应监听 8080 且 24 秒内就绪”；8080 是现有 Viewer，PostgreSQL 固定端口是 55440，
+因此该建议会制造真实冲突，明确拒绝。它关于不泄露 native output、保留非零退出失败的方向已由
+捕获变量、`native_output_recorded=false` 与 exit-code gate 满足，没有新增可复现缺口。最终依据
+仍是新提交自己的完整测试、required CI 和 exact-commit VM bootstrap，而不是外部 verdict。
+
+### Stage 4 production execution：Windows service 崩溃恢复合同复核（2026-08-12）
+
+真实 VM 第四次尝试已经通过固定 locale 的 cluster 初始化、TLS 与私钥 ACL，并完成正常的服务
+启动、停止和重启；失败发生在受控 postmaster crash 后的“自动重启”假设。两次独立临时服务
+探针确认：即使配置 SCM failure actions 和 failure flag，`pg_ctl runservice` 在 postmaster 退出后
+仍把服务报告为 `Stopped`/成功状态，SCM 因而不会执行 failure recovery action。Codex据此删除不实
+高可用承诺：通过 `postmaster.pid`、listener PID、`postgres.exe`、data-dir command line、
+`Win32_Service` 父进程共同验证被终止进程；确认 crash 后服务停止且 listener 消失；再显式
+`Start-Service`，要求新 postmaster PID、listener 和查询探针恢复。evidence 明确记录
+`postmaster_crash_automatic_restart=false`、需要监控/操作者触发、恢复方式与耗时。真实合成探针
+已通过，并完整清理临时 service、listener 和 data root，8080 保持健康。
+
+DeepSeek 把“自动重启为 false”同时描述为事实和“违反 automatic_restart=false 的要求”，又称实现
+没有识别 postmaster/PID/命令行、没有显式恢复触发；这些均与输入事实和实测直接冲突。它要求加入
+cutover hook、高可用和 Viewer 生命周期展示，超出本轮 S0/S1 infrastructure readiness，且用户明确
+禁止 S2/S3 与生产应用切换，故拒绝。其泛化的状态过渡提醒已由有界等待、Stopped/listener 双条件和
+新 PID 验证覆盖，没有形成可复现新增缺口。本轮不因 reviewer 的矛盾结论降低门禁或扩张范围。
+
+随后 exact-commit VM bootstrap 通过 service lifecycle 后在 credential probe 暴露出独立的
+Windows resolver 缺陷：探针仍使用 `localhost`，宿主优先解析为 `::1`，而经审计的数据库监听
+仅开放 `127.0.0.1`，连接因此被拒绝。通用管理连接本来已经固定 IPv4；Codex将 credential
+探针和 runtime config 一并统一到确切的 `127.0.0.1`，保留 TLS IP SAN 验证，不通过扩大监听
+范围解决。该问题由真实现场发现，DeepSeek本轮没有识别或提供信息增量。
+
+下一次 exact-commit 运行的初始/新凭据正向探针已执行，但预期的“旧密码拒绝”触发
+Windows PowerShell `NativeCommandError`：脚本级 `ErrorActionPreference=Stop` 在函数读取
+`LASTEXITCODE` 前终止，因而把正确的拒绝结果误判成 bootstrap 失败。Codex把这一行为限定在
+认证探针内部：暂时以 `Continue` 捕获且不输出 native 结果，保存 exit code 后恢复全局策略，
+由调用者分别断言初始/新凭据必须成功、旧/撤销凭据必须失败。没有放宽任何认证合同，也没有
+记录密码或 psql 错误原文；DeepSeek此前未识别该现场兼容缺口。
+
+### Stage 4 production execution：隔离 CLI 参数合同复核（2026-08-12）
+
+真实 VM bootstrap 在已完成隔离 Python runtime、TLS 生成和前置检查后，到 identity mapping
+阶段因入口合同不一致失败：allowlisted dispatcher 始终向模块入口转发参数列表，而
+`stage4_identity_mapping.main()` 仍是唯一的零参数入口。Codex只把该入口统一为
+`main(argv=None)` 并将 `argv` 交给 `argparse`，未改变映射规则、SQLite 只读合同、PostgreSQL
+状态或 authority。回归同时覆盖八个 allowlisted 入口的签名合同，以及通过真实 dispatcher
+对临时 SQLite fixture 执行 identity mapping；另一个只读现场探针成功生成预期 774 条映射。
+
+DeepSeek收到脱敏后的 dispatcher/CLI 事实与测试摘要，结论为 `approve`、无 must-fix。它建议
+对每个入口都增加完整 dispatcher 执行测试和补充开发规范；Codex部分接受“防止全体入口签名
+漂移”的目标，当前全 allowlist 签名门禁已经覆盖，且出错入口已有端到端执行测试。逐一执行
+所有重型 CLI 会引入环境依赖而不增加本缺陷的有效覆盖，因此不扩张；统一入口合同已由代码、
+定向测试和只读现场探针共同证明。外部 reviewer 不构成 mapping、off-VM、S2/S3 或 cutover 批准。
+
+下一次 VM bootstrap 进一步暴露了 dispatcher 参数命名空间冲突：外层和 recovery 子命令都使用
+`--repo-root`，旧 `parse_known_args()` 会扫描整段命令并吞掉子命令同名参数。Codex改为强制
+`--` 分隔 dispatcher 与子命令参数；外层只解析前缀，后缀逐 token 原样转发，缺少分隔符时
+fail-closed。bootstrap 的八个隔离入口全部使用同一边界，回归验证重名参数保留、无分隔符拒绝、
+PowerShell 语法以及 recovery help 的真实隔离调用。DeepSeek窄审查结论为 `pass`，无 must-fix
+或 should-fix；未提出新的可复现缺口，因此在一轮后停止。
+### Stage 4 production execution：Windows PowerShell UTF-8 BOM 合同复核（2026-08-13）
+
+真实 VM bootstrap 在 identity mapping 与只读 cross-check 完成后，于 recovery runtime evidence 读取阶段失败。根因是 Windows PowerShell 5.1 的 `Set-Content -Encoding UTF8` 写入 UTF-8 BOM，而 Python 入口按无 BOM `utf-8` 解码；这属于跨运行时序列化合同不一致，不是 PostgreSQL、mapping 或 recovery 数据本身失败。失败后现场已只读确认：`HonghuPostgreSQL17` service 不存在、55440 无 listener、install root 不存在、8080 健康，因此没有形成 production authority 或半安装状态。
+
+Codex 将 Stage 4 原子 JSON writer 固定为 .NET `UTF8Encoding(false)`，所有关键 Stage 4 文件型 JSON reader 统一通过共享 helper 以 `utf-8-sig` 接受有/无 BOM 的 UTF-8；UTF-16、损坏 JSON 和合同字段错误仍然 fail-closed。两个由 Python 输出、再由 PowerShell落盘的 runtime evidence 也改用同一无 BOM writer。回归覆盖有/无 BOM、中文内容、UTF-16 拒绝、真实 Windows PowerShell 无 BOM 字节以及 recovery reader 路径。最终本地证据为 695 个 core tests 通过、94 个 Stage 4/API/browser 定向测试通过、PowerShell parser、compile、OpenSpec strict 与 diff check 通过。
+
+DeepSeek 只收到脱敏后的根因、编码合同、覆盖范围和测试摘要，结论为 `pass`，无 must-fix。其 should-fix 仅重复已经实现的共享 reader、无 BOM writer、验证门禁和合同记录，没有形成信息增量；Codex 逐项以代码和回归验证后不再开启第二轮。本次外部复核不构成 PostgreSQL 部署、mapping approval、off-VM recovery、S2/S3 或 cutover 批准。
+
+### Stage 4 production execution：isolated bootstrap import 边界复核（2026-08-13）
+
+精确提交 `0a4d0c1f7d08d605426589e00d6052371ab275bb` 的 VM 运行在 contract preflight 即失败：bootstrap 仍以 `python -I -B` 直接执行 contract 文件，而前一轮引入的共享 JSON helper 需要从 reviewed repo root 导入 `tools.migration`。隔离模式正确忽略了工作目录和 ambient `PYTHONPATH`，因此暴露了入口边界回归。现场随即确认 service、install root 和 55440 listener 均不存在，8080 健康；没有形成数据库或 authority 状态。
+
+Codex 没有撤销隔离或依赖环境变量，而是把 bootstrap contract 纳入既有 allowlisted isolated dispatcher；fresh-install 与 completed-install resume 两条路径均通过显式 `--repo-root`、allowlisted module 和强制 `--` 参数边界执行。回归实际启动 `python -I -B` dispatcher 并导入 contract，同时复核全部 allowlisted invocation 的分隔符、入口签名和 PowerShell 语法。DeepSeek 只收到脱敏后的故障、修订、隔离合同与测试摘要，结论为 `pass`，无 must-fix/should-fix；其判断与真实代码和回归一致，没有信息增量，因此一轮后停止。该复核仍不构成 PostgreSQL 部署、mapping、off-VM recovery、S2/S3 或 cutover 批准。
+
+### Stage 4 production execution：pg_basebackup TLS root 合同复核（2026-08-13）
+
+真实 VM 已通过固定 PostgreSQL 17、TLS 生成与 ACL、service lifecycle/crash recovery、角色凭据 create/rotate/revoke 和 identity mapping；recovery 阶段留下的 run 目录为空，PostgreSQL 日志在同一时点记录 SSL connection EOF。代码审计确认所有 libpq subprocess 均强制 `PGSSLMODE=verify-full`，但 `pg_basebackup` 未继承 psycopg 路径已经显式使用的 runtime `sslrootcert`。Codex 将共享 subprocess helper 扩展为显式 TLS root 输入：解析并验证 root 文件存在，移除 ambient `PGSSLROOTCERT`，再把 exact reviewed root 注入 `pg_basebackup`；缺失 root 继续 fail-closed，密码只在子进程环境中存在且不进入 evidence。
+
+DeepSeek 只收到上述脱敏现场、代码差异和回归摘要，结论为 `pass`、无 must-fix。其唯一 should-fix 是增加“root 路径不存在必须拒绝”的测试，而该测试已经与 exact `PGSSLMODE/PGSSLROOTCERT` 断言在同一 revision 中实现，因此没有信息增量，不再开启第二轮。外部复核不替代 exact-commit CI、真实 VM recovery、off-VM failure domain、mapping approval 或 S2/S3 授权。
+
+### Stage 4 production execution：最小权限 verifier 控制面读取复核（2026-08-13）
+
+真实 VM 已完成 PostgreSQL 17.10、TLS、service/crash recovery、角色凭据、identity mapping、
+物理 recovery 和九个单元的 staging reconciliation，最终 verifier 使用
+`honghu_migration` 读取 migration identity 时被 `operations.schema_migration` 的表级 ACL
+拒绝。失败证据在 cleanup 前保存了原始 traceback，随后 service、listener 和 install root
+按既有合同安全隔离，没有进入 S2/S3 或产生正式 PostgreSQL 业务 mutation。
+
+Codex没有恢复全能管理员核验，也没有给 migration role 广泛的 `operations` schema 表权限；
+只增加 verifier 实际需要的四张控制面表的 `SELECT`：migration identity、cutover authority、
+dependency mapping 和 idempotency ledger。一次性 PostgreSQL 17.10 隔离集群按真实
+0001/0002/0003 migration 与 role grants 建库后，以 `SET ROLE honghu_migration` 执行 verifier
+全部控制面查询均通过，并确认没有 `GRANT SELECT ON ALL TABLES IN SCHEMA operations`。
+
+DeepSeek只收到上述脱敏权限边界、失败类型和测试摘要，返回 `pass`、无 must-fix；其判断认为
+四张命名表覆盖 verifier 的已声明读取合同且没有扩大写权。Codex仍以真实 PostgreSQL 角色执行
+而非字符串断言作为主要证据，没有开启无信息增量的第二轮。外部复核不构成 mapping、
+off-VM recovery、S2/S3 或 cutover 批准。

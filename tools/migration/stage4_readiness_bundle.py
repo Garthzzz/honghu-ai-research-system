@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from tools.migration.stage4_json_io import read_json
+
 
 EVIDENCE_SCHEMA = "honghu.stage4_readiness_evidence.v1"
 BUNDLE_SCHEMA = "honghu.stage4_user_content_readiness_bundle.v3"
@@ -31,7 +33,7 @@ def sha256_file(path: Path) -> str:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
+    return read_json(path)
 
 
 def _write(path: Path, payload: dict[str, Any]) -> Path:

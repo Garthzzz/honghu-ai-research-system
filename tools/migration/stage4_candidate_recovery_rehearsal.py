@@ -401,6 +401,18 @@ def run_rehearsal(
             ],
             password=admin_password,
         )
+        _psql(
+            bin_dir,
+            host=host,
+            port=port,
+            database=database,
+            user=admin_user,
+            password=admin_password,
+            sql=(
+                "REVOKE EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() FROM PUBLIC;"
+                f"GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO {ROLE_NAMES['backup']};"
+            ),
+        )
         phase("database_and_roles_created")
         _psql(
             bin_dir,
@@ -552,6 +564,15 @@ def run_rehearsal(
             ],
             password=role_passwords["backup"],
         )
+        _run(
+            [
+                _tool(bin_dir, "pg_verifybackup"),
+                "--exit-on-error",
+                "--quiet",
+                "--no-parse-wal",
+                str(base_backup),
+            ]
+        )
         phase("physical_base_backup_created")
         base_backup_id = tree_identity(base_backup)
         sentinel_operation_id = f"stage4-recovery-{secrets.token_hex(12)}"
@@ -583,8 +604,8 @@ def run_rehearsal(
             host=host,
             port=port,
             database=database,
-            user=admin_user,
-            password=admin_password,
+            user=ROLE_NAMES["backup"],
+            password=role_passwords["backup"],
             sql="SELECT pg_switch_wal();",
         )
         required_wal_path = archive / required_wal_name
