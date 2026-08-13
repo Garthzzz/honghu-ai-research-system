@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -47,3 +49,14 @@ def test_cutover_does_not_modify_sqlite_or_scheduled_tasks() -> None:
         "Stop-Service",
     ):
         assert forbidden not in script
+
+
+def test_every_isolated_module_used_by_cutover_is_allowlisted() -> None:
+    script = (
+        ROOT / "tools" / "migration" / "Invoke-UserContentProductionCutover.ps1"
+    ).read_text(encoding="utf-8")
+    import re
+
+    invoked = set(re.findall(r"Invoke-Isolated\s+'([^']+)'", script))
+    assert invoked
+    assert invoked <= set(ALLOWED_MODULES)

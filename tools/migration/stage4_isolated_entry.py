@@ -29,6 +29,7 @@ ALLOWED_MODULES = {
     "tools.migration.stage4_user_content_runtime": "main",
     "tools.migration.stage4_user_content_cutover": "main",
     "tools.migration.stage4_user_content_approval": "main",
+    "tools.migration.stage4_user_content_acceptance": "main",
     "tools.migration.stage4_user_content_writer_fence": "main",
     "tools.migration.stage4_unit_s1": "main",
     "tools.migration.stage4_s1_loader": "main",
