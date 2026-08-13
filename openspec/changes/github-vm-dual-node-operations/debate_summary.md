@@ -632,3 +632,22 @@ Codex 没有撤销隔离或依赖环境变量，而是把 bootstrap contract 纳
 真实 VM 已通过固定 PostgreSQL 17、TLS 生成与 ACL、service lifecycle/crash recovery、角色凭据 create/rotate/revoke 和 identity mapping；recovery 阶段留下的 run 目录为空，PostgreSQL 日志在同一时点记录 SSL connection EOF。代码审计确认所有 libpq subprocess 均强制 `PGSSLMODE=verify-full`，但 `pg_basebackup` 未继承 psycopg 路径已经显式使用的 runtime `sslrootcert`。Codex 将共享 subprocess helper 扩展为显式 TLS root 输入：解析并验证 root 文件存在，移除 ambient `PGSSLROOTCERT`，再把 exact reviewed root 注入 `pg_basebackup`；缺失 root 继续 fail-closed，密码只在子进程环境中存在且不进入 evidence。
 
 DeepSeek 只收到上述脱敏现场、代码差异和回归摘要，结论为 `pass`、无 must-fix。其唯一 should-fix 是增加“root 路径不存在必须拒绝”的测试，而该测试已经与 exact `PGSSLMODE/PGSSLROOTCERT` 断言在同一 revision 中实现，因此没有信息增量，不再开启第二轮。外部复核不替代 exact-commit CI、真实 VM recovery、off-VM failure domain、mapping approval 或 S2/S3 授权。
+
+### Stage 4 production execution：最小权限 verifier 控制面读取复核（2026-08-13）
+
+真实 VM 已完成 PostgreSQL 17.10、TLS、service/crash recovery、角色凭据、identity mapping、
+物理 recovery 和九个单元的 staging reconciliation，最终 verifier 使用
+`honghu_migration` 读取 migration identity 时被 `operations.schema_migration` 的表级 ACL
+拒绝。失败证据在 cleanup 前保存了原始 traceback，随后 service、listener 和 install root
+按既有合同安全隔离，没有进入 S2/S3 或产生正式 PostgreSQL 业务 mutation。
+
+Codex没有恢复全能管理员核验，也没有给 migration role 广泛的 `operations` schema 表权限；
+只增加 verifier 实际需要的四张控制面表的 `SELECT`：migration identity、cutover authority、
+dependency mapping 和 idempotency ledger。一次性 PostgreSQL 17.10 隔离集群按真实
+0001/0002/0003 migration 与 role grants 建库后，以 `SET ROLE honghu_migration` 执行 verifier
+全部控制面查询均通过，并确认没有 `GRANT SELECT ON ALL TABLES IN SCHEMA operations`。
+
+DeepSeek只收到上述脱敏权限边界、失败类型和测试摘要，返回 `pass`、无 must-fix；其判断认为
+四张命名表覆盖 verifier 的已声明读取合同且没有扩大写权。Codex仍以真实 PostgreSQL 角色执行
+而非字符串断言作为主要证据，没有开启无信息增量的第二轮。外部复核不构成 mapping、
+off-VM recovery、S2/S3 或 cutover 批准。

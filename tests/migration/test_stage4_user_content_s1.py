@@ -79,3 +79,8 @@ def test_migration_role_has_only_s0_s1_authority_preparation() -> None:
     assert "ABSENT->S0 or S0->S1" in staging
     assert "REVOKE EXECUTE ON FUNCTION operations.transition_user_content_notes" in grants
     assert "GRANT EXECUTE ON FUNCTION operations.prepare_user_content_notes_authority_s1" in grants
+    assert "operations.schema_migration" in grants
+    assert "operations.cutover_unit_authority" in grants
+    assert "operations.cutover_dependency_mapping" in grants
+    assert "operations.idempotency_record" in grants
+    assert "GRANT SELECT ON ALL TABLES IN SCHEMA operations" not in grants
