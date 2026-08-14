@@ -8,6 +8,7 @@ from tools.migration.stage4_user_content_cutover import (
     UserContentCutoverError,
     _route,
     _sha,
+    inspect_authority,
     validate_enter_s2_inputs,
 )
 from tools.migration.stage4_user_content_s1 import _sha as s1_sha
@@ -135,3 +136,39 @@ def test_runtime_route_never_reenables_sqlite_writer() -> None:
         assert route["backend"] == "postgresql_production"
         assert route["sqlite_writer_enabled"] is False
         assert route["production_postgresql_enabled"] is True
+
+
+def test_authority_inspection_supports_uncertain_response_recovery() -> None:
+    row = (
+        "S2",
+        "postgresql_production",
+        3,
+        "honghu_user_content_writer",
+        "epoch-1",
+        {"analyst_note_count": 0},
+        None,
+        "approval-1",
+    )
+
+    class Cursor:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def execute(self, sql: str) -> None:
+            assert "user_content_notes_authority_v1" in sql
+
+        def fetchone(self):
+            return row
+
+    class Connection:
+        def cursor(self):
+            return Cursor()
+
+    result = inspect_authority(Connection())
+    assert result["state"] == "S2"
+    assert result["authoritative_backend"] == "postgresql_production"
+    assert result["authority_revision"] == 3
+    assert len(result["evidence_sha256"]) == 64

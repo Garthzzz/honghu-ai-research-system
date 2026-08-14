@@ -112,6 +112,7 @@ def compile_writer_fence(
         "legacy_health_was_reachable",
         "legacy_listener_identity_verified",
         "legacy_listener_stopped",
+        "legacy_service_fence_verified",
         "post_stop_listener_absent",
         "post_stop_health_unreachable",
         "scheduled_task_query_succeeded",
@@ -155,6 +156,9 @@ def compile_writer_fence(
         "watermark_stable_across_fence": True,
         "windows_observation_sha256": observed_sha,
         "stopped_listener_pids": [int(item) for item in stopped_pids],
+        "stopped_service_identities": windows_observation.get(
+            "stopped_service_identities", []
+        ),
         "scheduled_writer_matches": [],
         "writer_process_matches": [],
     }

@@ -41,11 +41,13 @@ def _windows(**updates: object) -> dict:
         "legacy_health_was_reachable": True,
         "legacy_listener_identity_verified": True,
         "legacy_listener_stopped": True,
+        "legacy_service_fence_verified": True,
         "post_stop_listener_absent": True,
         "post_stop_health_unreachable": True,
         "scheduled_task_query_succeeded": True,
         "process_query_succeeded": True,
         "stopped_listener_pids": [1234],
+        "stopped_service_identities": [],
         "scheduled_writer_matches": [],
         "writer_process_matches": [],
     }
@@ -132,6 +134,10 @@ def test_powershell_contract_collects_before_and_after_without_task_mutation() -
     assert "reviewed repository root and immutable release directory must be distinct" in source
     assert "Get-HonghuScheduledTaskActionInspection" in source
     assert "unsupportedRelevantActions" in source
+    assert "Get-CimInstance Win32_Service" in source
+    assert "Stop-Service -Name" in source
+    assert "Start-Service -Name" in source
+    assert "legacy_service_fence_verified" in source
 
 
 def test_scheduled_task_action_inspection_handles_non_exec_actions(tmp_path: Path) -> None:

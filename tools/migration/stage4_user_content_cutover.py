@@ -274,11 +274,39 @@ def reconcile_s3(connection: Any, *, s2: dict[str, Any], route_path: Path) -> di
     return {**core, "evidence_sha256": _sha(core)}
 
 
+def inspect_authority(connection: Any) -> dict[str, Any]:
+    """Read the durable authority row for uncertain-response recovery."""
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            """SELECT state, authoritative_backend, state_revision, writer_identity,
+                      cutover_epoch, sqlite_final_watermark,
+                      postgresql_first_formal_commit, approval_reference
+                 FROM operations.user_content_notes_authority_v1
+                WHERE cutover_unit='user_content_notes'"""
+        )
+        row = cursor.fetchone()
+    if row is None:
+        raise UserContentCutoverError("user-content authority row is absent")
+    core = {
+        "schema_version": "honghu.user_content_authority_inspection.v1",
+        "state": str(row[0]),
+        "authoritative_backend": str(row[1]),
+        "authority_revision": int(row[2]),
+        "writer_identity": row[3],
+        "cutover_epoch": row[4],
+        "sqlite_final_watermark": row[5],
+        "postgresql_first_formal_commit": row[6],
+        "approval_reference": row[7],
+    }
+    return {**core, "evidence_sha256": _sha(core)}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("enter-s2", "reconcile-s3"))
+    parser.add_argument("action", choices=("enter-s2", "reconcile-s3", "inspect-authority"))
     parser.add_argument("--runtime", type=Path, required=True)
-    parser.add_argument("--route-output", type=Path, required=True)
+    parser.add_argument("--route-output", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--mapping", type=Path)
     parser.add_argument("--mapping-approval", type=Path)
@@ -289,7 +317,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--s2-evidence", type=Path)
     args = parser.parse_args(argv)
 
-    if args.action == "enter-s2":
+    if args.action == "inspect-authority":
+        connection = _connection_from_runtime(args.runtime, "reader")
+        try:
+            result = inspect_authority(connection)
+        finally:
+            connection.close()
+    elif args.action == "enter-s2":
+        if args.route_output is None:
+            parser.error("enter-s2 requires --route-output")
         required = (
             args.mapping,
             args.mapping_approval,
@@ -326,6 +362,8 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             connection.close()
     else:
+        if args.route_output is None:
+            parser.error("reconcile-s3 requires --route-output")
         if args.s2_evidence is None:
             parser.error("reconcile-s3 requires --s2-evidence")
         s2 = _load_object(args.s2_evidence)
