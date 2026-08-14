@@ -103,7 +103,7 @@ def promote_shared_identity_s1(
     with connection.transaction():
         snapshot = connection.execute(
             """
-            SELECT snapshot_id,source_identity_sha256,reconciliation
+            SELECT snapshot_id,source_identity_sha256,application_commit_sha,reconciliation
               FROM migration.unit_snapshot
              WHERE cutover_unit='shared_identity' AND lifecycle_state='reconciled'
              ORDER BY imported_at DESC LIMIT 1
@@ -113,7 +113,8 @@ def promote_shared_identity_s1(
             raise SharedIdentityS1Error("reconciled shared_identity staging snapshot is missing")
         snapshot_id = str(snapshot[0])
         source_identity = str(snapshot[1])
-        reconciliation = snapshot[2]
+        application_commit_sha = str(snapshot[2])
+        reconciliation = snapshot[3]
         if isinstance(reconciliation, str):
             reconciliation = json.loads(reconciliation)
         source_count = int(reconciliation["source_row_count"])
@@ -291,6 +292,7 @@ def promote_shared_identity_s1(
         "authoritative_backend": "sqlite_transition",
         "source_snapshot_id": snapshot_id,
         "source_identity_sha256": source_identity,
+        "application_commit_sha": application_commit_sha,
         "mapping_manifest_sha256": manifest_sha,
         "source_row_count": source_count,
         "target_row_count": source_count,

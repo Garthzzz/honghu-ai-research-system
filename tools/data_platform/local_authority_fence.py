@@ -8,6 +8,8 @@ from silently writing a stale SQLite migration baseline.
 """
 
 import json
+import os
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -60,3 +62,33 @@ def assert_sqlite_write_allowed(data_root: str | Path, cutover_unit: str) -> Non
             f"{cutover_unit} SQLite writer is retired by local authority fence "
             f"state={payload['authority_state']}"
         )
+
+
+def write_authority_fence(
+    data_root: str | Path,
+    *,
+    cutover_unit: str,
+    authority_state: str,
+    authoritative_backend: str,
+    authority_evidence_sha256: str,
+    approval_reference: str,
+    cutover_epoch: str,
+) -> Path:
+    payload = {
+        "schema_version": "honghu.local_authority_fence.v1",
+        "cutover_unit": cutover_unit,
+        "authority_state": authority_state,
+        "authoritative_backend": authoritative_backend,
+        "authority_evidence_sha256": authority_evidence_sha256,
+        "approval_reference": approval_reference,
+        "cutover_epoch": cutover_epoch,
+    }
+    path = authority_fence_path(data_root, cutover_unit)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    temporary.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    os.replace(temporary, path)
+    load_authority_fence(data_root, cutover_unit)
+    return path

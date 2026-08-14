@@ -9,6 +9,7 @@ from tools.data_platform.local_authority_fence import (
     assert_sqlite_write_allowed,
     authority_fence_path,
     load_authority_fence,
+    write_authority_fence,
 )
 
 
@@ -46,4 +47,20 @@ def test_postgresql_authority_marker_fences_stale_sqlite_writer(tmp_path, state)
 def test_malformed_or_inconsistent_fence_fails_closed(tmp_path) -> None:
     _write(tmp_path, state="S3", backend="sqlite_transition")
     with pytest.raises(LocalAuthorityFenceError, match="invalid backend"):
+        assert_sqlite_write_allowed(tmp_path, "shared_identity")
+
+
+def test_atomic_fence_writer_round_trips_blocking_authority(tmp_path) -> None:
+    path = write_authority_fence(
+        tmp_path,
+        cutover_unit="shared_identity",
+        authority_state="S3",
+        authoritative_backend="postgresql_production",
+        authority_evidence_sha256="b" * 64,
+        approval_reference="user-approval",
+        cutover_epoch="shared-epoch",
+    )
+    assert path.is_file()
+    assert load_authority_fence(tmp_path, "shared_identity")["cutover_epoch"] == "shared-epoch"
+    with pytest.raises(LocalAuthorityFenceError, match="SQLite writer is retired"):
         assert_sqlite_write_allowed(tmp_path, "shared_identity")
