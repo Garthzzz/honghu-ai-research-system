@@ -18,6 +18,16 @@ def test_schema_renderer_removes_psql_meta_and_binds_exact_sha() -> None:
     assert "'" + "a" * 64 + "'" in rendered
 
 
+def test_schema_renderer_binds_reviewed_role_identifiers() -> None:
+    rendered = render_schema_migration(
+        "\\set ON_ERROR_STOP on\nSELECT :'migration_sha256';\nGRANT SELECT ON x TO :\"reader_role\";",
+        "a" * 64,
+        identifiers={"reader_role": "honghu_viewer_reader"},
+    )
+    assert ':"reader_role"' not in rendered
+    assert '"honghu_viewer_reader"' in rendered
+
+
 def test_role_renderer_quotes_only_safe_reviewed_identifiers() -> None:
     rendered = render_role_grant(
         'GRANT SELECT ON x TO :"reader_role";',

@@ -88,9 +88,9 @@ WHERE source_table='financial_model_run';
 REVOKE ALL ON SCHEMA financial_data FROM PUBLIC;
 REVOKE ALL ON ALL TABLES IN SCHEMA financial_data FROM PUBLIC;
 
-GRANT USAGE ON SCHEMA financial_data TO honghu_migration, honghu_reader;
-GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA financial_data TO honghu_migration;
-GRANT SELECT ON ALL TABLES IN SCHEMA financial_data TO honghu_reader;
+GRANT USAGE ON SCHEMA financial_data TO :"migration_role", :"reader_role";
+GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA financial_data TO :"migration_role";
+GRANT SELECT ON ALL TABLES IN SCHEMA financial_data TO :"reader_role";
 
 INSERT INTO operations.schema_migration(
     migration_id,migration_sha256,phase,forward_only

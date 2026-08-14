@@ -33,13 +33,20 @@ def _sha_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def render_schema_migration(text: str, migration_sha256: str) -> str:
+def render_schema_migration(
+    text: str,
+    migration_sha256: str,
+    *,
+    identifiers: dict[str, str] | None = None,
+) -> str:
     if not re.fullmatch(r"[0-9a-f]{64}", migration_sha256):
         raise MigrationApplyError("invalid migration SHA256")
     lines = [line for line in text.splitlines() if not line.lstrip().startswith("\\")]
     rendered = "\n".join(lines).replace(
         ":'migration_sha256'", "'" + migration_sha256 + "'"
     )
+    if identifiers:
+        rendered = render_role_grant(rendered, identifiers)
     if ":'migration_sha256'" in rendered or "\\set" in rendered:
         raise MigrationApplyError("unrendered psql migration variable remains")
     return rendered
@@ -115,8 +122,20 @@ def apply_reviewed_migrations(
                 {"migration_id": migration_id, "sha256": migration_sha, "status": "already_exact"}
             )
             continue
+        identifiers = (
+            {
+                "migration_role": "honghu_migration",
+                "reader_role": "honghu_viewer_reader",
+            }
+            if name == "0008_financial_data_expand.sql"
+            else None
+        )
         connection.execute(
-            render_schema_migration(path.read_text(encoding="utf-8"), migration_sha)
+            render_schema_migration(
+                path.read_text(encoding="utf-8"),
+                migration_sha,
+                identifiers=identifiers,
+            )
         )
         recorded = connection.execute(
             "SELECT migration_sha256 FROM operations.schema_migration WHERE migration_id=%s",
