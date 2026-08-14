@@ -19,6 +19,7 @@ def _runtime() -> dict:
         "sslmode": "verify-full",
         "sslrootcert": "D:/root.crt",
         "service_name": "HonghuPostgreSQL17",
+        "tracked_static_default_route": "sqlite_transition",
         "application_route": "sqlite_transition",
         "roles": {},
     }
@@ -29,7 +30,7 @@ def test_runtime_binding_changes_only_release_identity_not_authority() -> None:
     result = bind_runtime(source, commit_sha="b" * 40)
     assert source["application_commit_sha"] == "a" * 40
     assert result["application_commit_sha"] == "b" * 40
-    assert result["application_route"] == "sqlite_transition"
+    assert result["tracked_static_default_route"] == "sqlite_transition"
     assert result["runtime_binding"]["infrastructure_reinstalled"] is False
     assert result["runtime_binding"]["authority_changed"] is False
     assert len(result["runtime_binding_identity_sha256"]) == 64
@@ -39,7 +40,7 @@ def test_runtime_binding_changes_only_release_identity_not_authority() -> None:
     "field,value",
     [
         ("environment_id", "dev"),
-        ("application_route", "postgresql_production"),
+        ("tracked_static_default_route", "postgresql_production"),
         ("sslmode", "require"),
     ],
 )

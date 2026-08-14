@@ -9,7 +9,12 @@ from pathlib import Path
 from typing import Any
 
 from tools.migration.stage4_s1_loader import _connection_from_runtime, load_snapshot
-from tools.migration.stage4_unit_s1 import PRODUCTION_UNITS, build_unit_snapshot
+from tools.migration.stage4_unit_s1 import (
+    DATABASE_FILES,
+    PRODUCTION_UNITS,
+    _backup_database,
+    build_unit_snapshot,
+)
 from tools.migration.stage4_json_io import read_json
 
 
@@ -61,15 +66,33 @@ def _authority_guard(connection: Any) -> list[dict[str, Any]]:
             for row in cursor.fetchall()
         ]
     for row in rows:
-        if (
-            row["state"] not in {"S0", "S1"}
-            or row["authoritative_backend"] != "sqlite_transition"
-            or row["writer_identity"] is not None
-            or row["cutover_epoch"] is not None
-            or row["postgresql_first_formal_commit"] is not None
-        ):
+        state = row["state"]
+        if state in {"S0", "S1"}:
+            valid = (
+                row["authoritative_backend"] == "sqlite_transition"
+                and row["writer_identity"] is None
+                and row["cutover_epoch"] is None
+                and row["postgresql_first_formal_commit"] is None
+            )
+        elif state == "S2":
+            valid = (
+                row["authoritative_backend"] == "postgresql_production"
+                and bool(row["writer_identity"])
+                and bool(row["cutover_epoch"])
+                and row["postgresql_first_formal_commit"] is None
+            )
+        elif state in {"S3", "S4"}:
+            valid = (
+                row["authoritative_backend"] == "postgresql_production"
+                and bool(row["writer_identity"])
+                and bool(row["cutover_epoch"])
+                and row["postgresql_first_formal_commit"] is not None
+            )
+        else:
+            valid = False
+        if not valid:
             raise Stage4PreparationError(
-                f"production authority exceeds S0/S1: {row['cutover_unit']}"
+                f"invalid authority invariant: {row['cutover_unit']} state={state}"
             )
     return rows
 
@@ -144,25 +167,50 @@ def prepare_units(
     if unknown:
         raise Stage4PreparationError(f"unknown production unit: {', '.join(unknown)}")
 
+    required_databases = sorted(
+        {
+            str(item.get("database"))
+            for unit in units
+            for item in ((registry.get("units") or {}).get(unit, {}).get("objects") or [])
+            if str(item.get("database") or "") in DATABASE_FILES
+        }
+    )
+    if not required_databases:
+        raise Stage4PreparationError("selected units have no reviewed SQLite database objects")
     free = shutil.disk_usage(work_root.parent if work_root.parent.exists() else source_data_root).free
-    largest_source = max((source_data_root / name).stat().st_size for name in (
-        "research.db", "financial.db", "opportunity_lens.db", "sentiment.db"
-    ))
-    if free < max(2 * largest_source, 2 * 1024**3):
+    source_bytes = sum((source_data_root / name).stat().st_size for name in required_databases)
+    if free < max(source_bytes + 1024**3, 2 * 1024**3):
         raise Stage4PreparationError("insufficient free space for bounded online snapshot and row stream")
 
     work_root.mkdir(parents=True, exist_ok=True)
+    batch_source_root = work_root / "_batch-source-snapshot"
+    if batch_source_root.exists():
+        shutil.rmtree(batch_source_root)
+    batch_source_root.mkdir(parents=True)
+    batch_database_evidence: dict[str, dict[str, Any]] = {}
+    try:
+        for name in required_databases:
+            batch_database_evidence[name] = _backup_database(
+                source_data_root / name, batch_source_root / name
+            )
+    except Exception:
+        shutil.rmtree(batch_source_root, ignore_errors=True)
+        raise
     started = datetime.now(timezone.utc).isoformat()
     results: list[dict[str, Any]] = []
     failures: list[dict[str, str]] = []
-    connection = _connection_from_runtime(runtime_path, "migration")
+    connection = None
     try:
+        connection = _connection_from_runtime(runtime_path, "migration")
         # psycopg starts an implicit transaction for the first authority SELECT.
         # Without autocommit, each load_snapshot() transaction becomes a nested
         # savepoint and connection.close() rolls every apparently successful
         # unit back.  Keep the guard reads transactionless so every unit loader
         # owns and commits one real top-level transaction.
         connection.autocommit = True
+        # Already-cut units may be durable S3/S4.  Preparation is safe only
+        # because the exact authority rows are captured before and after and
+        # must remain unchanged; the target loader still accepts only S0/S1.
         before_authority = _authority_guard(connection)
         for unit in units:
             unit_root = work_root / unit
@@ -172,11 +220,13 @@ def prepare_units(
             try:
                 snapshot = build_unit_snapshot(
                     unit=unit,
-                    source_data_root=source_data_root,
+                    source_data_root=batch_source_root,
                     registry_path=registry_path,
                     application_commit_sha=application_commit_sha,
                     output_dir=unit_root,
                     include_rows=True,
+                    source_is_consistent_snapshot=True,
+                    preverified_database_evidence=batch_database_evidence,
                 )
                 rows_sha = _sha_file(rows_path)
                 loaded = load_snapshot(
@@ -212,7 +262,17 @@ def prepare_units(
                 )
         after_authority = _authority_guard(connection)
     finally:
-        connection.close()
+        if connection is not None:
+            connection.close()
+        try:
+            for name, evidence in batch_database_evidence.items():
+                if _sha_file(batch_source_root / name) != evidence["snapshot_sha256"]:
+                    raise Stage4PreparationError(
+                        f"batch SQLite snapshot changed during preparation: {name}"
+                    )
+        finally:
+            if batch_source_root.exists():
+                shutil.rmtree(batch_source_root)
     if before_authority != after_authority:
         raise Stage4PreparationError("unit staging changed authority control state")
     durable_connection = _connection_from_runtime(runtime_path, "migration")
@@ -229,6 +289,9 @@ def prepare_units(
         "units": results,
         "durable_snapshots": durable_snapshots,
         "transaction_contract": "one_top_level_commit_per_unit_then_fresh_session_verification",
+        "source_snapshot_contract": "one_bounded_sqlite_online_backup_per_database_reused_read_only_across_units",
+        "database_snapshot_evidence": batch_database_evidence,
+        "database_snapshots_removed_after_load": True,
         "failures": failures,
         "authority_before": before_authority,
         "authority_after": after_authority,

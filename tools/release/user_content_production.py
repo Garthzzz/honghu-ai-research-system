@@ -80,6 +80,32 @@ def configure_environment(args: argparse.Namespace) -> dict:
             "PYTHONIOENCODING": "utf-8",
         }
     )
+    shared_route = getattr(args, "shared_identity_route", None)
+    shared_runtime = getattr(args, "shared_identity_postgres_config", None)
+    if (shared_route is None) != (shared_runtime is None):
+        raise ProductionServeError(
+            "shared identity route and PostgreSQL runtime must be supplied together"
+        )
+    if shared_route is not None:
+        if not shared_route.resolve().is_file() or not shared_runtime.resolve().is_file():
+            raise ProductionServeError("shared identity runtime input is missing")
+        shared = json.loads(shared_route.read_text(encoding="utf-8-sig"))
+        if (
+            shared.get("cutover_unit") != "shared_identity"
+            or shared.get("authority_state") not in {"S2", "S3", "S4"}
+            or shared.get("backend") != "postgresql_production"
+            or shared.get("sqlite_writer_enabled") is not False
+            or shared.get("production_postgresql_enabled") is not True
+        ):
+            raise ProductionServeError("shared identity route does not fence SQLite")
+        os.environ.update(
+            {
+                "HONGHU_SHARED_IDENTITY_ROUTE_CONFIG": str(shared_route.resolve()),
+                "HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG": str(
+                    shared_runtime.resolve()
+                ),
+            }
+        )
     return verification
 
 
@@ -125,6 +151,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postgres-config", type=Path, required=True)
     parser.add_argument("--identity-mapping", type=Path, required=True)
     parser.add_argument("--security-config", type=Path, required=True)
+    parser.add_argument("--shared-identity-route", type=Path)
+    parser.add_argument("--shared-identity-postgres-config", type=Path)
     parser.add_argument("--launch-id", required=True)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, required=True)

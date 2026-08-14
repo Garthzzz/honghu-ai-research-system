@@ -31,6 +31,16 @@ from tools.migration.stage4_production_recovery import (
     _wait_for_recovery_target,
     ProductionRecoveryError,
 )
+from tools.migration.stage4_authority_control import (
+    AuthorityControlError,
+    authority_snapshot,
+    read_authority_snapshots,
+)
+from tools.migration import stage4_authority_control as authority_control_module
+from tools.migration.stage4_runtime_contract import (
+    RuntimeContractError,
+    tracked_static_default_route,
+)
 from tools.migration.stage4_isolated_entry import ALLOWED_MODULES
 from tools.migration import stage4_isolated_entry as isolated_entry_module
 
@@ -52,6 +62,7 @@ def test_recovery_authority_snapshot_accepts_complete_s3() -> None:
         )
     )
     assert snapshot["state"] == "S3"
+    assert snapshot["cutover_unit"] == "user_content_notes"
     assert snapshot["authoritative_backend"] == "postgresql_production"
     assert snapshot["postgresql_first_formal_commit"] == '{"operation_id":"formal-1"}'
 
@@ -76,6 +87,167 @@ def test_recovery_authority_snapshot_accepts_complete_s3() -> None:
 def test_recovery_authority_snapshot_fails_closed(row: tuple[object, ...], message: str) -> None:
     with pytest.raises(ProductionRecoveryError, match=message):
         _authority_snapshot(row)
+
+
+class _AuthorityCursor:
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
+        self.rows = rows
+
+    def fetchall(self) -> list[tuple[object, ...]]:
+        return self.rows
+
+
+class _AuthorityConnection:
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
+        self.rows = rows
+
+    def execute(self, sql: str) -> _AuthorityCursor:
+        assert "ORDER BY cutover_unit" in sql
+        return _AuthorityCursor(self.rows)
+
+    def close(self) -> None:
+        return None
+
+
+def test_generic_authority_recovery_validates_every_cutover_unit() -> None:
+    rows = [
+        (
+            "financial_data",
+            "S1",
+            "sqlite_transition",
+            None,
+            None,
+            None,
+            None,
+            2,
+            "approval-f",
+        ),
+        (
+            "user_content_notes",
+            "S3",
+            "postgresql_production",
+            "writer-user",
+            "epoch-user",
+            '{"source":"sqlite"}',
+            '{"operation_id":"formal-1"}',
+            3,
+            "approval-user",
+        ),
+    ]
+    snapshots = read_authority_snapshots(
+        _AuthorityConnection(rows),
+        required_units=("user_content_notes", "financial_data"),
+    )
+    assert snapshots["user_content_notes"]["state"] == "S3"
+    assert snapshots["financial_data"]["state"] == "S1"
+
+
+def test_generic_authority_recovery_fails_on_any_s2_or_missing_unit() -> None:
+    s2 = (
+        "shared_identity",
+        "S2",
+        "postgresql_production",
+        "writer-identity",
+        "epoch-identity",
+        "watermark",
+        None,
+        2,
+        "approval-identity",
+    )
+    with pytest.raises(AuthorityControlError, match="short S2 cutover fence"):
+        read_authority_snapshots(_AuthorityConnection([s2]))
+    s1 = (
+        "shared_identity",
+        "S1",
+        "sqlite_transition",
+        None,
+        None,
+        None,
+        None,
+        1,
+        "approval",
+    )
+    with pytest.raises(AuthorityControlError, match="required authority rows are missing"):
+        read_authority_snapshots(
+            _AuthorityConnection([s1]), required_units=("financial_data",)
+        )
+
+
+def test_authority_snapshot_rejects_unit_identity_mismatch() -> None:
+    with pytest.raises(AuthorityControlError, match="another cutover unit"):
+        authority_snapshot(
+            (
+                "shared_identity",
+                "S1",
+                "sqlite_transition",
+                None,
+                None,
+                None,
+                None,
+                1,
+                "approval",
+            ),
+            cutover_unit="financial_data",
+        )
+
+
+def test_authority_probe_cli_writes_validated_single_unit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rows = [
+        (
+            "shared_identity",
+            "S1",
+            "sqlite_transition",
+            None,
+            None,
+            None,
+            None,
+            1,
+            "approval",
+        )
+    ]
+    monkeypatch.setattr(
+        "tools.migration.stage4_s1_loader._connection_from_runtime",
+        lambda runtime, role: _AuthorityConnection(rows),
+    )
+    output = tmp_path / "authority.json"
+    assert (
+        authority_control_module.main(
+            [
+                "--runtime",
+                str(tmp_path / "runtime.json"),
+                "--unit",
+                "shared_identity",
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "honghu.cutover_authority_probe.v1"
+    assert payload["authority"]["state"] == "S1"
+
+
+def test_runtime_static_route_is_distinct_and_legacy_compatible() -> None:
+    assert (
+        tracked_static_default_route(
+            {"tracked_static_default_route": "sqlite_transition"}
+        )
+        == "sqlite_transition"
+    )
+    assert (
+        tracked_static_default_route({"application_route": "sqlite_transition"})
+        == "sqlite_transition"
+    )
+    with pytest.raises(RuntimeContractError, match="conflicts"):
+        tracked_static_default_route(
+            {
+                "tracked_static_default_route": "sqlite_transition",
+                "application_route": "postgresql_production",
+            }
+        )
 
 
 @pytest.mark.parametrize(

@@ -80,8 +80,11 @@ class CutoverRoute:
 
     @classmethod
     def from_mapping(cls, payload: dict[str, Any]) -> "CutoverRoute":
-        if payload.get("schema_version") != "honghu.user_content_route.v1":
-            raise ValueError("unsupported user-content route schema")
+        if payload.get("schema_version") not in {
+            "honghu.user_content_route.v1",
+            "honghu.cutover_route.v1",
+        }:
+            raise ValueError("unsupported cutover route schema")
         return cls(
             cutover_unit=str(payload.get("cutover_unit") or ""),
             backend=Backend(str(payload.get("backend") or "")),

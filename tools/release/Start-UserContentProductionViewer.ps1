@@ -13,6 +13,8 @@ param(
     [Parameter(Mandatory = $true)][string]$SecurityConfig,
     [Parameter(Mandatory = $true)][string]$TlsCertificate,
     [Parameter(Mandatory = $true)][string]$TlsPrivateKey,
+    [string]$SharedIdentityRouteConfig = '',
+    [string]$SharedIdentityPostgresConfig = '',
     [int]$HttpPort = 8080,
     [int]$HttpsPort = 8443
 )
@@ -77,6 +79,13 @@ foreach ($item in @(
 )) {
     Resolve-RequiredFile $item[0] $item[1] | Out-Null
 }
+if ([bool]$SharedIdentityRouteConfig -ne [bool]$SharedIdentityPostgresConfig) {
+    throw 'shared identity route and PostgreSQL runtime must be supplied together'
+}
+if ($SharedIdentityRouteConfig) {
+    $SharedIdentityRouteConfig = Resolve-RequiredFile $SharedIdentityRouteConfig 'shared identity route'
+    $SharedIdentityPostgresConfig = Resolve-RequiredFile $SharedIdentityPostgresConfig 'shared identity PostgreSQL runtime'
+}
 foreach ($directory in @($DataRoot, $ContentRoot, $StateRoot)) {
     if (-not (Test-Path -LiteralPath $directory -PathType Container)) {
         throw "runtime directory missing: $directory"
@@ -116,6 +125,12 @@ $common = @(
     '--security-config', $SecurityConfig,
     '--host', '0.0.0.0'
 )
+if ($SharedIdentityRouteConfig) {
+    $common += @(
+        '--shared-identity-route', $SharedIdentityRouteConfig,
+        '--shared-identity-postgres-config', $SharedIdentityPostgresConfig
+    )
+}
 $records = @()
 try {
     foreach ($listener in @(
@@ -165,6 +180,7 @@ try {
             $httpReady = [bool](
                 $health.ok -and
                 $health.user_content.backend -eq 'postgresql_production' -and
+                (-not $SharedIdentityRouteConfig -or $health.shared_identity.backend -eq 'postgresql_production') -and
                 $health.release.commit_sha -eq $ExpectedCommit -and
                 [int]$health.production_process.pid -eq [int]$httpRecord.pid -and
                 $health.production_process.launch_id -eq $httpRecord.launch_id
@@ -177,12 +193,15 @@ ctx=ssl.create_default_context(cafile=sys.argv[1])
 with urllib.request.urlopen(sys.argv[2], context=ctx, timeout=3) as r:
     p=json.load(r)
 assert p['ok'] and p['user_content']['backend']=='postgresql_production'
+if len(sys.argv) > 6 and sys.argv[6] == 'shared':
+    assert p['shared_identity']['backend']=='postgresql_production'
 assert p['release']['commit_sha']==sys.argv[3]
 assert int(p['production_process']['pid'])==int(sys.argv[4])
 assert p['production_process']['launch_id']==sys.argv[5]
 '@
             $httpsRecord = @($records | Where-Object {$_.name -eq 'https'})[0]
-            & $PythonExe -I -B -c $probe $TlsCertificate "https://localhost:$HttpsPort/api/health" $ExpectedCommit $httpsRecord.pid $httpsRecord.launch_id
+            $sharedProbe = if ($SharedIdentityRouteConfig) { 'shared' } else { 'none' }
+            & $PythonExe -I -B -c $probe $TlsCertificate "https://localhost:$HttpsPort/api/health" $ExpectedCommit $httpsRecord.pid $httpsRecord.launch_id $sharedProbe
             $httpsReady = ($LASTEXITCODE -eq 0)
         } catch {}
         if (-not ($httpReady -and $httpsReady)) { Start-Sleep -Seconds 1 }

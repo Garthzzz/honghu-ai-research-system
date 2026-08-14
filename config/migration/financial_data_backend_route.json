@@ -1,0 +1,14 @@
+{
+  "schema_version": "honghu.cutover_route.v1",
+  "cutover_unit": "financial_data",
+  "route_revision": 1,
+  "authority_state": "S0",
+  "backend": "sqlite_transition",
+  "sqlite_writer_enabled": true,
+  "production_postgresql_enabled": false,
+  "writer_identity": null,
+  "cutover_epoch": null,
+  "approval_reference": null,
+  "writer_operation": "financial_data_mutation",
+  "transaction_boundary": "one financial observation/model publication under the owning authority"
+}

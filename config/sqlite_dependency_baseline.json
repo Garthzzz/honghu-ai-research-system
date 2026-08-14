@@ -97,6 +97,76 @@
       "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition loader is retired."
     },
     {
+      "path": "tools/migration/stage4_shared_identity_s1.py",
+      "domain": "Stage 4 shared-identity PostgreSQL S1 preparation",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 2,
+      "reason": "The static ratchet recognizes PostgreSQL ON CONFLICT statements used to promote the reconciled shared-identity staging snapshot as SQLite-shaped syntax. They execute only through psycopg in one PostgreSQL transaction and never connect to or mutate live SQLite.",
+      "owner": "shared-identity cutover governance",
+      "future_cutover_unit_candidate": "shared_identity",
+      "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition S1 promoter is retired."
+    },
+    {
+      "path": "tools/data_platform/shared_identity.py",
+      "domain": "Stage 4 shared-identity legacy read compatibility",
+      "rule": "sqlite3_connect",
+      "max_count": 1,
+      "reason": "During the bounded mixed-migration compatibility window, PostgreSQL-authoritative identity rows are materialized into one process-memory SQLite database so existing legacy SELECTs can use unchanged table names. The cache is rebuilt only from PostgreSQL after S3/S4 authority verification and never reads or mutates the frozen SQLite identity baseline.",
+      "owner": "shared-identity cutover governance",
+      "future_cutover_unit_candidate": "shared_identity",
+      "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."
+    },
+    {
+      "path": "tools/data_platform/shared_identity.py",
+      "domain": "Stage 4 shared-identity legacy read compatibility",
+      "rule": "attach",
+      "max_count": 1,
+      "reason": "The adapter attaches only its PostgreSQL-derived process-memory cache and shadows legacy identity table names with TEMP views; it never attaches or reads the frozen SQLite identity baseline. Any PostgreSQL authority or refresh failure is fail-closed with no fallback.",
+      "owner": "shared-identity cutover governance",
+      "future_cutover_unit_candidate": "shared_identity",
+      "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."
+    },
+    {
+      "path": "tools/data_platform/shared_identity.py",
+      "domain": "Stage 4 shared-identity legacy read compatibility",
+      "rule": "pragma",
+      "max_count": 1,
+      "reason": "The sole PRAGMA makes the PostgreSQL-derived process-memory cache query-only after construction. It does not alter or inspect any live SQLite database.",
+      "owner": "shared-identity cutover governance",
+      "future_cutover_unit_candidate": "shared_identity",
+      "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."
+    },
+    {
+      "path": "tools/data_platform/financial_data.py",
+      "domain": "Stage 4 financial-data legacy read compatibility",
+      "rule": "sqlite3_connect",
+      "max_count": 2,
+      "reason": "The bounded compatibility adapter builds process-memory SQLite tables solely from PostgreSQL-authoritative financial rows and shared-identity mappings so existing read-only financial queries can run unchanged. It never opens or falls back to the frozen financial.db baseline.",
+      "owner": "financial-data cutover governance",
+      "future_cutover_unit_candidate": "financial_data",
+      "sunset_condition": "Remove after all financial readers use native PostgreSQL repositories and the process-memory compatibility cache is retired."
+    },
+    {
+      "path": "tools/data_platform/financial_data.py",
+      "domain": "Stage 4 financial-data legacy read compatibility",
+      "rule": "pragma",
+      "max_count": 2,
+      "reason": "The adapter uses bounded process-memory SQLite schema inspection and query-only enforcement after materializing PostgreSQL rows; it does not inspect or mutate live SQLite files.",
+      "owner": "financial-data cutover governance",
+      "future_cutover_unit_candidate": "financial_data",
+      "sunset_condition": "Remove after all financial readers use native PostgreSQL repositories and the process-memory compatibility cache is retired."
+    },
+    {
+      "path": "tools/migration/stage4_financial_data_s1.py",
+      "domain": "Stage 4 financial-data PostgreSQL S1 preparation",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 2,
+      "reason": "The static ratchet recognizes PostgreSQL ON CONFLICT statements in the financial S1 promoter as SQLite-shaped syntax. They execute only through psycopg against PostgreSQL and never open or mutate financial.db.",
+      "owner": "financial-data cutover governance",
+      "future_cutover_unit_candidate": "financial_data",
+      "sunset_condition": "Remove when the ratchet distinguishes PostgreSQL dialect context or the transition S1 promoter is retired."
+    },
+    {
       "path": "tools/migration/stage4_user_content_s1.py",
       "domain": "Stage 4 user-content PostgreSQL S1 preparation",
       "rule": "sqlite_conflict_dml",

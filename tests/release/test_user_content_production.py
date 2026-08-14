@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,28 @@ from tools.release.user_content_production import (
     ProductionServeError,
     configure_environment,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_production_environment(monkeypatch: pytest.MonkeyPatch):
+    names = (
+        "HONGHU_DATA_ROOT",
+        "HONGHU_CONTENT_ROOT",
+        "HONGHU_STATE_ROOT",
+        "HONGHU_VIEWER_MODE",
+        "HONGHU_RELEASE_COMMIT",
+        "HONGHU_RELEASE_MANIFEST",
+        "HONGHU_USER_CONTENT_ROUTE_CONFIG",
+        "HONGHU_USER_CONTENT_POSTGRES_CONFIG",
+        "HONGHU_USER_CONTENT_IDENTITY_MAPPING",
+        "HONGHU_USER_CONTENT_SECURITY_CONFIG",
+        "HONGHU_PRODUCTION_LAUNCH_ID",
+        "HONGHU_SHARED_IDENTITY_ROUTE_CONFIG",
+        "HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG",
+    )
+    for name in names:
+        monkeypatch.setenv(name, os.environ.get(name, "__pytest_restore_absent__"))
+    yield
 
 
 def _args(tmp_path: Path) -> argparse.Namespace:
@@ -35,6 +58,8 @@ def _args(tmp_path: Path) -> argparse.Namespace:
         postgres_config=files["postgres"],
         identity_mapping=files["mapping"],
         security_config=files["security"],
+        shared_identity_route=None,
+        shared_identity_postgres_config=None,
         launch_id="test-launch-id",
     )
 
@@ -75,4 +100,41 @@ def test_production_environment_rejects_wrong_commit(
         lambda _release: {"commit_sha": "b" * 40},
     )
     with pytest.raises(ProductionServeError, match="exact commit"):
+        configure_environment(args)
+
+
+def test_production_environment_accepts_only_paired_fenced_shared_identity_route(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args = _args(tmp_path)
+    monkeypatch.setattr(
+        "tools.release.user_content_production.verify_release",
+        lambda _release: {"commit_sha": "a" * 40},
+    )
+    args.route_config.write_text(json.dumps({
+        "authority_state": "S3",
+        "backend": "postgresql_production",
+        "sqlite_writer_enabled": False,
+        "production_postgresql_enabled": True,
+    }), encoding="utf-8")
+    shared_route = tmp_path / "shared-route.json"
+    shared_runtime = tmp_path / "shared-runtime.json"
+    shared_runtime.write_text("{}", encoding="utf-8")
+    shared_route.write_text(json.dumps({
+        "schema_version": "honghu.cutover_route.v1",
+        "cutover_unit": "shared_identity",
+        "authority_state": "S3",
+        "backend": "postgresql_production",
+        "sqlite_writer_enabled": False,
+        "production_postgresql_enabled": True,
+    }), encoding="utf-8")
+    args.shared_identity_route = shared_route
+    args.shared_identity_postgres_config = shared_runtime
+    configure_environment(args)
+    assert __import__("os").environ["HONGHU_SHARED_IDENTITY_ROUTE_CONFIG"] == str(
+        shared_route.resolve()
+    )
+
+    args.shared_identity_postgres_config = None
+    with pytest.raises(ProductionServeError, match="supplied together"):
         configure_environment(args)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -9,6 +10,7 @@ import pytest
 
 from tools.migration.stage4_prepare_units import (
     Stage4PreparationError,
+    _authority_guard,
     _verify_durable_snapshots,
     prepare_units,
 )
@@ -42,6 +44,31 @@ class _Connection:
         return None
 
 
+class _AuthorityCursor:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+
+    def __enter__(self) -> "_AuthorityCursor":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def execute(self, _sql: str) -> None:
+        return None
+
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return self.rows
+
+
+class _AuthorityConnection:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+
+    def cursor(self) -> _AuthorityCursor:
+        return _AuthorityCursor(self.rows)
+
+
 def _expected() -> list[dict[str, Any]]:
     return [
         {
@@ -67,6 +94,38 @@ def test_fresh_session_probe_accepts_committed_reconciled_snapshot() -> None:
             "source_row_count": 7,
         }
     ]
+
+
+def test_preparation_guard_accepts_existing_durable_s3_without_mutating_it() -> None:
+    rows = [
+        (
+            "user_content_notes",
+            "S3",
+            "postgresql_production",
+            "writer-v1",
+            "epoch-v1",
+            {"operation": "create"},
+        ),
+        ("financial_data", "S1", "sqlite_transition", None, None, None),
+    ]
+    result = _authority_guard(_AuthorityConnection(rows))
+    assert result[0]["state"] == "S3"
+    assert result[1]["state"] == "S1"
+
+
+def test_preparation_guard_rejects_s3_without_first_formal_commit() -> None:
+    rows = [
+        (
+            "user_content_notes",
+            "S3",
+            "postgresql_production",
+            "writer-v1",
+            "epoch-v1",
+            None,
+        )
+    ]
+    with pytest.raises(Stage4PreparationError, match="invalid authority invariant"):
+        _authority_guard(_AuthorityConnection(rows))
 
 
 @pytest.mark.parametrize(
@@ -145,14 +204,21 @@ def test_prepare_units_uses_top_level_transactions_and_fresh_session_probe(
 
     data = tmp_path / "data"
     data.mkdir()
-    for name in ("research.db", "financial.db", "opportunity_lens.db", "sentiment.db"):
-        (data / name).write_bytes(b"fixture")
+    with sqlite3.connect(data / "research.db") as source:
+        source.execute("CREATE TABLE analyst_note(id INTEGER PRIMARY KEY, body TEXT)")
     registry = tmp_path / "registry.json"
     registry.write_text(
         json.dumps(
             {
                 "validation": {"passed": True},
                 "registry_sha256": "c" * 64,
+                "units": {
+                    "user_content_notes": {
+                        "objects": [
+                            {"database": "research.db", "object": "analyst_note"}
+                        ]
+                    }
+                },
             }
         ),
         encoding="utf-8",
@@ -183,3 +249,63 @@ def test_prepare_units_uses_top_level_transactions_and_fresh_session_probe(
     assert load_connection.autocommit is True
     assert result["failures"] == []
     assert result["durable_snapshots"][0]["source_row_count"] == 1
+    assert result["database_snapshots_removed_after_load"] is True
+    assert not (tmp_path / "work" / "_batch-source-snapshot").exists()
+
+
+def test_prepare_units_removes_batch_snapshot_when_postgresql_open_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    with sqlite3.connect(data / "research.db") as source:
+        source.execute("CREATE TABLE analyst_note(id INTEGER PRIMARY KEY)")
+    registry = tmp_path / "registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "validation": {"passed": True},
+                "registry_sha256": "c" * 64,
+                "units": {
+                    "user_content_notes": {
+                        "objects": [
+                            {"database": "research.db", "object": "analyst_note"}
+                        ]
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    route = tmp_path / "route.json"
+    route.write_text(
+        json.dumps(
+            {
+                "authority_state": "S0",
+                "backend": "sqlite_transition",
+                "sqlite_writer_enabled": True,
+                "production_postgresql_enabled": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "tools.migration.stage4_prepare_units._connection_from_runtime",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("pg unavailable")),
+    )
+    monkeypatch.setattr(
+        "tools.migration.stage4_prepare_units.shutil.disk_usage",
+        lambda _path: SimpleNamespace(free=10 * 1024**3),
+    )
+
+    with pytest.raises(RuntimeError, match="pg unavailable"):
+        prepare_units(
+            source_data_root=data,
+            registry_path=registry,
+            route_path=route,
+            runtime_path=tmp_path / "runtime.json",
+            application_commit_sha="d" * 40,
+            work_root=tmp_path / "work",
+            units=("user_content_notes",),
+        )
+    assert not (tmp_path / "work" / "_batch-source-snapshot").exists()

@@ -9,6 +9,10 @@ from typing import Any
 
 from tools.migration.stage4_s1_loader import _connection_from_runtime
 from tools.migration.stage4_json_io import read_json
+from tools.migration.stage4_runtime_contract import (
+    RuntimeContractError,
+    tracked_static_default_route,
+)
 
 
 class ProductionVerificationError(RuntimeError):
@@ -59,8 +63,10 @@ def verify_production_candidate(
         raise ProductionVerificationError("runtime is not production-scoped")
     if runtime.get("application_commit_sha") != application_commit_sha:
         raise ProductionVerificationError("runtime belongs to another application commit")
-    if runtime.get("application_route") != "sqlite_transition":
-        raise ProductionVerificationError("application route is not SQLite")
+    try:
+        static_default_route = tracked_static_default_route(runtime)
+    except RuntimeContractError as exc:
+        raise ProductionVerificationError(str(exc)) from exc
     route_path = repo_root / "config/migration/user_content_backend_route.json"
     route = read_json(route_path)
     if not (
@@ -242,7 +248,10 @@ def verify_production_candidate(
         "authority": authority,
         "unit_snapshots": unit_snapshots,
         "formal_application_idempotency_records": formal_idempotency_records,
-        "application_authority": "sqlite_transition",
+        "tracked_static_default_route": static_default_route,
+        "live_authoritative_backends": {
+            str(row[0]): str(row[2]) for row in authority
+        },
         "production_cutover_authorized": False,
     }
     return {**core, "evidence_sha256": _sha(core)}

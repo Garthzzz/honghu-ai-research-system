@@ -247,6 +247,8 @@ def build_unit_snapshot(
     application_commit_sha: str,
     output_dir: Path,
     include_rows: bool = True,
+    source_is_consistent_snapshot: bool = False,
+    preverified_database_evidence: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if unit not in PRODUCTION_UNITS:
         raise UnitSnapshotError(f"unit is not a production cutover unit: {unit}")
@@ -279,9 +281,28 @@ def build_unit_snapshot(
                 if database not in DATABASE_FILES:
                     raise UnitSnapshotError(f"unapproved source database: {database}")
                 snapshot_path = temp_root / database
-                database_evidence[database] = _backup_database(
-                    source_data_root / database, snapshot_path
-                )
+                if source_is_consistent_snapshot:
+                    snapshot_path = source_data_root / database
+                    evidence = (preverified_database_evidence or {}).get(database)
+                    if evidence is None:
+                        raise UnitSnapshotError(
+                            f"preverified SQLite snapshot evidence is missing: {database}"
+                        )
+                    if (
+                        not snapshot_path.is_file()
+                        or _file_sha(snapshot_path) != evidence.get("snapshot_sha256")
+                        or snapshot_path.stat().st_size != evidence.get("snapshot_size")
+                        or evidence.get("integrity_check") != "ok"
+                        or evidence.get("quick_check") != "ok"
+                    ):
+                        raise UnitSnapshotError(
+                            f"preverified SQLite snapshot identity is invalid: {database}"
+                        )
+                    database_evidence[database] = dict(evidence)
+                else:
+                    database_evidence[database] = _backup_database(
+                        source_data_root / database, snapshot_path
+                    )
                 for table in tables:
                     table_record = _snapshot_table(
                         database, snapshot_path, table, sink, unit_digest
@@ -291,7 +312,6 @@ def build_unit_snapshot(
             "cutover_unit": unit,
             "registry_sha256": registry_sha,
             "objects": objects,
-            "databases": database_evidence,
             "tables": table_evidence,
         }
         source_identity = _sha(source_identity_core)
@@ -314,6 +334,8 @@ def build_unit_snapshot(
             "source_created_at": source_created_at,
             "source_identity_sha256": source_identity,
             "source_identity": source_identity_core,
+            "database_snapshot_evidence": database_evidence,
+            "database_file_identity_role": "diagnostic_only_not_unit_business_identity",
             "formal_business_data": False,
             "authority_contract": {
                 "state": "S0_or_S1",

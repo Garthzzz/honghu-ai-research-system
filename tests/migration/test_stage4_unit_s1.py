@@ -8,6 +8,7 @@ import pytest
 
 from tools.migration.stage4_unit_s1 import (
     UnitSnapshotError,
+    _backup_database,
     _sha,
     build_unit_snapshot,
     verify_snapshot,
@@ -80,6 +81,9 @@ def test_build_and_verify_unit_snapshot(tmp_path: Path) -> None:
         "dual_or_shadow_write": False,
     }
     assert result["reconciliation"]["source_row_count"] == 1
+    assert result["database_file_identity_role"] == (
+        "diagnostic_only_not_unit_business_identity"
+    )
     checked = verify_snapshot(
         output / "user_content_notes.snapshot.json",
         output / "user_content_notes.rows.jsonl",
@@ -127,6 +131,40 @@ def test_snapshot_identity_is_idempotent_per_exact_release_and_distinct_across_r
     assert newer_release["snapshot_id"].endswith(":" + "c" * 12)
 
 
+def test_unit_identity_ignores_unowned_rows_but_records_database_file_drift(
+    tmp_path: Path,
+) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    _database(data / "research.db")
+    registry = tmp_path / "registry.json"
+    _registry(registry)
+    first = build_unit_snapshot(
+        unit="user_content_notes",
+        source_data_root=data,
+        registry_path=registry,
+        application_commit_sha=COMMIT,
+        output_dir=tmp_path / "first",
+    )
+    with sqlite3.connect(data / "research.db") as connection:
+        connection.execute("CREATE TABLE unrelated_dynamic(id INTEGER PRIMARY KEY)")
+        connection.execute("INSERT INTO unrelated_dynamic VALUES(1)")
+    second = build_unit_snapshot(
+        unit="user_content_notes",
+        source_data_root=data,
+        registry_path=registry,
+        application_commit_sha=COMMIT,
+        output_dir=tmp_path / "second",
+    )
+
+    assert first["source_identity_sha256"] == second["source_identity_sha256"]
+    assert first["snapshot_id"] == second["snapshot_id"]
+    assert (
+        first["database_snapshot_evidence"]["research.db"]["snapshot_sha256"]
+        != second["database_snapshot_evidence"]["research.db"]["snapshot_sha256"]
+    )
+
+
 def test_snapshot_verifier_rejects_tampered_row(tmp_path: Path) -> None:
     data = tmp_path / "data"
     data.mkdir()
@@ -148,6 +186,39 @@ def test_snapshot_verifier_rejects_tampered_row(tmp_path: Path) -> None:
 
     with pytest.raises(UnitSnapshotError, match="payload hash mismatch"):
         verify_snapshot(output / "user_content_notes.snapshot.json", rows)
+
+
+def test_prebuilt_snapshot_requires_matching_preverified_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    _database(source / "research.db")
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    registry = tmp_path / "registry.json"
+    _registry(registry)
+
+    with pytest.raises(UnitSnapshotError, match="evidence is missing"):
+        build_unit_snapshot(
+            unit="user_content_notes",
+            source_data_root=source,
+            registry_path=registry,
+            application_commit_sha=COMMIT,
+            output_dir=tmp_path / "missing",
+            source_is_consistent_snapshot=True,
+        )
+
+    evidence = _backup_database(source / "research.db", snapshot / "research.db")
+    evidence["snapshot_sha256"] = "0" * 64
+    with pytest.raises(UnitSnapshotError, match="identity is invalid"):
+        build_unit_snapshot(
+            unit="user_content_notes",
+            source_data_root=snapshot,
+            registry_path=registry,
+            application_commit_sha=COMMIT,
+            output_dir=tmp_path / "tampered",
+            source_is_consistent_snapshot=True,
+            preverified_database_evidence={"research.db": evidence},
+        )
 
 
 def test_snapshot_verifier_rejects_authority_escalation(tmp_path: Path) -> None:

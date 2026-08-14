@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 
 from tools.migration.stage4_json_io import read_json
+from tools.migration.stage4_runtime_contract import (
+    RuntimeContractError,
+    tracked_static_default_route,
+)
 
 
 class ExecutionReadinessError(RuntimeError):
@@ -107,15 +111,22 @@ def evaluate(
             or bootstrap_input.get("tracked_route_sha256") != _sha_file(route_path)
         ):
             blockers.append("bootstrap input identity does not bind commit/config/route")
-    if runtime and not (
-        runtime.get("schema_version") == "honghu.postgresql_production_runtime.v1"
-        and runtime.get("environment_id") == "production"
-        and runtime.get("application_commit_sha") == commit
-        and runtime.get("application_route") == "sqlite_transition"
-        and bool(runtime.get("credential_owner_principal"))
-        and runtime.get("credential_scope") == "stage4_operator_and_migration_only"
-    ):
-        blockers.append("production runtime config is invalid or changes application authority")
+    if runtime:
+        try:
+            runtime_static_route = tracked_static_default_route(runtime)
+        except RuntimeContractError:
+            runtime_static_route = None
+        if not (
+            runtime.get("schema_version") == "honghu.postgresql_production_runtime.v1"
+            and runtime.get("environment_id") == "production"
+            and runtime.get("application_commit_sha") == commit
+            and runtime_static_route == "sqlite_transition"
+            and bool(runtime.get("credential_owner_principal"))
+            and runtime.get("credential_scope") == "stage4_operator_and_migration_only"
+        ):
+            blockers.append(
+                "production runtime config is invalid or changes the tracked static default route"
+            )
     if primary:
         if primary.get("status") != "pass" or primary.get("commit_sha") != commit:
             blockers.append("bootstrap primary did not pass for the bundle commit")
@@ -151,8 +162,11 @@ def evaluate(
     if production:
         if production.get("environment_id") != "production" or production.get("application_commit_sha") != commit:
             blockers.append("production PostgreSQL verification subject mismatch")
-        if production.get("application_authority") != "sqlite_transition":
-            blockers.append("production verification no longer reports SQLite authority")
+        production_static_route = production.get("tracked_static_default_route")
+        if production_static_route is None:
+            production_static_route = production.get("application_authority")
+        if production_static_route != "sqlite_transition":
+            blockers.append("production verification changed the tracked static default route")
         if runtime and production.get("runtime_config_sha256") != _sha_file(
             evidence_root
             / str((bundle.get("artifacts") or {}).get("runtime_config", {}).get("path"))

@@ -1,15 +1,15 @@
 {
   "schema_version": "honghu.identity_mapping_approval_summary.v1",
-  "mapping_manifest_sha256": "cb6ce219f5b67454155b35a03a29b947d42791c9e1fe4323ba2bf9145a14b79f",
+  "mapping_manifest_sha256": "07c8ca95a7645c896736c0495494f834b7e7943875652c411f1df108e509b77c",
   "snapshot_identity_sha256": "967111d03e4e798fa7a193941d577faf33983007da91b30a8133177ad2693208",
-  "approval_bundle_sha256": "f13b5a1f7512282755422109f103225649c50f4ec024dbe670047c84f1ac17f1",
+  "approval_bundle_sha256": "931269db92b1dcf76da4ada288cf31925039bf8cbd71af6485d29fe606c1ca63",
   "approval_status": "pending_user_cutover_approval",
   "cutover_level_approved": false,
   "counts": {
     "total": 774,
     "company": 681,
-    "ticker_and_venue_direct": 399,
-    "name_and_market_fallback": 282,
+    "ticker_and_venue_direct": 403,
+    "name_and_market_fallback": 278,
     "industry": 44,
     "industry_q": 44,
     "theme": 5
@@ -20,35 +20,65 @@
     "hong-kong": 17,
     "korea-kosdaq": 1,
     "korea-main": 7,
-    "shanghai": 142,
+    "shanghai": 143,
     "shenzhen": 139,
     "stockholm": 2,
     "taiwan-main": 14,
     "taiwan-otc": 2,
-    "tokyo": 19,
-    "us": 51,
+    "tokyo": 21,
+    "us": 52,
     "vienna": 1
   },
   "fallback_market_distribution": {
-    "empty": 241,
-    "其他": 40,
-    "美股": 1
+    "empty": 240,
+    "其他": 38
   },
   "approved_alias_groups": [
     {
       "entity_type": "company",
+      "stable_key": "company:security:5802.T:venue:tokyo",
+      "legacy_ids": ["58", "59"],
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+      "approved_by": "user",
+      "rationale": "Sumitomo 与住友电气在当前研究身份中均指向 Sumitomo Electric Industries 的东京证券代码 5802。",
+      "approval_file_sha256": "4ab9b5f0e338ee1c0cb03e2f85c7c19c0e76c1200c1bc2afbcfe37d1121835e2"
+    },
+    {
+      "entity_type": "company",
+      "stable_key": "company:security:688041.SH:venue:shanghai",
+      "legacy_ids": ["330", "336"],
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+      "approved_by": "user",
+      "rationale": "海光与海光信息是 research.db 中同一 688041.SH 上市主体的简称和全称历史记录。",
+      "approval_file_sha256": "4ab9b5f0e338ee1c0cb03e2f85c7c19c0e76c1200c1bc2afbcfe37d1121835e2"
+    },
+    {
+      "entity_type": "company",
       "stable_key": "company:security:COHU:venue:us",
-      "legacy_ids": [
-        "491",
-        "554"
-      ],
+      "legacy_ids": ["491", "554"],
       "approval_reference": "user-confirmed-pr8-review-2026-08-12",
       "approved_by": "user",
       "rationale": "Cohu 与科休是 research.db 中同一 COHU 美股主体的英文名和中文名历史重复记录。",
-      "approval_file_sha256": "5fd25229e1f02c4e1231a8ece84ed5a2452e7ffda70f9fb340e88c73823dc53a"
+      "approval_file_sha256": "4ab9b5f0e338ee1c0cb03e2f85c7c19c0e76c1200c1bc2afbcfe37d1121835e2"
     }
   ],
   "reviewed_identity_overrides": [
+    {
+      "legacy_id": "21",
+      "display_name": "Acacia",
+      "ticker": "ACIA",
+      "venue": "us",
+      "market": "美股",
+      "stable_key": "company:security:ACIA:venue:us",
+      "basis": "normalized_ticker_and_approved_venue",
+      "source_evidence_identity": "c005832c371af1c95ded06698c845e8162659faaec72a24afd68fca870aa3e81",
+      "identity_override": {
+        "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+        "approved_by": "user",
+        "rationale": "Acacia Communications 保留为 2021 年被 Cisco 收购前的独立历史证券主体；不与 Cisco 当前主体合并。",
+        "approval_file_sha256": "4ab9b5f0e338ee1c0cb03e2f85c7c19c0e76c1200c1bc2afbcfe37d1121835e2"
+      }
+    },
     {
       "legacy_id": "552",
       "display_name": "泰瑞达",
@@ -59,10 +89,10 @@
       "basis": "normalized_ticker_and_approved_venue",
       "source_evidence_identity": "3decf5a060e2190e588fe95833d98f097fe0746d4fe236bd74278a5917eaafb9",
       "identity_override": {
-        "approval_reference": "codex-readonly-pr8-identity-audit-2026-08-12",
-        "approved_by": "codex-readonly-audit",
+        "approval_reference": "user-approved-stage4-cutover-2026-08-13",
+        "approved_by": "user",
         "rationale": "research.db 缺少 market/listing_status；现有 financial_security 已标记 verified，sentiment 供应链身份记录 exchange=US，历史行情由 yfinance 的 TER 证券取得。",
-        "approval_file_sha256": "5fd25229e1f02c4e1231a8ece84ed5a2452e7ffda70f9fb340e88c73823dc53a"
+        "approval_file_sha256": "4ab9b5f0e338ee1c0cb03e2f85c7c19c0e76c1200c1bc2afbcfe37d1121835e2"
       }
     }
   ],
@@ -71,5 +101,5 @@
     "fallback_items_location": "Git-excluded approval bundle: name_market_fallback_items",
     "codex_may_not_approve": true
   },
-  "summary_sha256": "3ec8a936b0be54a7644ee236a5b34d64a4de1d4760c897fb9fdc91c7976a8e19"
+  "summary_sha256": "90a068daa62544f4fc2009640a86dd461a3454ee4a8daa4aaae0397758becec4"
 }

@@ -37,6 +37,9 @@ def test_start_contract_uses_exact_python_two_ports_tls_and_pid_binding() -> Non
     assert "Get-CimInstance Win32_Process" in text
     assert "process identity mismatch" in text
     assert "UTF8Encoding" in text
+    assert "SharedIdentityRouteConfig" in text
+    assert "--shared-identity-route" in text
+    assert "health.shared_identity.backend" in text
 
 
 def test_stop_contract_refuses_pid_reuse_and_unknown_listener() -> None:
