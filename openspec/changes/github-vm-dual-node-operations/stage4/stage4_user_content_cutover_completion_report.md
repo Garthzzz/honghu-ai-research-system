@@ -4,7 +4,7 @@
 
 ## 1. 执行范围与权威状态
 
-本轮只切换 `user_content_notes`。正式 create/update/delete/list、revision、soft delete、audit 与 idempotency 已由 production PostgreSQL 承担；其余八个 cutover unit 未获得 S2/S3 授权。
+本报告只验收 `user_content_notes`。正式 create/update/delete/list、revision、soft delete、audit 与 idempotency 已由 production PostgreSQL 承担；其余八个 cutover unit 在本报告形成时尚未切换。用户后续批量执行授权不追溯改变本报告的首单元 evidence，也不允许任何未通过自身门禁的单元进入 S2/S3。
 
 - authority state：S3；authoritative backend：`postgresql_production`。
 - authority epoch：由 Git 外 control-plane evidence 固定并审计。
@@ -53,7 +53,7 @@ writer fence 后，PostgreSQL 成为唯一指定 writer。首条必须保留的 
 
 DeepSeek 在本轮 S3 实现复核中已有一轮有效脱敏 review，未提出新可复现缺口；最终启动器修订后的两次外部调用没有返回有效 reviewer 内容，因此明确记录为“不可用”，不伪装成 pass。S3 恢复修复后的最后一轮脱敏复核返回 `revise`，但意见把已经明确为“秒”的 RPO/RTO、测试项数量和恢复集保留说明误读为缺失，也没有给出可导致错误 PASS 的具体状态或可复现路径；Codex据真实状态机、61 项定向测试和异机恢复结果拒绝该意见。最终判断由代码、真实 PostgreSQL rehearsal、浏览器/多端压力、VM health/process/listener、远端 required CI、exact release 和 S3 后 restore evidence负责。
 
-仍需后续阶段处理：其余八个 cutover unit、任务 runner 迁移、全系统 measured RPO/RTO、repository production-authority 公司治理，以及 S3 稳定观察后是否进入 S4。上述事项不影响 `user_content_notes` 当前 S3，但不得被本报告自动批准。
+仍需后续处理：其余八个 cutover unit、repository production-authority 公司治理，以及 S3 稳定观察后是否进入 S4。任务 runner 迁移和全系统 measured RPO/RTO 收口属于阶段 5，不在当前批量授权内。上述事项不影响 `user_content_notes` 当前 S3，也不得复用本单元 evidence 绕过各单元门禁。
 
 ## 6. 清理与保留
 
@@ -63,6 +63,6 @@ DeepSeek 在本轮 S3 实现复核中已有一轮有效脱敏 review，未提出
 
 ## 7. 结论
 
-`user_content_notes` 已完成首个生产 cutover并处于 durable S3。生产 Viewer 继续运行已经完成功能验收的应用提交 `fb4301c2c8b22bfb95b6b50e394dc0b6fab71659`；恢复工具修复及 S3 后真实 restore 绑定提交 `0971b9cc03466b7ffdaea7b98616d6f8b4423e47`。报告后续若产生纯治理提交，只改变文档身份，不重新定义已验收 release 或恢复 evidence。
+`user_content_notes` 已完成首个生产 cutover并处于 durable S3。生产 Viewer 继续运行已经完成功能验收的应用提交 `fb4301c2c8b22bfb95b6b50e394dc0b6fab71659`；恢复工具修复及 S3 后真实 restore 绑定提交 `0971b9cc03466b7ffdaea7b98616d6f8b4423e47`。PR #14 已合并为 main commit `7633921b25eb6302a137de534d8bd090c50cf706`，main required CI run `31815633323` 全绿。该治理身份只记录验收收口，不重新定义已验收 release 或恢复 evidence。
 
-该结论不等于整个 Stage 4 完成，也不授权其余单元进入 S2/S3、迁移计划任务或推进 `user_content_notes` 到 S4。PR #14 在本报告收口时保持 open、clean、未合并；合并须由用户另行授权。
+该结论不等于整个 Stage 4 完成。`user_content_notes` 当前进入 S3 observation，不推进 S4；其余单元虽已获得带条件的批量执行授权，仍必须逐单元通过全部 production gate。计划任务和 runner 迁移仍未授权。

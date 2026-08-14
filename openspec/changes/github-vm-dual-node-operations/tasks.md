@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0、阶段 1 已获用户批准退出；阶段 2 已于 2026-08-07 17:12:24 +08:00 以 `STAGE 2 PASS WITH HUMAN WAIVER` 完成人工终验并获准退出；阶段 3 已于 2026-08-11 14:25:45 +08:00 完成人工审查并获准退出。用户已授权阶段 4 production PostgreSQL 基础设施、恢复能力以及各切换单元的 migration/S1 准备，并于 2026-08-13 进一步授权在 mapping、异机恢复、S1、writer fence 与上线门禁通过后，仅对首个 `user_content_notes` 单元执行受控 S2→S3、8080/TLS 上线、多端写入和压力测试。其他 cutover unit、计划任务、runner-host cutover、live SQLite schema/data 修改和双写仍未授权；下一人工 HALT 位于首单元最终验收与治理收口后。
+> 当前状态：阶段 0—3 已获用户批准退出。`user_content_notes` 已于 2026-08-14 完成生产切换并处于 durable S3：PostgreSQL 是唯一 authority/writer，SQLite 仅为迁移基线、审计档案和有限修复材料，不是 production rollback target；该单元异机恢复门禁已关闭，当前进入 S3 observation，未授权进入 S4。PR #14 已于 2026-08-14 合并为 main commit `7633921b25eb6302a137de534d8bd090c50cf706`，main required CI run `31815633323` 全绿。用户现已按冻结顺序批量授权其余八个 cutover unit 在各自全部门禁通过后执行 S2→S3；该授权不包含阶段 5 的计划任务或 runner-host 迁移，也不允许 dual writer、shadow write、silent fallback 或为迁移修改 live SQLite。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -138,7 +138,8 @@
 - [x] [Stage 4 readiness 准备] readiness preflight 已改为读取 typed evidence 本体并校验 hash、subject、时效、交叉引用、S0 route、应用 rehearsal、PostgreSQL topology/TLS/ACL/credential、backup/WAL/restore、repository governance 和 cutover decision；伪 boolean/hash、篡改、跨环境、过期及同主机冒充 off-VM 均 fail-closed。
 - [x] [Stage 4 readiness 准备] 浏览器 uncertain mutation identity 已跨 reload/tab 持久化并绑定可信 principal/payload；跨 tab 原生互斥、长 pending、精确 replay、principal/payload 变化 fail-closed 已有执行测试。没有重构数据库既有 idempotency、revision 或 authority 合同。
 - [x] [Stage 4 readiness 准备] 本机隔离 PostgreSQL 17.10 候选已真实完成 TLS、角色 ACL、Credential Manager 创建/轮换/撤销、服务启停/crash recovery、base backup+WAL、整库恢复、逻辑旁路恢复和 authority-control migration/adapter/side restore；候选不使用 production 端口，live SQLite 前后不变。该证据明确不是 VM 或 off-VM 证据。
-- [ ] [Stage 4 readiness blocker] `honghu-vm` SSH 通道已于 2026-08-12 验证并用于 exact-package 执行，不再是 blocker；Windows OpenSSH 非交互登录不能访问调用用户的 Windows Credential Manager（WinError 1312，`cmdkey` 同样失败），但 2026-08-13 已通过批准用户的临时 Interactive task 成功运行 exact S0/S1 preparation，并在完成后删除该任务，因此当前不再存在凭据执行通道 blocker。另一故障域 off-VM copy/restore 仍无现场证据，不得用同 VM 盘符替代，也不得用布尔声明或伪 hash 关闭。
+- [x] [首单元恢复门禁] `user_content_notes` 已完成另一故障域加密 recovery set、whole/authority/side restore 与 S3 后 authority snapshot 复核；同 VM 盘符、布尔声明或伪 hash 均未被用于关闭门禁。该证据只适用于首单元，不替代其余 cutover unit 各自的恢复验证。
+- [x] [首单元生产状态] `user_content_notes` 已进入 durable S3，PostgreSQL 为唯一 authority/writer；SQLite writer 已 fenced，旧 SQLite 仅为迁移基线、审计和有限修复材料。当前处于 S3 observation，明确不推进 S4。
 - [ ] [本阶段必须] 每个切换单元进入 S2 前先完成该 unit 所需的 VM 外 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的真实恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单；不得机械推迟到阶段 5，阶段 5 只做整体任务迁移、空机恢复和 measured RPO/RTO 收口。
 - [ ] [本阶段必须] 每个切换单元执行源目标计数、关系、时间序列、状态机、稳定身份映射和业务不变量对账；验证相关页面、API、publisher 和写路径。2026-08-13 exact commit `af510bce455a59c47a0007cfc54928951303b48b` 已将九个 unit 的 2,244,285 行非正式 migration staging 数据逐单元顶层提交到 production PostgreSQL，并从全新连接验证 9/9 `reconciled`、source/target identity 一致、authority 未变；页面/API/publisher/正式写路径和最终 mapping 批准仍未完成，因此本项保持未勾选。
 - [ ] [本阶段必须] 在短维护窗口切换唯一 writer；优先 shadow read。进入 S2 时 PostgreSQL 是唯一指定 writer、SQLite writer 已停止并冻结；记录 cutover epoch、SQLite 最终权威业务水位、PostgreSQL 首条正式业务 commit 水位、验证写、uncertain response、操作者和证据。首条必须保留的正式写提交即进入 S3，无法证明未提交的 uncertain response 按 S3。任何连接失败不得静默回写 SQLite；未经独立批准不得 shadow write。
@@ -148,7 +149,7 @@
 - [ ] [本阶段必须] 演练 S1 放弃、S2 在停写与水位证明下的回退、S2 uncertain response 按 S3 收口，以及 S3 后 PostgreSQL 前向修复/兼容代码回滚/旁路恢复选择性修复；不得用同一“rollback”标签混淆这些动作。
 - [ ] [本阶段必须] 对单域逻辑错误将备份恢复到旁路环境，选择性提取并审计修复；禁止为单域错误原地回退整个 production database。
 - [ ] [本阶段必须] 稳定观察期后把旧 SQLite 标记为迁移基线与审计档案；删除应用写入口，不立即删除文件。
-- [ ] [HALT] 每完成一个切换单元即提交对账、性能、身份映射、并发、故障与恢复证据，等待下一个单元批准。
+- [ ] [HALT] 每个切换单元仍须形成独立的对账、性能、身份映射、并发、故障与恢复 evidence。用户已批量授权其余八个单元在自身全部门禁通过后按冻结顺序继续 S2→S3，因此普通单元完成不再单独等待批准；只有全部 Stage 4 单元完成，或出现无法由 Codex 关闭的外部 hard blocker 时统一 HALT。阶段 5 始终需要单独授权。
 
 **退出条件**：该切换单元 PostgreSQL 是唯一 writer；权威后端和唯一 runner 明确；旧 SQLite 角色与当前状态一致；备份可恢复；无未解释数据差异或并发覆盖。
 
