@@ -9,6 +9,7 @@ import pytest
 
 from tools.migration.stage4_prepare_units import (
     Stage4PreparationError,
+    _authority_guard,
     _verify_durable_snapshots,
     prepare_units,
 )
@@ -42,6 +43,31 @@ class _Connection:
         return None
 
 
+class _AuthorityCursor:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+
+    def __enter__(self) -> "_AuthorityCursor":
+        return self
+
+    def __exit__(self, *_args: object) -> None:
+        return None
+
+    def execute(self, _sql: str) -> None:
+        return None
+
+    def fetchall(self) -> list[tuple[Any, ...]]:
+        return self.rows
+
+
+class _AuthorityConnection:
+    def __init__(self, rows: list[tuple[Any, ...]]) -> None:
+        self.rows = rows
+
+    def cursor(self) -> _AuthorityCursor:
+        return _AuthorityCursor(self.rows)
+
+
 def _expected() -> list[dict[str, Any]]:
     return [
         {
@@ -67,6 +93,38 @@ def test_fresh_session_probe_accepts_committed_reconciled_snapshot() -> None:
             "source_row_count": 7,
         }
     ]
+
+
+def test_preparation_guard_accepts_existing_durable_s3_without_mutating_it() -> None:
+    rows = [
+        (
+            "user_content_notes",
+            "S3",
+            "postgresql_production",
+            "writer-v1",
+            "epoch-v1",
+            {"operation": "create"},
+        ),
+        ("financial_data", "S1", "sqlite_transition", None, None, None),
+    ]
+    result = _authority_guard(_AuthorityConnection(rows))
+    assert result[0]["state"] == "S3"
+    assert result[1]["state"] == "S1"
+
+
+def test_preparation_guard_rejects_s3_without_first_formal_commit() -> None:
+    rows = [
+        (
+            "user_content_notes",
+            "S3",
+            "postgresql_production",
+            "writer-v1",
+            "epoch-v1",
+            None,
+        )
+    ]
+    with pytest.raises(Stage4PreparationError, match="invalid authority invariant"):
+        _authority_guard(_AuthorityConnection(rows))
 
 
 @pytest.mark.parametrize(

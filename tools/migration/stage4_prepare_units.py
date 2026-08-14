@@ -61,15 +61,33 @@ def _authority_guard(connection: Any) -> list[dict[str, Any]]:
             for row in cursor.fetchall()
         ]
     for row in rows:
-        if (
-            row["state"] not in {"S0", "S1"}
-            or row["authoritative_backend"] != "sqlite_transition"
-            or row["writer_identity"] is not None
-            or row["cutover_epoch"] is not None
-            or row["postgresql_first_formal_commit"] is not None
-        ):
+        state = row["state"]
+        if state in {"S0", "S1"}:
+            valid = (
+                row["authoritative_backend"] == "sqlite_transition"
+                and row["writer_identity"] is None
+                and row["cutover_epoch"] is None
+                and row["postgresql_first_formal_commit"] is None
+            )
+        elif state == "S2":
+            valid = (
+                row["authoritative_backend"] == "postgresql_production"
+                and bool(row["writer_identity"])
+                and bool(row["cutover_epoch"])
+                and row["postgresql_first_formal_commit"] is None
+            )
+        elif state in {"S3", "S4"}:
+            valid = (
+                row["authoritative_backend"] == "postgresql_production"
+                and bool(row["writer_identity"])
+                and bool(row["cutover_epoch"])
+                and row["postgresql_first_formal_commit"] is not None
+            )
+        else:
+            valid = False
+        if not valid:
             raise Stage4PreparationError(
-                f"production authority exceeds S0/S1: {row['cutover_unit']}"
+                f"invalid authority invariant: {row['cutover_unit']} state={state}"
             )
     return rows
 
@@ -163,6 +181,9 @@ def prepare_units(
         # unit back.  Keep the guard reads transactionless so every unit loader
         # owns and commits one real top-level transaction.
         connection.autocommit = True
+        # Already-cut units may be durable S3/S4.  Preparation is safe only
+        # because the exact authority rows are captured before and after and
+        # must remain unchanged; the target loader still accepts only S0/S1.
         before_authority = _authority_guard(connection)
         for unit in units:
             unit_root = work_root / unit
