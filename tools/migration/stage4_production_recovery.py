@@ -387,6 +387,7 @@ def run_production_recovery(
     output_dir: Path,
     off_vm_root: Path | None,
     expected_off_vm_storage_identity: str | None,
+    required_authority_units: tuple[str, ...] = ("user_content_notes",),
 ) -> dict[str, Any]:
     runtime = _load_json(runtime_path)
     if runtime.get("schema_version") != "honghu.postgresql_production_runtime.v1":
@@ -401,6 +402,11 @@ def run_production_recovery(
         raise ProductionRecoveryError(str(exc)) from exc
     if len(commit_sha) != 40:
         raise ProductionRecoveryError("full application commit SHA is required")
+    required_authority_units = tuple(dict.fromkeys(required_authority_units))
+    if not required_authority_units or any(
+        not str(unit).strip() for unit in required_authority_units
+    ):
+        raise ProductionRecoveryError("at least one authority unit is required")
     output_dir.mkdir(parents=True, exist_ok=True)
     data_dir = install_root / "data"
     wal_archive = install_root / "wal-archive"
@@ -444,7 +450,7 @@ def run_production_recovery(
         )
         try:
             source_authorities = read_authority_snapshots(
-                connection, required_units=("user_content_notes",)
+                connection, required_units=required_authority_units
             )
         except AuthorityControlError as exc:
             raise ProductionRecoveryError(str(exc)) from exc
@@ -640,6 +646,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--off-vm-root", type=Path)
     parser.add_argument("--expected-off-vm-storage-identity")
+    parser.add_argument(
+        "--required-authority-unit",
+        action="append",
+        dest="required_authority_units",
+    )
     args = parser.parse_args(argv)
     result = run_production_recovery(
         repo_root=args.repo_root,
@@ -650,6 +661,9 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.output_dir,
         off_vm_root=args.off_vm_root,
         expected_off_vm_storage_identity=args.expected_off_vm_storage_identity,
+        required_authority_units=tuple(
+            args.required_authority_units or ("user_content_notes",)
+        ),
     )
     print(json.dumps(result, ensure_ascii=False))
     return 0

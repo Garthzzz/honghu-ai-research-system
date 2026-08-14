@@ -57,6 +57,12 @@ def _inputs():
             "sentinel_operation_id": "sentinel",
             "target_lsn_reached": True,
         },
+        "authority_snapshots": {
+            "shared_identity": {
+                "state": "S1",
+                "authoritative_backend": "sqlite_transition",
+            }
+        },
     }
     return mapping, decision, s1, recovery
 

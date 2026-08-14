@@ -99,7 +99,10 @@ def validate_inputs(
     if len(application_commit) != 40:
         raise SharedIdentityCutoverError("S1 application commit is missing")
 
-    if recovery.get("schema_version") != "honghu.stage4_production_recovery.v1":
+    if recovery.get("schema_version") not in {
+        "honghu.stage4_production_recovery.v1",
+        "honghu.stage4_production_recovery.v2",
+    }:
         raise SharedIdentityCutoverError("unsupported recovery evidence")
     if (
         recovery.get("status") != "pass"
@@ -116,6 +119,12 @@ def validate_inputs(
         or recovered.get("sentinel_operation_id") != target.get("sentinel_operation_id")
     ):
         raise SharedIdentityCutoverError("recovery watermark/sentinel is not verified")
+    snapshots = recovery.get("authority_snapshots") or {}
+    shared_snapshot = snapshots.get("shared_identity")
+    if not isinstance(shared_snapshot, dict) or shared_snapshot.get("state") != "S1":
+        raise SharedIdentityCutoverError(
+            "off-VM recovery does not bind the shared_identity S1 authority"
+        )
 
 
 def _authority(connection: Any) -> dict[str, Any]:
