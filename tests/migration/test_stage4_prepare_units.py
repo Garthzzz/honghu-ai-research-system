@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -203,14 +204,21 @@ def test_prepare_units_uses_top_level_transactions_and_fresh_session_probe(
 
     data = tmp_path / "data"
     data.mkdir()
-    for name in ("research.db", "financial.db", "opportunity_lens.db", "sentiment.db"):
-        (data / name).write_bytes(b"fixture")
+    with sqlite3.connect(data / "research.db") as source:
+        source.execute("CREATE TABLE analyst_note(id INTEGER PRIMARY KEY, body TEXT)")
     registry = tmp_path / "registry.json"
     registry.write_text(
         json.dumps(
             {
                 "validation": {"passed": True},
                 "registry_sha256": "c" * 64,
+                "units": {
+                    "user_content_notes": {
+                        "objects": [
+                            {"database": "research.db", "object": "analyst_note"}
+                        ]
+                    }
+                },
             }
         ),
         encoding="utf-8",
@@ -241,3 +249,63 @@ def test_prepare_units_uses_top_level_transactions_and_fresh_session_probe(
     assert load_connection.autocommit is True
     assert result["failures"] == []
     assert result["durable_snapshots"][0]["source_row_count"] == 1
+    assert result["database_snapshots_removed_after_load"] is True
+    assert not (tmp_path / "work" / "_batch-source-snapshot").exists()
+
+
+def test_prepare_units_removes_batch_snapshot_when_postgresql_open_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = tmp_path / "data"
+    data.mkdir()
+    with sqlite3.connect(data / "research.db") as source:
+        source.execute("CREATE TABLE analyst_note(id INTEGER PRIMARY KEY)")
+    registry = tmp_path / "registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "validation": {"passed": True},
+                "registry_sha256": "c" * 64,
+                "units": {
+                    "user_content_notes": {
+                        "objects": [
+                            {"database": "research.db", "object": "analyst_note"}
+                        ]
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    route = tmp_path / "route.json"
+    route.write_text(
+        json.dumps(
+            {
+                "authority_state": "S0",
+                "backend": "sqlite_transition",
+                "sqlite_writer_enabled": True,
+                "production_postgresql_enabled": False,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "tools.migration.stage4_prepare_units._connection_from_runtime",
+        lambda *_args: (_ for _ in ()).throw(RuntimeError("pg unavailable")),
+    )
+    monkeypatch.setattr(
+        "tools.migration.stage4_prepare_units.shutil.disk_usage",
+        lambda _path: SimpleNamespace(free=10 * 1024**3),
+    )
+
+    with pytest.raises(RuntimeError, match="pg unavailable"):
+        prepare_units(
+            source_data_root=data,
+            registry_path=registry,
+            route_path=route,
+            runtime_path=tmp_path / "runtime.json",
+            application_commit_sha="d" * 40,
+            work_root=tmp_path / "work",
+            units=("user_content_notes",),
+        )
+    assert not (tmp_path / "work" / "_batch-source-snapshot").exists()

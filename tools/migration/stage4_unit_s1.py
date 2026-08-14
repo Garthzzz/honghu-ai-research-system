@@ -178,6 +178,33 @@ def _backup_database(source: Path, target: Path) -> dict[str, Any]:
     }
 
 
+def _inspect_database_snapshot(path: Path) -> dict[str, Any]:
+    """Verify an already-created immutable SQLite snapshot without copying it."""
+
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    check = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+    check.execute("PRAGMA query_only=ON")
+    try:
+        integrity = str(check.execute("PRAGMA integrity_check").fetchone()[0])
+        quick = str(check.execute("PRAGMA quick_check").fetchone()[0])
+        user_version = int(check.execute("PRAGMA user_version").fetchone()[0])
+        schema_version = int(check.execute("PRAGMA schema_version").fetchone()[0])
+    finally:
+        check.close()
+    if integrity != "ok" or quick != "ok":
+        raise UnitSnapshotError(f"SQLite snapshot failed integrity check: {path.name}")
+    return {
+        "database": path.name,
+        "snapshot_sha256": _file_sha(path),
+        "snapshot_size": path.stat().st_size,
+        "integrity_check": integrity,
+        "quick_check": quick,
+        "user_version": user_version,
+        "schema_version": schema_version,
+    }
+
+
 def _snapshot_table(
     database: str,
     path: Path,
@@ -247,6 +274,7 @@ def build_unit_snapshot(
     application_commit_sha: str,
     output_dir: Path,
     include_rows: bool = True,
+    source_is_consistent_snapshot: bool = False,
 ) -> dict[str, Any]:
     if unit not in PRODUCTION_UNITS:
         raise UnitSnapshotError(f"unit is not a production cutover unit: {unit}")
@@ -279,9 +307,13 @@ def build_unit_snapshot(
                 if database not in DATABASE_FILES:
                     raise UnitSnapshotError(f"unapproved source database: {database}")
                 snapshot_path = temp_root / database
-                database_evidence[database] = _backup_database(
-                    source_data_root / database, snapshot_path
-                )
+                if source_is_consistent_snapshot:
+                    snapshot_path = source_data_root / database
+                    database_evidence[database] = _inspect_database_snapshot(snapshot_path)
+                else:
+                    database_evidence[database] = _backup_database(
+                        source_data_root / database, snapshot_path
+                    )
                 for table in tables:
                     table_record = _snapshot_table(
                         database, snapshot_path, table, sink, unit_digest
@@ -291,7 +323,6 @@ def build_unit_snapshot(
             "cutover_unit": unit,
             "registry_sha256": registry_sha,
             "objects": objects,
-            "databases": database_evidence,
             "tables": table_evidence,
         }
         source_identity = _sha(source_identity_core)
@@ -314,6 +345,8 @@ def build_unit_snapshot(
             "source_created_at": source_created_at,
             "source_identity_sha256": source_identity,
             "source_identity": source_identity_core,
+            "database_snapshot_evidence": database_evidence,
+            "database_file_identity_role": "diagnostic_only_not_unit_business_identity",
             "formal_business_data": False,
             "authority_contract": {
                 "state": "S0_or_S1",
