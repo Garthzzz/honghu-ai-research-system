@@ -74,6 +74,7 @@ def configure_environment(args: argparse.Namespace) -> dict:
             "HONGHU_USER_CONTENT_POSTGRES_CONFIG": str(args.postgres_config.resolve()),
             "HONGHU_USER_CONTENT_IDENTITY_MAPPING": str(args.identity_mapping.resolve()),
             "HONGHU_USER_CONTENT_SECURITY_CONFIG": str(args.security_config.resolve()),
+            "HONGHU_PRODUCTION_LAUNCH_ID": args.launch_id,
             "PYTHONDONTWRITEBYTECODE": "1",
             "PYTHONUTF8": "1",
             "PYTHONIOENCODING": "utf-8",
@@ -124,6 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--postgres-config", type=Path, required=True)
     parser.add_argument("--identity-mapping", type=Path, required=True)
     parser.add_argument("--security-config", type=Path, required=True)
+    parser.add_argument("--launch-id", required=True)
     parser.add_argument("--host", default="0.0.0.0")
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--tls", action="store_true")

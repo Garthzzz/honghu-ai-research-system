@@ -289,6 +289,7 @@ def enforce_validated_recovery_retention(
     *,
     current: Path,
     keep: int = 2,
+    current_verified_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Retain only the newest fully verified recovery sets.
 
@@ -305,7 +306,35 @@ def enforce_validated_recovery_retention(
     current = current.resolve()
     if current.parent != root or current.is_symlink():
         raise RecoverySetError("current recovery set is outside the retention root")
-    current_manifest = verify_recovery_set(current, verify_storage_location=True)
+    if current_verified_manifest is None:
+        current_manifest = verify_recovery_set(
+            current, verify_storage_location=True
+        )
+    else:
+        # The caller may pass the manifest returned by build_recovery_set(),
+        # which is only returned after a complete exact-file/hash and storage
+        # verification.  Reuse that proof for the current set after a restore
+        # has actually consumed it; do not read the same multi-gigabyte set two
+        # more times merely to apply retention.  The identity/path checks below
+        # prevent a manifest from another set being substituted.
+        current_manifest = current_verified_manifest
+        manifest_path = current / MANIFEST_NAME
+        if not manifest_path.is_file():
+            raise RecoverySetError("current verified recovery-set manifest is missing")
+        observed_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if (
+            observed_manifest.get("recovery_set_identity")
+            != current_manifest.get("recovery_set_identity")
+            or sha256_json(
+                {
+                    key: value
+                    for key, value in observed_manifest.items()
+                    if key != "recovery_set_identity"
+                }
+            )
+            != current_manifest.get("recovery_set_identity")
+        ):
+            raise RecoverySetError("current verified recovery-set identity changed")
 
     validated: list[tuple[datetime, Path, dict[str, Any]]] = []
     unvalidated: list[str] = []
@@ -314,7 +343,11 @@ def enforce_validated_recovery_retention(
             unvalidated.append(candidate.name)
             continue
         try:
-            manifest = verify_recovery_set(candidate, verify_storage_location=True)
+            manifest = (
+                current_manifest
+                if candidate.resolve() == current
+                else verify_recovery_set(candidate, verify_storage_location=True)
+            )
             created = datetime.fromisoformat(
                 str(manifest["created_at_utc"]).replace("Z", "+00:00")
             )

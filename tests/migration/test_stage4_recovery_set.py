@@ -256,3 +256,45 @@ def test_retention_never_deletes_prior_set_when_current_is_invalid(
             keep=2,
         )
     assert prior.is_dir()
+
+
+def test_retention_reuses_current_complete_verification_but_rechecks_history(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(recovery, "probe_storage_endpoint", _remote_probe)
+    root = tmp_path / "honghu-postgresql"
+    root.mkdir()
+    built: list[tuple[Path, dict[str, object]]] = []
+    for index in range(2):
+        source = tmp_path / f"reuse-source-{index}"
+        base, wal, target = _sources(source)
+        destination = root / f"set-{index}"
+        manifest = recovery.build_recovery_set(
+            base_backup=base,
+            wal_archive=wal,
+            destination=destination,
+            source_identity={"source_host_id": "source-vm", "index": index},
+            target=target,
+            expected_storage_identity="a" * 64,
+            require_off_vm=True,
+        )
+        built.append((destination, manifest))
+
+    original_verify = recovery.verify_recovery_set
+    verified_paths: list[Path] = []
+
+    def counted_verify(path: Path, **kwargs: object) -> dict[str, object]:
+        verified_paths.append(path.resolve())
+        return original_verify(path, **kwargs)
+
+    monkeypatch.setattr(recovery, "verify_recovery_set", counted_verify)
+    result = recovery.enforce_validated_recovery_retention(
+        root,
+        current=built[-1][0],
+        keep=2,
+        current_verified_manifest=built[-1][1],
+    )
+
+    assert result["retained"] == ["set-1", "set-0"]
+    assert built[-1][0].resolve() not in verified_paths
+    assert verified_paths == [built[0][0].resolve()]

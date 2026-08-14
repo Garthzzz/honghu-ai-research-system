@@ -1,5 +1,7 @@
 \set ON_ERROR_STOP on
 
+SELECT set_config('honghu.rehearsal_writer_identity', :'writer_identity', false);
+
 -- S1 abandon rehearsal.
 SELECT * FROM operations.transition_cutover_unit(
     'rehearsal_s1_abandon', 'ABSENT', 0, 'S0', 'sqlite_transition',
@@ -84,7 +86,8 @@ BEGIN
         PERFORM * FROM user_content.put_analyst_note_v2(
             'fenced-note', 'company', '1', 'company:300308.SZ:A-share', NULL,
             'general', NULL, 'must be fenced', 'rehearsal', 0,
-            'fenced-idempotency', 'fenced-hash', 'honghu_stage4_writer_rehearsal'
+            'fenced-idempotency', 'fenced-hash',
+            current_setting('honghu.rehearsal_writer_identity')
         );
         RAISE EXCEPTION 'S1 business write unexpectedly succeeded';
     EXCEPTION WHEN insufficient_privilege THEN
@@ -134,7 +137,7 @@ BEGIN
         PERFORM * FROM user_content.soft_delete_analyst_note_v2(
             'analyst-note:missing', 'rehearsal', 1,
             'missing-delete-1', 'missing-delete-hash-1',
-            'honghu_stage4_writer_rehearsal'
+            current_setting('honghu.rehearsal_writer_identity')
         );
         RAISE EXCEPTION 'missing S2 delete unexpectedly succeeded';
     EXCEPTION WHEN serialization_failure THEN
@@ -155,13 +158,13 @@ SET SESSION AUTHORIZATION :"writer_role";
 SELECT * FROM user_content.soft_delete_analyst_note_v2(
     'analyst-note:research.db:42', 'rehearsal', 1,
     'first-formal-delete-1', 'first-formal-delete-hash-1',
-    'honghu_stage4_writer_rehearsal'
+    :'writer_identity'
 );
 -- Simulated uncertain client response after the delete commit.
 SELECT * FROM user_content.soft_delete_analyst_note_v2(
     'analyst-note:research.db:42', 'rehearsal', 1,
     'first-formal-delete-1', 'first-formal-delete-hash-1',
-    'honghu_stage4_writer_rehearsal'
+    :'writer_identity'
 );
 
 -- Create and update remain governed formal mutations after S3.
@@ -169,7 +172,7 @@ SELECT * FROM user_content.put_analyst_note_v2(
     'analyst-note:new:idempotent-1', 'theme', 'ai_datacenter',
     'theme:ai_datacenter', 'Q6', 'thesis', NULL,
     'first formal note', 'rehearsal', 0,
-    'formal-create-1', 'formal-create-hash-1', 'honghu_stage4_writer_rehearsal'
+    'formal-create-1', 'formal-create-hash-1', :'writer_identity'
 );
 
 -- A shared-identity row created after the initial mapping freeze cannot be
@@ -182,7 +185,7 @@ BEGIN
             'company:688041.SH:A-share', NULL, 'general', NULL,
             'must remain fenced before mapping', 'rehearsal', 0,
             'unmapped-company-1', 'unmapped-company-hash-1',
-            'honghu_stage4_writer_rehearsal'
+            current_setting('honghu.rehearsal_writer_identity')
         );
         RAISE EXCEPTION 'unmapped dependency unexpectedly succeeded';
     EXCEPTION WHEN foreign_key_violation THEN
@@ -206,14 +209,14 @@ SELECT * FROM user_content.put_analyst_note_v2(
     'company:688041.SH:A-share', NULL, 'general', NULL,
     'mapped after controlled evidence', 'rehearsal', 0,
     'mapped-company-1', 'mapped-company-hash-1',
-    'honghu_stage4_writer_rehearsal'
+    :'writer_identity'
 );
 -- Simulated uncertain client response: replay the same operation identity.
 SELECT * FROM user_content.put_analyst_note_v2(
     'analyst-note:new:idempotent-1', 'theme', 'ai_datacenter',
     'theme:ai_datacenter', 'Q6', 'thesis', NULL,
     'first formal note', 'rehearsal', 0,
-    'formal-create-1', 'formal-create-hash-1', 'honghu_stage4_writer_rehearsal'
+    'formal-create-1', 'formal-create-hash-1', :'writer_identity'
 );
 
 DO $$
@@ -223,7 +226,8 @@ BEGIN
             'analyst-note:new:idempotent-1', 'theme', 'ai_datacenter',
             'theme:ai_datacenter', 'Q6', 'thesis', NULL,
             'stale overwrite', 'rehearsal', 0,
-            'stale-update-1', 'stale-update-hash-1', 'honghu_stage4_writer_rehearsal'
+            'stale-update-1', 'stale-update-hash-1',
+            current_setting('honghu.rehearsal_writer_identity')
         );
         RAISE EXCEPTION 'stale update unexpectedly succeeded';
     EXCEPTION WHEN serialization_failure THEN
@@ -235,15 +239,15 @@ SELECT * FROM user_content.put_analyst_note_v2(
     'analyst-note:new:idempotent-1', 'theme', 'ai_datacenter',
     'theme:ai_datacenter', 'Q6', 'thesis', NULL,
     'updated formal note', 'rehearsal', 1,
-    'formal-update-1', 'formal-update-hash-1', 'honghu_stage4_writer_rehearsal'
+    'formal-update-1', 'formal-update-hash-1', :'writer_identity'
 );
 SELECT * FROM user_content.soft_delete_analyst_note_v2(
     'analyst-note:new:idempotent-1', 'rehearsal', 2,
-    'formal-delete-1', 'formal-delete-hash-1', 'honghu_stage4_writer_rehearsal'
+    'formal-delete-1', 'formal-delete-hash-1', :'writer_identity'
 );
 SELECT * FROM user_content.soft_delete_analyst_note_v2(
     'analyst-note:new:idempotent-1', 'rehearsal', 2,
-    'formal-delete-1', 'formal-delete-hash-1', 'honghu_stage4_writer_rehearsal'
+    'formal-delete-1', 'formal-delete-hash-1', :'writer_identity'
 );
 RESET SESSION AUTHORIZATION;
 
@@ -254,7 +258,7 @@ BEGIN
     BEGIN
         PERFORM * FROM operations.transition_cutover_unit(
             'user_content_notes', 'S3', 4, 'S4', 'sqlite_transition',
-            'honghu_stage4_writer_rehearsal', 'epoch-user-content',
+            current_setting('honghu.rehearsal_writer_identity'), 'epoch-user-content',
             '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
             'rehearsal', 'stage4-s4-approved', 'wrong backend must fail'
         );
@@ -269,7 +273,7 @@ DO $$
 BEGIN
     BEGIN
         PERFORM * FROM operations.transition_user_content_notes(
-            'S3', 4, 'S4', 'honghu_stage4_writer_rehearsal',
+            'S3', 4, 'S4', current_setting('honghu.rehearsal_writer_identity'),
             'epoch-user-content',
             '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
             'rehearsal', NULL, 'missing approval must fail'
@@ -290,7 +294,7 @@ BEGIN
     END;
     BEGIN
         PERFORM * FROM operations.transition_user_content_notes(
-            'S3', 4, 'S4', 'honghu_stage4_writer_rehearsal',
+            'S3', 4, 'S4', current_setting('honghu.rehearsal_writer_identity'),
             'epoch-user-content',
             '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
             'rehearsal', 'stage4-s2-approved', 'reused approval must fail'
@@ -301,7 +305,7 @@ BEGIN
     END;
 END $$;
 SELECT * FROM operations.transition_user_content_notes(
-    'S3', 4, 'S4', 'honghu_stage4_writer_rehearsal',
+    'S3', 4, 'S4', :'writer_identity',
     'epoch-user-content',
     '{"source_count":1,"source_max_legacy_id":42}'::jsonb,
     'rehearsal', 'stage4-s4-approved',
@@ -334,7 +338,7 @@ BEGIN
       FROM operations.cutover_unit_authority
      WHERE cutover_unit = 'user_content_notes';
     IF v_state <> 'S4' OR v_backend <> 'postgresql_production'
-       OR v_writer <> 'honghu_stage4_writer_rehearsal'
+       OR v_writer <> current_setting('honghu.rehearsal_writer_identity')
        OR v_epoch <> 'epoch-user-content'
        OR v_watermark <> '{"source_count":1,"source_max_legacy_id":42}'::jsonb
        OR v_formal IS NULL OR v_approval <> 'stage4-s4-approved' THEN

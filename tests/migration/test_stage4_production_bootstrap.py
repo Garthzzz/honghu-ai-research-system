@@ -19,6 +19,7 @@ from tools.migration.stage4_production_bootstrap_contract import (
 )
 from tools.migration.stage4_json_io import read_json
 from tools.migration.stage4_production_recovery import (
+    _authority_snapshot,
     _configure_local_restore,
     _connect as connect_production_recovery,
     _load_json as load_production_recovery_json,
@@ -35,6 +36,46 @@ from tools.migration import stage4_isolated_entry as isolated_entry_module
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_recovery_authority_snapshot_accepts_complete_s3() -> None:
+    snapshot = _authority_snapshot(
+        (
+            "S3",
+            "postgresql_production",
+            "user-content-production-writer",
+            "epoch-1",
+            '{"source":"sqlite"}',
+            '{"operation_id":"formal-1"}',
+            3,
+            "approval-1",
+        )
+    )
+    assert snapshot["state"] == "S3"
+    assert snapshot["authoritative_backend"] == "postgresql_production"
+    assert snapshot["postgresql_first_formal_commit"] == '{"operation_id":"formal-1"}'
+
+
+@pytest.mark.parametrize(
+    ("row", "message"),
+    [
+        (
+            ("S2", "postgresql_production", "writer", "epoch", "{}", None, 2, "approval"),
+            "short S2 cutover fence",
+        ),
+        (
+            ("S3", "sqlite_transition", "writer", "epoch", "{}", "{}", 3, "approval"),
+            "S3/S4 authority snapshot is incomplete",
+        ),
+        (
+            ("S3", "postgresql_production", "writer", "epoch", "{}", None, 3, "approval"),
+            "S3/S4 authority snapshot is incomplete",
+        ),
+    ],
+)
+def test_recovery_authority_snapshot_fails_closed(row: tuple[object, ...], message: str) -> None:
+    with pytest.raises(ProductionRecoveryError, match=message):
+        _authority_snapshot(row)
 
 
 @pytest.mark.parametrize(
@@ -849,3 +890,13 @@ def test_required_wal_range_handles_postgresql_log_segment_rollover() -> None:
             "000000010000000100000000",
             16 * 1024 * 1024,
         )
+
+
+def test_bootstrap_migration_replay_is_ledger_guarded() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "function Get-HonghuPsqlScalar" in source
+    assert "to_regclass('operations.schema_migration')" in source
+    assert "already recorded with a different SHA256" in source
+    assert "if ($recordedSha)" in source

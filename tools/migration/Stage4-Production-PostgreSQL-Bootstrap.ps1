@@ -147,6 +147,29 @@ function Invoke-HonghuPsql {
 
 }
 
+function Get-HonghuPsqlScalar {
+    param(
+        [Parameter(Mandatory = $true)][string]$Psql,
+        [Parameter(Mandatory = $true)][string]$Database,
+        [Parameter(Mandatory = $true)][string]$Password,
+        [Parameter(Mandatory = $true)][string]$Sql
+    )
+    $oldPassword = $env:PGPASSWORD
+    try {
+        $env:PGPASSWORD = $Password
+        $output = & $Psql -X --set ON_ERROR_STOP=1 --tuples-only --no-align `
+            --host 127.0.0.1 --port 55440 --username honghu_admin `
+            --dbname $Database --no-password --command $Sql 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "psql scalar query failed without changing application authority: $($output -join [Environment]::NewLine)"
+        }
+        return (($output | Out-String).Trim())
+    }
+    finally {
+        $env:PGPASSWORD = $oldPassword
+    }
+}
+
 function Test-HonghuRoleCredential {
     param(
         [Parameter(Mandatory = $true)][string]$Psql,
@@ -726,9 +749,25 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         $CredentialEntries.Add(("honghu.postgresql.{0}.v1|{1}" -f $entry.Key, $entry.Value))
     }
 
-    foreach ($migration in '0001_user_content_notes_expand.sql','0002_user_content_notes_cutover_expand.sql','0003_stage4_migration_staging.sql') {
+    foreach ($migration in '0001_user_content_notes_expand.sql','0002_user_content_notes_cutover_expand.sql','0003_stage4_migration_staging.sql','0004_user_content_writer_identity_separation.sql') {
         $path = Join-Path $RepoRoot "migrations\postgresql\$migration"
         $sha = Get-HonghuSha256 -Path $path
+        $migrationId = [System.IO.Path]::GetFileNameWithoutExtension($migration)
+        $ledgerTable = Get-HonghuPsqlScalar -Psql (Join-Path $Bin 'psql.exe') `
+            -Database 'honghu_research' -Password $adminPassword `
+            -Sql "SELECT COALESCE(to_regclass('operations.schema_migration')::text, '')"
+        $recordedSha = ''
+        if ($ledgerTable) {
+            $recordedSha = Get-HonghuPsqlScalar -Psql (Join-Path $Bin 'psql.exe') `
+                -Database 'honghu_research' -Password $adminPassword `
+                -Sql ("SELECT COALESCE((SELECT migration_sha256 FROM operations.schema_migration WHERE migration_id = '{0}'), '')" -f $migrationId)
+        }
+        if ($recordedSha) {
+            if ($recordedSha -ne $sha) {
+                throw "Migration $migrationId is already recorded with a different SHA256."
+            }
+            continue
+        }
         $sql = Get-Content -Raw -LiteralPath $path
         Invoke-HonghuPsql -Psql (Join-Path $Bin 'psql.exe') -Database 'honghu_research' -Password $adminPassword -Sql $sql -Variables @("migration_sha256=$sha") | Out-Null
     }

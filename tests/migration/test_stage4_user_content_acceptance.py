@@ -36,3 +36,10 @@ def test_acceptance_has_separate_s2_first_mutation_and_s3_stress() -> None:
     assert "plaintext 8080 mutation was not rejected" in source
     assert "ThreadPoolExecutor" in source
     assert "soft_deleted_count" in source
+    assert "update_idempotent_replay" in source
+    assert "stale_revision_rejected" in source
+    assert "readonly_principal_write_rejected" in source
+    assert "unauthenticated_read_rejected" in source
+    assert "missing_csrf_rejected" in source
+    assert '"p95_ms"' in source and '"p99_ms"' in source
+    assert "stress requires a second read-only principal" in source

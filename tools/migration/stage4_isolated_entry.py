@@ -14,6 +14,7 @@ from pathlib import Path
 
 
 ALLOWED_MODULES = {
+    "tools.release.cli": "main",
     "tools.migration.stage4_identity_mapping": "main",
     "tools.migration.stage4_identity_mapping_crosscheck": "main",
     "tools.migration.stage4_execution_bundle": "main",
@@ -23,9 +24,16 @@ ALLOWED_MODULES = {
     "tools.migration.stage4_production_recovery": "main",
     "tools.migration.stage4_production_verify": "main",
     "tools.migration.stage4_repository_governance": "main",
+    "tools.migration.stage4_runtime_release_binding": "main",
     "tools.migration.stage4_user_content_s1": "main",
     "tools.migration.stage4_user_content_runtime": "main",
     "tools.migration.stage4_user_content_cutover": "main",
+    "tools.migration.stage4_user_content_approval": "main",
+    "tools.migration.stage4_user_content_acceptance": "main",
+    "tools.migration.stage4_user_content_writer_fence": "main",
+    "tools.migration.stage4_unit_s1": "main",
+    "tools.migration.stage4_s1_loader": "main",
+    "tools.migration.stage4_tls_certificate": "main",
 }
 
 

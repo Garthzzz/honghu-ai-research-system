@@ -1,6 +1,7 @@
 {
   "schema_version": "honghu.deployment_policy.v1",
   "include_exact": [
+    "AGENTS.md",
     "WindPy.py",
     "requirements.lock.txt",
     "restart_viewer.bat"

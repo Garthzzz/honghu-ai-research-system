@@ -66,6 +66,69 @@ def _run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return result
 
 
+def _applied_migration_sha(
+    psql: str,
+    connection: list[str],
+    database: str,
+    migration_id: str,
+) -> str | None:
+    result = _run(
+        [
+            psql,
+            "-X",
+            "--no-psqlrc",
+            "-A",
+            "-t",
+            *connection,
+            "-d",
+            database,
+            "-c",
+            (
+                "SELECT migration_sha256 FROM operations.schema_migration "
+                f"WHERE migration_id = '{migration_id}'"
+            ),
+        ]
+    )
+    value = result.stdout.strip()
+    return value or None
+
+
+def _apply_migration_or_verify(
+    *,
+    psql: str,
+    connection: list[str],
+    database: str,
+    migration: Path,
+    migration_sha256: str,
+    ledger_exists: bool,
+) -> None:
+    migration_id = migration.stem
+    if ledger_exists:
+        applied = _applied_migration_sha(psql, connection, database, migration_id)
+        if applied:
+            if applied != migration_sha256:
+                raise RuntimeError(
+                    f"migration {migration_id} is recorded with a different SHA256"
+                )
+            return
+    _run(
+        [
+            psql,
+            "-X",
+            "--no-psqlrc",
+            "-v",
+            "ON_ERROR_STOP=1",
+            "-v",
+            f"migration_sha256={migration_sha256}",
+            *connection,
+            "-d",
+            database,
+            "-f",
+            str(migration),
+        ]
+    )
+
+
 def _live_file_hashes(data_root: Path) -> dict[str, str]:
     return {name: sha256_file(data_root / name) for name in LIVE_DATABASES}
 
@@ -90,6 +153,7 @@ def _run_adapter_rehearsal(
     username: str,
     reader_role: str,
     writer_role: str,
+    writer_identity: str,
     sslmode: str = "disable",
     password: str | None = None,
 ) -> dict[str, Any]:
@@ -122,7 +186,8 @@ def _run_adapter_rehearsal(
         transaction_boundary="one note mutation plus revision, audit and idempotency",
         sqlite_writer_enabled=False,
         production_postgresql_enabled=True,
-        writer_identity=writer_role,
+        writer_identity=writer_identity,
+        cutover_epoch="epoch-user-content",
         approval_reference="stage4-s4-approved",
     )
     stale_route = CutoverRoute(authority_state=AuthorityState.S3, **common)
@@ -258,6 +323,7 @@ def run_rehearsal(
     pg_dump = _tool(bin_dir, "pg_dump")
     pg_restore = _tool(bin_dir, "pg_restore")
     writer_role = "honghu_stage4_writer_rehearsal"
+    writer_identity = "honghu_user_content_writer_rehearsal"
     reader_role = "honghu_stage4_reader_rehearsal"
     controller_role = "honghu_stage4_controller_rehearsal"
     audit_reader_role = "honghu_stage4_audit_reader_rehearsal"
@@ -265,6 +331,7 @@ def run_rehearsal(
     migration_paths = [
         root / "migrations/postgresql/0001_user_content_notes_expand.sql",
         root / "migrations/postgresql/0002_user_content_notes_cutover_expand.sql",
+        root / "migrations/postgresql/0004_user_content_writer_identity_separation.sql",
     ]
     rehearsal_path = root / "migrations/postgresql/0002_user_content_notes_cutover_rehearsal.sql"
     role_grants_path = root / "migrations/postgresql/0002_user_content_notes_role_grants.sql"
@@ -286,23 +353,18 @@ def run_rehearsal(
                 ]
             )
         _run([createdb, *connection, database])
+        ledger_exists = False
         for migration in migration_paths:
-            apply_command = [
-                psql,
-                "-X",
-                "--no-psqlrc",
-                "-v",
-                "ON_ERROR_STOP=1",
-                "-v",
-                f"migration_sha256={migration_sha256[migration.name]}",
-                *connection,
-                "-d",
-                database,
-                "-f",
-                str(migration),
-            ]
-            _run(apply_command)
-            _run(apply_command)
+            for _ in range(2):
+                _apply_migration_or_verify(
+                    psql=psql,
+                    connection=connection,
+                    database=database,
+                    migration=migration,
+                    migration_sha256=migration_sha256[migration.name],
+                    ledger_exists=ledger_exists,
+                )
+                ledger_exists = True
 
         _run(
             [
@@ -389,7 +451,7 @@ def run_rehearsal(
                 "-v",
                 f"writer_role={writer_role}",
                 "-v",
-                f"writer_identity={writer_role}",
+                f"writer_identity={writer_identity}",
                 "-v",
                 f"controller_role={controller_role}",
                 "-A",
@@ -409,6 +471,7 @@ def run_rehearsal(
             username=username,
             reader_role=reader_role,
             writer_role=writer_role,
+            writer_identity=writer_identity,
             sslmode=sslmode,
             password=password,
         )

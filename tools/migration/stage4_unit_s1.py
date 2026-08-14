@@ -295,7 +295,16 @@ def build_unit_snapshot(
             "tables": table_evidence,
         }
         source_identity = _sha(source_identity_core)
-        snapshot_id = f"{unit}:{source_identity[:24]}"
+        # A migration snapshot is an execution artifact, not only a digest of
+        # the SQLite source rows.  The same immutable source can legitimately
+        # be prepared again by a newer application release (the empty
+        # analyst_note pilot is the common case).  Include both identities so
+        # retries of one exact release remain idempotent while a new release
+        # receives a distinct, auditable snapshot instead of colliding with or
+        # rewriting the earlier release's evidence.
+        snapshot_id = (
+            f"{unit}:{source_identity[:16]}:{application_commit_sha[:12]}"
+        )
         result_core = {
             "schema_version": SCHEMA_VERSION,
             "snapshot_id": snapshot_id,

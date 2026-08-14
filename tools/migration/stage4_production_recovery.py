@@ -351,6 +351,67 @@ def _wait_for_recovery_target(
     )
 
 
+def _authority_snapshot(row: Any) -> dict[str, Any]:
+    if row is None:
+        raise ProductionRecoveryError("user_content_notes authority row is missing")
+    snapshot = {
+        "state": str(row[0]),
+        "authoritative_backend": str(row[1]),
+        "writer_identity": str(row[2]) if row[2] is not None else None,
+        "cutover_epoch": str(row[3]) if row[3] is not None else None,
+        "sqlite_final_watermark": str(row[4]) if row[4] is not None else None,
+        "postgresql_first_formal_commit": str(row[5]) if row[5] is not None else None,
+        "state_revision": int(row[6]),
+        "approval_reference": str(row[7]),
+    }
+    state = snapshot["state"]
+    if state in {"S0", "S1"}:
+        if snapshot["authoritative_backend"] != "sqlite_transition" or any(
+            snapshot[key] is not None
+            for key in (
+                "writer_identity",
+                "cutover_epoch",
+                "sqlite_final_watermark",
+                "postgresql_first_formal_commit",
+            )
+        ):
+            raise ProductionRecoveryError("S0/S1 authority snapshot is inconsistent")
+    elif state == "S2":
+        raise ProductionRecoveryError(
+            "recovery rehearsal is forbidden during the short S2 cutover fence"
+        )
+    elif state in {"S3", "S4"}:
+        if snapshot["authoritative_backend"] != "postgresql_production" or any(
+            not snapshot[key]
+            for key in (
+                "writer_identity",
+                "cutover_epoch",
+                "sqlite_final_watermark",
+                "postgresql_first_formal_commit",
+            )
+        ):
+            raise ProductionRecoveryError("S3/S4 authority snapshot is incomplete")
+    else:
+        raise ProductionRecoveryError(f"unsupported authority state: {state}")
+    if snapshot["state_revision"] < 1 or not snapshot["approval_reference"].strip():
+        raise ProductionRecoveryError("authority revision/approval evidence is incomplete")
+    return snapshot
+
+
+def _read_authority_snapshot(connection: Any) -> dict[str, Any]:
+    row = connection.execute(
+        """
+        SELECT state, authoritative_backend, writer_identity,
+               cutover_epoch, sqlite_final_watermark::text,
+               postgresql_first_formal_commit::text, state_revision,
+               approval_reference
+          FROM operations.cutover_unit_authority
+         WHERE cutover_unit='user_content_notes'
+        """
+    ).fetchone()
+    return _authority_snapshot(row)
+
+
 def run_production_recovery(
     *,
     repo_root: Path,
@@ -414,6 +475,7 @@ def run_production_recovery(
             "INSERT INTO operations.bootstrap_recovery_sentinel(operation_id) VALUES (%s)",
             (sentinel_id,),
         )
+        source_authority = _read_authority_snapshot(connection)
         target_lsn, durable_at, required_wal, wal_segment_size = connection.execute(
             """
             SELECT pg_current_wal_flush_lsn()::text,
@@ -468,12 +530,11 @@ def run_production_recovery(
         expected_storage_identity=expected_off_vm_storage_identity,
         require_off_vm=require_off_vm,
     )
-    verified = verify_recovery_set(
-        destination,
-        expected_identity=manifest["recovery_set_identity"],
-        expected_storage_identity=manifest["storage_evidence"]["derived_storage_identity"],
-        verify_storage_location=True,
-    )
+    # build_recovery_set returns only after the off-VM copy has passed a full
+    # exact-file, per-artifact hash and storage-identity verification.  Reuse
+    # that verified manifest here; the physical restore below must still read
+    # exclusively from this recovery set and prove the post-backup sentinel.
+    verified = manifest
 
     restore_parent = install_root / "restore-tests" / run_id
     restore_data = restore_parent / "data"
@@ -521,14 +582,7 @@ def run_production_recovery(
                 "target_lsn_reached": bool(row[3]),
                 "promotion": promotion,
             }
-            authority = restored.execute(
-                """
-                SELECT state, authoritative_backend, writer_identity,
-                       cutover_epoch, postgresql_first_formal_commit
-                  FROM operations.cutover_unit_authority
-                 WHERE cutover_unit='user_content_notes'
-                """
-            ).fetchone()
+            restored_authority = _read_authority_snapshot(restored)
     finally:
         if restore_started:
             _pg_ctl(bin_dir, restore_data, "stop")
@@ -536,17 +590,16 @@ def run_production_recovery(
     measurement = measured_recovery(
         target=target, recovered=recovered, restore_elapsed_seconds=elapsed
     )
-    if authority is not None and (
-        authority[0] not in {"S0", "S1"}
-        or authority[1] != "sqlite_transition"
-        or any(value is not None for value in authority[2:])
-    ):
-        raise ProductionRecoveryError("restored authority control exceeds S0/S1")
+    if restored_authority != source_authority:
+        raise ProductionRecoveryError(
+            "restored authority control does not match the durable source snapshot"
+        )
     retention = (
         enforce_validated_recovery_retention(
             destination.parent,
             current=destination,
             keep=2,
+            current_verified_manifest=verified,
         )
         if require_off_vm
         else {
@@ -572,14 +625,15 @@ def run_production_recovery(
         "measurement": measurement,
         "whole_database_restore": "pass",
         "authority_control_restore": "pass",
+        "authority_snapshot": source_authority,
         "side_domain_restore": {
             "status": "pass",
             "method": "physical side instance; user_content/operations/audit queried without production mutation",
         },
         "off_vm_verified": bool(require_off_vm),
         "validated_recovery_retention": retention,
-        "application_authority": "sqlite_transition",
-        "formal_business_data_written": False,
+        "application_authority": source_authority["authoritative_backend"],
+        "formal_business_data_written": source_authority["state"] in {"S3", "S4"},
     }
     result = {**result_core, "evidence_sha256": sha256_json(result_core)}
     _write_json(output_dir / "production_recovery.json", result)
