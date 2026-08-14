@@ -82,6 +82,30 @@ def test_fence_requires_stable_watermark_and_no_live_writer(tmp_path: Path) -> N
             before=watermark, after=changed, windows_observation=_windows(),
             application_commit_sha="a" * 40, release_manifest_sha256="b" * 64,
         )
+
+
+def test_fence_accepts_powershell_seven_digit_utc_timestamp(tmp_path: Path) -> None:
+    watermark = capture_sqlite_watermark(_database(tmp_path / "research.db"))
+    result = compile_writer_fence(
+        before=watermark,
+        after=watermark,
+        windows_observation=_windows(captured_at_utc="2026-08-14T06:12:26.0121967Z"),
+        application_commit_sha="a" * 40,
+        release_manifest_sha256="b" * 64,
+    )
+    assert result["verified"] is True
+
+
+def test_fence_rejects_timezone_free_audit_timestamp(tmp_path: Path) -> None:
+    watermark = capture_sqlite_watermark(_database(tmp_path / "research.db"))
+    with pytest.raises(ValueError, match="timezone"):
+        compile_writer_fence(
+            before=watermark,
+            after=watermark,
+            windows_observation=_windows(captured_at_utc="2026-08-14T06:12:26.0121967"),
+            application_commit_sha="a" * 40,
+            release_manifest_sha256="b" * 64,
+        )
     with pytest.raises(WriterFenceError, match="scheduled analyst-note writer"):
         compile_writer_fence(
             before=watermark,

@@ -10,6 +10,7 @@ validated here before the evidence can satisfy the S2 controller.
 import argparse
 import hashlib
 import json
+import re
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
@@ -29,6 +30,23 @@ def _sha(value: Any) -> str:
             "utf-8"
         )
     ).hexdigest()
+
+
+def _parse_audit_timestamp(value: str) -> datetime:
+    """Parse RFC 3339 timestamps emitted by Python or PowerShell.
+
+    Windows PowerShell's round-trip ``o`` formatter emits seven fractional
+    second digits (100 ns ticks), while Python 3.10 accepts at most six.  The
+    seventh digit is below Python's datetime precision, so truncate only that
+    fractional tail and keep the timezone/offset fail-closed.
+    """
+
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    normalized = re.sub(r"(?<=\.\d{6})\d+(?=[+-]\d{2}:\d{2}$)", "", normalized)
+    parsed = datetime.fromisoformat(normalized)
+    if parsed.tzinfo is None:
+        raise ValueError("audit timestamp must include a timezone")
+    return parsed
 
 
 def capture_sqlite_watermark(database: Path) -> dict[str, Any]:
@@ -133,7 +151,7 @@ def compile_writer_fence(
         raise WriterFenceError("Windows fence observation has no capture time")
     # Parseability is part of the audit contract; this does not impose an
     # arbitrary age limit on a short, operator-controlled maintenance window.
-    datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+    _parse_audit_timestamp(captured_at)
     observation_core = {
         key: value
         for key, value in windows_observation.items()
