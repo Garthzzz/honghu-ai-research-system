@@ -41,6 +41,8 @@ def _parse_audit_timestamp(value: str) -> datetime:
     fractional tail and keep the timezone/offset fail-closed.
     """
 
+    if not (value.endswith("Z") or re.search(r"[+-]\d{2}:\d{2}$", value)):
+        raise ValueError("audit timestamp must include a timezone")
     normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
     normalized = re.sub(r"(?<=\.\d{6})\d+(?=[+-]\d{2}:\d{2}$)", "", normalized)
     parsed = datetime.fromisoformat(normalized)
