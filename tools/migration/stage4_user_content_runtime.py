@@ -31,7 +31,9 @@ def _sha(value: Any) -> str:
     ).hexdigest()
 
 
-def compile_viewer_runtime(payload: dict[str, Any]) -> dict[str, Any]:
+def compile_viewer_runtime(
+    payload: dict[str, Any], *, writer_role: str = "writer_user_content_notes"
+) -> dict[str, Any]:
     if payload.get("schema_version") != "honghu.postgresql_production_runtime.v1":
         raise UserContentRuntimeError("unsupported production bootstrap runtime")
     if payload.get("environment_id") != "production":
@@ -64,7 +66,9 @@ def compile_viewer_runtime(payload: dict[str, Any]) -> dict[str, Any]:
     # The production bootstrap uses one least-privilege writer per owning
     # cutover unit.  The generic ``writer`` key was used only by the earlier
     # isolated fixture and must not be required in production evidence.
-    writer = role("writer_user_content_notes")
+    if not writer_role.startswith("writer_"):
+        raise UserContentRuntimeError("application writer role is outside the unit role namespace")
+    writer = role(writer_role)
     if reader["user"] == writer["user"]:
         raise UserContentRuntimeError("reader and writer roles must remain distinct")
     core = {
@@ -79,6 +83,7 @@ def compile_viewer_runtime(payload: dict[str, Any]) -> dict[str, Any]:
         "connect_timeout_seconds": 5,
         "reader": reader,
         "writer": writer,
+        "writer_role_key": writer_role,
         "source_runtime_identity_sha256": _sha(payload),
     }
     if not core["host"] or not 1 <= core["port"] <= 65535 or not core["dbname"]:
@@ -90,11 +95,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--writer-role", default="writer_user_content_notes")
     args = parser.parse_args(argv)
     source = read_json(args.source)
     if not isinstance(source, dict):
         raise UserContentRuntimeError("production runtime must be an object")
-    result = compile_viewer_runtime(source)
+    result = compile_viewer_runtime(source, writer_role=args.writer_role)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
