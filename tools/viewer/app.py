@@ -74,6 +74,10 @@ from tools.data_platform.shared_identity import (  # noqa: E402
     SharedIdentityReadCache,
     SharedIdentityWriterFenced,
 )
+from tools.data_platform.local_authority_fence import (  # noqa: E402
+    LocalAuthorityFenceError,
+    assert_sqlite_write_allowed,
+)
 from tools.data_platform.user_content_notes import (  # noqa: E402
     AnalystNoteError,
     AnalystNoteMutation,
@@ -7054,6 +7058,10 @@ def _resolve_or_create_researcher(conn, rid_raw, name_raw):
             "PostgreSQL shared_identity 已成为唯一身份写入端；"
             "请先通过独立研究员创建接口建档，再提交假说。"
         )
+    try:
+        assert_sqlite_write_allowed(RUNTIME_LAYOUT.data_root, "shared_identity")
+    except LocalAuthorityFenceError as exc:
+        return None, str(exc)
     cur = conn.execute(
         "INSERT INTO researcher(name, display_name, focus_summary, is_active) VALUES(?,?,?,1)",
         (name, name, cat))
@@ -7549,6 +7557,7 @@ def api_researcher_create():
             ), 500
     conn = get_db()
     try:
+        assert_sqlite_write_allowed(RUNTIME_LAYOUT.data_root, "shared_identity")
         bad = _check_dangling(conn, "industry", ind_ids)
         if bad:
             return jsonify({"ok": False, "error": "focus_industries dangling", "dangling": bad}), 400
@@ -7561,6 +7570,10 @@ def api_researcher_create():
              (d.get("bio") or "").strip() or None))
         conn.commit()
         return jsonify({"ok": True, "researcher_id": cur.lastrowid})
+    except LocalAuthorityFenceError as exc:
+        return jsonify(
+            {"ok": False, "error": str(exc), "code": "writer_fenced"}
+        ), 503
     finally:
         conn.close()
 

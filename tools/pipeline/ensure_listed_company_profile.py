@@ -22,6 +22,7 @@ from tools.data_platform.postgres_runtime import (
 )
 from tools.data_platform.routing import Backend, load_cutover_route
 from tools.data_platform.shared_identity import PostgresSharedIdentityRepository
+from tools.data_platform.local_authority_fence import assert_sqlite_write_allowed
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -89,6 +90,9 @@ def ensure_listed_company_profile(
             "company_url": f"/company/{result['company_id']}",
             "identity_source_ref": source_ref,
         }
+    assert_sqlite_write_allowed(
+        Path(research_db_path).resolve().parent, "shared_identity"
+    )
     research_path = Path(research_db_path).resolve()
     financial_path = Path(financial_db_path).resolve()
     if research_path == DEFAULT_RESEARCH_DB.resolve() and not confirm_live:

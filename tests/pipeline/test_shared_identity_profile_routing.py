@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import json
+
+import pytest
+
+from tools.data_platform.local_authority_fence import LocalAuthorityFenceError
 from tools.data_platform.routing import AuthorityState, Backend, CutoverRoute
 from tools.pipeline import ensure_listed_company_profile as profile
 
@@ -70,3 +75,47 @@ def test_profile_provisioning_uses_explicit_postgresql_route_without_sqlite_fall
         }
     ]
 
+
+def test_profile_provisioning_fails_closed_when_live_marker_retires_sqlite(
+    monkeypatch, tmp_path
+) -> None:
+    route = CutoverRoute(
+        cutover_unit="shared_identity",
+        backend=Backend.SQLITE_TRANSITION,
+        writer_operation="shared_identity_mutation",
+        transaction_boundary="one shared identity mutation",
+        authority_state=AuthorityState.S0,
+        sqlite_writer_enabled=True,
+        production_postgresql_enabled=False,
+    )
+    data_root = tmp_path / "data"
+    marker = data_root / "authority" / "shared_identity.json"
+    marker.parent.mkdir(parents=True)
+    marker.write_text(
+        json.dumps(
+            {
+                "schema_version": "honghu.local_authority_fence.v1",
+                "cutover_unit": "shared_identity",
+                "authority_state": "S3",
+                "authoritative_backend": "postgresql_production",
+                "authority_evidence_sha256": "a" * 64,
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(profile, "load_cutover_route", lambda *_a, **_k: route)
+
+    with pytest.raises(LocalAuthorityFenceError, match="SQLite writer is retired"):
+        profile.ensure_listed_company_profile(
+            canonical_name="Test Company",
+            ticker="TEST.US",
+            market="US",
+            listing_status="listed",
+            verification_source_ref="exchange:TEST.US",
+            research_db_path=data_root / "research.db",
+            financial_db_path=data_root / "financial.db",
+            confirm_live=True,
+        )
+
+    assert not (data_root / "research.db").exists()
+    assert not (data_root / "financial.db").exists()

@@ -4,6 +4,7 @@ import sqlite3
 
 import pytest
 
+from tools.data_platform.local_authority_fence import LocalAuthorityFenceError
 from tools.data_platform.routing import AuthorityState, Backend, CutoverRoute
 from tools.viewer import app as viewer
 from tools.viewer.user_content_security import (
@@ -138,3 +139,45 @@ def test_hypothesis_inline_identity_creation_is_fenced_after_shared_cutover(
     assert "独立研究员创建接口" in error
     assert connection.execute("SELECT count(*) FROM researcher").fetchone()[0] == 1
 
+
+def test_sqlite_researcher_create_fails_closed_on_live_authority_marker(
+    monkeypatch, tmp_path
+) -> None:
+    route = CutoverRoute(
+        cutover_unit="shared_identity",
+        backend=Backend.SQLITE_TRANSITION,
+        writer_operation="shared_identity_mutation",
+        transaction_boundary="one shared identity mutation",
+        authority_state=AuthorityState.S0,
+        sqlite_writer_enabled=True,
+        production_postgresql_enabled=False,
+    )
+    db_path = tmp_path / "research.db"
+    connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
+    connection.execute("CREATE TABLE industry(id integer primary key)")
+    connection.execute("CREATE TABLE researcher(id integer primary key,name text unique)")
+    connection.commit()
+    connection.close()
+    monkeypatch.setattr(viewer, "SHARED_IDENTITY_ROUTE", route)
+    monkeypatch.setattr(viewer, "get_db", lambda: sqlite3.connect(db_path))
+    monkeypatch.setattr(
+        viewer,
+        "assert_sqlite_write_allowed",
+        lambda *_a, **_k: (_ for _ in ()).throw(
+            LocalAuthorityFenceError("shared_identity SQLite writer is retired")
+        ),
+    )
+    old_testing = viewer.app.testing
+    viewer.app.testing = True
+    try:
+        response = viewer.app.test_client().post(
+            "/api/researcher", json={"name": "Blocked Researcher"}
+        )
+    finally:
+        viewer.app.testing = old_testing
+
+    assert response.status_code == 503
+    assert response.get_json()["code"] == "writer_fenced"
+    with sqlite3.connect(db_path) as check:
+        assert check.execute("SELECT count(*) FROM researcher").fetchone()[0] == 0

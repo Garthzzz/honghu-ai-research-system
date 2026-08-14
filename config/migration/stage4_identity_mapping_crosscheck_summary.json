@@ -1,51 +1,52 @@
 {
   "schema_version": "honghu.identity_mapping_crosscheck_summary.v1",
   "approval_status": "pending_user_cutover_approval",
-  "mapping_manifest_sha256": "cb6ce219f5b67454155b35a03a29b947d42791c9e1fe4323ba2bf9145a14b79f",
-  "crosscheck_source_snapshot_identity_sha256": "bbab62a5f555f9f84e5853b4021e0bad1931159f3ae69a41ac2b9e462ba53e6b",
+  "mapping_manifest_sha256": "07c8ca95a7645c896736c0495494f834b7e7943875652c411f1df108e509b77c",
+  "mapping_snapshot_identity_sha256": "967111d03e4e798fa7a193941d577faf33983007da91b30a8133177ad2693208",
+  "crosscheck_source_snapshot_identity_sha256": "0956934fe9954489b94c35c2307404fa01483fc95bd29317c7beafb773dbdf90",
   "counts": {
     "mapping_total": 774,
     "company_total": 681,
-    "ticker_venue_direct": 399,
-    "name_market_fallback_total": 282,
+    "ticker_venue_direct": 403,
+    "name_market_fallback_total": 278,
     "fallback_machine_crosschecked": 278,
-    "fallback_requires_human": 4,
+    "fallback_requires_human": 0,
     "industry_industry_q_theme": 93,
-    "approved_alias_groups": 1,
-    "identity_overrides": 1
+    "approved_alias_groups": 3,
+    "identity_overrides": 2
   },
-  "approved_alias": {
-    "stable_key": "company:security:COHU:venue:us",
-    "legacy_ids": ["491", "554"],
-    "approval_reference": "user-confirmed-pr8-review-2026-08-12"
-  },
-  "reviewed_override": {
-    "legacy_id": "552",
-    "display_name": "泰瑞达",
-    "stable_key": "company:security:TER:venue:us"
-  },
-  "manual_review_items": [
+  "approved_aliases": [
+    {
+      "stable_key": "company:security:5802.T:venue:tokyo",
+      "legacy_ids": ["58", "59"],
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13"
+    },
+    {
+      "stable_key": "company:security:688041.SH:venue:shanghai",
+      "legacy_ids": ["330", "336"],
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13"
+    },
+    {
+      "stable_key": "company:security:COHU:venue:us",
+      "legacy_ids": ["491", "554"],
+      "approval_reference": "user-confirmed-pr8-review-2026-08-12"
+    }
+  ],
+  "reviewed_overrides": [
     {
       "legacy_id": "21",
       "display_name": "Acacia",
-      "reason": "标记为美股/us，但缺少可验证 ticker"
+      "stable_key": "company:security:ACIA:venue:us",
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13"
     },
     {
-      "legacy_id": "58",
-      "display_name": "Sumitomo",
-      "reason": "标记为 tse，但名称不唯一且缺少 ticker"
-    },
-    {
-      "legacy_id": "59",
-      "display_name": "住友电气",
-      "reason": "标记为 tse，但缺少 ticker；不得静默并入 Sumitomo"
-    },
-    {
-      "legacy_id": "336",
-      "display_name": "海光",
-      "reason": "名称与 company_id=330 的 688041.SH 别名冲突，需确认是否同一主体"
+      "legacy_id": "552",
+      "display_name": "泰瑞达",
+      "stable_key": "company:security:TER:venue:us",
+      "approval_reference": "user-approved-stage4-cutover-2026-08-13"
     }
   ],
+  "manual_review_items": [],
   "machine_evidence": {
     "research_company_rows": 681,
     "financial_security_rows": 681,
@@ -55,6 +56,6 @@
   "approval_contract": {
     "codex_may_not_approve_final_mapping": true,
     "machine_crosscheck_is_not_cutover_approval": true,
-    "human_scope": "四条异常的处置加整包最终批准"
+    "human_scope": "人工异常均已有逐项批准；仍需对 approval bundle 931269db92b1dcf76da4ada288cf31925039bf8cbd71af6485d29fe606c1ca63 做整包 cutover-level 批准"
   }
 }

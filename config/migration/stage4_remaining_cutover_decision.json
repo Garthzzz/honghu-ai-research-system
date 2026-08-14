@@ -1,0 +1,51 @@
+{
+  "schema_version": "honghu.stage4_remaining_cutover_decision.v1",
+  "approved_by": "user",
+  "approval_reference": "user-stage4-remaining-batch-authorization-2026-08-15",
+  "approval_scope": [
+    "shared_identity",
+    "financial_data",
+    "research_publication",
+    "dynamic_intelligence",
+    "operations_governance",
+    "investment_hypotheses",
+    "opportunity_lens",
+    "sentiment_analytics"
+  ],
+  "approval_contract": {
+    "per_unit_gates_required": [
+      "live_drift",
+      "dependency_transaction_boundary",
+      "stable_identity_mapping",
+      "source_baseline_delta_catchup",
+      "migration_backfill_reconciliation",
+      "unique_writer_runner",
+      "least_privilege_acl",
+      "off_vm_recovery",
+      "s2_s3_authority_evidence",
+      "application_compatibility",
+      "fail_closed_rollback_recovery"
+    ],
+    "stage5_runner_migration_authorized": false,
+    "dual_writer_authorized": false,
+    "shadow_write_authorized": false,
+    "silent_fallback_authorized": false
+  },
+  "shared_identity_mapping_approval": {
+    "cutover_level_approved": true,
+    "mapping_manifest_sha256": "07c8ca95a7645c896736c0495494f834b7e7943875652c411f1df108e509b77c",
+    "mapping_snapshot_identity_sha256": "967111d03e4e798fa7a193941d577faf33983007da91b30a8133177ad2693208",
+    "crosscheck_source_snapshot_identity_sha256": "0956934fe9954489b94c35c2307404fa01483fc95bd29317c7beafb773dbdf90",
+    "approval_bundle_sha256": "931269db92b1dcf76da4ada288cf31925039bf8cbd71af6485d29fe606c1ca63",
+    "manual_review_item_count": 0,
+    "approved_alias_group_count": 3,
+    "approved_identity_override_count": 2,
+    "basis": "The user explicitly granted conditional batch S2/S3 authority for every remaining Stage 4 unit once its own stable-identity and other listed gates pass. The refreshed deterministic bundle contains no unresolved manual item and only the aliases/overrides previously approved by the user."
+  },
+  "forbidden_scope": [
+    "user_content_notes_S4",
+    "production_task_migration",
+    "runner_host_cutover",
+    "stage5"
+  ]
+}
