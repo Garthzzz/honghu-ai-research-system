@@ -800,7 +800,8 @@ GRANT EXECUTE ON FUNCTION pg_catalog.pg_switch_wal() TO honghu_backup;
         sslmode = 'verify-full'
         sslrootcert = (Join-Path $TlsDir 'root.crt')
         service_name = 'HonghuPostgreSQL17'
-        application_route = 'sqlite_transition'
+        tracked_static_default_route = 'sqlite_transition'
+        application_route = 'sqlite_transition' # v1 compatibility alias; not live authority
         cluster_contract = @{
             encoding = $bootstrapConfig.postgresql.encoding
             locale_provider = $bootstrapConfig.postgresql.locale_provider
@@ -1169,7 +1170,8 @@ try {
         runtime_config = $RuntimeConfigPath
         primary_evidence = $PrimaryEvidencePath
         final_evidence = $FinalEvidencePath
-        application_authority = 'sqlite_transition'
+        tracked_static_default_route = 'sqlite_transition'
+        live_authority_changed = $false
         cutover_state = 'S0_or_S1_only'
         readiness_status = $Readiness.status
         readiness_evidence = $ReadinessPath

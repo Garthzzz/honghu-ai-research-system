@@ -13,6 +13,10 @@ from pathlib import Path
 from typing import Any
 
 from tools.migration.stage4_json_io import read_json
+from tools.migration.stage4_runtime_contract import (
+    RuntimeContractError,
+    tracked_static_default_route,
+)
 
 
 class UserContentRuntimeError(RuntimeError):
@@ -32,8 +36,10 @@ def compile_viewer_runtime(payload: dict[str, Any]) -> dict[str, Any]:
         raise UserContentRuntimeError("unsupported production bootstrap runtime")
     if payload.get("environment_id") != "production":
         raise UserContentRuntimeError("bootstrap runtime is not production-scoped")
-    if payload.get("application_route") != "sqlite_transition":
-        raise UserContentRuntimeError("bootstrap authority is no longer the approved SQLite baseline")
+    try:
+        tracked_static_default_route(payload)
+    except RuntimeContractError as exc:
+        raise UserContentRuntimeError(str(exc)) from exc
     if payload.get("sslmode") != "verify-full":
         raise UserContentRuntimeError("Viewer runtime requires verify-full TLS")
     root = Path(str(payload.get("sslrootcert") or "")).resolve()

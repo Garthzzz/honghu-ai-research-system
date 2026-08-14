@@ -17,6 +17,10 @@ from pathlib import Path
 from typing import Any
 
 from tools.migration.stage4_json_io import read_json
+from tools.migration.stage4_runtime_contract import (
+    RuntimeContractError,
+    tracked_static_default_route,
+)
 
 
 class RuntimeBindingError(RuntimeError):
@@ -36,8 +40,10 @@ def bind_runtime(source: dict[str, Any], *, commit_sha: str) -> dict[str, Any]:
         raise RuntimeBindingError("unsupported production runtime")
     if source.get("environment_id") != "production":
         raise RuntimeBindingError("runtime is not production scoped")
-    if source.get("application_route") != "sqlite_transition":
-        raise RuntimeBindingError("infrastructure runtime authority is not the frozen SQLite baseline")
+    try:
+        tracked_static_default_route(source)
+    except RuntimeContractError as exc:
+        raise RuntimeBindingError(str(exc)) from exc
     if source.get("sslmode") != "verify-full":
         raise RuntimeBindingError("production runtime does not enforce verify-full")
     if not re.fullmatch(r"[0-9a-f]{40}", commit_sha):

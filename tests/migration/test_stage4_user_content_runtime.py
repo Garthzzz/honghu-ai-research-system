@@ -14,6 +14,7 @@ def _source(root: Path) -> dict:
     return {
         "schema_version": "honghu.postgresql_production_runtime.v1",
         "environment_id": "production",
+        "tracked_static_default_route": "sqlite_transition",
         "application_route": "sqlite_transition",
         "host": "localhost",
         "port": 55440,
@@ -58,8 +59,8 @@ def test_runtime_compiler_fails_closed_on_wrong_authority_tls_or_roles(
     root = tmp_path / "root.crt"
     root.write_text("public certificate", encoding="utf-8")
     source = _source(root)
-    source["application_route"] = "postgresql_production"
-    with pytest.raises(UserContentRuntimeError, match="SQLite baseline"):
+    source["tracked_static_default_route"] = "postgresql_production"
+    with pytest.raises(UserContentRuntimeError, match="conflicts|static default route"):
         compile_viewer_runtime(source)
     source = _source(root)
     source["roles"]["writer_user_content_notes"] = dict(source["roles"]["reader"])

@@ -13,6 +13,16 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from tools.migration.stage4_authority_control import (
+    AuthorityControlError,
+    authority_snapshot,
+    read_authority_snapshots,
+)
+from tools.migration.stage4_runtime_contract import (
+    RuntimeContractError,
+    tracked_static_default_route,
+)
+
 from tools.migration.stage4_recovery_set import (
     assert_restore_sources,
     build_recovery_set,
@@ -352,64 +362,19 @@ def _wait_for_recovery_target(
 
 
 def _authority_snapshot(row: Any) -> dict[str, Any]:
-    if row is None:
-        raise ProductionRecoveryError("user_content_notes authority row is missing")
-    snapshot = {
-        "state": str(row[0]),
-        "authoritative_backend": str(row[1]),
-        "writer_identity": str(row[2]) if row[2] is not None else None,
-        "cutover_epoch": str(row[3]) if row[3] is not None else None,
-        "sqlite_final_watermark": str(row[4]) if row[4] is not None else None,
-        "postgresql_first_formal_commit": str(row[5]) if row[5] is not None else None,
-        "state_revision": int(row[6]),
-        "approval_reference": str(row[7]),
-    }
-    state = snapshot["state"]
-    if state in {"S0", "S1"}:
-        if snapshot["authoritative_backend"] != "sqlite_transition" or any(
-            snapshot[key] is not None
-            for key in (
-                "writer_identity",
-                "cutover_epoch",
-                "sqlite_final_watermark",
-                "postgresql_first_formal_commit",
-            )
-        ):
-            raise ProductionRecoveryError("S0/S1 authority snapshot is inconsistent")
-    elif state == "S2":
-        raise ProductionRecoveryError(
-            "recovery rehearsal is forbidden during the short S2 cutover fence"
-        )
-    elif state in {"S3", "S4"}:
-        if snapshot["authoritative_backend"] != "postgresql_production" or any(
-            not snapshot[key]
-            for key in (
-                "writer_identity",
-                "cutover_epoch",
-                "sqlite_final_watermark",
-                "postgresql_first_formal_commit",
-            )
-        ):
-            raise ProductionRecoveryError("S3/S4 authority snapshot is incomplete")
-    else:
-        raise ProductionRecoveryError(f"unsupported authority state: {state}")
-    if snapshot["state_revision"] < 1 or not snapshot["approval_reference"].strip():
-        raise ProductionRecoveryError("authority revision/approval evidence is incomplete")
-    return snapshot
+    try:
+        return authority_snapshot(row, cutover_unit="user_content_notes")
+    except AuthorityControlError as exc:
+        raise ProductionRecoveryError(str(exc)) from exc
 
 
 def _read_authority_snapshot(connection: Any) -> dict[str, Any]:
-    row = connection.execute(
-        """
-        SELECT state, authoritative_backend, writer_identity,
-               cutover_epoch, sqlite_final_watermark::text,
-               postgresql_first_formal_commit::text, state_revision,
-               approval_reference
-          FROM operations.cutover_unit_authority
-         WHERE cutover_unit='user_content_notes'
-        """
-    ).fetchone()
-    return _authority_snapshot(row)
+    try:
+        return read_authority_snapshots(
+            connection, required_units=("user_content_notes",)
+        )["user_content_notes"]
+    except AuthorityControlError as exc:
+        raise ProductionRecoveryError(str(exc)) from exc
 
 
 def run_production_recovery(
@@ -430,8 +395,10 @@ def run_production_recovery(
         raise ProductionRecoveryError("recovery source is not production-scoped")
     if runtime.get("application_commit_sha") != commit_sha:
         raise ProductionRecoveryError("runtime belongs to another application commit")
-    if runtime.get("application_route") != "sqlite_transition":
-        raise ProductionRecoveryError("application authority is not SQLite")
+    try:
+        static_default_route = tracked_static_default_route(runtime)
+    except RuntimeContractError as exc:
+        raise ProductionRecoveryError(str(exc)) from exc
     if len(commit_sha) != 40:
         raise ProductionRecoveryError("full application commit SHA is required")
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -475,7 +442,12 @@ def run_production_recovery(
             "INSERT INTO operations.bootstrap_recovery_sentinel(operation_id) VALUES (%s)",
             (sentinel_id,),
         )
-        source_authority = _read_authority_snapshot(connection)
+        try:
+            source_authorities = read_authority_snapshots(
+                connection, required_units=("user_content_notes",)
+            )
+        except AuthorityControlError as exc:
+            raise ProductionRecoveryError(str(exc)) from exc
         target_lsn, durable_at, required_wal, wal_segment_size = connection.execute(
             """
             SELECT pg_current_wal_flush_lsn()::text,
@@ -582,7 +554,12 @@ def run_production_recovery(
                 "target_lsn_reached": bool(row[3]),
                 "promotion": promotion,
             }
-            restored_authority = _read_authority_snapshot(restored)
+            try:
+                restored_authorities = read_authority_snapshots(
+                    restored, required_units=source_authorities
+                )
+            except AuthorityControlError as exc:
+                raise ProductionRecoveryError(str(exc)) from exc
     finally:
         if restore_started:
             _pg_ctl(bin_dir, restore_data, "stop")
@@ -590,7 +567,7 @@ def run_production_recovery(
     measurement = measured_recovery(
         target=target, recovered=recovered, restore_elapsed_seconds=elapsed
     )
-    if restored_authority != source_authority:
+    if restored_authorities != source_authorities:
         raise ProductionRecoveryError(
             "restored authority control does not match the durable source snapshot"
         )
@@ -611,7 +588,7 @@ def run_production_recovery(
         }
     )
     result_core = {
-        "schema_version": "honghu.stage4_production_recovery.v1",
+        "schema_version": "honghu.stage4_production_recovery.v2",
         "status": "pass" if require_off_vm else "engineering_partial",
         "environment_id": "production",
         "application_commit_sha": commit_sha,
@@ -625,15 +602,27 @@ def run_production_recovery(
         "measurement": measurement,
         "whole_database_restore": "pass",
         "authority_control_restore": "pass",
-        "authority_snapshot": source_authority,
+        "authority_snapshots": source_authorities,
+        "tracked_static_default_route": static_default_route,
+        "live_authoritative_backends": {
+            unit: snapshot["authoritative_backend"]
+            for unit, snapshot in source_authorities.items()
+        },
+        "formal_business_units": sorted(
+            unit
+            for unit, snapshot in source_authorities.items()
+            if snapshot["state"] in {"S3", "S4"}
+        ),
         "side_domain_restore": {
             "status": "pass",
             "method": "physical side instance; user_content/operations/audit queried without production mutation",
         },
         "off_vm_verified": bool(require_off_vm),
         "validated_recovery_retention": retention,
-        "application_authority": source_authority["authoritative_backend"],
-        "formal_business_data_written": source_authority["state"] in {"S3", "S4"},
+        "formal_business_data_written": any(
+            snapshot["state"] in {"S3", "S4"}
+            for snapshot in source_authorities.values()
+        ),
     }
     result = {**result_core, "evidence_sha256": sha256_json(result_core)}
     _write_json(output_dir / "production_recovery.json", result)
