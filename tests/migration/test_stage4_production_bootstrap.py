@@ -36,6 +36,7 @@ from tools.migration.stage4_authority_control import (
     authority_snapshot,
     read_authority_snapshots,
 )
+from tools.migration import stage4_authority_control as authority_control_module
 from tools.migration.stage4_runtime_contract import (
     RuntimeContractError,
     tracked_static_default_route,
@@ -103,6 +104,9 @@ class _AuthorityConnection:
     def execute(self, sql: str) -> _AuthorityCursor:
         assert "ORDER BY cutover_unit" in sql
         return _AuthorityCursor(self.rows)
+
+    def close(self) -> None:
+        return None
 
 
 def test_generic_authority_recovery_validates_every_cutover_unit() -> None:
@@ -185,6 +189,45 @@ def test_authority_snapshot_rejects_unit_identity_mismatch() -> None:
             ),
             cutover_unit="financial_data",
         )
+
+
+def test_authority_probe_cli_writes_validated_single_unit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    rows = [
+        (
+            "shared_identity",
+            "S1",
+            "sqlite_transition",
+            None,
+            None,
+            None,
+            None,
+            1,
+            "approval",
+        )
+    ]
+    monkeypatch.setattr(
+        "tools.migration.stage4_s1_loader._connection_from_runtime",
+        lambda runtime, role: _AuthorityConnection(rows),
+    )
+    output = tmp_path / "authority.json"
+    assert (
+        authority_control_module.main(
+            [
+                "--runtime",
+                str(tmp_path / "runtime.json"),
+                "--unit",
+                "shared_identity",
+                "--output",
+                str(output),
+            ]
+        )
+        == 0
+    )
+    payload = json.loads(output.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == "honghu.cutover_authority_probe.v1"
+    assert payload["authority"]["state"] == "S1"
 
 
 def test_runtime_static_route_is_distinct_and_legacy_compatible() -> None:

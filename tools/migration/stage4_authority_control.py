@@ -2,7 +2,10 @@ from __future__ import annotations
 
 """Reusable cutover authority validation for recovery and deployment gates."""
 
+import argparse
+import json
 from collections.abc import Iterable, Mapping
+from pathlib import Path
 from typing import Any
 
 
@@ -131,3 +134,40 @@ def read_authority_snapshots(
     if missing:
         raise AuthorityControlError(f"required authority rows are missing: {missing}")
     return snapshots
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Read one durable authority row using the common fail-closed contract."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--runtime", type=Path, required=True)
+    parser.add_argument("--unit", required=True)
+    parser.add_argument("--role", default="reader")
+    parser.add_argument("--allow-s2", action="store_true")
+    parser.add_argument("--output", type=Path, required=True)
+    args = parser.parse_args(argv)
+    from tools.migration.stage4_s1_loader import _connection_from_runtime
+
+    connection = _connection_from_runtime(args.runtime, args.role)
+    try:
+        snapshots = read_authority_snapshots(
+            connection,
+            required_units=[args.unit],
+            allow_s2=args.allow_s2,
+        )
+    finally:
+        connection.close()
+    payload = {
+        "schema_version": "honghu.cutover_authority_probe.v1",
+        "authority": snapshots[args.unit],
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(json.dumps(payload, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
