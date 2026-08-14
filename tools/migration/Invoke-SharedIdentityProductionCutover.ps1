@@ -78,8 +78,8 @@ function Start-PriorUserContentViewer {
         -TlsCertificate (Join-Path $TlsRoot 'server.crt') `
         -TlsPrivateKey (Join-Path $TlsRoot 'server.key') -HttpPort 8080 -HttpsPort 8443 | Out-Null
 }
-$s1Value = Get-Content -Raw -LiteralPath $S1 | ConvertFrom-Json
-$recoveryValue = Get-Content -Raw -LiteralPath $RecoveryEvidence | ConvertFrom-Json
+$s1Value = Get-Content -Raw -Encoding UTF8 -LiteralPath $S1 | ConvertFrom-Json
+$recoveryValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $RecoveryEvidence | ConvertFrom-Json
 if ($s1Value.application_commit_sha -ne $CommitSha -or $recoveryValue.application_commit_sha -ne $CommitSha -or
     $recoveryValue.status -ne 'pass' -or -not [bool]$recoveryValue.off_vm_verified -or
     $recoveryValue.authority_snapshots.shared_identity.state -ne 'S1') {
@@ -105,7 +105,7 @@ try {
         '--registry',(Join-Path $RepoRoot 'config\migration\cutover_unit_registry.json'),
         '--application-commit-sha',$CommitSha,'--output-dir',$FinalSnapshotRoot,'--manifest-only'
     )
-    $finalManifest = Get-Content -Raw -LiteralPath (Join-Path $FinalSnapshotRoot 'shared_identity.snapshot.json') | ConvertFrom-Json
+    $finalManifest = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $FinalSnapshotRoot 'shared_identity.snapshot.json') | ConvertFrom-Json
     if ([string]$finalManifest.source_identity_sha256 -ne [string]$s1Value.source_identity_sha256 -or
         [int64]$finalManifest.reconciliation.source_row_count -ne [int64]$s1Value.source_row_count -or
         [string]$finalManifest.reconciliation.source_content_sha256 -ne [string]$s1Value.source_content_sha256) {
@@ -161,7 +161,7 @@ try {
             Invoke-Isolated 'tools.migration.stage4_authority_control' @(
                 '--runtime',$Runtime,'--unit','shared_identity','--allow-s2','--output',$FailureAuthority
             )
-            $failureAuthorityValue = Get-Content -Raw -LiteralPath $FailureAuthority | ConvertFrom-Json
+            $failureAuthorityValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $FailureAuthority | ConvertFrom-Json
             $safeS1Abandon = $failureAuthorityValue.authority.state -eq 'S1'
         } catch { $safeS1Abandon = $false }
     }

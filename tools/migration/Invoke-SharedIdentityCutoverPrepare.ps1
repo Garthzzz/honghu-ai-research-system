@@ -62,8 +62,8 @@ Invoke-Isolated 'tools.migration.stage4_identity_mapping_crosscheck' @(
     '--mapping',$Mapping,'--source-data-root',(Join-Path $ProductionRoot 'data'),
     '--output',$Crosscheck
 )
-$mappingValue = Get-Content -Raw -LiteralPath $Mapping | ConvertFrom-Json
-$decisionValue = Get-Content -Raw -LiteralPath $Decision | ConvertFrom-Json
+$mappingValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $Mapping | ConvertFrom-Json
+$decisionValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $Decision | ConvertFrom-Json
 $approved = $decisionValue.shared_identity_mapping_approval
 if (-not [bool]$approved.cutover_level_approved -or
     [string]$approved.mapping_manifest_sha256 -ne [string]$mappingValue.manifest_sha256 -or
@@ -77,7 +77,7 @@ Invoke-Isolated 'tools.migration.stage4_prepare_units' @(
     '--application-commit-sha',$CommitSha,'--work-root',$SnapshotRoot,
     '--unit','shared_identity'
 )
-$preparation = Get-Content -Raw -LiteralPath (Join-Path $SnapshotRoot 'all_unit_preparation.json') | ConvertFrom-Json
+$preparation = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $SnapshotRoot 'all_unit_preparation.json') | ConvertFrom-Json
 $unit = @($preparation.units | Where-Object {$_.cutover_unit -eq 'shared_identity'})
 if ($unit.Count -ne 1 -or $unit[0].status -ne 'staging_reconciled_s0_s1_preparation') {
     throw 'shared_identity staging reconciliation is incomplete'
@@ -86,7 +86,7 @@ Invoke-Isolated 'tools.migration.stage4_shared_identity_s1' @(
     '--runtime',$RuntimeBound,'--mapping',$Mapping,'--actor','principal:codex',
     '--approval-reference',([string]$decisionValue.approval_reference),'--output',$S1
 )
-$s1Value = Get-Content -Raw -LiteralPath $S1 | ConvertFrom-Json
+$s1Value = Get-Content -Raw -Encoding UTF8 -LiteralPath $S1 | ConvertFrom-Json
 if ($s1Value.authority_state -ne 'S1' -or $s1Value.authoritative_backend -ne 'sqlite_transition' -or
     [int64]$s1Value.source_row_count -ne [int64]$s1Value.target_row_count -or
     [string]$s1Value.application_commit_sha -ne $CommitSha) {
