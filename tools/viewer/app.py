@@ -67,7 +67,13 @@ from tools.data_platform.routing import (  # noqa: E402
     Backend as DataBackend,
     load_cutover_route,
 )
-from tools.data_platform.shared_identity import SharedIdentityReadCache  # noqa: E402
+from tools.data_platform.shared_identity import (  # noqa: E402
+    PostgresSharedIdentityRepository,
+    SharedIdentityConflict,
+    SharedIdentityError,
+    SharedIdentityReadCache,
+    SharedIdentityWriterFenced,
+)
 from tools.data_platform.user_content_notes import (  # noqa: E402
     AnalystNoteError,
     AnalystNoteMutation,
@@ -272,13 +278,24 @@ SHARED_IDENTITY_ROUTE = load_cutover_route(
     runtime_override=SHARED_IDENTITY_RUNTIME_ROUTE,
 )
 SHARED_IDENTITY_READ_CACHE = None
+SHARED_IDENTITY_POSTGRES_WRITE_FACTORY = None
+SHARED_IDENTITY_REPOSITORY = None
 if SHARED_IDENTITY_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
     shared_runtime_path = os.environ.get("HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG")
     if not shared_runtime_path:
         raise RuntimeError("PostgreSQL shared-identity route requires runtime config")
     shared_settings = load_postgres_runtime_settings(shared_runtime_path)
-    SHARED_IDENTITY_READ_CACHE = SharedIdentityReadCache(
-        build_postgres_connection_factory(shared_settings, role="reader")
+    shared_reader_factory = build_postgres_connection_factory(
+        shared_settings, role="reader"
+    )
+    SHARED_IDENTITY_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
+        shared_settings, role="writer"
+    )
+    SHARED_IDENTITY_READ_CACHE = SharedIdentityReadCache(shared_reader_factory)
+    SHARED_IDENTITY_REPOSITORY = PostgresSharedIdentityRepository(
+        shared_reader_factory,
+        SHARED_IDENTITY_POSTGRES_WRITE_FACTORY,
+        SHARED_IDENTITY_ROUTE,
     )
 
 configure_user_content_security(
@@ -7032,6 +7049,11 @@ def _resolve_or_create_researcher(conn, rid_raw, name_raw):
     row = conn.execute("SELECT id FROM researcher WHERE name=?", (name,)).fetchone()
     if row:
         return row["id"], None
+    if SHARED_IDENTITY_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
+        return None, (
+            "PostgreSQL shared_identity 已成为唯一身份写入端；"
+            "请先通过独立研究员创建接口建档，再提交假说。"
+        )
     cur = conn.execute(
         "INSERT INTO researcher(name, display_name, focus_summary, is_active) VALUES(?,?,?,1)",
         (name, name, cat))
@@ -7487,6 +7509,44 @@ def api_researcher_create():
     if not name:
         return jsonify({"ok": False, "error": "name 必填"}), 400
     ind_ids = _as_id_list(d.get("focus_industries"))
+    if SHARED_IDENTITY_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
+        try:
+            principal = require_user_content_principal(
+                app, request, permission="shared_identity:write", csrf=True
+            )
+            operation_id = (request.headers.get("X-Idempotency-Key") or "").strip()
+            if not operation_id:
+                return jsonify(
+                    {"ok": False, "error": "X-Idempotency-Key 必填"}
+                ), 400
+            if SHARED_IDENTITY_REPOSITORY is None:
+                raise SharedIdentityWriterFenced(
+                    "PostgreSQL shared identity repository is unavailable"
+                )
+            result = SHARED_IDENTITY_REPOSITORY.create_researcher(
+                name=name,
+                display_name=(d.get("display_name") or name).strip(),
+                focus_summary=(d.get("focus_summary") or "").strip() or None,
+                focus_industries=ind_ids,
+                bio=(d.get("bio") or "").strip() or None,
+                idempotency_key=operation_id,
+                actor=principal.subject,
+            )
+            return jsonify({"ok": True, **result})
+        except SharedIdentityConflict as exc:
+            return jsonify(
+                {"ok": False, "error": str(exc), "code": "identity_conflict"}
+            ), 409
+        except (SharedIdentityWriterFenced, UserContentSecurityError) as exc:
+            if isinstance(exc, UserContentSecurityError):
+                return _user_content_error(exc)
+            return jsonify(
+                {"ok": False, "error": str(exc), "code": "writer_fenced"}
+            ), 503
+        except SharedIdentityError as exc:
+            return jsonify(
+                {"ok": False, "error": str(exc), "code": "identity_write_failed"}
+            ), 500
     conn = get_db()
     try:
         bad = _check_dangling(conn, "industry", ind_ids)

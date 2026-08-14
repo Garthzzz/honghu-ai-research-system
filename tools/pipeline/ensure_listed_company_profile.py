@@ -8,6 +8,7 @@ the C database remains a read-only consumer of the A/B company identity layer.
 
 import argparse
 import json
+import os
 import sqlite3
 from pathlib import Path
 from typing import Iterable
@@ -15,6 +16,12 @@ from typing import Iterable
 from tools.financial.constants import DB_PATH as DEFAULT_FINANCIAL_DB
 from tools.financial.db import initialize_database as initialize_financial_database
 from tools.financial.repository import upsert_security
+from tools.data_platform.postgres_runtime import (
+    build_postgres_connection_factory,
+    load_postgres_runtime_settings,
+)
+from tools.data_platform.routing import Backend, load_cutover_route
+from tools.data_platform.shared_identity import PostgresSharedIdentityRepository
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -32,6 +39,8 @@ def ensure_listed_company_profile(
     research_db_path: str | Path = DEFAULT_RESEARCH_DB,
     financial_db_path: str | Path = DEFAULT_FINANCIAL_DB,
     confirm_live: bool = False,
+    idempotency_key: str | None = None,
+    actor: str | None = None,
 ) -> dict[str, object]:
     name = str(canonical_name or "").strip()
     code = str(ticker or "").strip().upper()
@@ -39,6 +48,47 @@ def ensure_listed_company_profile(
     source_ref = str(verification_source_ref or "").strip()
     if not all((name, code, market_name, listing_status, source_ref)):
         raise ValueError("公司建档必须有规范名称、证券代码、市场、上市状态和身份核验来源")
+    route = load_cutover_route(
+        ROOT / "config/migration/shared_identity_backend_route.json",
+        runtime_override=os.environ.get("HONGHU_SHARED_IDENTITY_ROUTE_CONFIG"),
+    )
+    if route.backend is Backend.POSTGRESQL_PRODUCTION:
+        if not confirm_live:
+            raise PermissionError(
+                "formal PostgreSQL company identity write requires confirm_live=True"
+            )
+        if not str(idempotency_key or "").strip() or not str(actor or "").strip():
+            raise ValueError(
+                "formal PostgreSQL company identity write requires stable idempotency_key and trusted actor"
+            )
+        runtime_path = os.environ.get("HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG")
+        if not runtime_path:
+            raise RuntimeError("PostgreSQL shared identity runtime config is required")
+        settings = load_postgres_runtime_settings(runtime_path)
+        repository = PostgresSharedIdentityRepository(
+            build_postgres_connection_factory(settings, role="reader"),
+            build_postgres_connection_factory(settings, role="writer"),
+            route,
+        )
+        result = repository.ensure_listed_company(
+            canonical_name=name,
+            ticker=code,
+            market=market_name,
+            listing_status=listing_status,
+            verification_source_ref=source_ref,
+            aliases=list(
+                dict.fromkeys(
+                    str(value).strip() for value in aliases if str(value).strip()
+                )
+            ),
+            idempotency_key=str(idempotency_key).strip(),
+            actor=str(actor).strip(),
+        )
+        return {
+            **result,
+            "company_url": f"/company/{result['company_id']}",
+            "identity_source_ref": source_ref,
+        }
     research_path = Path(research_db_path).resolve()
     financial_path = Path(financial_db_path).resolve()
     if research_path == DEFAULT_RESEARCH_DB.resolve() and not confirm_live:
@@ -140,6 +190,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--research-db", type=Path, default=DEFAULT_RESEARCH_DB)
     parser.add_argument("--financial-db", type=Path, default=DEFAULT_FINANCIAL_DB)
     parser.add_argument("--confirm-live", action="store_true")
+    parser.add_argument("--idempotency-key")
+    parser.add_argument("--actor")
     args = parser.parse_args(argv)
     result = ensure_listed_company_profile(
         canonical_name=args.name, ticker=args.ticker, market=args.market,
@@ -147,6 +199,8 @@ def main(argv: list[str] | None = None) -> int:
         verification_source_ref=args.verification_source_ref, aliases=args.alias,
         research_db_path=args.research_db, financial_db_path=args.financial_db,
         confirm_live=args.confirm_live,
+        idempotency_key=args.idempotency_key,
+        actor=args.actor,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

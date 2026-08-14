@@ -8,6 +8,7 @@ import pytest
 from tools.data_platform.shared_identity import (
     SharedIdentityError,
     SharedIdentityReadCache,
+    company_security_stable_key,
 )
 
 
@@ -112,3 +113,22 @@ def test_identity_cache_fails_closed_without_postgresql_authority(
     cache = SharedIdentityReadCache(lambda: _Postgres(state=state, backend=backend))
     with pytest.raises(SharedIdentityError, match="not authoritative"):
         cache.attach(sqlite3.connect(":memory:"))
+
+
+@pytest.mark.parametrize(
+    ("ticker", "market", "status", "expected"),
+    [
+        ("688041.SH", "A股", "listed", "company:security:688041.SH:venue:shanghai"),
+        ("aapl", "美股", "us", "company:security:AAPL:venue:us"),
+        ("0700.HK", "港股", "hk", "company:security:0700.HK:venue:hong-kong"),
+    ],
+)
+def test_company_stable_identity_is_ticker_and_venue_qualified(
+    ticker: str, market: str, status: str, expected: str
+) -> None:
+    assert company_security_stable_key(ticker, market, status) == expected
+
+
+def test_unqualified_company_identity_fails_closed() -> None:
+    with pytest.raises(SharedIdentityError, match="supported venue"):
+        company_security_stable_key("UNKNOWN", "其他", "listed")

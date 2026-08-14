@@ -175,6 +175,113 @@ def rehearse_shared_identity_cutover(
         if int(after[7]) != int(after[8]) or int(after[7]) != int(before[4]):
             raise SharedIdentityRehearsalError("formal shared_identity row count is inconsistent")
 
+        researcher_request_sha = _sha(
+            {
+                "operation": "create_researcher_v1",
+                "name": "__stage4_rehearsal_researcher__",
+            }
+        )
+        researcher = connection.execute(
+            """SELECT shared_identity.create_researcher_v1(
+                %s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
+            )""",
+            (
+                "__stage4_rehearsal_researcher__",
+                "Stage 4 Rehearsal Researcher",
+                "isolated rehearsal only",
+                "[]",
+                None,
+                "rehearsal:create-researcher",
+                researcher_request_sha,
+                writer_identity,
+                actor,
+            ),
+        ).fetchone()[0]
+        researcher_replay = connection.execute(
+            """SELECT shared_identity.create_researcher_v1(
+                %s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
+            )""",
+            (
+                "__stage4_rehearsal_researcher__",
+                "Stage 4 Rehearsal Researcher",
+                "isolated rehearsal only",
+                "[]",
+                None,
+                "rehearsal:create-researcher",
+                researcher_request_sha,
+                writer_identity,
+                actor,
+            ),
+        ).fetchone()[0]
+        if researcher != researcher_replay:
+            raise SharedIdentityRehearsalError(
+                "researcher uncertain-response replay changed result"
+            )
+
+        company_request_sha = _sha(
+            {
+                "operation": "ensure_listed_company_v1",
+                "ticker": "999999.SH",
+                "venue": "shanghai",
+            }
+        )
+        company = connection.execute(
+            """SELECT shared_identity.ensure_listed_company_v1(
+                %s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
+            )""",
+            (
+                "__stage4_rehearsal_company__",
+                "999999.SH",
+                "A股",
+                "listed",
+                "stage4-rehearsal-only",
+                "[]",
+                "company:security:999999.SH:venue:shanghai",
+                "rehearsal:ensure-company",
+                company_request_sha,
+                writer_identity,
+                actor,
+            ),
+        ).fetchone()[0]
+        company_replay = connection.execute(
+            """SELECT shared_identity.ensure_listed_company_v1(
+                %s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
+            )""",
+            (
+                "__stage4_rehearsal_company__",
+                "999999.SH",
+                "A股",
+                "listed",
+                "stage4-rehearsal-only",
+                "[]",
+                "company:security:999999.SH:venue:shanghai",
+                "rehearsal:ensure-company",
+                company_request_sha,
+                writer_identity,
+                actor,
+            ),
+        ).fetchone()[0]
+        if company != company_replay:
+            raise SharedIdentityRehearsalError(
+                "listed-company uncertain-response replay changed result"
+            )
+        final_counts = connection.execute(
+            """SELECT s.current_formal_row_count,
+                      (SELECT count(*) FROM shared_identity.legacy_record
+                        WHERE formal_business_data=true),
+                      (SELECT count(*) FROM shared_identity.mutation_audit)
+                 FROM shared_identity.unit_snapshot s
+                WHERE s.cutover_unit='shared_identity'"""
+        ).fetchone()
+        if final_counts is None or int(final_counts[0]) != int(before[4]) + 5:
+            raise SharedIdentityRehearsalError(
+                "formal shared identity mutations did not update the snapshot watermark"
+            )
+        if int(final_counts[0]) != int(final_counts[1]) or int(final_counts[2]) != 2:
+            raise SharedIdentityRehearsalError(
+                "formal mutation rows or audit evidence are inconsistent"
+            )
+
         core = {
             "schema_version": "honghu.shared_identity_cutover_rehearsal.v1",
             "cutover_unit": "shared_identity",
@@ -188,6 +295,10 @@ def rehearse_shared_identity_cutover(
             "idempotent_replay_equal": result == replay,
             "conflicting_replay_rejected": conflicting_replay_rejected,
             "formal_row_count": int(after[7]),
+            "formal_row_count_after_mutations": int(final_counts[0]),
+            "researcher_idempotent_replay_equal": researcher == researcher_replay,
+            "company_idempotent_replay_equal": company == company_replay,
+            "mutation_audit_count": int(final_counts[2]),
             "isolated_rehearsal_only": True,
         }
         return {**core, "evidence_sha256": _sha(core)}

@@ -8,7 +8,8 @@
   "principals": {
     "research-operator": [
       "analyst_note:read",
-      "analyst_note:write"
+      "analyst_note:write",
+      "shared_identity:write"
     ],
     "research-auditor": [
       "analyst_note:read"

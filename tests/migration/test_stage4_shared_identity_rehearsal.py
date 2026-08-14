@@ -14,3 +14,6 @@ def test_shared_identity_rehearsal_is_explicitly_isolated_and_fail_closed() -> N
     assert "idempotent activation replay changed result" in source
     assert "shared_identity is not a reconciled S1 target" in source
     assert "first formal activation was not atomic with S3" in source
+    assert "researcher uncertain-response replay changed result" in source
+    assert "listed-company uncertain-response replay changed result" in source
+    assert "formal mutation rows or audit evidence are inconsistent" in source

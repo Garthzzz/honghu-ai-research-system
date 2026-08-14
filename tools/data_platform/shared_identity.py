@@ -17,6 +17,8 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from .routing import AuthorityState, Backend, CutoverRoute
+
 
 SHARED_IDENTITY_TABLES = (
     "company",
@@ -63,6 +65,226 @@ DEFAULT_COLUMNS = {
 
 class SharedIdentityError(RuntimeError):
     pass
+
+
+class SharedIdentityConflict(SharedIdentityError):
+    pass
+
+
+class SharedIdentityWriterFenced(SharedIdentityError):
+    pass
+
+
+_TICKER_SUFFIX_VENUES = {
+    "SH": "shanghai",
+    "SZ": "shenzhen",
+    "BJ": "beijing",
+    "HK": "hong-kong",
+    "T": "tokyo",
+    "KS": "korea-main",
+    "KQ": "korea-kosdaq",
+    "TW": "taiwan-main",
+    "TWO": "taiwan-otc",
+    "VI": "vienna",
+    "DE": "germany",
+    "ST": "stockholm",
+}
+_MARKET_VENUES = {
+    "美股": "us",
+    "美国": "us",
+    "us": "us",
+    "港股": "hong-kong",
+    "香港": "hong-kong",
+}
+
+
+def _canonical_hash(payload: Any) -> str:
+    return hashlib.sha256(
+        json.dumps(
+            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+    ).hexdigest()
+
+
+def company_security_stable_key(
+    ticker: str, market: str, listing_status: str
+) -> str:
+    code = str(ticker or "").strip().upper()
+    market_name = str(market or "").strip()
+    status = str(listing_status or "").strip().casefold()
+    venue = None
+    if "." in code:
+        venue = _TICKER_SUFFIX_VENUES.get(code.rsplit(".", 1)[1])
+    if venue is None:
+        venue = _MARKET_VENUES.get(market_name) or _MARKET_VENUES.get(
+            market_name.casefold()
+        )
+    if venue is None and status in {"us", "hk"}:
+        venue = {"us": "us", "hk": "hong-kong"}[status]
+    if not code or not venue:
+        raise SharedIdentityError(
+            "listed company ticker is not qualified by a supported venue"
+        )
+    return f"company:security:{code}:venue:{venue}"
+
+
+def _row_mapping(cursor: Any, row: Any) -> dict[str, Any]:
+    if isinstance(row, dict):
+        return row
+    if hasattr(row, "keys"):
+        return dict(row)
+    return dict(zip((item[0] for item in cursor.description), row))
+
+
+class PostgresSharedIdentityRepository:
+    """Formal shared-identity mutations behind an explicit S3/S4 route.
+
+    All business writes are PostgreSQL functions with authority, writer,
+    idempotency and audit checks.  The repository never attempts SQLite after
+    a PostgreSQL failure.
+    """
+
+    def __init__(
+        self,
+        read_connection_factory: Callable[[], Any],
+        write_connection_factory: Callable[[], Any],
+        route: CutoverRoute,
+    ) -> None:
+        route.validate(allow_production=True)
+        if route.cutover_unit != "shared_identity":
+            raise ValueError("shared identity repository requires its owning unit")
+        if route.backend is not Backend.POSTGRESQL_PRODUCTION:
+            raise ValueError("shared identity repository requires PostgreSQL authority")
+        if route.authority_state not in {AuthorityState.S3, AuthorityState.S4}:
+            raise ValueError("formal shared identity mutations require S3 or S4")
+        self._read_connect = read_connection_factory
+        self._write_connect = write_connection_factory
+        self.route = route
+
+    def _assert_authority(self, cursor: Any) -> None:
+        cursor.execute(
+            """SELECT state,authoritative_backend,writer_identity,
+                      approval_reference,cutover_epoch
+                 FROM operations.shared_identity_authority_v1"""
+        )
+        row = cursor.fetchone()
+        if row is None:
+            raise SharedIdentityWriterFenced("shared identity authority row is missing")
+        authority = _row_mapping(cursor, row)
+        if (
+            authority["state"] != self.route.authority_state.value
+            or authority["authoritative_backend"]
+            != Backend.POSTGRESQL_PRODUCTION.value
+            or authority["writer_identity"] != self.route.writer_identity
+            or authority["approval_reference"] != self.route.approval_reference
+            or authority["cutover_epoch"] != self.route.cutover_epoch
+        ):
+            raise SharedIdentityWriterFenced(
+                "runtime route does not match shared identity authority"
+            )
+
+    def create_researcher(
+        self,
+        *,
+        name: str,
+        display_name: str,
+        focus_summary: str | None,
+        focus_industries: list[int],
+        bio: str | None,
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        request = {
+            "name": name,
+            "display_name": display_name,
+            "focus_summary": focus_summary,
+            "focus_industries": focus_industries,
+            "bio": bio,
+            "actor": actor,
+        }
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.create_researcher_v1(
+                            %s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            name,
+                            display_name,
+                            focus_summary,
+                            json.dumps(focus_industries),
+                            bio,
+                            idempotency_key,
+                            _canonical_hash(request),
+                            self.route.writer_identity,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
+    def ensure_listed_company(
+        self,
+        *,
+        canonical_name: str,
+        ticker: str,
+        market: str,
+        listing_status: str,
+        verification_source_ref: str,
+        aliases: list[str],
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        stable_key = company_security_stable_key(ticker, market, listing_status)
+        request = {
+            "canonical_name": canonical_name,
+            "ticker": ticker.strip().upper(),
+            "market": market,
+            "listing_status": listing_status,
+            "verification_source_ref": verification_source_ref,
+            "aliases": aliases,
+            "stable_key": stable_key,
+            "actor": actor,
+        }
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.ensure_listed_company_v1(
+                            %s,%s,%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            canonical_name,
+                            ticker.strip().upper(),
+                            market,
+                            listing_status,
+                            verification_source_ref,
+                            json.dumps(aliases, ensure_ascii=False),
+                            stable_key,
+                            idempotency_key,
+                            _canonical_hash(request),
+                            self.route.writer_identity,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
+
+def translate_shared_identity_error(exc: Exception) -> SharedIdentityError:
+    if isinstance(exc, SharedIdentityError):
+        return exc
+    sqlstate = getattr(exc, "sqlstate", None)
+    if sqlstate == "23505":
+        return SharedIdentityConflict(str(exc))
+    if sqlstate == "42501":
+        return SharedIdentityWriterFenced(str(exc))
+    return SharedIdentityError(str(exc))
 
 
 def _quote(identifier: str) -> str:
