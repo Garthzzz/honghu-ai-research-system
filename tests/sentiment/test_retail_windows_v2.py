@@ -554,7 +554,9 @@ class RetailDataLayerTests(unittest.TestCase):
              mock.patch.object(retail_window_tick, "resolve_window", return_value=current), \
              mock.patch.object(retail_window_tick, "due_auto_backfill_windows", return_value=[older]), \
              mock.patch.object(retail_window_tick, "execute_window", side_effect=fake_execute), \
-             mock.patch("builtins.print"):
+             mock.patch("builtins.print"), \
+             mock.patch.object(retail_window_tick, "datetime") as clock:
+            clock.now.return_value = current.scheduled_for
             code = retail_window_tick.main(["--slot", "morning"])
 
         self.assertEqual(code, 0)
@@ -584,7 +586,9 @@ class RetailDataLayerTests(unittest.TestCase):
              mock.patch.object(retail_window_tick, "resolve_window", side_effect=[current, newer]), \
              mock.patch.object(retail_window_tick, "due_auto_backfill_windows") as due, \
              mock.patch.object(retail_window_tick, "execute_window", side_effect=fake_execute), \
-             mock.patch("builtins.print") as printed:
+             mock.patch("builtins.print") as printed, \
+             mock.patch.object(retail_window_tick, "datetime") as clock:
+            clock.now.return_value = current.scheduled_for
             code = retail_window_tick.main(["--slot", "morning"])
 
         self.assertEqual(code, 0)
@@ -631,7 +635,9 @@ class RetailDataLayerTests(unittest.TestCase):
                  return_value=[older_one, older_two],
              ), \
              mock.patch.object(retail_window_tick, "execute_window", side_effect=fake_execute), \
-             mock.patch("builtins.print") as printed:
+             mock.patch("builtins.print") as printed, \
+             mock.patch.object(retail_window_tick, "datetime") as clock:
+            clock.now.return_value = current.scheduled_for
             code = retail_window_tick.main(["--slot", "preopen"])
 
         self.assertEqual(code, 0)

@@ -1,0 +1,14 @@
+{
+  "schema_version": "honghu.cutover_route.v1",
+  "cutover_unit": "shared_identity",
+  "route_revision": 1,
+  "authority_state": "S0",
+  "backend": "sqlite_transition",
+  "sqlite_writer_enabled": true,
+  "production_postgresql_enabled": false,
+  "writer_identity": null,
+  "cutover_epoch": null,
+  "approval_reference": null,
+  "writer_operation": "shared_identity_mutation",
+  "transaction_boundary": "one shared-identity mutation under the owning authority"
+}

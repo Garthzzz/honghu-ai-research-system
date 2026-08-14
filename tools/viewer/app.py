@@ -67,6 +67,7 @@ from tools.data_platform.routing import (  # noqa: E402
     Backend as DataBackend,
     load_cutover_route,
 )
+from tools.data_platform.shared_identity import SharedIdentityReadCache  # noqa: E402
 from tools.data_platform.user_content_notes import (  # noqa: E402
     AnalystNoteError,
     AnalystNoteMutation,
@@ -260,6 +261,24 @@ if USER_CONTENT_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
     )
     USER_CONTENT_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
         postgres_settings, role="writer"
+    )
+
+SHARED_IDENTITY_TRACKED_ROUTE = (
+    ROOT / "config" / "migration" / "shared_identity_backend_route.json"
+)
+SHARED_IDENTITY_RUNTIME_ROUTE = os.environ.get("HONGHU_SHARED_IDENTITY_ROUTE_CONFIG")
+SHARED_IDENTITY_ROUTE = load_cutover_route(
+    SHARED_IDENTITY_TRACKED_ROUTE,
+    runtime_override=SHARED_IDENTITY_RUNTIME_ROUTE,
+)
+SHARED_IDENTITY_READ_CACHE = None
+if SHARED_IDENTITY_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
+    shared_runtime_path = os.environ.get("HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG")
+    if not shared_runtime_path:
+        raise RuntimeError("PostgreSQL shared-identity route requires runtime config")
+    shared_settings = load_postgres_runtime_settings(shared_runtime_path)
+    SHARED_IDENTITY_READ_CACHE = SharedIdentityReadCache(
+        build_postgres_connection_factory(shared_settings, role="reader")
     )
 
 configure_user_content_security(
@@ -633,10 +652,19 @@ def get_db() -> sqlite3.Connection:
             uri=True,
             timeout=10,
         )
-        conn.execute("PRAGMA query_only=ON")
     else:
-        conn = sqlite3.connect(str(DB_PATH))
+        conn = sqlite3.connect(
+            f"file:{DB_PATH.resolve().as_posix()}?mode=rwc",
+            uri=True,
+        )
     conn.row_factory = sqlite3.Row
+    if SHARED_IDENTITY_READ_CACHE is not None:
+        # TEMP views shadow only the legacy identity tables.  Remaining tables
+        # still use their current SQLite authority during the mixed window.
+        # Any missed identity write fails because SQLite views are read-only.
+        SHARED_IDENTITY_READ_CACHE.attach(conn)
+    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+        conn.execute("PRAGMA query_only=ON")
     if not app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
@@ -7586,6 +7614,17 @@ def api_health():
                 "https_required": bool(
                     current_user_content_security_settings(app).require_https
                 ),
+            },
+            "shared_identity": {
+                "cutover_unit": SHARED_IDENTITY_ROUTE.cutover_unit,
+                "authority_state": SHARED_IDENTITY_ROUTE.authority_state.value,
+                "backend": SHARED_IDENTITY_ROUTE.backend.value,
+                "sqlite_writer_enabled": SHARED_IDENTITY_ROUTE.sqlite_writer_enabled,
+                "production_postgresql_enabled": (
+                    SHARED_IDENTITY_ROUTE.production_postgresql_enabled
+                ),
+                "read_cache_enabled": SHARED_IDENTITY_READ_CACHE is not None,
+                "failure_policy": "fail_closed_no_sqlite_identity_fallback",
             },
         }
         if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
