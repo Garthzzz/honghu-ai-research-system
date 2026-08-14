@@ -9,7 +9,8 @@ param(
     [Parameter(Mandatory = $true)][string]$OutputDir,
     [Parameter(Mandatory = $true)][ValidatePattern('^\\\\')][string]$OffVmRoot,
     [Parameter(Mandatory = $true)][string]$SmbUser,
-    [Parameter(Mandatory = $true)][string]$CredentialBlobPath
+    [Parameter(Mandatory = $true)][string]$CredentialBlobPath,
+    [ValidateNotNullOrEmpty()][string[]]$RequiredAuthorityUnit = @('user_content_notes')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -78,6 +79,16 @@ try {
 
     $verifierStdout = Join-Path $OutputDir 'production_recovery.stdout.log'
     $verifierStderr = Join-Path $OutputDir 'production_recovery.stderr.log'
+    $authorityArgs = @()
+    foreach ($unit in @($RequiredAuthorityUnit | Select-Object -Unique)) {
+        if ([string]::IsNullOrWhiteSpace($unit) -or $unit -notmatch '^[a-z][a-z0-9_]*$') {
+            throw "Invalid required authority unit: $unit"
+        }
+        $authorityArgs += @('--required-authority-unit', $unit)
+    }
+    if ($authorityArgs.Count -eq 0) {
+        throw 'At least one required authority unit is required.'
+    }
     $priorErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     & $BootstrapPythonExe -I -B `
@@ -91,7 +102,8 @@ try {
         --install-root $InstallRoot `
         --commit-sha $CommitSha `
         --output-dir $OutputDir `
-        --off-vm-root $OffVmRoot 1> $verifierStdout 2> $verifierStderr
+        --off-vm-root $OffVmRoot `
+        @authorityArgs 1> $verifierStdout 2> $verifierStderr
     $verifierExitCode = $LASTEXITCODE
     $ErrorActionPreference = $priorErrorAction
     if ($verifierExitCode -ne 0) {
@@ -107,6 +119,7 @@ try {
         started_at_utc = $startedAt
         completed_at_utc = (Get-Date).ToUniversalTime().ToString('o')
         application_commit_sha = $CommitSha
+        required_authority_units = @($RequiredAuthorityUnit | Select-Object -Unique)
         smb_encrypted = $true
         credential_source = 'dpapi_local_machine_blob_with_restricted_acl'
         secret_recorded = $false

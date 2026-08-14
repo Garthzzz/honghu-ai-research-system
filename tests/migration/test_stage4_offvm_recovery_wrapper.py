@@ -30,3 +30,12 @@ def test_offvm_wrapper_requires_encrypted_smb_and_isolated_entry() -> None:
     assert "tools.migration.stage4_production_recovery" in text
     assert "production_recovery.stderr.log" in text
     assert "Remove-PSDrive H4Recovery" in text
+
+
+def test_offvm_wrapper_forwards_every_required_authority_unit() -> None:
+    text = SCRIPT.read_text(encoding="utf-8")
+    assert "[string[]]$RequiredAuthorityUnit" in text
+    assert "@('--required-authority-unit', $unit)" in text
+    assert "@authorityArgs" in text
+    assert "required_authority_units =" in text
+    assert "At least one required authority unit is required." in text
