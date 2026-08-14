@@ -3,6 +3,7 @@ param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{40}$')][string]$CommitSha,
     [Parameter(Mandatory = $true)][string]$RepoRoot,
     [Parameter(Mandatory = $true)][string]$RecoveryEvidence,
+    [Parameter(Mandatory = $true)][string]$SourceDataRoot,
     [string]$ProductionRoot = 'C:\industry_demo',
     [string]$InstallRoot = 'D:\honghu-postgresql',
     [string]$ReleaseRoot = 'D:\honghu-user-content-production',
@@ -101,7 +102,7 @@ try {
     }
     New-Item -ItemType Directory -Force -Path $FinalSnapshotRoot | Out-Null
     Invoke-Isolated 'tools.migration.stage4_unit_s1' @(
-        'build','--unit','shared_identity','--source-data-root',(Join-Path $ProductionRoot 'data'),
+        'build','--unit','shared_identity','--source-data-root',$SourceDataRoot,
         '--registry',(Join-Path $RepoRoot 'config\migration\cutover_unit_registry.json'),
         '--application-commit-sha',$CommitSha,'--output-dir',$FinalSnapshotRoot,'--manifest-only'
     )

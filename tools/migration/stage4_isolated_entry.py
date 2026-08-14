@@ -17,6 +17,7 @@ ALLOWED_MODULES = {
     "tools.release.cli": "main",
     "tools.migration.stage4_identity_mapping": "main",
     "tools.migration.stage4_identity_mapping_crosscheck": "main",
+    "tools.migration.stage4_identity_mapping_equivalence": "main",
     "tools.migration.stage4_apply_postgresql_migrations": "main",
     "tools.migration.stage4_authority_control": "main",
     "tools.migration.stage4_execution_bundle": "main",

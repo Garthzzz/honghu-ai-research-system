@@ -92,6 +92,61 @@ class IdentityMappingResolver:
             ) from exc
 
 
+def mapping_snapshot_identity(manifest: dict[str, Any]) -> str:
+    """Return the v3 snapshot identity without accepting an unbound alias.
+
+    Early Stage 4 call sites incorrectly looked for a top-level
+    ``snapshot_identity_sha256`` even though v3 stores it under
+    ``source_snapshot``.  Keep the lookup in one place so approval checks bind
+    the artifact that :class:`IdentityMappingResolver` actually validates.
+    """
+
+    snapshot = manifest.get("source_snapshot") or {}
+    value = str(snapshot.get("snapshot_identity_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", value):
+        raise IdentityMappingError("identity mapping snapshot identity is missing")
+    return value
+
+
+def mapping_semantic_core(manifest: dict[str, Any]) -> dict[str, Any]:
+    """Build the stable business identity of an approved mapping.
+
+    Absolute paths, whole-file hashes and SQLite ``schema_version`` are
+    diagnostics of a particular physical file.  SQLite's online backup API can
+    legitimately change those values while preserving every table definition
+    and row.  They therefore cannot be the authority for whether a reviewed
+    mapping still describes the same business identities.
+
+    The semantic core remains fail-closed on the mapping algorithm contract,
+    relevant database pragmas, table schemas/content, every mapping row and all
+    explicit alias/override decisions.
+    """
+
+    IdentityMappingResolver(manifest)
+    snapshot = manifest.get("source_snapshot") or {}
+    pragmas = snapshot.get("database_pragmas") or {}
+    return {
+        "mapping_schema_version": manifest.get("schema_version"),
+        "transaction_contract": snapshot.get("transaction_contract"),
+        "database_pragmas": {
+            "application_id": pragmas.get("application_id"),
+            "user_version": pragmas.get("user_version"),
+        },
+        "source_tables": manifest.get("source_tables"),
+        "mappings": manifest.get("mappings"),
+        "collision_count": manifest.get("collision_count"),
+        "unapproved_alias_count": manifest.get("unapproved_alias_count"),
+        "alias_approval_count": manifest.get("alias_approval_count"),
+        "identity_override_count": manifest.get("identity_override_count"),
+        "alias_group_count": manifest.get("alias_group_count"),
+        "alias_groups": manifest.get("alias_groups"),
+    }
+
+
+def mapping_semantic_identity(manifest: dict[str, Any]) -> str:
+    return _sha(mapping_semantic_core(manifest))
+
+
 def _canonical_text(value: Any) -> str:
     text = unicodedata.normalize("NFKC", str(value or "")).strip().casefold()
     return re.sub(r"\s+", " ", text)

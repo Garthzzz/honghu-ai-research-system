@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.data_platform.local_authority_fence import write_authority_fence
+from tools.migration.stage4_identity_mapping import mapping_snapshot_identity
 from tools.migration.stage4_json_io import read_json
 from tools.migration.stage4_s1_loader import _connection_from_runtime
 
@@ -75,7 +76,7 @@ def validate_inputs(
         raise SharedIdentityCutoverError("shared identity mapping is not approved")
     expected_mapping = {
         "mapping_manifest_sha256": mapping.get("manifest_sha256"),
-        "mapping_snapshot_identity_sha256": mapping.get("snapshot_identity_sha256"),
+        "mapping_snapshot_identity_sha256": mapping_snapshot_identity(mapping),
     }
     for field, expected in expected_mapping.items():
         if mapping_approval.get(field) != expected:
