@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,28 @@ from tools.release.user_content_production import (
     ProductionServeError,
     configure_environment,
 )
+
+
+@pytest.fixture(autouse=True)
+def _restore_production_environment(monkeypatch: pytest.MonkeyPatch):
+    names = (
+        "HONGHU_DATA_ROOT",
+        "HONGHU_CONTENT_ROOT",
+        "HONGHU_STATE_ROOT",
+        "HONGHU_VIEWER_MODE",
+        "HONGHU_RELEASE_COMMIT",
+        "HONGHU_RELEASE_MANIFEST",
+        "HONGHU_USER_CONTENT_ROUTE_CONFIG",
+        "HONGHU_USER_CONTENT_POSTGRES_CONFIG",
+        "HONGHU_USER_CONTENT_IDENTITY_MAPPING",
+        "HONGHU_USER_CONTENT_SECURITY_CONFIG",
+        "HONGHU_PRODUCTION_LAUNCH_ID",
+        "HONGHU_SHARED_IDENTITY_ROUTE_CONFIG",
+        "HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG",
+    )
+    for name in names:
+        monkeypatch.setenv(name, os.environ.get(name, "__pytest_restore_absent__"))
+    yield
 
 
 def _args(tmp_path: Path) -> argparse.Namespace:
@@ -98,6 +121,7 @@ def test_production_environment_accepts_only_paired_fenced_shared_identity_route
     shared_runtime = tmp_path / "shared-runtime.json"
     shared_runtime.write_text("{}", encoding="utf-8")
     shared_route.write_text(json.dumps({
+        "schema_version": "honghu.cutover_route.v1",
         "cutover_unit": "shared_identity",
         "authority_state": "S3",
         "backend": "postgresql_production",
