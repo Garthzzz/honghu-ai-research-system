@@ -113,8 +113,8 @@ class SharedIdentityReadCache:
         authority = connection.execute(
             """
             SELECT a.state,a.authoritative_backend,a.state_revision,a.cutover_epoch,
-                   s.source_snapshot_id,s.target_content_sha256,s.target_row_count,
-                   s.formal_business_data
+                   s.source_snapshot_id,s.target_content_sha256,s.formal_revision,
+                   s.current_formal_row_count,s.formal_business_data
               FROM operations.cutover_unit_authority a
               JOIN shared_identity.unit_snapshot s
                 ON s.cutover_unit=a.cutover_unit
@@ -125,7 +125,7 @@ class SharedIdentityReadCache:
             raise SharedIdentityError("shared_identity authority/snapshot row is missing")
         if str(authority[0]) not in {"S3", "S4"} or str(authority[1]) != "postgresql_production":
             raise SharedIdentityError("shared_identity PostgreSQL read route is not authoritative")
-        if not bool(authority[7]):
+        if not bool(authority[8]):
             raise SharedIdentityError("shared_identity formal dataset is not enabled")
         version = hashlib.sha256(
             json.dumps(
@@ -172,7 +172,7 @@ class SharedIdentityReadCache:
             )
             digest.update(b"\n")
         row_version = digest.hexdigest()
-        expected_count = int(authority[6])
+        expected_count = int(authority[7])
         if sum(len(table_rows) for table_rows in grouped.values()) != expected_count:
             raise SharedIdentityError("shared_identity formal row count changed during refresh")
         return version, f"{version}_{row_version}", grouped

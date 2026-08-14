@@ -84,3 +84,22 @@ def test_migration_contains_formal_schema_and_s1_only_controller() -> None:
     assert "ABSENT->S0 or S0->S1" in sql
     assert "transition_cutover_unit" in sql
     assert "S2" not in sql.split("CREATE OR REPLACE FUNCTION operations.prepare_cutover_unit_authority_s1", 1)[1].split("$$;", 1)[0]
+
+
+def test_cutover_activation_is_atomic_and_role_scoped() -> None:
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    sql = (root / "migrations/postgresql/0006_shared_identity_cutover_expand.sql").read_text(
+        encoding="utf-8"
+    )
+    assert "promote_cutover_unit_on_first_formal_mutation" in sql
+    assert "activate_snapshot_v1" in sql
+    assert "formal_business_data=true" in sql
+    assert "authority_state='S3'" in sql
+    assert "REVOKE ALL ON FUNCTION" in sql
+    grants = (root / "migrations/postgresql/0006_shared_identity_role_grants.sql").read_text(
+        encoding="utf-8"
+    )
+    assert 'TO :"writer_role"' in grants
+    assert 'TO :"controller_role"' in grants

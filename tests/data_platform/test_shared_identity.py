@@ -39,6 +39,7 @@ class _Postgres:
                     "epoch-1",
                     "snapshot-1",
                     "f" * 64,
+                    1,
                     2,
                     True,
                 )

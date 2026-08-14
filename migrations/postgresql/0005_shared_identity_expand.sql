@@ -17,10 +17,16 @@ CREATE TABLE IF NOT EXISTS shared_identity.unit_snapshot (
     target_content_sha256 text NOT NULL CHECK (target_content_sha256 ~ '^[0-9a-f]{64}$'),
     authority_state text NOT NULL CHECK (authority_state IN ('S0','S1','S2','S3','S4')),
     formal_business_data boolean NOT NULL,
+    formal_revision bigint NOT NULL DEFAULT 0 CHECK (formal_revision >= 0),
+    current_formal_row_count bigint NOT NULL DEFAULT 0 CHECK (current_formal_row_count >= 0),
+    activated_at timestamptz,
     promoted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
     CHECK (source_row_count = target_row_count),
     CHECK (source_content_sha256 = target_content_sha256),
-    CHECK ((authority_state IN ('S0','S1')) = (formal_business_data = false))
+    CONSTRAINT shared_identity_snapshot_formal_state_check CHECK (
+        (authority_state IN ('S0','S1','S2') AND formal_business_data = false) OR
+        (authority_state IN ('S3','S4') AND formal_business_data = true)
+    )
 );
 
 CREATE TABLE IF NOT EXISTS shared_identity.legacy_record (
