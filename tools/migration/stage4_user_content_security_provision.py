@@ -94,16 +94,20 @@ def _settings(path: Path) -> dict[str, Any]:
     return payload
 
 
-def generate(config: Path) -> int:
+def generate(config: Path, *, acceptance_credential_service: str | None = None) -> int:
     settings = _settings(config)
     keyring = _winvault()
     old_passwords = {subject: secrets.token_urlsafe(36) for subject in settings["principals"]}
     current_passwords = {
         subject: secrets.token_urlsafe(36) for subject in settings["principals"]
     }
+    acceptance_service = (
+        str(acceptance_credential_service or "").strip()
+        or settings["credential_service"]
+    )
     for subject, password in current_passwords.items():
-        keyring.set_password(settings["credential_service"], subject, password)
-        if keyring.get_password(settings["credential_service"], subject) != password:
+        keyring.set_password(acceptance_service, subject, password)
+        if keyring.get_password(acceptance_service, subject) != password:
             raise SecurityProvisionError("local acceptance credential round trip failed")
     envelope = {
         "schema_version": "honghu.user_content_security_secret_envelope.v1",
@@ -214,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
     subparsers = parser.add_subparsers(dest="action", required=True)
     generate_parser = subparsers.add_parser("generate")
     generate_parser.add_argument("--config", type=Path, required=True)
+    generate_parser.add_argument("--acceptance-credential-service")
     seal_parser = subparsers.add_parser("seal")
     seal_parser.add_argument("--envelope", type=Path, required=True)
     provision_parser = subparsers.add_parser("provision")
@@ -222,7 +227,10 @@ def main(argv: list[str] | None = None) -> int:
     provision_parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     if args.action == "generate":
-        return generate(args.config)
+        return generate(
+            args.config,
+            acceptance_credential_service=args.acceptance_credential_service,
+        )
     if args.action == "seal":
         return seal(args.envelope)
     return provision(args.config, args.envelope, args.output)

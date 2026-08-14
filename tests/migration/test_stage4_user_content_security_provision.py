@@ -30,6 +30,15 @@ def test_security_provision_never_accepts_plaintext_secret_on_cli() -> None:
     assert '"password_hashes_recorded": False' in source
 
 
+def test_generate_can_separate_client_acceptance_from_server_hash_service() -> None:
+    source = (
+        ROOT / "tools/migration/stage4_user_content_security_provision.py"
+    ).read_text(encoding="utf-8")
+    assert "--acceptance-credential-service" in source
+    assert "acceptance_service" in source
+    assert 'keyring.set_password(acceptance_service, subject, password)' in source
+
+
 def test_production_security_config_has_distinct_writer_and_reader() -> None:
     import json
 

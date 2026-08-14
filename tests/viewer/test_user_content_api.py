@@ -148,3 +148,92 @@ def test_api_uses_trusted_principal_and_preserves_s0_compatibility(client) -> No
     assert deletion.get_json()["code"] == "capability_unavailable"
     with sqlite3.connect(database) as connection:
         assert connection.execute("SELECT count(*) FROM analyst_note").fetchone()[0] == 1
+
+
+def test_plaintext_mutations_fail_transport_before_payload_or_lookup(client, monkeypatch) -> None:
+    http, _ = client
+    configure_user_content_security(
+        viewer.app,
+        UserContentSecuritySettings(
+            enabled=True,
+            require_https=True,
+            credential_service="test",
+            session_secret_service="test-session",
+            session_secret_account="session",
+            principals={
+                "analyst-1": frozenset(
+                    {"analyst_note:read", "analyst_note:write"}
+                )
+            },
+        ),
+        password_verifier=lambda subject, password: (
+            subject == "analyst-1" and password == "secret"
+        ),
+        session_secret="s" * 64,
+    )
+
+    malformed_create = http.post(
+        "/api/analyst_note",
+        json={},
+        base_url="http://localhost",
+    )
+    assert malformed_create.status_code == 403
+    assert malformed_create.get_json()["code"] == "https_required"
+
+    repository_called = False
+
+    def unexpected_repository():
+        nonlocal repository_called
+        repository_called = True
+        raise AssertionError("plaintext delete reached repository resolution")
+
+    monkeypatch.setattr(viewer, "analyst_note_repository", unexpected_repository)
+    malformed_delete = http.delete(
+        "/api/analyst_note/1",
+        json={},
+        base_url="http://localhost",
+    )
+    assert malformed_delete.status_code == 403
+    assert malformed_delete.get_json()["code"] == "https_required"
+    assert repository_called is False
+
+
+def test_https_mutation_still_applies_business_validation_after_security(client) -> None:
+    http, _ = client
+    configure_user_content_security(
+        viewer.app,
+        UserContentSecuritySettings(
+            enabled=True,
+            require_https=True,
+            credential_service="test",
+            session_secret_service="test-session",
+            session_secret_account="session",
+            principals={
+                "analyst-1": frozenset(
+                    {"analyst_note:read", "analyst_note:write"}
+                )
+            },
+        ),
+        password_verifier=lambda subject, password: (
+            subject == "analyst-1" and password == "secret"
+        ),
+        session_secret="s" * 64,
+    )
+    session_payload = http.get(
+        "/api/user-content/session", base_url="https://localhost"
+    ).get_json()
+    login = http.post(
+        "/api/user-content/login",
+        json={"subject": "analyst-1", "password": "secret"},
+        headers={"X-CSRF-Token": session_payload["csrf_token"]},
+        base_url="https://localhost",
+    )
+    assert login.status_code == 200
+    malformed = http.post(
+        "/api/analyst_note",
+        json={},
+        headers={"X-CSRF-Token": login.get_json()["csrf_token"]},
+        base_url="https://localhost",
+    )
+    assert malformed.status_code == 400
+    assert malformed.get_json()["error"] == "entity_type 非法或 content 为空"

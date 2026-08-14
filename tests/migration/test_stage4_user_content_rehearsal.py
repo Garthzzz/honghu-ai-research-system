@@ -146,3 +146,13 @@ def test_rehearsal_executes_real_reader_writer_adapter_contract() -> None:
     assert "stale_route_fenced" in source
     assert "schema_compatible_reader" in source
     assert "reader_writer_roles_distinct" in source
+    assert 'cutover_epoch="epoch-user-content"' in source
+
+
+def test_rehearsal_uses_migration_ledger_for_idempotent_replay() -> None:
+    source = (ROOT / "tools/migration/stage4_user_content_rehearsal.py").read_text(
+        encoding="utf-8"
+    )
+    assert "_apply_migration_or_verify" in source
+    assert "for _ in range(2)" in source
+    assert "is recorded with a different SHA256" in source

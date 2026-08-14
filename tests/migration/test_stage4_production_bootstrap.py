@@ -849,3 +849,13 @@ def test_required_wal_range_handles_postgresql_log_segment_rollover() -> None:
             "000000010000000100000000",
             16 * 1024 * 1024,
         )
+
+
+def test_bootstrap_migration_replay_is_ledger_guarded() -> None:
+    source = (
+        ROOT / "tools/migration/Stage4-Production-PostgreSQL-Bootstrap.ps1"
+    ).read_text(encoding="utf-8")
+    assert "function Get-HonghuPsqlScalar" in source
+    assert "to_regclass('operations.schema_migration')" in source
+    assert "already recorded with a different SHA256" in source
+    assert "if ($recordedSha)" in source

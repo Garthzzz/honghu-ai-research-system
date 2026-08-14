@@ -6168,19 +6168,23 @@ def api_user_content_logout():
 
 @app.route("/api/analyst_note", methods=["POST"])
 def api_analyst_note_create():
-    d = _note_payload()
-    entity_type = (d.get("entity_type") or "").strip()
-    content = (d.get("content") or "").strip()
-    if entity_type not in ("company", "industry", "industry_q", "theme") or not content:
-        return jsonify({"ok": False, "error": "entity_type 非法或 content 为空"}), 400
     try:
-        entity_id = _normalize_note_entity_id(entity_type, d.get("entity_id"))
-    except Exception:
-        return jsonify({"ok": False, "error": "entity_id 非法"}), 400
-    try:
+        # Transport, authentication and CSRF are security boundaries, so they
+        # must run before payload validation.  Otherwise a malformed mutation
+        # sent to plaintext HTTP can return a business-validation 400 and make
+        # the HTTPS fail-closed gate appear to have been bypassed.
         principal = require_user_content_principal(
             app, request, permission="analyst_note:write", csrf=True
         )
+        d = _note_payload()
+        entity_type = (d.get("entity_type") or "").strip()
+        content = (d.get("content") or "").strip()
+        if entity_type not in ("company", "industry", "industry_q", "theme") or not content:
+            return jsonify({"ok": False, "error": "entity_type 非法或 content 为空"}), 400
+        try:
+            entity_id = _normalize_note_entity_id(entity_type, d.get("entity_id"))
+        except Exception:
+            return jsonify({"ok": False, "error": "entity_id 非法"}), 400
         expected_revision = int(d.get("expected_revision", 0))
         idempotency_key = str(
             request.headers.get("X-Idempotency-Key") or d.get("idempotency_key") or ""
@@ -6233,12 +6237,12 @@ def api_analyst_note_list(entity_type: str, entity_id: str):
         return _user_content_error(exc)
 
 
-def _delete_analyst_note(note_key: str):
-    d = _note_payload()
+def _delete_analyst_note(note_key: str, *, principal=None):
     try:
-        principal = require_user_content_principal(
+        principal = principal or require_user_content_principal(
             app, request, permission="analyst_note:write", csrf=True
         )
+        d = _note_payload()
         expected_revision = int(d.get("expected_revision"))
         idempotency_key = str(
             request.headers.get("X-Idempotency-Key") or d.get("idempotency_key") or ""
@@ -6263,8 +6267,13 @@ def _delete_analyst_note(note_key: str):
 @app.route("/api/analyst_note/<int:note_id>", methods=["DELETE"])
 def api_analyst_note_delete(note_id: int):
     try:
+        # Authorize before resolving the legacy id so a plaintext request
+        # cannot reach repository reads or return object-specific errors.
+        principal = require_user_content_principal(
+            app, request, permission="analyst_note:write", csrf=True
+        )
         note_key = analyst_note_repository().note_key_from_legacy_id(note_id)
-        return _delete_analyst_note(note_key)
+        return _delete_analyst_note(note_key, principal=principal)
     except Exception as exc:
         return _user_content_error(exc)
 

@@ -194,6 +194,7 @@ def verify_production_candidate(
         "0001_user_content_notes_expand.sql",
         "0002_user_content_notes_cutover_expand.sql",
         "0003_stage4_migration_staging.sql",
+        "0004_user_content_writer_identity_separation.sql",
     ):
         expected_migrations.append([name.removesuffix(".sql"), _sha_file(repo_root / "migrations/postgresql" / name)])
     observed = {row[0]: row[1] for row in migrations}
