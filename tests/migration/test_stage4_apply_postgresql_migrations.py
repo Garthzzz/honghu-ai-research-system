@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from tools.migration.stage4_apply_postgresql_migrations import (
+    MIGRATION_IDENTIFIERS,
     MigrationApplyError,
     render_role_grant,
     render_schema_migration,
 )
+
+
+ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_schema_renderer_removes_psql_meta_and_binds_exact_sha() -> None:
@@ -44,3 +50,14 @@ def test_role_renderer_quotes_only_safe_reviewed_identifiers() -> None:
 def test_renderer_rejects_unbound_role_variable() -> None:
     with pytest.raises(MigrationApplyError, match="unrendered"):
         render_role_grant('GRANT SELECT ON x TO :"reader_role";', {})
+
+
+def test_every_reviewed_schema_role_is_bound_to_the_production_role_contract() -> None:
+    for name, identifiers in MIGRATION_IDENTIFIERS.items():
+        source = (ROOT / "migrations" / "postgresql" / name).read_text(
+            encoding="utf-8"
+        )
+        rendered = render_schema_migration(source, "a" * 64, identifiers=identifiers)
+        assert ':"' not in rendered
+        assert "honghu_reader" not in rendered
+        assert '"honghu_viewer_reader"' in rendered
