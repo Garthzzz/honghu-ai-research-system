@@ -15,6 +15,8 @@ def test_shared_identity_prepare_is_s1_only_and_exact_release_bound() -> None:
     assert "writer_shared_identity" in text
     assert "authority_transition_performed = $false" in text
     assert "live_sqlite_modified = $false" in text
+    assert "Get-Content -Raw -LiteralPath" not in text
+    assert "Get-Content -Raw -Encoding UTF8" in text
 
 
 def test_shared_identity_cutover_stops_viewer_rechecks_source_and_never_falls_back() -> None:
@@ -34,3 +36,5 @@ def test_shared_identity_cutover_stops_viewer_rechecks_source_and_never_falls_ba
     assert "$failureAuthorityValue.authority.state -eq 'S1'" in text
     assert "Durable authority is proven still S1" in text
     assert "shared_identity S1 abandon failed to restore prior Viewer" in text
+    assert "Get-Content -Raw -LiteralPath" not in text
+    assert "Get-Content -Raw -Encoding UTF8" in text

@@ -35,11 +35,11 @@ $Decision = Join-Path $RepoRoot 'config\migration\stage4_remaining_cutover_decis
 foreach ($path in @($Runtime,$SharedS3,$Registry,$Route,$Decision)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "S1 prerequisite missing: $path" }
 }
-$shared = Get-Content -Raw -LiteralPath $SharedS3 | ConvertFrom-Json
+$shared = Get-Content -Raw -Encoding UTF8 -LiteralPath $SharedS3 | ConvertFrom-Json
 if ($shared.authority_state -ne 'S3' -or $shared.authoritative_backend -ne 'postgresql_production') {
     throw 'shared_identity is not durable PostgreSQL S3'
 }
-$decision = Get-Content -Raw -LiteralPath $Decision | ConvertFrom-Json
+$decision = Get-Content -Raw -Encoding UTF8 -LiteralPath $Decision | ConvertFrom-Json
 $approvalReference = [string]$decision.approval_reference
 if ([string]::IsNullOrWhiteSpace($approvalReference)) { throw 'batch approval reference is absent' }
 New-Item -ItemType Directory -Force -Path $EvidenceRoot,$SnapshotRoot | Out-Null
@@ -61,7 +61,7 @@ $prepareArgs = @(
 foreach ($unit in $units) { $prepareArgs += @('--unit',$unit) }
 Invoke-Isolated 'tools.migration.stage4_prepare_units' $prepareArgs
 
-$preparation = Get-Content -Raw -LiteralPath (Join-Path $SnapshotRoot 'all_unit_preparation.json') | ConvertFrom-Json
+$preparation = Get-Content -Raw -Encoding UTF8 -LiteralPath (Join-Path $SnapshotRoot 'all_unit_preparation.json') | ConvertFrom-Json
 if (@($preparation.failures).Count -ne 0 -or @($preparation.units).Count -ne $units.Count) {
     throw 'one or more remaining-unit staging reconciliations failed'
 }
@@ -78,7 +78,7 @@ $genericUnits = @(
     'investment_hypotheses','opportunity_lens','sentiment_analytics'
 )
 $evidence = @()
-$financial = Get-Content -Raw -LiteralPath $financialOutput | ConvertFrom-Json
+$financial = Get-Content -Raw -Encoding UTF8 -LiteralPath $financialOutput | ConvertFrom-Json
 $evidence += $financial
 foreach ($unit in $genericUnits) {
     $output = Join-Path $EvidenceRoot ($unit + '_s1.json')
@@ -86,7 +86,7 @@ foreach ($unit in $genericUnits) {
         '--runtime',$Runtime,'--unit',$unit,'--application-commit-sha',$CommitSha,
         '--actor','principal:codex','--approval-reference',$approvalReference,'--output',$output
     )
-    $evidence += (Get-Content -Raw -LiteralPath $output | ConvertFrom-Json)
+    $evidence += (Get-Content -Raw -Encoding UTF8 -LiteralPath $output | ConvertFrom-Json)
 }
 
 foreach ($item in $evidence) {

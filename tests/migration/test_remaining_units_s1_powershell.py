@@ -22,6 +22,8 @@ def test_remaining_s1_runner_keeps_authority_on_sqlite_and_orders_dependencies()
     assert "tools.migration.stage4_generic_unit_s1" in text
     assert "authoritative_backend -ne 'sqlite_transition'" in text
     assert "s2_s3_entered = $false" in text
+    assert "Get-Content -Raw -LiteralPath" not in text
+    assert "Get-Content -Raw -Encoding UTF8" in text
 
 
 def test_remaining_s1_runner_has_no_production_transition_or_task_mutation() -> None:
