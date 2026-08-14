@@ -89,8 +89,49 @@ Get-CimInstance Win32_Service -ErrorAction Stop |
     Where-Object { [int]$_.ProcessId -gt 0 } |
     ForEach-Object { $serviceByPid[[int]$_.ProcessId] = $_ }
 $serviceIdentitiesByName = @{}
-$listenerServiceNames = @{}
+$approvedViewerProcesses = @()
+$approvedFingerprints = @{}
 foreach ($identity in $verified) {
+    $approvedFingerprints[([string]$identity.executable_sha256 + ':' + [string]$identity.command_line_sha256)] = $true
+}
+
+# A legacy deployment can contain more than one NSSM service with the exact
+# same approved Viewer identity.  The listener observed at one instant is not
+# a complete service inventory: SO_REUSEPORT/process restart timing can expose
+# only one of those services.  Discover every process whose executable and
+# command-line fingerprints equal the verified listener, then fence every
+# owning service.  Merely containing ``tools.viewer.app`` is not sufficient.
+foreach ($candidate in @($processByPid.Values)) {
+    $candidateCommandLine = [string]$candidate.CommandLine
+    $candidateExecutable = [string]$candidate.ExecutablePath
+    if (-not $candidateCommandLine -or -not $candidateExecutable -or
+        -not (Test-Path -LiteralPath $candidateExecutable -PathType Leaf)) {
+        continue
+    }
+    $candidateNormalized = $candidateCommandLine.ToLowerInvariant()
+    if (-not ($candidateNormalized.Contains('tools.viewer.app') -or
+        $candidateNormalized.Contains('tools\viewer\app.py'))) {
+        continue
+    }
+    $candidateCommandSha = Get-Sha256 $candidateCommandLine
+    $candidateExecutableSha = (Get-FileHash -LiteralPath $candidateExecutable -Algorithm SHA256).Hash.ToLowerInvariant()
+    $candidateFingerprint = $candidateExecutableSha + ':' + $candidateCommandSha
+    if (-not $approvedFingerprints.ContainsKey($candidateFingerprint)) {
+        continue
+    }
+    $candidateProcess = Get-Process -Id ([int]$candidate.ProcessId) -ErrorAction Stop
+    $approvedViewerProcesses += [ordered]@{
+        pid = [int]$candidate.ProcessId
+        start_time_utc = $candidateProcess.StartTime.ToUniversalTime().ToString('o')
+        executable_sha256 = $candidateExecutableSha
+        command_line_sha256 = $candidateCommandSha
+    }
+}
+if ($approvedViewerProcesses.Count -lt $verified.Count) {
+    throw 'approved legacy Viewer process inventory lost the verified listener'
+}
+
+foreach ($identity in $approvedViewerProcesses) {
     $currentPid = [int]$identity.pid
     $visited = @{}
     $owner = $null
@@ -113,7 +154,6 @@ foreach ($identity in $verified) {
         throw "legacy Viewer service manager PID $managerPid lacks executable identity"
     }
     $serviceName = [string]$owner.Name
-    $listenerServiceNames[[int]$identity.pid] = $serviceName
     if (-not $serviceIdentitiesByName.ContainsKey($serviceName)) {
         $serviceIdentitiesByName[$serviceName] = [ordered]@{
             name = $serviceName
@@ -125,9 +165,13 @@ foreach ($identity in $verified) {
             manager_start_time_utc = $managerProcess.StartTime.ToUniversalTime().ToString('o')
             manager_executable_sha256 = (Get-FileHash -LiteralPath $managerExecutable -Algorithm SHA256).Hash.ToLowerInvariant()
             listener_pids = @()
+            viewer_pids = @()
         }
     }
-    $serviceIdentitiesByName[$serviceName].listener_pids += [int]$identity.pid
+    $serviceIdentitiesByName[$serviceName].viewer_pids += [int]$identity.pid
+    if (@($verified | Where-Object { [int]$_.pid -eq [int]$identity.pid }).Count -gt 0) {
+        $serviceIdentitiesByName[$serviceName].listener_pids += [int]$identity.pid
+    }
 }
 $serviceIdentities = @($serviceIdentitiesByName.Values)
 
@@ -189,11 +233,26 @@ try {
         }
         $stoppedServiceNames += [string]$serviceIdentity.name
     }
-    foreach ($identity in $verified) {
-        if ($listenerServiceNames.ContainsKey([int]$identity.pid)) { continue }
-        $process = Get-Process -Id ([int]$identity.pid) -ErrorAction Stop
+    # Stop an approved process that survived its owning service stop or had no
+    # service ancestor, but only after revalidating its exact immutable
+    # identity.  This closes the service-stop/orphan race without ever killing
+    # a process selected by PID or substring alone.
+    foreach ($identity in $approvedViewerProcesses) {
+        $process = Get-Process -Id ([int]$identity.pid) -ErrorAction SilentlyContinue
+        if ($null -eq $process) { continue }
         if ($process.StartTime.ToUniversalTime().ToString('o') -ne [string]$identity.start_time_utc) {
             throw "legacy Viewer PID was reused before stop: $($identity.pid)"
+        }
+        $cim = Get-CimInstance Win32_Process -Filter "ProcessId=$($identity.pid)" -ErrorAction Stop
+        $commandLine = [string]$cim.CommandLine
+        $executable = [string]$cim.ExecutablePath
+        if (-not $commandLine -or -not $executable -or
+            -not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw "legacy Viewer PID lost process identity before stop: $($identity.pid)"
+        }
+        $fingerprint = ((Get-FileHash -LiteralPath $executable -Algorithm SHA256).Hash.ToLowerInvariant()) + ':' + (Get-Sha256 $commandLine)
+        if (-not $approvedFingerprints.ContainsKey($fingerprint)) {
+            throw "legacy Viewer PID identity changed before stop: $($identity.pid)"
         }
         Stop-Process -Id ([int]$identity.pid) -Force -ErrorAction Stop
         $process.WaitForExit(10000) | Out-Null
@@ -232,6 +291,7 @@ try {
         process_query_succeeded = $true
         stopped_listener_pids = @($verified | ForEach-Object {[int]$_.pid})
         stopped_process_identities = $verified
+        approved_viewer_process_identities = $approvedViewerProcesses
         stopped_service_identities = $serviceIdentities
         scheduled_writer_matches = $taskMatches
         writer_process_matches = $processMatches

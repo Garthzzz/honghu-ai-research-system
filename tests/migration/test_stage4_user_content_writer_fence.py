@@ -138,6 +138,11 @@ def test_powershell_contract_collects_before_and_after_without_task_mutation() -
     assert "Stop-Service -Name" in source
     assert "Start-Service -Name" in source
     assert "legacy_service_fence_verified" in source
+    assert "$approvedFingerprints" in source
+    assert "$approvedViewerProcesses" in source
+    assert "viewer_pids = @()" in source
+    assert "Merely containing ``tools.viewer.app`` is not sufficient" in source
+    assert "legacy Viewer PID identity changed before stop" in source
 
 
 def test_scheduled_task_action_inspection_handles_non_exec_actions(tmp_path: Path) -> None:
