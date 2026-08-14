@@ -28,6 +28,17 @@ REVIEWED_MIGRATIONS = (
     "0008_financial_data_expand.sql",
 )
 
+MIGRATION_IDENTIFIERS = {
+    "0005_shared_identity_expand.sql": {
+        "migration_role": "honghu_migration",
+        "reader_role": "honghu_viewer_reader",
+    },
+    "0008_financial_data_expand.sql": {
+        "migration_role": "honghu_migration",
+        "reader_role": "honghu_viewer_reader",
+    },
+}
+
 
 def _sha_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -122,14 +133,7 @@ def apply_reviewed_migrations(
                 {"migration_id": migration_id, "sha256": migration_sha, "status": "already_exact"}
             )
             continue
-        identifiers = (
-            {
-                "migration_role": "honghu_migration",
-                "reader_role": "honghu_viewer_reader",
-            }
-            if name == "0008_financial_data_expand.sql"
-            else None
-        )
+        identifiers = MIGRATION_IDENTIFIERS.get(name)
         connection.execute(
             render_schema_migration(
                 path.read_text(encoding="utf-8"),

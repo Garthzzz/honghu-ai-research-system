@@ -135,12 +135,12 @@ REVOKE ALL ON FUNCTION operations.prepare_cutover_unit_authority_s1(
     text,text,bigint,text,text,text,text
 ) FROM PUBLIC;
 
-GRANT USAGE ON SCHEMA shared_identity TO honghu_migration, honghu_reader;
-GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA shared_identity TO honghu_migration;
-GRANT SELECT ON ALL TABLES IN SCHEMA shared_identity TO honghu_reader;
+GRANT USAGE ON SCHEMA shared_identity TO :"migration_role", :"reader_role";
+GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA shared_identity TO :"migration_role";
+GRANT SELECT ON ALL TABLES IN SCHEMA shared_identity TO :"reader_role";
 GRANT EXECUTE ON FUNCTION operations.prepare_cutover_unit_authority_s1(
     text,text,bigint,text,text,text,text
-) TO honghu_migration;
+) TO :"migration_role";
 
 INSERT INTO operations.schema_migration(
     migration_id, migration_sha256, phase, forward_only
