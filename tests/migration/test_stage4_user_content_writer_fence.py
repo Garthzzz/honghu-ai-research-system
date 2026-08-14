@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -129,3 +130,48 @@ def test_powershell_contract_collects_before_and_after_without_task_mutation() -
     assert "--repo-root $ReleaseDir" not in source
     assert "(Join-Path $ReleaseDir 'RELEASE_MANIFEST.json')" in source
     assert "reviewed repository root and immutable release directory must be distinct" in source
+    assert "Get-HonghuScheduledTaskActionInspection" in source
+    assert "unsupportedRelevantActions" in source
+
+
+def test_scheduled_task_action_inspection_handles_non_exec_actions(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    helper = root / "tools/migration/Stage4ScheduledTaskInspection.ps1"
+    script = tmp_path / "task_action_probe.ps1"
+    script.write_text(
+        "\n".join(
+            (
+                "$ErrorActionPreference = 'Stop'",
+                "Set-StrictMode -Version Latest",
+                f". '{helper.as_posix()}'",
+                "$nonExec = [pscustomobject]@{ Id = 'handler'; ClassId = 'abc' }",
+                "$exec = [pscustomobject]@{ Execute = 'python.exe'; Arguments = '-m tools.viewer.app' }",
+                "$a = Get-HonghuScheduledTaskActionInspection -Action $nonExec",
+                "$b = Get-HonghuScheduledTaskActionInspection -Action $exec",
+                "[ordered]@{ non_exec = $a; exec = $b } | ConvertTo-Json -Depth 5 -Compress",
+            )
+        ),
+        encoding="utf-8",
+    )
+    result = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(script),
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    payload = json.loads(result.stdout)
+    assert payload["non_exec"]["has_execute_property"] is False
+    assert payload["non_exec"]["searchable_text"] == ""
+    assert payload["non_exec"]["class_id"] == "abc"
+    assert payload["exec"]["has_execute_property"] is True
+    assert payload["exec"]["searchable_text"] == "python.exe -m tools.viewer.app"

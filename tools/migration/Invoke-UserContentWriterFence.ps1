@@ -12,6 +12,8 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
+. (Join-Path $PSScriptRoot 'Stage4ScheduledTaskInspection.ps1')
+
 function Write-Utf8NoBom([string]$Path, [string]$Text) {
     [IO.File]::WriteAllText($Path, $Text, [Text.UTF8Encoding]::new($false))
 }
@@ -78,16 +80,39 @@ foreach ($pidValue in $pids) {
 # capable of launching the Viewer/analyst-note route blocks the maintenance
 # window; unrelated IndustryDemo collectors are retained and never modified.
 $taskMatches = @()
+$unsupportedRelevantActions = @()
 $allTasks = @(Get-ScheduledTask -ErrorAction Stop)
 foreach ($task in $allTasks) {
+    $taskIdentity = (([string]$task.TaskPath) + ([string]$task.TaskName)).ToLowerInvariant()
+    $taskIsRelevant = (
+        $taskIdentity.Contains('industrydemo') -or
+        $taskIdentity.Contains('honghu') -or
+        $taskIdentity.Contains('analyst_note')
+    )
     foreach ($action in @($task.Actions)) {
-        $actionText = (([string]$action.Execute) + ' ' + ([string]$action.Arguments)).ToLowerInvariant()
+        $inspection = Get-HonghuScheduledTaskActionInspection -Action $action
+        if (-not [bool]$inspection.has_execute_property) {
+            if ($taskIsRelevant) {
+                $unsupportedRelevantActions += [ordered]@{
+                    task_path = [string]$task.TaskPath
+                    task_name = [string]$task.TaskName
+                    state = [string]$task.State
+                    action_id = [string]$inspection.action_id
+                    class_id = [string]$inspection.class_id
+                }
+            }
+            continue
+        }
+        $actionText = [string]$inspection.searchable_text
         if ($actionText.Contains('tools.viewer.app') -or $actionText.Contains('restart_viewer') -or $actionText.Contains('analyst_note')) {
             if ([string]$task.State -ne 'Disabled') {
                 $taskMatches += [ordered]@{task_path=$task.TaskPath;task_name=$task.TaskName;state=[string]$task.State}
             }
         }
     }
+}
+if ($unsupportedRelevantActions.Count -gt 0) {
+    throw 'a relevant Scheduled Task has a non-Exec action that cannot be safely inspected'
 }
 if ($taskMatches.Count -gt 0) { throw 'an enabled Scheduled Task can launch the legacy analyst-note writer' }
 
