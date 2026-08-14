@@ -95,12 +95,16 @@ def _validate_references(
 
 
 def promote_financial_data_s1(
-    connection: Any, *, actor: str, approval_reference: str
+    connection: Any,
+    *,
+    actor: str,
+    approval_reference: str,
+    application_commit_sha: str | None = None,
 ) -> dict[str, Any]:
     with connection.transaction():
         snapshot = connection.execute(
             """
-            SELECT snapshot_id,source_identity_sha256,reconciliation
+            SELECT snapshot_id,source_identity_sha256,reconciliation,application_commit_sha
               FROM migration.unit_snapshot
              WHERE cutover_unit='financial_data' AND lifecycle_state='reconciled'
              ORDER BY imported_at DESC LIMIT 1
@@ -115,6 +119,9 @@ def promote_financial_data_s1(
             reconciliation = json.loads(reconciliation)
         source_count = int(reconciliation["source_row_count"])
         source_content = str(reconciliation["source_content_sha256"])
+        snapshot_commit = str(snapshot[3])
+        if application_commit_sha is not None and snapshot_commit != application_commit_sha:
+            raise FinancialDataS1Error("financial snapshot belongs to another application commit")
 
         shared = connection.execute(
             """
@@ -276,6 +283,7 @@ def promote_financial_data_s1(
     core = {
         "schema_version": "honghu.financial_data_s1_evidence.v1",
         "cutover_unit": "financial_data",
+        "application_commit_sha": snapshot_commit,
         "authority_state": state,
         "state_revision": revision,
         "authoritative_backend": "sqlite_transition",
@@ -298,12 +306,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--actor", required=True)
     parser.add_argument("--approval-reference", required=True)
+    parser.add_argument("--application-commit-sha", required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)
     connection = _connection_from_runtime(args.runtime, "migration")
     try:
         result = promote_financial_data_s1(
-            connection, actor=args.actor, approval_reference=args.approval_reference
+            connection,
+            actor=args.actor,
+            approval_reference=args.approval_reference,
+            application_commit_sha=args.application_commit_sha,
         )
     finally:
         connection.close()
