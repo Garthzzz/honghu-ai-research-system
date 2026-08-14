@@ -178,33 +178,6 @@ def _backup_database(source: Path, target: Path) -> dict[str, Any]:
     }
 
 
-def _inspect_database_snapshot(path: Path) -> dict[str, Any]:
-    """Verify an already-created immutable SQLite snapshot without copying it."""
-
-    if not path.is_file():
-        raise FileNotFoundError(path)
-    check = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
-    check.execute("PRAGMA query_only=ON")
-    try:
-        integrity = str(check.execute("PRAGMA integrity_check").fetchone()[0])
-        quick = str(check.execute("PRAGMA quick_check").fetchone()[0])
-        user_version = int(check.execute("PRAGMA user_version").fetchone()[0])
-        schema_version = int(check.execute("PRAGMA schema_version").fetchone()[0])
-    finally:
-        check.close()
-    if integrity != "ok" or quick != "ok":
-        raise UnitSnapshotError(f"SQLite snapshot failed integrity check: {path.name}")
-    return {
-        "database": path.name,
-        "snapshot_sha256": _file_sha(path),
-        "snapshot_size": path.stat().st_size,
-        "integrity_check": integrity,
-        "quick_check": quick,
-        "user_version": user_version,
-        "schema_version": schema_version,
-    }
-
-
 def _snapshot_table(
     database: str,
     path: Path,
@@ -275,6 +248,7 @@ def build_unit_snapshot(
     output_dir: Path,
     include_rows: bool = True,
     source_is_consistent_snapshot: bool = False,
+    preverified_database_evidence: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     if unit not in PRODUCTION_UNITS:
         raise UnitSnapshotError(f"unit is not a production cutover unit: {unit}")
@@ -309,7 +283,22 @@ def build_unit_snapshot(
                 snapshot_path = temp_root / database
                 if source_is_consistent_snapshot:
                     snapshot_path = source_data_root / database
-                    database_evidence[database] = _inspect_database_snapshot(snapshot_path)
+                    evidence = (preverified_database_evidence or {}).get(database)
+                    if evidence is None:
+                        raise UnitSnapshotError(
+                            f"preverified SQLite snapshot evidence is missing: {database}"
+                        )
+                    if (
+                        not snapshot_path.is_file()
+                        or _file_sha(snapshot_path) != evidence.get("snapshot_sha256")
+                        or snapshot_path.stat().st_size != evidence.get("snapshot_size")
+                        or evidence.get("integrity_check") != "ok"
+                        or evidence.get("quick_check") != "ok"
+                    ):
+                        raise UnitSnapshotError(
+                            f"preverified SQLite snapshot identity is invalid: {database}"
+                        )
+                    database_evidence[database] = dict(evidence)
                 else:
                     database_evidence[database] = _backup_database(
                         source_data_root / database, snapshot_path

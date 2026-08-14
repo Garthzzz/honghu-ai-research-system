@@ -8,6 +8,7 @@ import pytest
 
 from tools.migration.stage4_unit_s1 import (
     UnitSnapshotError,
+    _backup_database,
     _sha,
     build_unit_snapshot,
     verify_snapshot,
@@ -185,6 +186,39 @@ def test_snapshot_verifier_rejects_tampered_row(tmp_path: Path) -> None:
 
     with pytest.raises(UnitSnapshotError, match="payload hash mismatch"):
         verify_snapshot(output / "user_content_notes.snapshot.json", rows)
+
+
+def test_prebuilt_snapshot_requires_matching_preverified_evidence(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.mkdir()
+    _database(source / "research.db")
+    snapshot = tmp_path / "snapshot"
+    snapshot.mkdir()
+    registry = tmp_path / "registry.json"
+    _registry(registry)
+
+    with pytest.raises(UnitSnapshotError, match="evidence is missing"):
+        build_unit_snapshot(
+            unit="user_content_notes",
+            source_data_root=source,
+            registry_path=registry,
+            application_commit_sha=COMMIT,
+            output_dir=tmp_path / "missing",
+            source_is_consistent_snapshot=True,
+        )
+
+    evidence = _backup_database(source / "research.db", snapshot / "research.db")
+    evidence["snapshot_sha256"] = "0" * 64
+    with pytest.raises(UnitSnapshotError, match="identity is invalid"):
+        build_unit_snapshot(
+            unit="user_content_notes",
+            source_data_root=snapshot,
+            registry_path=registry,
+            application_commit_sha=COMMIT,
+            output_dir=tmp_path / "tampered",
+            source_is_consistent_snapshot=True,
+            preverified_database_evidence={"research.db": evidence},
+        )
 
 
 def test_snapshot_verifier_rejects_authority_escalation(tmp_path: Path) -> None:

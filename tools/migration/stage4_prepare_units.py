@@ -226,6 +226,7 @@ def prepare_units(
                     output_dir=unit_root,
                     include_rows=True,
                     source_is_consistent_snapshot=True,
+                    preverified_database_evidence=batch_database_evidence,
                 )
                 rows_sha = _sha_file(rows_path)
                 loaded = load_snapshot(
