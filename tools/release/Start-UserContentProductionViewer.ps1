@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$PythonExe,
+    [Parameter(Mandatory = $true)][string]$LockedSitePackages,
     [Parameter(Mandatory = $true)][string]$ReleaseDir,
     [Parameter(Mandatory = $true)][string]$ExpectedCommit,
     [Parameter(Mandatory = $true)][string]$DataRoot,
@@ -21,6 +22,13 @@ Set-StrictMode -Version Latest
 
 function Resolve-RequiredFile([string]$Path, [string]$Label) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw "$Label missing: $Path"
+    }
+    return (Resolve-Path -LiteralPath $Path).Path
+}
+
+function Resolve-RequiredDirectory([string]$Path, [string]$Label) {
+    if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
         throw "$Label missing: $Path"
     }
     return (Resolve-Path -LiteralPath $Path).Path
@@ -57,8 +65,10 @@ function Stop-OwnedProcess([object]$Record) {
 }
 
 $PythonExe = Resolve-RequiredFile $PythonExe 'Python'
+$LockedSitePackages = Resolve-RequiredDirectory $LockedSitePackages 'locked site-packages'
 $ReleaseDir = (Resolve-Path -LiteralPath $ReleaseDir).Path
-$Launcher = Resolve-RequiredFile (Join-Path $ReleaseDir 'tools\release\user_content_production.py') 'production launcher'
+$Launcher = Resolve-RequiredFile (Join-Path $ReleaseDir 'tools\release\direct_candidate.py') 'isolated production launcher'
+$AgentsContract = Resolve-RequiredFile (Join-Path $ReleaseDir 'AGENTS.md') 'release AGENTS contract'
 $TlsCertificate = Resolve-RequiredFile $TlsCertificate 'TLS certificate'
 $TlsPrivateKey = Resolve-RequiredFile $TlsPrivateKey 'TLS private key'
 foreach ($item in @(
@@ -92,7 +102,9 @@ if (Test-Path -LiteralPath $RecordPath) {
 }
 
 $common = @(
-    '-I', '-B', $Launcher,
+    '-I', '-B', '-S', $Launcher,
+    '--site-packages', $LockedSitePackages,
+    '--module', 'tools.release.user_content_production',
     '--release-dir', $ReleaseDir,
     '--expected-commit', $ExpectedCommit,
     '--data-root', $DataRoot,

@@ -20,6 +20,7 @@ from pathlib import Path
 ALLOWED_MODULES = {
     "tools.release.cli": "main",
     "tools.release.readonly_smoke": "main",
+    "tools.release.user_content_production": "main",
 }
 
 

@@ -2,8 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tools.release.direct_candidate import ALLOWED_MODULES
+
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_immutable_release_contains_governance_and_allowlists_production_entrypoint() -> None:
+    import json
+
+    policy = json.loads((ROOT / "config/deployment_policy.json").read_text(encoding="utf-8"))
+    assert "AGENTS.md" in policy["include_exact"]
+    assert ALLOWED_MODULES["tools.release.user_content_production"] == "main"
 
 
 def test_start_contract_uses_exact_python_two_ports_tls_and_pid_binding() -> None:
@@ -13,7 +23,11 @@ def test_start_contract_uses_exact_python_two_ports_tls_and_pid_binding() -> Non
     assert "sys.version.split()[0]" in text
     assert "^3\\.10\\.\\d+$" in text
     assert 'print(".".join' not in text
-    assert "-I', '-B'" in text
+    assert "-I', '-B', '-S'" in text
+    assert "LockedSitePackages" in text
+    assert "direct_candidate.py" in text
+    assert "tools.release.user_content_production" in text
+    assert "release AGENTS contract" in text
     assert "HttpPort = 8080" in text and "HttpsPort = 8443" in text
     assert "https://localhost:$HttpsPort/api/health" in text
     assert "listener PID mismatch" in text

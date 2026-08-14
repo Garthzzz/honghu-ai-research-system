@@ -677,3 +677,8 @@ restore；之后再次验证 current 及同一受控根下全部有效集合，�
 且 current 无效时旧有效集合不会被删除；55 项 recovery/bootstrap tests 通过。DeepSeek再次
 返回 `pass`、无可复现意见，因此停止后续轮次。失败目录的最终清理由独立 inventory/dry-run
 负责，外部 reviewer 仍不替代真实 off-VM restore 和生产切换验收。
+### Stage 4 `user_content_notes` S3 上线与正式启动器收口（2026-08-14）
+
+Codex先以真实 VM 与 LAN evidence独立确认：首笔 formal mutation 已把单元原子推进到 S3，8080/8443 exact commit、PostgreSQL authority、浏览器 create/list/soft-delete，以及 16 并发 96 次和 8 并发 48 次 mutation 均通过；旧 SQLite writer 保持 fenced。随后独立发现正式启动脚本仍有两个部署合同缺口：immutable release 没有携带启动器强制读取的 `AGENTS.md`，且 venv redirector 可能使被记录 PID 不是 listener owner。修订将 `AGENTS.md` 纳入 deployment allowlist，允许隔离 bootstrap进入 production module，并统一用 base Python 3.10 `-I -B -S` 加锁定 site-packages启动；health、launch ID、CIM、executable/command hash 和端口 owner 门禁未放宽。
+
+本轮两次 DeepSeek脱敏调用均没有返回有效 reviewer 内容，故明确记录为 unavailable，不将空响应解释为 pass。此前同一 S3 authority/ACL/idempotency实现已有一轮有效 review且无新增可复现问题；本次启动器差异的主要证据为 37 项 release/PowerShell定向测试、777 项 core tests、真实浏览器与两轮压力、OpenSpec、边界门禁、最终 CI 和 VM listener lifecycle。外部 reviewer 不构成其余 cutover unit、S4 或任务迁移授权。

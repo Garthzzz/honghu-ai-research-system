@@ -187,7 +187,8 @@ Invoke-Isolated 'tools.migration.stage4_user_content_cutover' @(
 Set-HonghuLegacyServiceLifecycle -FencePath $Fence -Mode Disable -OutputPath $LegacyLifecycle | Out-Null
 
 & (Join-Path $RepoRoot 'tools\release\Start-UserContentProductionViewer.ps1') `
-    -PythonExe $PythonExe -ReleaseDir $Release -ExpectedCommit $CommitSha `
+    -PythonExe $PythonExe -LockedSitePackages (Join-Path $InstallRoot 'python-env\Lib\site-packages') `
+    -ReleaseDir $Release -ExpectedCommit $CommitSha `
     -DataRoot (Join-Path $ProductionRoot 'data') -ContentRoot $ProductionRoot `
     -StateRoot $StateRoot -RouteConfig $Route -PostgresConfig $ViewerRuntime `
     -IdentityMapping $Mapping -SecurityConfig $Security `
@@ -212,7 +213,8 @@ Invoke-Isolated 'tools.migration.stage4_user_content_cutover' @(
 & (Join-Path $RepoRoot 'tools\release\Stop-UserContentProductionViewer.ps1') `
     -StateRoot $StateRoot | Out-Null
 & (Join-Path $RepoRoot 'tools\release\Start-UserContentProductionViewer.ps1') `
-    -PythonExe $PythonExe -ReleaseDir $Release -ExpectedCommit $CommitSha `
+    -PythonExe $PythonExe -LockedSitePackages (Join-Path $InstallRoot 'python-env\Lib\site-packages') `
+    -ReleaseDir $Release -ExpectedCommit $CommitSha `
     -DataRoot (Join-Path $ProductionRoot 'data') -ContentRoot $ProductionRoot `
     -StateRoot $StateRoot -RouteConfig $Route -PostgresConfig $ViewerRuntime `
     -IdentityMapping $Mapping -SecurityConfig $Security `
