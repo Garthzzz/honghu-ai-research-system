@@ -2,6 +2,8 @@
 param(
     [Parameter(Mandatory = $true)][ValidatePattern('^[0-9a-f]{40}$')][string]$CommitSha,
     [Parameter(Mandatory = $true)][string]$RepoRoot,
+    [Parameter(Mandatory = $true)][string]$SourceDataRoot,
+    [Parameter(Mandatory = $true)][string]$ApprovedMappingPath,
     [string]$ProductionRoot = 'C:\industry_demo',
     [string]$InstallRoot = 'D:\honghu-postgresql',
     [string]$ReleaseRoot = 'D:\honghu-user-content-production',
@@ -17,7 +19,7 @@ function Invoke-Isolated([string]$Module, [string[]]$Arguments) {
     if ($LASTEXITCODE -ne 0) { throw "isolated module failed: $Module" }
 }
 
-foreach ($path in @($RepoRoot,$ProductionRoot,$InstallRoot,$PythonExe)) {
+foreach ($path in @($RepoRoot,$ProductionRoot,$SourceDataRoot,$ApprovedMappingPath,$InstallRoot,$PythonExe)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "required prepare input missing: $path" }
 }
 if ((git -C $RepoRoot rev-parse HEAD).Trim().ToLowerInvariant() -ne $CommitSha) {
@@ -32,7 +34,9 @@ $RuntimeBound = Join-Path $EvidenceRoot 'postgresql_runtime_release_bound.json'
 $SharedRuntime = Join-Path $EvidenceRoot 'postgresql_shared_identity_runtime.json'
 $MigrationEvidence = Join-Path $EvidenceRoot 'postgresql_migrations.json'
 $Mapping = Join-Path $EvidenceRoot 'identity_mapping.json'
+$CandidateMapping = Join-Path $EvidenceRoot 'identity_mapping_candidate.json'
 $Crosscheck = Join-Path $EvidenceRoot 'identity_mapping_crosscheck.json'
+$Equivalence = Join-Path $EvidenceRoot 'identity_mapping_semantic_equivalence.json'
 $S1 = Join-Path $EvidenceRoot 'shared_identity_s1.json'
 $Registry = Join-Path $RepoRoot 'config\migration\cutover_unit_registry.json'
 $Route = Join-Path $RepoRoot 'config\migration\shared_identity_backend_route.json'
@@ -53,26 +57,42 @@ Invoke-Isolated 'tools.migration.stage4_user_content_runtime' @(
 Invoke-Isolated 'tools.migration.stage4_apply_postgresql_migrations' @(
     '--repo-root',$RepoRoot,'--runtime',$RuntimeBound,'--output',$MigrationEvidence
 )
+Copy-Item -LiteralPath $ApprovedMappingPath -Destination $Mapping -Force
 Invoke-Isolated 'tools.migration.stage4_identity_mapping' @(
-    '--database',(Join-Path $ProductionRoot 'data\research.db'),
-    '--output',$Mapping,
+    '--database',(Join-Path $SourceDataRoot 'research.db'),
+    '--output',$CandidateMapping,
     '--alias-approvals',(Join-Path $RepoRoot 'config\migration\stage4_identity_mapping_approvals.json')
 )
 Invoke-Isolated 'tools.migration.stage4_identity_mapping_crosscheck' @(
-    '--mapping',$Mapping,'--source-data-root',(Join-Path $ProductionRoot 'data'),
+    '--mapping',$CandidateMapping,'--source-data-root',$SourceDataRoot,
     '--output',$Crosscheck
 )
+Invoke-Isolated 'tools.migration.stage4_identity_mapping_equivalence' @(
+    '--approved',$Mapping,'--candidate',$CandidateMapping,'--output',$Equivalence
+)
 $mappingValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $Mapping | ConvertFrom-Json
+$candidateMappingValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $CandidateMapping | ConvertFrom-Json
+$crosscheckValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $Crosscheck | ConvertFrom-Json
+$equivalenceValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $Equivalence | ConvertFrom-Json
 $decisionValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $Decision | ConvertFrom-Json
 $approved = $decisionValue.shared_identity_mapping_approval
 if (-not [bool]$approved.cutover_level_approved -or
     [string]$approved.mapping_manifest_sha256 -ne [string]$mappingValue.manifest_sha256 -or
-    [string]$approved.mapping_snapshot_identity_sha256 -ne [string]$mappingValue.snapshot_identity_sha256) {
-    throw 'live shared identity mapping drifted from the user-approved bundle'
+    [string]$approved.mapping_snapshot_identity_sha256 -ne [string]$mappingValue.source_snapshot.snapshot_identity_sha256) {
+    throw 'approved shared identity mapping artifact does not match the user decision'
+}
+if (-not [bool]$equivalenceValue.semantic_equivalent -or $equivalenceValue.status -ne 'pass' -or
+    [string]$equivalenceValue.candidate_manifest_sha256 -ne [string]$candidateMappingValue.manifest_sha256) {
+    throw 'safe source snapshot is not semantically equivalent to the approved mapping'
+}
+if ([string]$crosscheckValue.mapping_manifest_sha256 -ne [string]$candidateMappingValue.manifest_sha256 -or
+    @($crosscheckValue.manual_review_items).Count -ne 0 -or
+    [int]$crosscheckValue.counts.fallback_requires_human -ne 0) {
+    throw 'safe source snapshot identity cross-check has unresolved items'
 }
 
 Invoke-Isolated 'tools.migration.stage4_prepare_units' @(
-    '--source-data-root',(Join-Path $ProductionRoot 'data'),
+    '--source-data-root',$SourceDataRoot,
     '--registry',$Registry,'--route',$Route,'--runtime',$RuntimeBound,
     '--application-commit-sha',$CommitSha,'--work-root',$SnapshotRoot,
     '--unit','shared_identity'
@@ -104,6 +124,11 @@ $result = [ordered]@{
     source_row_count = [int64]$s1Value.source_row_count
     target_row_count = [int64]$s1Value.target_row_count
     mapping_manifest_sha256 = [string]$mappingValue.manifest_sha256
+    candidate_mapping_manifest_sha256 = [string]$candidateMappingValue.manifest_sha256
+    mapping_semantic_identity_sha256 = [string]$equivalenceValue.approved_semantic_identity_sha256
+    mapping_semantic_equivalence_evidence = $Equivalence
+    mapping_crosscheck_evidence = $Crosscheck
+    source_data_root = $SourceDataRoot
     s1_evidence = $S1
     runtime = $RuntimeBound
     shared_runtime = $SharedRuntime

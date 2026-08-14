@@ -14,7 +14,7 @@ from tools.migration.stage4_shared_identity_cutover import (
 def _inputs():
     mapping = {
         "manifest_sha256": "a" * 64,
-        "snapshot_identity_sha256": "b" * 64,
+        "source_snapshot": {"snapshot_identity_sha256": "b" * 64},
     }
     decision = {
         "schema_version": "honghu.stage4_remaining_cutover_decision.v1",
@@ -81,6 +81,13 @@ def test_shared_identity_cutover_inputs_bind_mapping_s1_and_off_vm_recovery() ->
     with pytest.raises(SharedIdentityCutoverError, match="unsafe approval"):
         validate_inputs(
             mapping=mapping, decision=broken_decision, s1=s1, recovery=recovery
+        )
+
+    broken_mapping = copy.deepcopy(mapping)
+    broken_mapping["source_snapshot"]["snapshot_identity_sha256"] = "e" * 64
+    with pytest.raises(SharedIdentityCutoverError, match="mapping decision mismatch"):
+        validate_inputs(
+            mapping=broken_mapping, decision=decision, s1=s1, recovery=recovery
         )
 
 
