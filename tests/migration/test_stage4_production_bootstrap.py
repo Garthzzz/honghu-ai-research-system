@@ -6,6 +6,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 from types import SimpleNamespace
@@ -933,6 +934,17 @@ def test_every_isolated_stage4_entrypoint_accepts_forwarded_argv() -> None:
         assert first.default is None, (
             f"{module_name}.{function_name} argv must default to None"
         )
+
+
+def test_every_literal_powershell_isolated_module_is_allowlisted() -> None:
+    """Production wrappers must not discover a missing dispatcher entry on VM."""
+
+    invoked: set[str] = set()
+    pattern = re.compile(r"Invoke-Isolated\s+'(tools\.migration\.[A-Za-z0-9_]+)'")
+    for script in (ROOT / "tools" / "migration").glob("*.ps1"):
+        invoked.update(pattern.findall(script.read_text(encoding="utf-8")))
+    assert invoked
+    assert invoked <= set(ALLOWED_MODULES), sorted(invoked - set(ALLOWED_MODULES))
 
 
 def test_isolated_dispatcher_preserves_overlapping_child_flags(monkeypatch) -> None:
