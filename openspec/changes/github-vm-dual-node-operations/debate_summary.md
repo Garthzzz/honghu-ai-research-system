@@ -682,3 +682,11 @@ restore；之后再次验证 current 及同一受控根下全部有效集合，�
 Codex先以真实 VM 与 LAN evidence独立确认：首笔 formal mutation 已把单元原子推进到 S3，8080/8443 exact commit、PostgreSQL authority、浏览器 create/list/soft-delete，以及 16 并发 96 次和 8 并发 48 次 mutation 均通过；旧 SQLite writer 保持 fenced。随后独立发现正式启动脚本仍有两个部署合同缺口：immutable release 没有携带启动器强制读取的 `AGENTS.md`，且 venv redirector 可能使被记录 PID 不是 listener owner。修订将 `AGENTS.md` 纳入 deployment allowlist，允许隔离 bootstrap进入 production module，并统一用 base Python 3.10 `-I -B -S` 加锁定 site-packages启动；health、launch ID、CIM、executable/command hash 和端口 owner 门禁未放宽。
 
 本轮两次 DeepSeek脱敏调用均没有返回有效 reviewer 内容，故明确记录为 unavailable，不将空响应解释为 pass。此前同一 S3 authority/ACL/idempotency实现已有一轮有效 review且无新增可复现问题；本次启动器差异的主要证据为 37 项 release/PowerShell定向测试、777 项 core tests、真实浏览器与两轮压力、OpenSpec、边界门禁、最终 CI 和 VM listener lifecycle。外部 reviewer 不构成其余 cutover unit、S4 或任务迁移授权。
+
+### Stage 4 S3 后恢复状态机与最终恢复证据复核（2026-08-14）
+
+Codex独立发现恢复工具仍把 authority restore 固定为 S0/S1，无法证明 PostgreSQL 已产生正式业务写入后的 S3 authority/control state 可恢复。修订将 state、authoritative backend、writer identity、cutover epoch、SQLite final watermark、PostgreSQL first-formal commit watermark、state revision 和 approval reference 作为同一个不可拆分的 authority snapshot：S0/S1 只允许 SQLite 且切换字段为空，S2 不允许作为已验证灾备恢复终态，S3/S4 必须保持 PostgreSQL 和完整切换水位；恢复结果须逐字段等于 durable source snapshot。61 项定向回归和 781 项 core tests通过。
+
+真实 VM 随后使用恢复工具提交 `0971b9cc03466b7ffdaea7b98616d6f8b4423e47` 创建新的加密异机 recovery set，并只从该集合完成 whole-database、authority-control 和 side restore。S3、backend、writer/epoch/watermarks/revision/approval 均保持一致，实测 RPO 0.02 秒、RTO 7.484 秒；保留策略复核后只留下最新两份有效集合。该现场证据仍保持 Git 外，Git 只记录其脱敏 identity 和 hash。
+
+最后一轮 DeepSeek只收到上述脱敏状态机、测试和恢复摘要，返回 `revise`。其意见没有给出任何可导致错误 PASS 的状态或可复现反例，并把提示中已经明确为秒的 RPO/RTO、测试项数量和两份保留策略误读成缺少定义。Codex拒绝这些无证据意见，并以状态机约束、真实 PostgreSQL恢复、exact recovery set、定向测试和 required CI 为准；未为了追求外部模型形式上的 `pass` 再扩张实现或继续循环。
