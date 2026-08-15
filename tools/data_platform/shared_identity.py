@@ -11,10 +11,12 @@ there is deliberately no fallback to the SQLite baseline.
 
 import hashlib
 import json
+import os
 import sqlite3
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from .routing import AuthorityState, Backend, CutoverRoute
@@ -525,3 +527,53 @@ class SharedIdentityReadCache:
             self._uri = None
             self._version = None
             self._authority_token = None
+
+
+_ENVIRONMENT_READ_CACHES: dict[str, SharedIdentityReadCache] = {}
+
+
+def connect_shared_identity_database(sqlite_path: str | Path) -> sqlite3.Connection:
+    """Open the authoritative shared-identity read surface.
+
+    Before the shared-identity cutover this is a strictly read-only SQLite
+    connection.  In S3/S4 it is a process-memory compatibility database built
+    only from PostgreSQL.  A PostgreSQL/configuration failure is never allowed
+    to reopen the frozen SQLite identity baseline.
+    """
+
+    from tools.data_platform.postgres_runtime import (
+        build_catalog_connection_factory,
+        load_postgres_runtime_catalog,
+    )
+    from tools.data_platform.routing import (
+        Backend,
+        load_environment_authority_matrix,
+    )
+
+    path = Path(sqlite_path).resolve()
+    matrix = load_environment_authority_matrix()
+    route = (
+        matrix.route_for(
+            "shared_identity",
+            writer_operation="shared_identity_read",
+            transaction_boundary="one authoritative identity read transaction",
+        )
+        if matrix is not None
+        else None
+    )
+    if route is None or route.backend is Backend.SQLITE_TRANSITION:
+        connection = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA query_only=ON")
+        return connection
+    catalog_path = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+    if not catalog_path:
+        raise SharedIdentityWriterFenced(
+            "PostgreSQL-authoritative shared_identity lacks a runtime catalog"
+        )
+    catalog = load_postgres_runtime_catalog(catalog_path)
+    cache = _ENVIRONMENT_READ_CACHES.setdefault(
+        str(Path(catalog_path).resolve()),
+        SharedIdentityReadCache(build_catalog_connection_factory(catalog, role="reader")),
+    )
+    return cache.connect()

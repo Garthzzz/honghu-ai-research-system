@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -9,8 +10,11 @@ from tools.data_platform.shared_identity import (
     PostgresSharedIdentityResolver,
     SharedIdentityError,
     SharedIdentityReadCache,
+    SharedIdentityWriterFenced,
     company_security_stable_key,
+    connect_shared_identity_database,
 )
+from tools.data_platform.routing import AuthorityState, Backend, CutoverRoute
 
 
 class _Cursor:
@@ -169,3 +173,53 @@ def test_runtime_identity_resolution_never_falls_back_to_frozen_mapping(connecti
 def test_unqualified_company_identity_fails_closed() -> None:
     with pytest.raises(SharedIdentityError, match="supported venue"):
         company_security_stable_key("UNKNOWN", "其他", "listed")
+
+
+def test_environment_identity_reader_uses_read_only_sqlite_before_cutover(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    database = tmp_path / "research.db"
+    connection = sqlite3.connect(database)
+    connection.execute("CREATE TABLE company(id integer primary key,name text)")
+    connection.execute("INSERT INTO company VALUES(1,'legacy')")
+    connection.commit()
+    connection.close()
+    monkeypatch.setattr(
+        "tools.data_platform.routing.load_environment_authority_matrix", lambda: None
+    )
+    opened = connect_shared_identity_database(database)
+    try:
+        assert opened.execute("SELECT name FROM company").fetchone()[0] == "legacy"
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            opened.execute("UPDATE company SET name='forbidden'")
+    finally:
+        opened.close()
+
+
+def test_environment_identity_reader_never_falls_back_after_postgresql_authority(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class _Matrix:
+        @staticmethod
+        def route_for(*_args, **_kwargs):
+            return CutoverRoute(
+                cutover_unit="shared_identity",
+                authority_state=AuthorityState.S3,
+                backend=Backend.POSTGRESQL_PRODUCTION,
+                writer_operation="shared_identity_read",
+                transaction_boundary="one authoritative identity read transaction",
+                sqlite_writer_enabled=False,
+                production_postgresql_enabled=True,
+                route_revision=3,
+                writer_identity="honghu_writer_shared_identity",
+                cutover_epoch="epoch",
+                approval_reference="approval",
+            )
+
+    monkeypatch.setattr(
+        "tools.data_platform.routing.load_environment_authority_matrix", lambda: _Matrix()
+    )
+    monkeypatch.delenv("HONGHU_POSTGRES_RUNTIME_CONFIG", raising=False)
+    with pytest.raises(SharedIdentityWriterFenced, match="runtime catalog"):
+        connect_shared_identity_database(tmp_path / "must-not-open.db")
+    assert not (tmp_path / "must-not-open.db").exists()
