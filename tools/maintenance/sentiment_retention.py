@@ -999,6 +999,13 @@ def main() -> None:
         if args.as_of
         else _now()
     )
+    from tools.data_platform.run_domain_operation import install_operation_context
+
+    install_operation_context(
+        cutover_unit="sentiment_analytics",
+        operation_scope="sentiment_retention",
+        logical_window=as_of.astimezone(BEIJING).date().isoformat(),
+    )
     if as_of.tzinfo is None:
         as_of = as_of.replace(tzinfo=BEIJING)
     if args.grace_days < 0:

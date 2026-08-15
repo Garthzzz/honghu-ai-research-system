@@ -959,6 +959,14 @@ def main(argv: list[str] | None = None) -> int:
         help="覆盖配置的本 tick 自动补跑上限；0=本次不补跑",
     )
     args = parser.parse_args(argv)
+    from tools.data_platform.run_domain_operation import install_operation_context
+
+    operation_date = args.session_date or datetime.now(senti3.TZ).date()
+    install_operation_context(
+        cutover_unit="sentiment_analytics",
+        operation_scope="retail_window_tick",
+        logical_window=f"{operation_date.isoformat()}:{args.slot}",
+    )
     try:
         with exclusive_tick_lock():
             recovery_con = common.get_senti_db()

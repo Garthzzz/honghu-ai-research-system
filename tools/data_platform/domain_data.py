@@ -675,6 +675,11 @@ def connect_domain_database(
         )
     writer = build_catalog_connection_factory(catalog, role=role_key)
     registry = CutoverUnitRegistry.from_path(registry_path)
+    trusted_actor = actor or os.environ.get("HONGHU_AUDIT_ACTOR", "")
+    if not trusted_actor:
+        from tools.data_platform.run_domain_operation import trusted_os_principal
+
+        trusted_actor = trusted_os_principal()
     compatibility = PostgresDomainCompatibilityConnection(
         unit,
         reader,
@@ -683,7 +688,7 @@ def connect_domain_database(
         writer_identity=writer_identity,
         operation_scope=operation_scope or f"{unit}_mutation",
         operation_id=operation_id or os.environ.get("HONGHU_OPERATION_ID", ""),
-        actor=actor or os.environ.get("HONGHU_AUDIT_ACTOR", ""),
+        actor=trusted_actor,
     )
     definition = registry.definition(unit)
     for dependency in definition.dependencies:

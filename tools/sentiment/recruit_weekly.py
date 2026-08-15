@@ -27,6 +27,15 @@ def main():
     # print, spawn children, call the network, or open the database.
     if datetime.now(TZ).weekday() >= 5:
         return 0
+    from tools.data_platform.run_domain_operation import install_operation_context
+
+    current = datetime.now(TZ)
+    iso_year, iso_week, _ = current.isocalendar()
+    install_operation_context(
+        cutover_unit="sentiment_analytics",
+        operation_scope="recruit_weekly",
+        logical_window=f"{iso_year}-W{iso_week:02d}",
+    )
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     run("recruit_scrape.py")        # 重抓 → recruit_job open/closed 比对 + recruit_change_log 历史
     run("recruit_classify.py")      # 职能/领域/城市 分类(新增岗位也分类)

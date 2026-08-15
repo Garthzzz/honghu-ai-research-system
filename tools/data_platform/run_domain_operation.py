@@ -30,6 +30,32 @@ PRODUCTION_UNITS = {
 }
 
 
+def install_operation_context(
+    *, cutover_unit: str, operation_scope: str, logical_window: str
+) -> str:
+    """Install one retry-stable identity for an existing production runner.
+
+    The runner host and Scheduled Task definition do not change during Stage 4.
+    The identity is derived from the audited business window rather than a
+    random process id, so a crash/retry of the same logical run reuses it.  An
+    explicitly supplied identity wins, allowing the controlled wrapper to bind
+    a stronger upstream checkpoint when available.
+    """
+
+    if cutover_unit not in PRODUCTION_UNITS:
+        raise ValueError(f"unknown production cutover unit: {cutover_unit}")
+    scope = operation_scope.strip()
+    window = logical_window.strip()
+    if not scope or not window or any(value in window for value in ("\r", "\n")):
+        raise ValueError("operation scope and logical window are required")
+    generated = f"{cutover_unit}:{scope}:{window}"
+    existing = os.environ.get("HONGHU_OPERATION_ID", "").strip()
+    if existing:
+        return existing
+    os.environ["HONGHU_OPERATION_ID"] = generated
+    return generated
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
