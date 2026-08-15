@@ -183,6 +183,13 @@ def validate_inputs(
             "exact-commit PostgreSQL adapter rehearsal is incomplete"
         )
     _verify_embedded_hash(rehearsal)
+    if unit == "sentiment_analytics" and (
+        rehearsal.get("persistent_projection_verified") is not True
+        or rehearsal.get("legacy_sqlite_opened") is not False
+    ):
+        raise RemainingUnitCutoverError(
+            "sentiment persistent projection rehearsal is incomplete"
+        )
 
     if unit in CONTINUOUS_RUNNER_UNITS:
         if not isinstance(runner, dict) or runner.get("schema_version") != (

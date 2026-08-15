@@ -28,6 +28,7 @@ REVIEWED_MIGRATIONS = (
     "0008_financial_data_expand.sql",
     "0009_stage4_s1_authority_read_grant.sql",
     "0010_remaining_units_common_data_plane.sql",
+    "0011_sentiment_persistent_projection.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -53,6 +54,9 @@ MIGRATION_IDENTIFIERS = {
         "writer_investment_hypotheses": "honghu_writer_investment_hypotheses",
         "writer_opportunity_lens": "honghu_writer_opportunity_lens",
         "writer_sentiment_analytics": "honghu_writer_sentiment_analytics",
+    },
+    "0011_sentiment_persistent_projection.sql": {
+        "reader_role": "honghu_viewer_reader",
     },
 }
 

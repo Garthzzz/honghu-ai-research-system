@@ -131,10 +131,64 @@ def _inputs(unit: str = "financial_data"):
             "stale_revision_rejected": True,
             "outside_ownership_rejected": True,
             "audit_revision_count": 1,
+            "persistent_projection_verified": unit == "sentiment_analytics",
+            "legacy_sqlite_opened": False,
             "production_target_permitted": False,
         }
     )
     return decision, s1, recovery, rehearsal
+
+
+def test_sentiment_cutover_requires_persistent_projection_rehearsal(
+    tmp_path: Path,
+) -> None:
+    decision, s1, recovery, rehearsal = _inputs("sentiment_analytics")
+    runner = _identity(
+        {
+            "schema_version": "honghu.temporary_local_runner_readiness.v1",
+            "cutover_unit": "sentiment_analytics",
+            "application_commit_sha": "b" * 40,
+            "unique_runner": True,
+            "stable_operation_identity": True,
+            "postgresql_failure_fails_closed": True,
+            "scheduled_task_definition_unchanged": True,
+            "stage5_runner_host_migration": False,
+            "runner_host": "local-workstation",
+            "checkpoint_watermark": "window:2026-08-15",
+            "exit_condition": "Stage 5 runner cutover or explicit rollback of runner host only",
+        }
+    )
+    validate_inputs(
+        unit="sentiment_analytics",
+        decision=decision,
+        s1=s1,
+        recovery=recovery,
+        rehearsal=rehearsal,
+        runner=runner,
+        registry=_registry(tmp_path),
+        expected_commit="b" * 40,
+    )
+    broken = _identity(
+        {
+            **{
+                key: value
+                for key, value in rehearsal.items()
+                if key != "evidence_sha256"
+            },
+            "persistent_projection_verified": False,
+        }
+    )
+    with pytest.raises(RemainingUnitCutoverError, match="persistent projection"):
+        validate_inputs(
+            unit="sentiment_analytics",
+            decision=decision,
+            s1=s1,
+            recovery=recovery,
+            rehearsal=broken,
+            runner=runner,
+            registry=_registry(tmp_path),
+            expected_commit="b" * 40,
+        )
 
 
 def test_cutover_inputs_bind_user_decision_s1_and_off_vm_restore(tmp_path: Path) -> None:

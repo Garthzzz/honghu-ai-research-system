@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import re
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
@@ -285,6 +286,51 @@ def run_rehearsal(
             ).fetchone()[0]
         if first != replay:
             raise RemainingUnitRehearsalError("idempotent replay changed result")
+        persistent_projection_verified = False
+        if unit == "sentiment_analytics":
+            from tools.data_platform.sentiment_projection import (
+                PersistentSentimentProjection,
+            )
+
+            with tempfile.TemporaryDirectory(prefix="honghu-sentiment-rehearsal-") as raw:
+                projection = PersistentSentimentProjection(
+                    Path(raw),
+                    lambda: _connect(host, port, dbname, "honghu_viewer_reader"),
+                )
+                compatibility = projection.connect_writer(
+                    lambda: _connect(host, port, dbname, writer_name),
+                    writer_identity=writer_name,
+                    operation_scope="sentiment-rehearsal",
+                    operation_id=f"persistent:{uuid.uuid4().hex}",
+                    actor="principal:rehearsal-writer",
+                )
+                try:
+                    before_value = compatibility.execute(
+                        f'SELECT value FROM "{source_table}" WHERE id=1'
+                    ).fetchone()[0]
+                    compatibility.execute(
+                        f'UPDATE "{source_table}" SET value=? WHERE id=1',
+                        ("persistent-updated",),
+                    )
+                    compatibility.commit()
+                finally:
+                    compatibility.close()
+                projected = projection.connect_readonly()
+                try:
+                    after_value = projected.execute(
+                        f'SELECT value FROM "{source_table}" WHERE id=1'
+                    ).fetchone()[0]
+                finally:
+                    projected.close()
+                persistent_projection_verified = (
+                    before_value == "updated"
+                    and after_value == "persistent-updated"
+                    and projection.database_path.is_file()
+                )
+            if not persistent_projection_verified:
+                raise RemainingUnitRehearsalError(
+                    "persistent sentiment projection roundtrip failed"
+                )
         stale_rejected = False
         outside_rejected = False
         try:
@@ -321,9 +367,10 @@ def run_rehearsal(
                 WHERE a.cutover_unit=%s""",
             (unit, unit),
         ).fetchone()
+        expected_audit_count = 2 if unit == "sentiment_analytics" else 1
         if final is None or tuple(final[:5]) != (
             "S3", "postgresql_production", writer_name, adapter_release, snapshot_id
-        ) or int(final[5]) != 1 or not stale_rejected or not outside_rejected:
+        ) or int(final[5]) != expected_audit_count or not stale_rejected or not outside_rejected:
             raise RemainingUnitRehearsalError("final rehearsal contract is not green")
         core = {
             "schema_version": "honghu.remaining_unit_postgresql_rehearsal.v1",
@@ -337,6 +384,8 @@ def run_rehearsal(
             "stale_revision_rejected": stale_rejected,
             "outside_ownership_rejected": outside_rejected,
             "audit_revision_count": int(final[5]),
+            "persistent_projection_verified": persistent_projection_verified,
+            "legacy_sqlite_opened": False,
             "production_target_permitted": False,
         }
         return {**core, "evidence_sha256": _sha(core)}

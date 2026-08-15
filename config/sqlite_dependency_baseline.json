@@ -187,6 +187,56 @@
       "sunset_condition": "Remove when the common SQLite-shaped transition adapter is retired after native PostgreSQL repository adoption."
     },
     {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "sqlite3_connect",
+      "max_count": 5,
+      "reason": "The sentiment domain exceeds the reviewed process-memory limit, so its S3 transition adapter builds and opens a disposable runtime SQLite projection exclusively from PostgreSQL-authoritative records. It never opens the retired live sentiment.db and PostgreSQL failures remain fail-closed.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when sentiment readers and writers use native PostgreSQL repositories and no SQLite-shaped runtime projection remains."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "pragma",
+      "max_count": 6,
+      "reason": "The disposable cache uses bounded WAL, durability, foreign-key, read-only and integrity PRAGMAs only on the PostgreSQL-derived runtime projection; no PRAGMA targets the retired live sentiment database.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove with the persistent transition projection after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "begin_immediate",
+      "max_count": 1,
+      "reason": "One bounded BEGIN IMMEDIATE serializes application of the authoritative PostgreSQL overlay into the disposable local cache while a cross-process lock is held; it is not a live SQLite authority transaction.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove with the persistent transition projection after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 4,
+      "reason": "Conflict clauses maintain cache metadata and PostgreSQL-derived rows idempotently inside the disposable projection. Formal mutation idempotency remains enforced independently by PostgreSQL operation identity and revision checks.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove with the persistent transition projection after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "attach",
+      "max_count": 2,
+      "reason": "The persistent projection exposes one reviewed dependency method and one URI-mode read-only database attachment, both targeting the disposable PostgreSQL-derived cache. It never attaches the retired sentiment or research SQLite authority files.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when cross-unit dependencies use native PostgreSQL joins and the transition projection is retired."
+    },
+    {
       "path": "tools/migration/stage4_financial_data_s1.py",
       "domain": "Stage 4 financial-data PostgreSQL S1 preparation",
       "rule": "sqlite_conflict_dml",

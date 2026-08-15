@@ -111,6 +111,25 @@ def test_shared_identity_reader_can_bind_cache_to_authority_revision() -> None:
     assert "DELETE ON operations.cutover_unit_authority" not in rendered
 
 
+def test_sentiment_projection_reads_through_constrained_security_definer_contracts() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0011_sentiment_persistent_projection.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_schema_migration(
+        source,
+        "a" * 64,
+        identifiers={"reader_role": "honghu_viewer_reader"},
+    )
+    assert "unit_runtime_contract_v1" in rendered
+    assert "read_unit_overlay_v1" in rendered
+    assert rendered.count("SECURITY DEFINER") == 2
+    assert 'TO "honghu_viewer_reader"' in rendered
+    assert "GRANT SELECT ON operations.cutover_unit_authority" not in rendered
+
+
 def test_s1_callers_do_not_require_control_plane_update_privilege() -> None:
     callers = (
         "stage4_shared_identity_s1.py",

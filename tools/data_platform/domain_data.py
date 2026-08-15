@@ -112,22 +112,12 @@ class PostgresDomainReadCache:
         connection = self._connect()
         try:
             authority = connection.execute(
-                """
-                SELECT a.state,a.authoritative_backend,a.state_revision,a.cutover_epoch,
-                       s.source_snapshot_id,s.source_identity_sha256,s.source_content_sha256,
-                       s.source_row_count,s.source_watermark,s.formal_revision,
-                       coalesce(o.overlay_count,0),coalesce(o.revision_sum,0),
-                       coalesce(o.last_update,'')
-                  FROM operations.cutover_unit_authority a
-                  JOIN domain_data.formal_unit_snapshot s USING(cutover_unit)
-                  LEFT JOIN LATERAL (
-                    SELECT count(*) overlay_count,sum(revision) revision_sum,
-                           max(updated_at)::text last_update
-                      FROM domain_data.record_overlay r
-                     WHERE r.cutover_unit=a.cutover_unit
-                  ) o ON true
-                 WHERE a.cutover_unit=%s
-                """,
+                """SELECT state,authoritative_backend,state_revision,cutover_epoch,
+                          source_snapshot_id,source_identity_sha256,
+                          source_content_sha256,source_row_count,source_watermark,
+                          formal_revision,overlay_count,overlay_revision_sum,
+                          overlay_last_update
+                     FROM domain_data.unit_runtime_contract_v1(%s)""",
                 (self.unit,),
             ).fetchone()
             if authority is None:
@@ -307,7 +297,12 @@ class PostgresDomainCompatibilityConnection:
         self._pending_request_hash: str | None = None
         self._pending_mutations: list[dict[str, Any]] | None = None
         self._closed = False
-        self._connection = sqlite3.connect(":memory:")
+        # URI mode is required so read-only dependency database URIs retain
+        # ``mode=ro`` instead of being treated as literal filenames.
+        self._connection = sqlite3.connect(
+            f"file:honghu_compat_{uuid.uuid4().hex}?mode=memory&cache=private",
+            uri=True,
+        )
         self._connection.row_factory = sqlite3.Row
         self._connection.execute("PRAGMA foreign_keys=ON")
         self._schema_by_table: dict[str, list[dict[str, Any]]] = {}
@@ -336,13 +331,9 @@ class PostgresDomainCompatibilityConnection:
         connection = self._read_connect()
         try:
             authority = connection.execute(
-                """
-                SELECT a.state,a.authoritative_backend,a.writer_identity,
-                       s.source_watermark,s.source_row_count
-                  FROM operations.cutover_unit_authority a
-                  JOIN domain_data.formal_unit_snapshot s USING(cutover_unit)
-                 WHERE a.cutover_unit=%s
-                """,
+                """SELECT state,authoritative_backend,writer_identity,
+                          source_watermark,source_row_count
+                     FROM domain_data.unit_runtime_contract_v1(%s)""",
                 (self.unit,),
             ).fetchone()
             if authority is None:
@@ -587,6 +578,20 @@ class PostgresDomainCompatibilityConnection:
 
 _READ_CACHES: dict[tuple[str, str], PostgresDomainReadCache] = {}
 _SHARED_IDENTITY_CACHES: dict[str, Any] = {}
+_SENTIMENT_PROJECTIONS: dict[str, Any] = {}
+
+
+def _sentiment_projection(catalog_path: str, reader: Callable[[], Any]) -> Any:
+    from tools.data_platform.sentiment_projection import PersistentSentimentProjection
+    from tools.runtime_paths import resolve_runtime_layout
+
+    return _SENTIMENT_PROJECTIONS.setdefault(
+        catalog_path,
+        PersistentSentimentProjection(
+            resolve_runtime_layout().cache_root / "postgresql_projection",
+            reader,
+        ),
+    )
 
 
 def connect_domain_database(
@@ -655,12 +660,22 @@ def connect_domain_database(
         raise DomainDataWriterFenced("PostgreSQL route lacks runtime catalog/registry")
     catalog = load_postgres_runtime_catalog(catalog_path)
     reader = build_catalog_connection_factory(catalog, role="reader")
+    registry = CutoverUnitRegistry.from_path(registry_path)
+    definition = registry.definition(unit)
     cache_key = (unit, str(catalog_path))
-    cache = _READ_CACHES.setdefault(cache_key, PostgresDomainReadCache(unit, reader))
+    if unit == "sentiment_analytics":
+        projection = _sentiment_projection(str(catalog_path), reader)
+        cache = None
+    else:
+        projection = None
+        cache = _READ_CACHES.setdefault(
+            cache_key, PostgresDomainReadCache(unit, reader)
+        )
     if readonly:
-        read_connection = cache.connect()
+        read_connection = (
+            projection.connect_readonly() if projection is not None else cache.connect()
+        )
         try:
-            definition = CutoverUnitRegistry.from_path(registry_path).definition(unit)
             for dependency in definition.dependencies:
                 dependency_route = matrix.routes[dependency]
                 if dependency_route.backend is not Backend.POSTGRESQL_PRODUCTION:
@@ -682,10 +697,15 @@ def connect_domain_database(
                     "opportunity_lens",
                     "sentiment_analytics",
                 }:
-                    dependency_key = (dependency, str(catalog_path))
-                    dependency_cache = _READ_CACHES.setdefault(
-                        dependency_key, PostgresDomainReadCache(dependency, reader)
-                    )
+                    if dependency == "sentiment_analytics":
+                        dependency_cache = _sentiment_projection(
+                            str(catalog_path), reader
+                        )
+                    else:
+                        dependency_key = (dependency, str(catalog_path))
+                        dependency_cache = _READ_CACHES.setdefault(
+                            dependency_key, PostgresDomainReadCache(dependency, reader)
+                        )
                 else:
                     raise DomainDataWriterFenced(
                         f"unsupported PostgreSQL read dependency: {dependency}"
@@ -704,23 +724,30 @@ def connect_domain_database(
             "authority writer identity does not match runtime credential role"
         )
     writer = build_catalog_connection_factory(catalog, role=role_key)
-    registry = CutoverUnitRegistry.from_path(registry_path)
     trusted_actor = actor or os.environ.get("HONGHU_AUDIT_ACTOR", "")
     if not trusted_actor:
         from tools.data_platform.run_domain_operation import trusted_os_principal
 
         trusted_actor = trusted_os_principal()
-    compatibility = PostgresDomainCompatibilityConnection(
-        unit,
-        reader,
-        writer,
-        owned_objects=registry.definition(unit).owned_objects,
-        writer_identity=writer_identity,
-        operation_scope=operation_scope or f"{unit}_mutation",
-        operation_id=operation_id or os.environ.get("HONGHU_OPERATION_ID", ""),
-        actor=trusted_actor,
-    )
-    definition = registry.definition(unit)
+    if projection is not None:
+        compatibility = projection.connect_writer(
+            writer,
+            writer_identity=writer_identity,
+            operation_scope=operation_scope or f"{unit}_mutation",
+            operation_id=operation_id or os.environ.get("HONGHU_OPERATION_ID", ""),
+            actor=trusted_actor,
+        )
+    else:
+        compatibility = PostgresDomainCompatibilityConnection(
+            unit,
+            reader,
+            writer,
+            owned_objects=definition.owned_objects,
+            writer_identity=writer_identity,
+            operation_scope=operation_scope or f"{unit}_mutation",
+            operation_id=operation_id or os.environ.get("HONGHU_OPERATION_ID", ""),
+            actor=trusted_actor,
+        )
     for dependency in definition.dependencies:
         dependency_route = matrix.routes[dependency]
         if dependency_route.backend is not Backend.POSTGRESQL_PRODUCTION:
@@ -743,10 +770,13 @@ def connect_domain_database(
             "opportunity_lens",
             "sentiment_analytics",
         }:
-            dependency_key = (dependency, str(catalog_path))
-            dependency_cache = _READ_CACHES.setdefault(
-                dependency_key, PostgresDomainReadCache(dependency, reader)
-            )
+            if dependency == "sentiment_analytics":
+                dependency_cache = _sentiment_projection(str(catalog_path), reader)
+            else:
+                dependency_key = (dependency, str(catalog_path))
+                dependency_cache = _READ_CACHES.setdefault(
+                    dependency_key, PostgresDomainReadCache(dependency, reader)
+                )
             compatibility.attach_read_dependency(dependency_cache)
         else:
             raise DomainDataWriterFenced(

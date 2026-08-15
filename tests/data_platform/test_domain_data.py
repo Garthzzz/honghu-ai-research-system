@@ -51,7 +51,7 @@ class _Connection:
         }
 
     def execute(self, sql, _params=None):
-        if "formal_unit_snapshot" in sql:
+        if "unit_runtime_contract_v1" in sql:
             return _Cursor(
                 one=(
                     self.state,
@@ -150,7 +150,7 @@ class _WriterReadConnection:
         }
 
     def execute(self, sql, _params=None):
-        if "formal_unit_snapshot" in sql:
+        if "unit_runtime_contract_v1" in sql:
             return _Cursor(
                 one=(
                     "S3",
@@ -323,7 +323,7 @@ def test_uncertain_postgresql_response_rejects_changed_local_state() -> None:
 def test_compatibility_connection_recreates_a_tombstone_at_next_revision() -> None:
     class TombstoneRead(_WriterReadConnection):
         def execute(self, sql, _params=None):
-            if "formal_unit_snapshot" in sql:
+            if "unit_runtime_contract_v1" in sql:
                 return _Cursor(
                     one=(
                         "S3",
@@ -368,7 +368,7 @@ def test_compatibility_connection_recreates_a_tombstone_at_next_revision() -> No
 def test_large_unit_writer_requires_a_separate_persistent_adapter() -> None:
     class LargeRead(_WriterReadConnection):
         def execute(self, sql, _params=None):
-            if "formal_unit_snapshot" in sql:
+            if "unit_runtime_contract_v1" in sql:
                 return _Cursor(
                     one=(
                         "S3",
@@ -397,7 +397,7 @@ def test_large_unit_reader_requires_a_persistent_projection() -> None:
     class LargeRead(_Connection):
         def execute(self, sql, params=None):
             cursor = super().execute(sql, params)
-            if "formal_unit_snapshot" in sql:
+            if "unit_runtime_contract_v1" in sql:
                 row = list(cursor.fetchone())
                 row[7] = MAX_IN_MEMORY_COMPATIBILITY_ROWS + 1
                 return _Cursor(one=tuple(row))
