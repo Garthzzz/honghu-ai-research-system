@@ -22,6 +22,17 @@ class RemainingUnitRehearsalError(RuntimeError):
     pass
 
 
+REPRESENTATIVE_OBJECTS = {
+    "financial_data": ("financial.db", "financial_observation"),
+    "research_publication": ("research.db", "source"),
+    "dynamic_intelligence": ("research.db", "event"),
+    "operations_governance": ("research.db", "fetch_schedule"),
+    "investment_hypotheses": ("research.db", "hypothesis"),
+    "opportunity_lens": ("opportunity_lens.db", "opportunity_run"),
+    "sentiment_analytics": ("sentiment.db", "senti_company"),
+}
+
+
 def _sha(value: Any) -> str:
     return hashlib.sha256(
         json.dumps(value, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -58,13 +69,15 @@ def _connect(host: str, port: int, dbname: str, user: str) -> Any:
 
 def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, Any]:
     validate_target(host, dbname)
-    if unit != "research_publication":
+    try:
+        source_database, source_table = REPRESENTATIVE_OBJECTS[unit]
+    except KeyError as exc:
         raise RemainingUnitRehearsalError(
-            "the representative rehearsal unit is fixed to research_publication"
-        )
+            "unit has no representative rehearsal object"
+        ) from exc
     admin = _connect(host, port, dbname, "honghu_devtest")
     controller = _connect(host, port, dbname, "honghu_controller")
-    writer_name = "honghu_writer_research_publication"
+    writer_name = f"honghu_writer_{unit}"
     writer = _connect(host, port, dbname, writer_name)
     snapshot_id = f"rehearsal:{uuid.uuid4().hex}"
     epoch = f"rehearsal:{uuid.uuid4().hex}"
@@ -85,15 +98,15 @@ def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, 
     watermark = {
         "tables": [
             {
-                "source_database": "research.db",
-                "source_table": "source",
+                "source_database": source_database,
+                "source_table": source_table,
                 "schema": schema,
                 "row_count": 1,
             }
         ]
     }
     content_sha = hashlib.sha256(
-        (json.dumps(("research.db", "source", 1, source_key, row_sha), separators=(",", ":")) + "\n").encode("utf-8")
+        (json.dumps((source_database, source_table, 1, source_key, row_sha), separators=(",", ":")) + "\n").encode("utf-8")
     ).hexdigest()
     reconciliation = {
         "status": "pass",
@@ -112,6 +125,34 @@ def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, 
     )
     try:
         with admin.transaction():
+            # Rehearsal databases are intentionally reusable.  Authority audit
+            # revisions are append-only in production, so they do not cascade
+            # when the synthetic authority row is reset; remove only this
+            # synthetic unit's prior rehearsal records before seeding revision
+            # 1 again.
+            admin.execute(
+                "DELETE FROM audit.domain_record_revision WHERE cutover_unit=%s",
+                (unit,),
+            )
+            admin.execute(
+                "DELETE FROM audit.cutover_unit_authority_revision WHERE cutover_unit=%s",
+                (unit,),
+            )
+            admin.execute(
+                "DELETE FROM domain_data.mutation_result WHERE cutover_unit=%s",
+                (unit,),
+            )
+            admin.execute(
+                "DELETE FROM domain_data.record_overlay WHERE cutover_unit=%s",
+                (unit,),
+            )
+            admin.execute(
+                "DELETE FROM domain_data.formal_unit_snapshot WHERE cutover_unit=%s",
+                (unit,),
+            )
+            if unit == "financial_data":
+                admin.execute("DELETE FROM financial_data.legacy_record")
+                admin.execute("DELETE FROM financial_data.unit_snapshot")
             admin.execute(
                 "DELETE FROM operations.cutover_unit_authority WHERE cutover_unit=%s",
                 (unit,),
@@ -145,9 +186,37 @@ def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, 
                 """INSERT INTO migration.source_row(
                     snapshot_id,cutover_unit,source_database,source_table,
                     source_ordinal,source_key,row_sha256,payload
-                ) VALUES(%s,%s,'research.db','source',1,%s,%s,%s::jsonb)""",
-                (snapshot_id, unit, source_key, row_sha, json.dumps(source_payload)),
+                ) VALUES(%s,%s,%s,%s,1,%s,%s,%s::jsonb)""",
+                (
+                    snapshot_id,
+                    unit,
+                    source_database,
+                    source_table,
+                    source_key,
+                    row_sha,
+                    json.dumps(source_payload),
+                ),
             )
+            if unit == "financial_data":
+                admin.execute(
+                    """INSERT INTO financial_data.unit_snapshot(
+                        cutover_unit,source_snapshot_id,source_identity_sha256,
+                        shared_identity_snapshot_id,shared_identity_mapping_sha256,
+                        source_row_count,target_row_count,source_content_sha256,
+                        target_content_sha256,authority_state,formal_business_data
+                    ) VALUES(
+                        'financial_data',%s,%s,'rehearsal-shared',%s,
+                        1,1,%s,%s,'S1',false
+                    )""",
+                    (snapshot_id, "c" * 64, "e" * 64, content_sha, content_sha),
+                )
+                admin.execute(
+                    """INSERT INTO financial_data.legacy_record(
+                        source_table,legacy_id,stable_key,row_sha256,payload,
+                        source_snapshot_id,source_ordinal,formal_business_data
+                    ) VALUES('financial_observation','1','rehearsal:1',%s,%s::jsonb,%s,1,false)""",
+                    (row_sha, json.dumps(source_payload), snapshot_id),
+                )
         with controller.transaction():
             transitioned = controller.execute(
                 """SELECT * FROM operations.transition_remaining_unit(
@@ -183,8 +252,8 @@ def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, 
         if activated is None:
             raise RemainingUnitRehearsalError("S2 activation returned no result")
         mutation = {
-            "source_database": "research.db",
-            "source_table": "source",
+            "source_database": source_database,
+            "source_table": source_table,
             "source_key": source_key,
             "payload": {"id": 1, "value": "updated"},
             "row_sha256": _sha({"id": 1, "value": "updated"}),
@@ -223,7 +292,7 @@ def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, 
             writer.rollback()
         try:
             outside = dict(mutation)
-            outside.update(source_table="company", expected_revision=0)
+            outside.update(source_table="outside_reviewed_ownership", expected_revision=0)
             outside["request_sha256"] = _sha(outside)
             with writer.transaction():
                 writer.execute(
@@ -272,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=55432)
     parser.add_argument("--dbname", required=True)
-    parser.add_argument("--unit", default="research_publication")
+    parser.add_argument("--unit", choices=sorted(REPRESENTATIVE_OBJECTS), required=True)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     result = run_rehearsal(
