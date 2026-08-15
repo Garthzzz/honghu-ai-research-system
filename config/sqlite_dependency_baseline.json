@@ -157,6 +157,36 @@
       "sunset_condition": "Remove after all financial readers use native PostgreSQL repositories and the process-memory compatibility cache is retired."
     },
     {
+      "path": "tools/data_platform/domain_data.py",
+      "domain": "Stage 4 common cutover-unit transition adapter",
+      "rule": "sqlite3_connect",
+      "max_count": 7,
+      "reason": "The common adapter either opens the currently authoritative transition SQLite database under the authority matrix, or constructs a bounded process-memory SQLite compatibility surface from PostgreSQL-authoritative rows. PostgreSQL S3/S4 failures are fail-closed and never reopen the legacy SQLite file.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "remaining registered cutover units",
+      "sunset_condition": "Remove when all remaining production readers and writers use native PostgreSQL repositories and the process-memory transition adapter is retired."
+    },
+    {
+      "path": "tools/data_platform/domain_data.py",
+      "domain": "Stage 4 common cutover-unit transition adapter",
+      "rule": "attach",
+      "max_count": 2,
+      "reason": "The adapter attaches only PostgreSQL-derived process-memory dependency projections and shadows reviewed legacy table names with TEMP views. Attached dependency views remain read-only and never attach a frozen production SQLite baseline after PostgreSQL authority is active.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "remaining registered cutover units",
+      "sunset_condition": "Remove when cross-unit readers use native PostgreSQL joins/repositories and no process-memory dependency projection remains."
+    },
+    {
+      "path": "tools/data_platform/domain_data.py",
+      "domain": "Stage 4 common cutover-unit transition adapter",
+      "rule": "pragma",
+      "max_count": 7,
+      "reason": "The adapter uses only query_only and foreign-key PRAGMAs on the selected transition connection or private process-memory compatibility database. It never uses mutating PRAGMAs against live SQLite and authority routing remains fail-closed.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "remaining registered cutover units",
+      "sunset_condition": "Remove when the common SQLite-shaped transition adapter is retired after native PostgreSQL repository adoption."
+    },
+    {
       "path": "tools/migration/stage4_financial_data_s1.py",
       "domain": "Stage 4 financial-data PostgreSQL S1 preparation",
       "rule": "sqlite_conflict_dml",
