@@ -19,6 +19,10 @@ GRANT SELECT ON shared_identity.legacy_record,
     shared_identity.theme_v1 TO :"reader_role";
 GRANT SELECT ON operations.shared_identity_authority_v1
     TO :"writer_role", :"reader_role";
+-- The compatibility cache binds every refresh to the generic authority
+-- revision.  This is control-plane read access only; no mutation privilege is
+-- granted to the Viewer role.
+GRANT SELECT ON operations.cutover_unit_authority TO :"reader_role";
 GRANT SELECT ON audit.cutover_unit_authority_revision TO :"audit_reader_role";
 
 GRANT EXECUTE ON FUNCTION shared_identity.activate_snapshot_v1(

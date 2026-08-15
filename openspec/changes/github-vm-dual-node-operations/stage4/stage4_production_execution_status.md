@@ -100,3 +100,34 @@ backup and recovery evidence were retained.  The remaining blockers are final
 user approval of the mapping bundle (including four manual items), independent
 off-VM recovery, repository production-authority governance,
 operator/approver/maintenance-window decisions and explicit S2 authorization.
+
+## Durable authority and S1 state on 2026-08-15
+
+Production main commit `cf726923b2da3c46196765bcb1178c2d36a8041b`
+established the next durable boundary:
+
+- `user_content_notes` remains S3/PostgreSQL-authoritative;
+- `shared_identity` is S3/PostgreSQL-authoritative with 3,539 formal rows,
+  SQLite writer fencing and no SQLite fallback;
+- `financial_data` (53,569), `research_publication` (35,012),
+  `dynamic_intelligence` (19,091), `operations_governance` (38),
+  `investment_hypotheses` (37), `opportunity_lens` (19,048) and
+  `sentiment_analytics` (2,113,951) are durable S1/sqlite-transition.
+
+For the seven S1 units, all 2,240,746 source and target rows reconcile by count
+and canonical content SHA256.  Their PostgreSQL rows remain non-formal migration
+material, so SQLite is still their only production authority/writer.  This is
+not permission to enter S2.
+
+The `shared_identity` recovery set was copied to the approved independent host,
+restored solely from that set, and verified for whole-database, side and
+authority-control recovery.  At final retention exactly two validated recovery
+sets remained.  Raw database, credential and recovery evidence stays outside
+Git; this tracked summary records only identities and conclusions.
+
+The production Viewer now reads both S3 units from PostgreSQL, refuses SQLite
+fallback and passed health plus representative `/research`, `/companies`,
+`/industry/1`, `/company/1`, `/tools` and `/opportunity-lens` reads.  A Windows
+venv launcher/listener PID mismatch and an undersized first-cache health timeout
+were corrected in the lifecycle contract; process identity is now bound to the
+actual listener PID.
