@@ -745,7 +745,24 @@ app.jinja_env.globals["freshness"] = freshness
 
 # ── DB 工具 ───────────────────────────────────────────
 def get_db() -> sqlite3.Connection:
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    research_units = (
+        "research_publication",
+        "dynamic_intelligence",
+        "operations_governance",
+        "investment_hypotheses",
+    )
+    research_is_fully_postgresql = bool(
+        AUTHORITY_MATRIX is not None
+        and all(
+            AUTHORITY_MATRIX.routes[unit].backend is DataBackend.POSTGRESQL_PRODUCTION
+            for unit in research_units
+        )
+    )
+    read_only_base = bool(
+        app.config.get("HONGHU_READ_ONLY_CANDIDATE")
+        or research_is_fully_postgresql
+    )
+    if read_only_base:
         conn = sqlite3.connect(
             f"file:{DB_PATH.resolve().as_posix()}?mode=ro",
             uri=True,
@@ -762,18 +779,13 @@ def get_db() -> sqlite3.Connection:
         # still use their current SQLite authority during the mixed window.
         # Any missed identity write fails because SQLite views are read-only.
         SHARED_IDENTITY_READ_CACHE.attach(conn)
-    for unit in (
-        "research_publication",
-        "dynamic_intelligence",
-        "operations_governance",
-        "investment_hypotheses",
-    ):
+    for unit in research_units:
         cache = DOMAIN_READ_CACHES.get(unit)
         if cache is not None:
             cache.attach(conn)
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    if read_only_base:
         conn.execute("PRAGMA query_only=ON")
-    if not app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    if not read_only_base:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -881,16 +893,31 @@ def senti_conn() -> Optional[sqlite3.Connection]:
     if not SENTI_DB_PATH.exists():
         return None
     sentiment_uri = f"file:{SENTI_DB_PATH.resolve().as_posix()}"
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    sentiment_is_postgresql = bool(
+        AUTHORITY_MATRIX is not None
+        and AUTHORITY_MATRIX.routes["sentiment_analytics"].backend
+        is DataBackend.POSTGRESQL_PRODUCTION
+    )
+    read_only_base = bool(
+        app.config.get("HONGHU_READ_ONLY_CANDIDATE") or sentiment_is_postgresql
+    )
+    if read_only_base:
         sentiment_uri += "?mode=ro"
     conn = sqlite3.connect(sentiment_uri, uri=True)
     conn.row_factory = sqlite3.Row
     sentiment_cache = DOMAIN_READ_CACHES.get("sentiment_analytics")
     if sentiment_cache is not None:
         sentiment_cache.attach(conn)
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    if SHARED_IDENTITY_READ_CACHE is not None:
+        SHARED_IDENTITY_READ_CACHE.attach(conn)
+    else:
+        conn.execute(f"ATTACH DATABASE 'file:{DB_PATH.as_posix()}?mode=ro' AS research")
+        for table in ("company", "company_industry", "industry"):
+            conn.execute(
+                f'CREATE TEMP VIEW "{table}" AS SELECT * FROM research."{table}"'
+            )
+    if read_only_base:
         conn.execute("PRAGMA query_only=ON")
-    conn.execute(f"ATTACH DATABASE 'file:{DB_PATH.as_posix()}?mode=ro' AS research")
     return conn
 
 
@@ -8012,7 +8039,7 @@ def _quant_fig(price, senti, freq):
 @app.route("/dynamic/sentiment")
 def dynamic_sentiment():
     """散户情绪墙：活动量取最新观察，评分按与公司页一致的完成口径回退。"""
-    research_names = {r["id"]: r for r in senti_all("SELECT id,name,ticker FROM research.company")}
+    research_names = {r["id"]: r for r in senti_all("SELECT id,name,ticker FROM company")}
     sentiment_names = {r["id"]: r for r in senti_all("SELECT id,name,ticker FROM senti_company")}
     redirect = {}
     if _senti_table_exists("company_id_redirect"):
@@ -8141,7 +8168,7 @@ def dynamic_sentiment():
     # 产业映射(research.db 只读;一家可多产业,取主营/最小 id 为主组)
     comp_ind: Dict[int, list] = {}
     for r in senti_all("""SELECT ci.company_id, i.id AS ind_id, i.name AS ind_name, ci.role
-                          FROM research.company_industry ci JOIN research.industry i ON i.id=ci.industry_id"""):
+                          FROM company_industry ci JOIN industry i ON i.id=ci.industry_id"""):
         comp_ind.setdefault(r["company_id"], []).append((r["ind_id"], r["ind_name"], r["role"]))
     # 散户发帖量 spark；redirect 后不再泄露 #900xxx identity。
     spark: Dict[int, list] = {}
@@ -8935,7 +8962,7 @@ def chain_sentiment():
         FROM senti_indicator_daily i
         JOIN (SELECT company_id, MAX(trade_date) md FROM senti_indicator_daily GROUP BY company_id) m
           ON m.company_id=i.company_id AND m.md=i.trade_date
-        JOIN research.company_industry ci ON ci.company_id=i.company_id
+        JOIN company_industry ci ON ci.company_id=i.company_id
         GROUP BY ci.industry_id"""):
         sib[row["iid"]] = row
     node_ids = set()
@@ -8966,7 +8993,7 @@ def _supplychain_senti():
         FROM senti_indicator_daily i
         JOIN (SELECT company_id, MAX(trade_date) md FROM senti_indicator_daily GROUP BY company_id) m
           ON m.company_id=i.company_id AND m.md=i.trade_date
-        JOIN research.company c ON c.id=i.company_id
+        JOIN company c ON c.id=i.company_id
         WHERE c.ticker IS NOT NULL AND i.sentiment_direction IS NOT NULL GROUP BY c.ticker"""):
         out[r["tk"]] = r["dir"]
         out[r["tk"].split(".")[0]] = r["dir"]      # 兼容去后缀匹配

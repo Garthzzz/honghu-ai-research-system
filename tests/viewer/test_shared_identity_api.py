@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+from types import SimpleNamespace
 
 import pytest
 
@@ -181,3 +182,79 @@ def test_sqlite_researcher_create_fails_closed_on_live_authority_marker(
     assert response.get_json()["code"] == "writer_fenced"
     with sqlite3.connect(db_path) as check:
         assert check.execute("SELECT count(*) FROM researcher").fetchone()[0] == 0
+
+
+def test_research_base_becomes_read_only_when_all_owning_units_are_postgresql(
+    monkeypatch, tmp_path
+) -> None:
+    database = tmp_path / "research.db"
+    with sqlite3.connect(database) as connection:
+        connection.execute("CREATE TABLE legacy_probe(id integer primary key)")
+        connection.execute("INSERT INTO legacy_probe VALUES(1)")
+    routes = {
+        unit: SimpleNamespace(backend=Backend.POSTGRESQL_PRODUCTION)
+        for unit in (
+            "research_publication",
+            "dynamic_intelligence",
+            "operations_governance",
+            "investment_hypotheses",
+        )
+    }
+    monkeypatch.setattr(viewer, "AUTHORITY_MATRIX", SimpleNamespace(routes=routes))
+    monkeypatch.setattr(viewer, "DB_PATH", database)
+    monkeypatch.setattr(viewer, "DOMAIN_READ_CACHES", {})
+    monkeypatch.setattr(viewer, "SHARED_IDENTITY_READ_CACHE", None)
+    viewer.app.config["HONGHU_READ_ONLY_CANDIDATE"] = False
+    connection = viewer.get_db()
+    try:
+        assert connection.execute("PRAGMA query_only").fetchone()[0] == 1
+        assert connection.execute("SELECT count(*) FROM legacy_probe").fetchone()[0] == 1
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            connection.execute("INSERT INTO legacy_probe VALUES(2)")
+    finally:
+        connection.close()
+
+
+def test_sentiment_join_uses_authoritative_shared_identity_projection(
+    monkeypatch, tmp_path
+) -> None:
+    sentiment = tmp_path / "sentiment.db"
+    research = tmp_path / "research.db"
+    with sqlite3.connect(sentiment) as connection:
+        connection.execute("CREATE TABLE senti_probe(id integer primary key)")
+    with sqlite3.connect(research) as connection:
+        connection.execute("CREATE TABLE company(id integer primary key,name text,ticker text)")
+        connection.execute("INSERT INTO company VALUES(1,'stale','OLD.SH')")
+
+    class _SharedCache:
+        @staticmethod
+        def attach(connection):
+            connection.execute("CREATE TEMP TABLE company(id integer,name text,ticker text)")
+            connection.execute("INSERT INTO company VALUES(1,'current','NEW.SH')")
+
+    monkeypatch.setattr(viewer, "SENTI_DB_PATH", sentiment)
+    monkeypatch.setattr(viewer, "DB_PATH", research)
+    monkeypatch.setattr(viewer, "SHARED_IDENTITY_READ_CACHE", _SharedCache())
+    monkeypatch.setattr(viewer, "DOMAIN_READ_CACHES", {})
+    monkeypatch.setattr(
+        viewer,
+        "AUTHORITY_MATRIX",
+        SimpleNamespace(
+            routes={
+                "sentiment_analytics": SimpleNamespace(
+                    backend=Backend.POSTGRESQL_PRODUCTION
+                )
+            }
+        ),
+    )
+    viewer.app.config["HONGHU_READ_ONLY_CANDIDATE"] = False
+    connection = viewer.senti_conn()
+    assert connection is not None
+    try:
+        assert tuple(connection.execute("SELECT name,ticker FROM company").fetchone()) == (
+            "current",
+            "NEW.SH",
+        )
+        assert connection.execute("PRAGMA query_only").fetchone()[0] == 1
+    finally:
+        connection.close()
