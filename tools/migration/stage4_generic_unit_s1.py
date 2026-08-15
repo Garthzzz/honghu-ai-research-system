@@ -23,6 +23,11 @@ class GenericUnitS1Error(RuntimeError):
 
 
 DEPENDENCIES: dict[str, tuple[str, ...]] = {
+    # financial_data already has a domain-specific S1 projection, but the
+    # remaining-unit cutover consumes the immutable migration.source_row
+    # snapshot.  Rebinding that verified snapshot to a newer compatible
+    # application release must not re-copy the financial rows.
+    "financial_data": ("shared_identity",),
     "research_publication": ("shared_identity",),
     "dynamic_intelligence": ("shared_identity",),
     "operations_governance": ("shared_identity", "dynamic_intelligence"),
