@@ -208,9 +208,14 @@ def test_authority_probe_cli_writes_validated_single_unit(
             "approval",
         )
     ]
+    observed_roles: list[str] = []
+
+    def connection(_runtime: Path, role: str) -> _AuthorityConnection:
+        observed_roles.append(role)
+        return _AuthorityConnection(rows)
+
     monkeypatch.setattr(
-        "tools.migration.stage4_s1_loader._connection_from_runtime",
-        lambda runtime, role: _AuthorityConnection(rows),
+        "tools.migration.stage4_s1_loader._connection_from_runtime", connection
     )
     output = tmp_path / "authority.json"
     assert (
@@ -229,6 +234,7 @@ def test_authority_probe_cli_writes_validated_single_unit(
     payload = json.loads(output.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "honghu.cutover_authority_probe.v1"
     assert payload["authority"]["state"] == "S1"
+    assert observed_roles == ["migration"]
 
 
 def test_runtime_static_route_is_distinct_and_legacy_compatible() -> None:

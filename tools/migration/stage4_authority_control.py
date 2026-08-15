@@ -142,7 +142,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--runtime", type=Path, required=True)
     parser.add_argument("--unit", required=True)
-    parser.add_argument("--role", default="reader")
+    parser.add_argument("--role", default="migration")
     parser.add_argument("--allow-s2", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args(argv)

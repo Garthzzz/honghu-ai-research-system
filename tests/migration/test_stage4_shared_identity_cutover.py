@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import copy
+import json
+from pathlib import Path
 
 import pytest
 
@@ -9,6 +11,7 @@ from tools.migration.stage4_shared_identity_cutover import (
     route_from_evidence,
     validate_inputs,
 )
+from tools.migration import stage4_shared_identity_cutover as cutover_module
 
 
 def _inputs():
@@ -104,3 +107,55 @@ def test_shared_identity_s3_route_is_explicit_and_fences_sqlite() -> None:
     assert route["backend"] == "postgresql_production"
     assert route["sqlite_writer_enabled"] is False
     assert route["production_postgresql_enabled"] is True
+
+
+def test_shared_identity_cutover_uses_migration_role_for_authority_reads(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    roles: list[str] = []
+
+    class Connection:
+        def close(self) -> None:
+            return None
+
+    def connection(_runtime: Path, role: str) -> Connection:
+        roles.append(role)
+        return Connection()
+
+    monkeypatch.setattr(cutover_module, "_connection_from_runtime", connection)
+    monkeypatch.setattr(cutover_module, "validate_inputs", lambda **_kwargs: None)
+    monkeypatch.setattr(cutover_module, "_intent", lambda *_args, **_kwargs: {})
+    monkeypatch.setattr(
+        cutover_module,
+        "cutover",
+        lambda **_kwargs: {
+            "state_revision": 3,
+            "writer_identity": "honghu_writer_shared_identity",
+            "cutover_epoch": "epoch",
+            "approval_reference": "approval",
+        },
+    )
+    inputs = {}
+    paths = {}
+    for name in ("mapping", "decision", "s1", "recovery"):
+        path = tmp_path / f"{name}.json"
+        path.write_text(json.dumps(inputs), encoding="utf-8")
+        paths[name] = path
+    output = tmp_path / "s3.json"
+    route = tmp_path / "route.json"
+    assert cutover_module.main(
+        [
+            "--runtime", str(tmp_path / "runtime.json"),
+            "--mapping", str(paths["mapping"]),
+            "--decision", str(paths["decision"]),
+            "--s1-evidence", str(paths["s1"]),
+            "--recovery-evidence", str(paths["recovery"]),
+            "--data-root", str(tmp_path / "data"),
+            "--writer-identity", "honghu_writer_shared_identity",
+            "--actor", "principal:test",
+            "--intent", str(tmp_path / "intent.json"),
+            "--route-output", str(route),
+            "--output", str(output),
+        ]
+    ) == 0
+    assert roles == ["controller", "writer_shared_identity", "migration"]
