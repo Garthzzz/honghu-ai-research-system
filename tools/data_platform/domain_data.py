@@ -628,7 +628,43 @@ def connect_domain_database(
     cache_key = (unit, str(catalog_path))
     cache = _READ_CACHES.setdefault(cache_key, PostgresDomainReadCache(unit, reader))
     if readonly:
-        return cache.connect()
+        read_connection = cache.connect()
+        try:
+            definition = CutoverUnitRegistry.from_path(registry_path).definition(unit)
+            for dependency in definition.dependencies:
+                dependency_route = matrix.routes[dependency]
+                if dependency_route.backend is not Backend.POSTGRESQL_PRODUCTION:
+                    raise DomainDataWriterFenced(
+                        f"read dependency is not PostgreSQL-authoritative: {dependency}"
+                    )
+                if dependency == "shared_identity":
+                    from tools.data_platform.shared_identity import SharedIdentityReadCache
+
+                    dependency_cache = _SHARED_IDENTITY_CACHES.setdefault(
+                        str(catalog_path), SharedIdentityReadCache(reader)
+                    )
+                elif dependency in {
+                    "financial_data",
+                    "research_publication",
+                    "dynamic_intelligence",
+                    "operations_governance",
+                    "investment_hypotheses",
+                    "opportunity_lens",
+                    "sentiment_analytics",
+                }:
+                    dependency_key = (dependency, str(catalog_path))
+                    dependency_cache = _READ_CACHES.setdefault(
+                        dependency_key, PostgresDomainReadCache(dependency, reader)
+                    )
+                else:
+                    raise DomainDataWriterFenced(
+                        f"unsupported PostgreSQL read dependency: {dependency}"
+                    )
+                dependency_cache.attach(read_connection)
+        except Exception:
+            read_connection.close()
+            raise
+        return read_connection
     if route.authority_state.value not in {"S3", "S4"}:
         raise DomainDataWriterFenced("formal PostgreSQL writes require S3/S4 authority")
     role_key = f"writer_{unit}"

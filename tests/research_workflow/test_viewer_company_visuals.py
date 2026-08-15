@@ -791,7 +791,7 @@ class ViewerCompanyVisualsTest(unittest.TestCase):
         }
 
         def fake_all(sql, _params=()):
-            if "SELECT id,name,ticker FROM research.company" in sql:
+            if "SELECT id,name,ticker FROM company" in sql:
                 return [{"id": 101, "name": "窗口评分公司", "ticker": "000101.SZ"}]
             if "SELECT id,name,ticker FROM senti_company" in sql:
                 return []
@@ -799,7 +799,7 @@ class ViewerCompanyVisualsTest(unittest.TestCase):
                 return []
             if "FROM senti_retail_window w JOIN retail_window_ledger" in sql:
                 return [dict(window)]
-            if "FROM research.company_industry" in sql:
+            if "FROM company_industry" in sql:
                 return [{"company_id": 101, "ind_id": 6, "ind_name": "测试产业",
                          "role": "主营"}]
             if any(name in sql for name in (
@@ -847,7 +847,7 @@ class ViewerCompanyVisualsTest(unittest.TestCase):
         }
 
         def fake_all(sql, _params=()):
-            if "SELECT id,name,ticker FROM research.company" in sql:
+            if "SELECT id,name,ticker FROM company" in sql:
                 return [{"id": 102, "name": "低样本公司", "ticker": "000102.SZ"}]
             if "SELECT id,name,ticker FROM senti_company" in sql:
                 return []
@@ -857,7 +857,7 @@ class ViewerCompanyVisualsTest(unittest.TestCase):
                 return [dict(window)]
             if "FROM senti_retail_trading_daily" in sql:
                 return [dict(incomplete_daily)]
-            if "FROM research.company_industry" in sql:
+            if "FROM company_industry" in sql:
                 return []
             if any(name in sql for name in (
                 "heat_volume_bucket", "senti_retail_daily", "heat_volume_daily",

@@ -88,6 +88,15 @@ def connect(
     route, Backend = _postgres_route()
     if route.backend is Backend.POSTGRESQL_PRODUCTION:
         if readonly:
+            if (
+                os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+                and os.environ.get("HONGHU_CUTOVER_UNIT_REGISTRY")
+            ):
+                from tools.data_platform.domain_data import connect_domain_database
+
+                return connect_domain_database(
+                    "financial_data", db_path, readonly=True
+                )
             return _postgres_read_cache().connect()
         # Legacy per-unit S3 routes predate the common authority matrix and do
         # not carry the reviewed registry/role boundary required by the generic
