@@ -15,6 +15,7 @@ import os
 import sqlite3
 import threading
 import time
+import uuid
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -380,6 +381,13 @@ class SharedIdentityReadCache:
     ) -> None:
         self._connection_factory = connection_factory
         self._refresh_check_seconds = refresh_check_seconds
+        # More than one reviewed adapter may need the shared-identity
+        # projection in the same process (the Viewer owns one and the generic
+        # domain router owns another).  A named SQLite shared-memory database
+        # is process-global, so the authority/version alone is not a unique
+        # cache identity.  Keep each cache instance isolated while preserving
+        # stable URIs across refreshes of that instance.
+        self._cache_id = uuid.uuid4().hex
         self._lock = threading.RLock()
         self._keeper: sqlite3.Connection | None = None
         self._uri: str | None = None
@@ -459,7 +467,10 @@ class SharedIdentityReadCache:
         return version, f"{version}_{row_version}", grouped
 
     def _build(self, version: str, grouped: dict[str, list[dict[str, Any]]]) -> None:
-        uri = f"file:honghu_shared_identity_{version}?mode=memory&cache=shared"
+        uri = (
+            f"file:honghu_shared_identity_{self._cache_id}_{version}"
+            "?mode=memory&cache=shared"
+        )
         keeper = sqlite3.connect(uri, uri=True, check_same_thread=False)
         try:
             for table in SHARED_IDENTITY_TABLES:

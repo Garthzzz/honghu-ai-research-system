@@ -215,7 +215,7 @@ def test_research_base_becomes_read_only_when_all_owning_units_are_postgresql(
         connection.close()
 
 
-def test_sentiment_join_uses_authoritative_shared_identity_projection(
+def test_postgresql_sentiment_uses_persistent_projection_without_opening_legacy_db(
     monkeypatch, tmp_path
 ) -> None:
     sentiment = tmp_path / "sentiment.db"
@@ -226,16 +226,20 @@ def test_sentiment_join_uses_authoritative_shared_identity_projection(
         connection.execute("CREATE TABLE company(id integer primary key,name text,ticker text)")
         connection.execute("INSERT INTO company VALUES(1,'stale','OLD.SH')")
 
-    class _SharedCache:
-        @staticmethod
-        def attach(connection):
-            connection.execute("CREATE TEMP TABLE company(id integer,name text,ticker text)")
-            connection.execute("INSERT INTO company VALUES(1,'current','NEW.SH')")
-
     monkeypatch.setattr(viewer, "SENTI_DB_PATH", sentiment)
     monkeypatch.setattr(viewer, "DB_PATH", research)
-    monkeypatch.setattr(viewer, "SHARED_IDENTITY_READ_CACHE", _SharedCache())
-    monkeypatch.setattr(viewer, "DOMAIN_READ_CACHES", {})
+    calls = []
+
+    def connect_projection(unit, path, *, readonly):
+        calls.append((unit, type(sentiment)(path), readonly))
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        connection.execute("CREATE TABLE company(id integer,name text,ticker text)")
+        connection.execute("INSERT INTO company VALUES(1,'current','NEW.SH')")
+        connection.execute("PRAGMA query_only=ON")
+        return connection
+
+    monkeypatch.setattr(viewer, "connect_domain_database", connect_projection)
     monkeypatch.setattr(
         viewer,
         "AUTHORITY_MATRIX",
@@ -256,5 +260,6 @@ def test_sentiment_join_uses_authoritative_shared_identity_projection(
             "NEW.SH",
         )
         assert connection.execute("PRAGMA query_only").fetchone()[0] == 1
+        assert calls == [("sentiment_analytics", sentiment, True)]
     finally:
         connection.close()

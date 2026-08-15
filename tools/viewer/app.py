@@ -373,7 +373,6 @@ if AUTHORITY_MATRIX is not None:
         "dynamic_intelligence",
         "operations_governance",
         "investment_hypotheses",
-        "sentiment_analytics",
     ):
         if AUTHORITY_MATRIX.routes[unit].backend is DataBackend.POSTGRESQL_PRODUCTION:
             DOMAIN_READ_CACHES[unit] = PostgresDomainReadCache(
@@ -890,24 +889,31 @@ SENTI_DB_PATH = RUNTIME_LAYOUT.data_root / "sentiment.db"
 
 
 def senti_conn() -> Optional[sqlite3.Connection]:
-    if not SENTI_DB_PATH.exists():
-        return None
-    sentiment_uri = f"file:{SENTI_DB_PATH.resolve().as_posix()}"
     sentiment_is_postgresql = bool(
         AUTHORITY_MATRIX is not None
         and AUTHORITY_MATRIX.routes["sentiment_analytics"].backend
         is DataBackend.POSTGRESQL_PRODUCTION
     )
+    if sentiment_is_postgresql:
+        # The multi-million-row sentiment unit has a reviewed persistent,
+        # PostgreSQL-derived compatibility projection.  Do not open the
+        # retired sentiment.db baseline and do not route it through the
+        # bounded in-memory adapter used by smaller units.
+        return connect_domain_database(
+            "sentiment_analytics",
+            SENTI_DB_PATH,
+            readonly=True,
+        )
+    if not SENTI_DB_PATH.exists():
+        return None
+    sentiment_uri = f"file:{SENTI_DB_PATH.resolve().as_posix()}"
     read_only_base = bool(
-        app.config.get("HONGHU_READ_ONLY_CANDIDATE") or sentiment_is_postgresql
+        app.config.get("HONGHU_READ_ONLY_CANDIDATE")
     )
     if read_only_base:
         sentiment_uri += "?mode=ro"
     conn = sqlite3.connect(sentiment_uri, uri=True)
     conn.row_factory = sqlite3.Row
-    sentiment_cache = DOMAIN_READ_CACHES.get("sentiment_analytics")
-    if sentiment_cache is not None:
-        sentiment_cache.attach(conn)
     if SHARED_IDENTITY_READ_CACHE is not None:
         SHARED_IDENTITY_READ_CACHE.attach(conn)
     else:

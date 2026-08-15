@@ -108,6 +108,35 @@ def test_postgresql_identity_temp_views_shadow_only_legacy_identity() -> None:
     cache.close()
 
 
+def test_independent_identity_caches_do_not_collide_on_same_authority_version(
+    tmp_path: Path,
+) -> None:
+    first = SharedIdentityReadCache(lambda: _Postgres(), refresh_check_seconds=60)
+    second = SharedIdentityReadCache(lambda: _Postgres(), refresh_check_seconds=60)
+    first_consumer = sqlite3.connect(
+        f"file:{(tmp_path / 'first.db').as_posix()}?mode=rwc", uri=True
+    )
+    second_consumer = sqlite3.connect(
+        f"file:{(tmp_path / 'second.db').as_posix()}?mode=rwc", uri=True
+    )
+    try:
+        first.attach(first_consumer)
+        second.attach(second_consumer)
+        first_row = first_consumer.execute(
+            "SELECT id,name,ticker FROM company"
+        ).fetchone()
+        second_row = second_consumer.execute(
+            "SELECT id,name,ticker FROM company"
+        ).fetchone()
+        assert first_row == second_row
+        assert (first_row[0], first_row[2]) == (1, "PG.SH")
+    finally:
+        first_consumer.close()
+        second_consumer.close()
+        first.close()
+        second.close()
+
+
 @pytest.mark.parametrize(
     ("state", "backend"),
     [("S1", "sqlite_transition"), ("S3", "sqlite_transition")],
