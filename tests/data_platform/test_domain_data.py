@@ -135,6 +135,33 @@ def test_domain_cache_reuses_unchanged_materialized_version_after_refresh_check(
     cache.close()
 
 
+def test_independent_domain_caches_do_not_collide_on_same_unit_version() -> None:
+    first_connection = _Connection()
+    second_connection = _Connection()
+    first_cache = PostgresDomainReadCache(
+        "dynamic_intelligence", lambda: first_connection
+    )
+    second_cache = PostgresDomainReadCache(
+        "dynamic_intelligence", lambda: second_connection
+    )
+    first = first_cache.connect()
+    second = second_cache.connect()
+    try:
+        assert tuple(first.execute("SELECT id,name FROM sample").fetchone()) == (
+            1,
+            "formal",
+        )
+        assert tuple(second.execute("SELECT id,name FROM sample").fetchone()) == (
+            1,
+            "formal",
+        )
+    finally:
+        first.close()
+        second.close()
+        first_cache.close()
+        second_cache.close()
+
+
 @pytest.mark.parametrize(
     ("state", "backend"),
     [("S1", "sqlite_transition"), ("S3", "sqlite_transition")],

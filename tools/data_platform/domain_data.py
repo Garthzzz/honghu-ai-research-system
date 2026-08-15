@@ -108,6 +108,11 @@ class PostgresDomainReadCache:
         self._connect = connection_factory
         self._refresh_check_seconds = refresh_check_seconds
         self._lock = threading.RLock()
+        # Named shared-memory SQLite databases are process-global.  Two
+        # independent caches for the same unit/version must not reuse the
+        # same URI while either keeper is alive (the Viewer legitimately has
+        # both route-local and dependency caches).
+        self._cache_id = uuid.uuid4().hex
         self._keeper: sqlite3.Connection | None = None
         self._uri: str | None = None
         self._token: str | None = None
@@ -199,7 +204,10 @@ class PostgresDomainReadCache:
         grouped: dict[str, list[dict[str, Any]]],
         schemas: dict[str, list[dict[str, Any]]],
     ) -> None:
-        uri = f"file:honghu_domain_{self.unit}_{version}?mode=memory&cache=shared"
+        uri = (
+            f"file:honghu_domain_{self.unit}_{self._cache_id}_{version}"
+            "?mode=memory&cache=shared"
+        )
         keeper = sqlite3.connect(uri, uri=True, check_same_thread=False)
         try:
             for table, columns in schemas.items():
