@@ -29,6 +29,7 @@ REVIEWED_MIGRATIONS = (
     "0009_stage4_s1_authority_read_grant.sql",
     "0010_remaining_units_common_data_plane.sql",
     "0011_sentiment_persistent_projection.sql",
+    "0012_remaining_unit_reconciliation_read_grant.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -57,6 +58,9 @@ MIGRATION_IDENTIFIERS = {
     },
     "0011_sentiment_persistent_projection.sql": {
         "reader_role": "honghu_viewer_reader",
+    },
+    "0012_remaining_unit_reconciliation_read_grant.sql": {
+        "migration_role": "honghu_migration",
     },
 }
 

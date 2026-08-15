@@ -147,8 +147,20 @@ class PostgresDomainReadCache:
                     f"{self.unit} exceeds the reviewed in-memory read bound; "
                     "a persistent unit projection is required"
                 )
-            if token == self._token and self._uri is not None:
-                return token, None, schemas
+            # ``self._token`` stores the complete materialized version
+            # (authority token + row digest), while ``token`` is only the
+            # inexpensive authority/overlay fingerprint.  Comparing them for
+            # equality forced an identical shared-memory URI to be rebuilt on
+            # every refresh check; the still-live keeper then correctly
+            # rejected duplicate CREATE TABLE statements.  A fixed-width
+            # authority-token prefix proves that the existing projection is
+            # current without reopening retired SQLite or rematerializing it.
+            if (
+                self._token is not None
+                and self._token.startswith(token + "_")
+                and self._uri is not None
+            ):
+                return self._token, None, schemas
             rows = connection.execute(
                 "SELECT * FROM domain_data.read_unit_records_v1(%s)", (self.unit,)
             ).fetchall()

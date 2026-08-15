@@ -112,6 +112,29 @@ def test_domain_cache_projects_formal_baseline_and_overlay_without_deleted_rows(
     cache.close()
 
 
+def test_domain_cache_reuses_unchanged_materialized_version_after_refresh_check() -> None:
+    connection = _Connection()
+    cache = PostgresDomainReadCache(
+        "refresh_contract",
+        lambda: connection,
+        refresh_check_seconds=0,
+    )
+    first = cache.connect()
+    assert first.execute("SELECT count(*) FROM sample").fetchone()[0] == 1
+    first.close()
+
+    # A second authority check with the same token must reuse the existing
+    # shared-memory projection.  Rebuilding the same URI would fail with
+    # ``table sample already exists`` while the first keeper is still live.
+    second = cache.connect()
+    assert tuple(second.execute("SELECT id,name FROM sample").fetchone()) == (
+        1,
+        "formal",
+    )
+    second.close()
+    cache.close()
+
+
 @pytest.mark.parametrize(
     ("state", "backend"),
     [("S1", "sqlite_transition"), ("S3", "sqlite_transition")],
