@@ -26,6 +26,7 @@ REVIEWED_MIGRATIONS = (
     "0006_shared_identity_cutover_expand.sql",
     "0007_shared_identity_mutation_expand.sql",
     "0008_financial_data_expand.sql",
+    "0009_stage4_s1_authority_read_grant.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -36,6 +37,9 @@ MIGRATION_IDENTIFIERS = {
     "0008_financial_data_expand.sql": {
         "migration_role": "honghu_migration",
         "reader_role": "honghu_viewer_reader",
+    },
+    "0009_stage4_s1_authority_read_grant.sql": {
+        "migration_role": "honghu_migration",
     },
 }
 

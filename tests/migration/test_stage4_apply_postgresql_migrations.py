@@ -60,4 +60,28 @@ def test_every_reviewed_schema_role_is_bound_to_the_production_role_contract() -
         rendered = render_schema_migration(source, "a" * 64, identifiers=identifiers)
         assert ':"' not in rendered
         assert "honghu_reader" not in rendered
-        assert '"honghu_viewer_reader"' in rendered
+        if "reader_role" in identifiers:
+            assert '"honghu_viewer_reader"' in rendered
+
+
+def test_s1_migration_role_gets_only_authority_read_access() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0009_stage4_s1_authority_read_grant.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_schema_migration(
+        source,
+        "a" * 64,
+        identifiers={"migration_role": "honghu_migration"},
+    )
+    assert "GRANT USAGE ON SCHEMA operations" in rendered
+    assert "GRANT SELECT ON operations.cutover_unit_authority" in rendered
+    assert "INSERT ON operations.cutover_unit_authority" not in rendered
+    assert "UPDATE ON operations.cutover_unit_authority" not in rendered
+    assert "DELETE ON operations.cutover_unit_authority" not in rendered
+    assert "transition_cutover_unit" not in rendered
+    assert "0009_stage4_s1_authority_read_grant" in rendered
+    assert "migration_sha256=current_setting('honghu.migration_sha256')" in rendered
+    assert 'TO "honghu_migration"' in rendered
