@@ -69,10 +69,13 @@ document.querySelectorAll('.ev-save').forEach(btn => btn.addEventListener('click
   const st = wrap.querySelector('.ev-status[data-for="'+field+'"]');
   st.textContent = '保存中…';
   try {
-    const r = await (await fetch('/api/event/'+eid+'/analyst', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({field, content: ta.value})
-    })).json();
+    const result = await HonghuDomainMutations.postJSON(
+      'event-analyst:' + eid + ':' + field,
+      '/api/event/'+eid+'/analyst',
+      {field, content: ta.value}
+    );
+    const r = result.data || {};
+    if (result.uncertain) throw new Error('mutation result is uncertain; retry unchanged');
     st.textContent = r.ok ? ' 已保存' : ('失败:'+(r.error||''));
   } catch(e){ st.textContent='网络错误'; }
 }));

@@ -169,8 +169,7 @@
 (function(){
   const HID = {{ h.id }};
   async function postJSON(url, body){
-    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-    return {ok: r.ok, data: await r.json().catch(()=>({}))};
+    return HonghuDomainMutations.postJSON('hypothesis:' + url, url, body);
   }
   // 信号状态更新
   document.querySelectorAll('.hyp-sig-save').forEach(btn=>{

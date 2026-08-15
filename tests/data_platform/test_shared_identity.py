@@ -6,6 +6,7 @@ from typing import Any
 import pytest
 
 from tools.data_platform.shared_identity import (
+    PostgresSharedIdentityResolver,
     SharedIdentityError,
     SharedIdentityReadCache,
     company_security_stable_key,
@@ -127,6 +128,42 @@ def test_company_stable_identity_is_ticker_and_venue_qualified(
     ticker: str, market: str, status: str, expected: str
 ) -> None:
     assert company_security_stable_key(ticker, market, status) == expected
+
+
+class _ResolverConnection:
+    def __init__(self, *, authority=("S3", "postgresql_production"), keys=("stable:1",)):
+        self.authority = authority
+        self.keys = keys
+        self.closed = False
+
+    def execute(self, sql, _params=None):
+        if "cutover_unit_authority" in sql:
+            return _Cursor(one=self.authority)
+        return _Cursor(rows=[(key,) for key in self.keys])
+
+    def close(self):
+        self.closed = True
+
+
+def test_runtime_identity_resolution_uses_current_postgresql_authority() -> None:
+    connection = _ResolverConnection(keys=("company:security:AAPL:venue:us",))
+    resolver = PostgresSharedIdentityResolver(lambda: connection)
+    assert resolver.resolve("company", 17) == "company:security:AAPL:venue:us"
+    assert connection.closed is True
+
+
+@pytest.mark.parametrize(
+    "connection",
+    [
+        _ResolverConnection(authority=("S1", "sqlite_transition")),
+        _ResolverConnection(keys=()),
+        _ResolverConnection(keys=("stable:1", "stable:2")),
+    ],
+)
+def test_runtime_identity_resolution_never_falls_back_to_frozen_mapping(connection) -> None:
+    resolver = PostgresSharedIdentityResolver(lambda: connection)
+    with pytest.raises(SharedIdentityError):
+        resolver.resolve("company", 17)
 
 
 def test_unqualified_company_identity_fails_closed() -> None:

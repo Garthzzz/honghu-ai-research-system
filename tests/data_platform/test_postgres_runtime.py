@@ -5,7 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from tools.data_platform.postgres_runtime import PostgresRoleSettings, PostgresRuntimeSettings
+from tools.data_platform.postgres_runtime import (
+    PostgresRoleSettings,
+    PostgresRuntimeCatalog,
+    PostgresRuntimeSettings,
+    build_catalog_connection_factory,
+)
 
 
 def _settings(**overrides) -> PostgresRuntimeSettings:
@@ -63,3 +68,36 @@ def test_verified_tls_requires_and_passes_exact_root_certificate(
     )()
     assert captured["sslmode"] == "verify-full"
     assert captured["sslrootcert"] == str(root)
+
+
+def test_production_catalog_selects_named_role_and_never_substitutes(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "root.crt"
+    root.write_text("synthetic public root", encoding="utf-8")
+    catalog = PostgresRuntimeCatalog(
+        host="localhost",
+        port=55440,
+        dbname="honghu_research",
+        sslmode="verify-full",
+        sslrootcert=str(root),
+        connect_timeout_seconds=5,
+        roles={
+            "reader": PostgresRoleSettings("reader", "svc", "reader"),
+            "writer_financial_data": PostgresRoleSettings("writer", "svc", "writer"),
+        },
+        environment_id="production",
+        application_commit_sha="a" * 40,
+    )
+    observed = {}
+    monkeypatch.setitem(
+        sys.modules,
+        "psycopg",
+        SimpleNamespace(connect=lambda **kwargs: observed.update(kwargs) or object()),
+    )
+    build_catalog_connection_factory(
+        catalog,
+        role="writer_financial_data",
+        password_loader=lambda service, account: "pw" if (service, account) == ("svc", "writer") else None,
+    )()
+    assert observed["user"] == "writer"
+    with pytest.raises(ValueError, match="unavailable"):
+        build_catalog_connection_factory(catalog, role="writer_missing")

@@ -10,13 +10,14 @@ news.google.com/rss/search?q=... 聚合多 publisher;<source> 标真实来源。
 ?? 真实尝试,失败如实记 cache/STAGE3C_PENDING.md。
 """
 from __future__ import annotations
-import sqlite3, sys, io, ssl
+import sys, io, ssl
 from pathlib import Path
 from datetime import datetime
 from urllib.request import Request, urlopen
 from urllib.parse import quote
 from xml.etree import ElementTree as ET
 from email.utils import parsedate_to_datetime
+from tools.dynamic.database import connect_dynamic
 
 try:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -24,6 +25,7 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
 _ctx = ssl.create_default_context(); _ctx.check_hostname = False; _ctx.verify_mode = ssl.CERT_NONE
@@ -69,7 +71,7 @@ def ensure_gnews_source(cur):
 
 
 def main():
-    con = sqlite3.connect(str(DB)); cur = con.cursor()
+    con = connect_dynamic(DB, operation_scope="dynamic_google_news_rss"); cur = con.cursor()
     # 白名单 publisher → source id
     wl = {p.lower(): sid for sid, p in cur.execute("SELECT id, publisher FROM source WHERE source_subtype='news_feed' AND source_credibility='whitelisted'")}
     gnews_sid = ensure_gnews_source(cur)

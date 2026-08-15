@@ -15,7 +15,7 @@ active 源(config active!=false):
   python news_ingest.py --max 30        # 每源候选上限(默认 40)
 """
 from __future__ import annotations
-import sqlite3, sys, io, argparse
+import sys, io, argparse
 from pathlib import Path
 from datetime import datetime, timedelta
 
@@ -25,6 +25,7 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 ALERTDIR = ROOT / "cache" / "dynamic_alerts"
@@ -36,6 +37,7 @@ from news_fetcher import make_news_fetcher
 import cls_fetcher
 import ai_funnel
 from relevance_classifier import RelevanceClassifier
+from tools.dynamic.database import connect_dynamic
 
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 CLUSTERS = CFG["breaking"]["clusters"]
@@ -126,7 +128,7 @@ def main():
     ap.add_argument("--source-id", type=int)
     ap.add_argument("--max", type=int, default=40)
     args = ap.parse_args()
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    con = connect_dynamic(DB, operation_scope="dynamic_news_ingest")
     cur = con.cursor()
     smap = publisher_source_map(cur)
 

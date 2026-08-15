@@ -27,6 +27,7 @@ REVIEWED_MIGRATIONS = (
     "0007_shared_identity_mutation_expand.sql",
     "0008_financial_data_expand.sql",
     "0009_stage4_s1_authority_read_grant.sql",
+    "0010_remaining_units_common_data_plane.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -40,6 +41,18 @@ MIGRATION_IDENTIFIERS = {
     },
     "0009_stage4_s1_authority_read_grant.sql": {
         "migration_role": "honghu_migration",
+    },
+    "0010_remaining_units_common_data_plane.sql": {
+        "reader_role": "honghu_viewer_reader",
+        "controller_role": "honghu_controller",
+        "audit_reader_role": "honghu_audit_reader",
+        "writer_financial_data": "honghu_writer_financial_data",
+        "writer_research_publication": "honghu_writer_research_publication",
+        "writer_dynamic_intelligence": "honghu_writer_dynamic_intelligence",
+        "writer_operations_governance": "honghu_writer_operations_governance",
+        "writer_investment_hypotheses": "honghu_writer_investment_hypotheses",
+        "writer_opportunity_lens": "honghu_writer_opportunity_lens",
+        "writer_sentiment_analytics": "honghu_writer_sentiment_analytics",
     },
 }
 

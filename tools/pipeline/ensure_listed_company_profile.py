@@ -17,10 +17,16 @@ from tools.financial.constants import DB_PATH as DEFAULT_FINANCIAL_DB
 from tools.financial.db import initialize_database as initialize_financial_database
 from tools.financial.repository import upsert_security
 from tools.data_platform.postgres_runtime import (
+    build_catalog_connection_factory,
     build_postgres_connection_factory,
+    load_postgres_runtime_catalog,
     load_postgres_runtime_settings,
 )
-from tools.data_platform.routing import Backend, load_cutover_route
+from tools.data_platform.routing import (
+    Backend,
+    load_cutover_route,
+    load_environment_authority_matrix,
+)
 from tools.data_platform.shared_identity import PostgresSharedIdentityRepository
 from tools.data_platform.local_authority_fence import assert_sqlite_write_allowed
 
@@ -49,9 +55,18 @@ def ensure_listed_company_profile(
     source_ref = str(verification_source_ref or "").strip()
     if not all((name, code, market_name, listing_status, source_ref)):
         raise ValueError("公司建档必须有规范名称、证券代码、市场、上市状态和身份核验来源")
-    route = load_cutover_route(
-        ROOT / "config/migration/shared_identity_backend_route.json",
-        runtime_override=os.environ.get("HONGHU_SHARED_IDENTITY_ROUTE_CONFIG"),
+    matrix = load_environment_authority_matrix()
+    route = (
+        matrix.route_for(
+            "shared_identity",
+            writer_operation="ensure_listed_company_profile",
+            transaction_boundary="one verified company identity mutation",
+        )
+        if matrix is not None
+        else load_cutover_route(
+            ROOT / "config/migration/shared_identity_backend_route.json",
+            runtime_override=os.environ.get("HONGHU_SHARED_IDENTITY_ROUTE_CONFIG"),
+        )
     )
     if route.backend is Backend.POSTGRESQL_PRODUCTION:
         if not confirm_live:
@@ -62,13 +77,23 @@ def ensure_listed_company_profile(
             raise ValueError(
                 "formal PostgreSQL company identity write requires stable idempotency_key and trusted actor"
             )
+        catalog_path = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
         runtime_path = os.environ.get("HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG")
-        if not runtime_path:
+        if catalog_path:
+            catalog = load_postgres_runtime_catalog(catalog_path)
+            read_factory = build_catalog_connection_factory(catalog, role="reader")
+            write_factory = build_catalog_connection_factory(
+                catalog, role="writer_shared_identity"
+            )
+        elif runtime_path:
+            settings = load_postgres_runtime_settings(runtime_path)
+            read_factory = build_postgres_connection_factory(settings, role="reader")
+            write_factory = build_postgres_connection_factory(settings, role="writer")
+        else:
             raise RuntimeError("PostgreSQL shared identity runtime config is required")
-        settings = load_postgres_runtime_settings(runtime_path)
         repository = PostgresSharedIdentityRepository(
-            build_postgres_connection_factory(settings, role="reader"),
-            build_postgres_connection_factory(settings, role="writer"),
+            read_factory,
+            write_factory,
             route,
         )
         result = repository.ensure_listed_company(

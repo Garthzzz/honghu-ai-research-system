@@ -25,10 +25,27 @@ def today() -> str:
     return datetime.now(TZ).date().isoformat()
 
 
-def get_senti_db() -> sqlite3.Connection:
-    con = sqlite3.connect(str(SENTI_DB), timeout=30)
+def get_senti_db(
+    *,
+    operation_scope: str | None = None,
+    operation_id: str | None = None,
+    actor: str | None = None,
+) -> sqlite3.Connection:
+    from tools.data_platform.domain_data import connect_domain_database
+
+    con = connect_domain_database(
+        "sentiment_analytics",
+        SENTI_DB,
+        readonly=False,
+        operation_scope=operation_scope or "sentiment_window_mutation",
+        operation_id=operation_id,
+        actor=actor,
+    )
     con.row_factory = sqlite3.Row
-    con.execute("PRAGMA journal_mode=WAL")
+    # The PostgreSQL compatibility connection is a private in-memory
+    # transaction projection.  WAL is relevant only to the S0/S1 SQLite file.
+    if con.__class__.__module__ == "sqlite3":
+        con.execute("PRAGMA journal_mode=WAL")
     con.execute("PRAGMA busy_timeout=30000")     # 并发 tick/抓取写库时等锁 30s,不立即失败(WAL 下多写者)
     return con
 

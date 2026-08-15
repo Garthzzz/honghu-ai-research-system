@@ -109,8 +109,9 @@ def promote_generic_unit_s1(
         ).fetchone()
         if snapshot is None:
             raise GenericUnitS1Error("reconciled migration snapshot is missing")
-        if str(snapshot[4]) != application_commit_sha:
-            raise GenericUnitS1Error("migration snapshot belongs to another application commit")
+        source_snapshot_application_commit = str(snapshot[4])
+        if not re.fullmatch(r"[0-9a-f]{40}", source_snapshot_application_commit):
+            raise GenericUnitS1Error("migration snapshot application identity is invalid")
         if bool(snapshot[5]):
             raise GenericUnitS1Error("S1 snapshot unexpectedly contains formal business data")
         snapshot_id = str(snapshot[0])
@@ -212,6 +213,11 @@ def promote_generic_unit_s1(
         "schema_version": "honghu.generic_unit_s1_evidence.v1",
         "cutover_unit": unit,
         "application_commit_sha": application_commit_sha,
+        "source_snapshot_application_commit_sha": source_snapshot_application_commit,
+        "release_binding_contract": (
+            "reconciled rows remain immutable; this evidence separately binds the "
+            "reviewed production adapter release without copying unchanged source rows"
+        ),
         "authority_state": state,
         "state_revision": revision,
         "authoritative_backend": "sqlite_transition",

@@ -13,12 +13,25 @@ _POSTGRES_READ_CACHE = None
 
 
 def _postgres_route():
-    from tools.data_platform.routing import Backend, load_cutover_route
+    from tools.data_platform.routing import (
+        Backend,
+        load_cutover_route,
+        load_environment_authority_matrix,
+    )
 
     root = Path(__file__).resolve().parents[2]
-    route = load_cutover_route(
-        root / "config/migration/financial_data_backend_route.json",
-        runtime_override=os.environ.get("HONGHU_FINANCIAL_DATA_ROUTE_CONFIG"),
+    matrix = load_environment_authority_matrix()
+    route = (
+        matrix.route_for(
+            "financial_data",
+            writer_operation="financial_data_mutation",
+            transaction_boundary="one financial-domain mutation",
+        )
+        if matrix is not None
+        else load_cutover_route(
+            root / "config/migration/financial_data_backend_route.json",
+            runtime_override=os.environ.get("HONGHU_FINANCIAL_DATA_ROUTE_CONFIG"),
+        )
     )
     return route, Backend
 
@@ -28,16 +41,26 @@ def _postgres_read_cache():
     if _POSTGRES_READ_CACHE is None:
         from tools.data_platform.financial_data import FinancialDataReadCache
         from tools.data_platform.postgres_runtime import (
+            build_catalog_connection_factory,
             build_postgres_connection_factory,
+            load_postgres_runtime_catalog,
             load_postgres_runtime_settings,
         )
 
+        catalog_path = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
         runtime_path = os.environ.get("HONGHU_FINANCIAL_DATA_POSTGRES_CONFIG")
-        if not runtime_path:
+        if catalog_path:
+            factory = build_catalog_connection_factory(
+                load_postgres_runtime_catalog(catalog_path), role="reader"
+            )
+        elif runtime_path:
+            factory = build_postgres_connection_factory(
+                load_postgres_runtime_settings(runtime_path), role="reader"
+            )
+        else:
             raise RuntimeError("PostgreSQL financial-data route requires runtime config")
-        settings = load_postgres_runtime_settings(runtime_path)
         _POSTGRES_READ_CACHE = FinancialDataReadCache(
-            build_postgres_connection_factory(settings, role="reader")
+            factory
         )
     return _POSTGRES_READ_CACHE
 
@@ -54,16 +77,41 @@ REQUIRED_TABLES = {
 }
 
 
-def connect(db_path: str | Path = DB_PATH, *, readonly: bool = False) -> sqlite3.Connection:
+def connect(
+    db_path: str | Path = DB_PATH,
+    *,
+    readonly: bool = False,
+    operation_scope: str | None = None,
+    operation_id: str | None = None,
+    actor: str | None = None,
+) -> sqlite3.Connection:
     route, Backend = _postgres_route()
     if route.backend is Backend.POSTGRESQL_PRODUCTION:
-        if not readonly:
+        if readonly:
+            return _postgres_read_cache().connect()
+        # Legacy per-unit S3 routes predate the common authority matrix and do
+        # not carry the reviewed registry/role boundary required by the generic
+        # writer adapter.  They must remain fenced; never reinterpret their
+        # missing common runtime as permission to reopen SQLite.
+        if not (
+            os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+            and os.environ.get("HONGHU_CUTOVER_UNIT_REGISTRY")
+        ):
             from tools.data_platform.financial_data import FinancialDataWriterFenced
 
             raise FinancialDataWriterFenced(
-                "legacy financial SQLite writer is fenced; use the audited PostgreSQL writer adapter"
+                "legacy financial PostgreSQL route has no common authority matrix"
             )
-        return _postgres_read_cache().connect()
+        from tools.data_platform.domain_data import connect_domain_database
+
+        return connect_domain_database(
+            "financial_data",
+            db_path,
+            readonly=False,
+            operation_scope=operation_scope or "financial_data_mutation",
+            operation_id=operation_id,
+            actor=actor,
+        )
     path = Path(db_path).resolve()
     if readonly:
         conn = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True, timeout=10)

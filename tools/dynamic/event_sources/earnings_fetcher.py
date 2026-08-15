@@ -12,7 +12,7 @@ B1 财报事件抓取(yfinance 主 + Tushare A股 fallback) — 写 event(event_
 零硬编码实体:公司清单 + ticker 全从 db 拉;override 从 config。
 """
 from __future__ import annotations
-import sqlite3, sys, io, json
+import sys, io, json
 from pathlib import Path
 from datetime import datetime, date
 
@@ -22,6 +22,7 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 PENDING = ROOT / "cache" / "STAGE3B_EARNINGS_PENDING.md"
@@ -31,6 +32,7 @@ import yaml
 import yfinance as yf
 sys.path.insert(0, str(ROOT / "tools" / "pipeline"))
 from tushare_provider import fetch_disclosure_date_latest, ts_code_from_ticker
+from tools.dynamic.database import connect_dynamic
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 OVERRIDE = CFG.get("earnings_importance_override", {})
 TODAY = date.today()
@@ -109,7 +111,7 @@ def next_earnings_tushare(ticker: str):
 
 
 def main():
-    con = sqlite3.connect(str(DB)); cur = con.cursor()
+    con = connect_dynamic(DB, operation_scope="dynamic_earnings_fetcher"); cur = con.cursor()
     smap = source_map(cur)
     rows = cur.execute("""
         SELECT DISTINCT c.id, c.name, c.ticker, c.market, c.listing_status

@@ -276,6 +276,63 @@ class PostgresSharedIdentityRepository:
             raise translate_shared_identity_error(exc) from exc
 
 
+class PostgresSharedIdentityResolver:
+    """Resolve legacy UI references against authoritative PostgreSQL identity.
+
+    The frozen Stage 4 mapping remains migration/audit evidence.  Once
+    ``shared_identity`` is S3/S4 it must not cap the set of identities accepted
+    by dependent domains, so runtime resolution reads the current formal
+    identity table and fails closed on missing or ambiguous records.
+    """
+
+    _ENTITY_TABLES = {
+        "company": "company",
+        "industry": "industry",
+        "theme": "theme",
+    }
+
+    def __init__(self, connection_factory: Callable[[], Any]) -> None:
+        self._connect = connection_factory
+
+    def resolve(self, entity_type: str, legacy_id: str | int) -> str:
+        table = self._ENTITY_TABLES.get(str(entity_type))
+        if table is None:
+            raise SharedIdentityError(f"unsupported shared identity type: {entity_type}")
+        connection = self._connect()
+        try:
+            authority = connection.execute(
+                """
+                SELECT state,authoritative_backend
+                  FROM operations.cutover_unit_authority
+                 WHERE cutover_unit='shared_identity'
+                """
+            ).fetchone()
+            if authority is None or str(authority[0]) not in {"S3", "S4"} or str(
+                authority[1]
+            ) != "postgresql_production":
+                raise SharedIdentityWriterFenced(
+                    "shared_identity is not PostgreSQL-authoritative"
+                )
+            rows = connection.execute(
+                """
+                SELECT stable_key
+                  FROM shared_identity.legacy_record
+                 WHERE source_database='research.db'
+                   AND source_table=%s
+                   AND legacy_id=%s
+                   AND formal_business_data=true
+                """,
+                (table, str(legacy_id)),
+            ).fetchall()
+        finally:
+            connection.close()
+        if len(rows) != 1 or not str(rows[0][0] or "").strip():
+            raise SharedIdentityError(
+                f"authoritative shared identity is missing or ambiguous: {entity_type}:{legacy_id}"
+            )
+        return str(rows[0][0])
+
+
 def translate_shared_identity_error(exc: Exception) -> SharedIdentityError:
     if isinstance(exc, SharedIdentityError):
         return exc

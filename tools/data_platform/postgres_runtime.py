@@ -120,3 +120,111 @@ def build_postgres_connection_factory(
         )
 
     return connect
+
+
+@dataclass(frozen=True)
+class PostgresRuntimeCatalog:
+    """Production runtime with named least-privilege roles.
+
+    The Stage 4 bootstrap writes one catalog containing the shared endpoint and
+    all domain roles.  Application code selects a role by audited purpose; it
+    must not manufacture per-unit connection files or fall back to another
+    role when a credential is absent.
+    """
+
+    host: str
+    port: int
+    dbname: str
+    sslmode: str
+    sslrootcert: str
+    connect_timeout_seconds: int
+    roles: dict[str, PostgresRoleSettings]
+    environment_id: str
+    application_commit_sha: str
+
+    @classmethod
+    def from_mapping(cls, payload: dict[str, Any]) -> "PostgresRuntimeCatalog":
+        if payload.get("schema_version") != "honghu.postgresql_production_runtime.v1":
+            raise ValueError("unsupported production PostgreSQL runtime catalog")
+        roles = {
+            str(name): PostgresRoleSettings.from_mapping(value)
+            for name, value in (payload.get("roles") or {}).items()
+        }
+        catalog = cls(
+            host=str(payload.get("host") or ""),
+            port=int(payload.get("port") or 0),
+            dbname=str(payload.get("dbname") or ""),
+            sslmode=str(payload.get("sslmode") or ""),
+            sslrootcert=str(payload.get("sslrootcert") or ""),
+            connect_timeout_seconds=int(payload.get("connect_timeout_seconds") or 5),
+            roles=roles,
+            environment_id=str(payload.get("environment_id") or ""),
+            application_commit_sha=str(payload.get("application_commit_sha") or ""),
+        )
+        catalog.validate()
+        return catalog
+
+    def validate(self) -> None:
+        if self.environment_id != "production":
+            raise ValueError("runtime catalog is not production")
+        if not self.host or not 1 <= self.port <= 65535 or not self.dbname:
+            raise ValueError("runtime catalog endpoint is incomplete")
+        if self.sslmode not in {"verify-ca", "verify-full"}:
+            raise ValueError("production runtime catalog requires verified TLS")
+        root = Path(self.sslrootcert).resolve() if self.sslrootcert else None
+        if root is None or not root.is_file():
+            raise ValueError("runtime catalog TLS root is unavailable")
+        if not 1 <= self.connect_timeout_seconds <= 30:
+            raise ValueError("runtime catalog connect timeout is outside the approved bound")
+        if not self.roles:
+            raise ValueError("runtime catalog has no roles")
+        for role in self.roles.values():
+            role.validate()
+
+    def role(self, name: str) -> PostgresRoleSettings:
+        try:
+            return self.roles[name]
+        except KeyError as exc:
+            raise ValueError(f"runtime role is unavailable: {name}") from exc
+
+
+def load_postgres_runtime_catalog(path: str | Path) -> PostgresRuntimeCatalog:
+    return PostgresRuntimeCatalog.from_mapping(
+        json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    )
+
+
+def build_catalog_connection_factory(
+    catalog: PostgresRuntimeCatalog,
+    *,
+    role: str,
+    password_loader: Callable[[str, str], str | None] | None = None,
+) -> Callable[[], Any]:
+    """Build a fail-closed factory for one named catalog role."""
+
+    catalog.validate()
+    selected = catalog.role(role)
+
+    def connect() -> Any:
+        loader = password_loader
+        if loader is None:
+            import keyring
+
+            loader = keyring.get_password
+        password = loader(selected.credential_service, selected.credential_account)
+        if not password:
+            raise RuntimeError(f"PostgreSQL credential is unavailable for role {role}")
+        import psycopg
+
+        return psycopg.connect(
+            host=catalog.host,
+            port=catalog.port,
+            dbname=catalog.dbname,
+            user=selected.user,
+            password=password,
+            sslmode=catalog.sslmode,
+            sslrootcert=catalog.sslrootcert,
+            connect_timeout=catalog.connect_timeout_seconds,
+        )
+
+    return connect

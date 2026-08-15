@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import os
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -8,7 +9,65 @@ from typing import Iterator
 from .constants import DB_PATH
 
 
-def connect(db_path: str | Path = DB_PATH, readonly: bool = False) -> sqlite3.Connection:
+_POSTGRES_READ_CACHE = None
+
+
+def _postgres_route():
+    from tools.data_platform.routing import (
+        Backend,
+        load_environment_authority_matrix,
+    )
+
+    matrix = load_environment_authority_matrix()
+    if matrix is None:
+        return None, Backend
+    return matrix.route_for(
+        "opportunity_lens",
+        writer_operation="opportunity_lens_mutation",
+        transaction_boundary="one Opportunity Lens publication mutation",
+    ), Backend
+
+
+def _postgres_read_cache():
+    global _POSTGRES_READ_CACHE
+    if _POSTGRES_READ_CACHE is None:
+        from tools.data_platform.domain_data import PostgresDomainReadCache
+        from tools.data_platform.postgres_runtime import (
+            build_catalog_connection_factory,
+            load_postgres_runtime_catalog,
+        )
+
+        path = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+        if not path:
+            raise RuntimeError("PostgreSQL Opportunity Lens route requires runtime catalog")
+        catalog = load_postgres_runtime_catalog(path)
+        _POSTGRES_READ_CACHE = PostgresDomainReadCache(
+            "opportunity_lens",
+            build_catalog_connection_factory(catalog, role="reader"),
+        )
+    return _POSTGRES_READ_CACHE
+
+
+def connect(
+    db_path: str | Path = DB_PATH,
+    readonly: bool = False,
+    *,
+    operation_scope: str | None = None,
+    operation_id: str | None = None,
+    actor: str | None = None,
+) -> sqlite3.Connection:
+    route, Backend = _postgres_route()
+    if route is not None and route.backend is Backend.POSTGRESQL_PRODUCTION:
+        from tools.data_platform.domain_data import connect_domain_database
+
+        return connect_domain_database(
+            "opportunity_lens",
+            db_path,
+            readonly=readonly,
+            operation_scope=operation_scope,
+            operation_id=operation_id,
+            actor=actor,
+        )
     path = Path(db_path)
     if readonly:
         uri = f"file:{path.as_posix()}?mode=ro"

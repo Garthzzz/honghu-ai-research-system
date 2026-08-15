@@ -7,7 +7,7 @@ B2 大会事件加载 — 从 config.yaml conferences 段写 event(event_type='�
 幂等:INSERT OR IGNORE on UNIQUE(title, scheduled_date)(event_store.upsert_conference)。
 """
 from __future__ import annotations
-import sqlite3, sys, io
+import sys, io
 from pathlib import Path
 from datetime import datetime
 
@@ -17,16 +17,18 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
 import event_store
 import yaml
+from tools.dynamic.database import connect_dynamic
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 
 
 def main():
-    con = sqlite3.connect(str(DB))
+    con = connect_dynamic(DB, operation_scope="dynamic_conference_loader")
     confs = CFG.get("conferences", [])
     ins = exists = 0
     for c in confs:
