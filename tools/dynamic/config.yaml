@@ -260,7 +260,7 @@ sentiment_layers:
       morning: {run_at: "14:00", segments: ["session 09:30-13:00"]}
       afternoon: {run_at: "17:00", segments: ["session 13:00-16:00"]}
     auto_backfill_start: "2026-07-15" # V2 live 切换点；此前 pending 是历史映射兼容行，不自动外抓
-    backfill_max_days: 7              # 每次 tick 只审计最近 N 个自然日的已到期 live 窗口
+    backfill_max_days: 3              # 与 raw 三天工作层一致；到期窗口不再重开或重新生成已清理原文
     backfill_max_windows_per_tick: 3  # 当前窗口优先；每次再按时间顺序有限回补最多 3 个已到期缺口
   # ── 限流(M-FETCH 令牌桶,绝不超频)──
   rate_limit:

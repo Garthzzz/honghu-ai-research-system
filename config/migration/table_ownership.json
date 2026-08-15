@@ -150,6 +150,7 @@
           "senti_meta",
           "senti_news_bucket",
           "senti_news_daily",
+          "senti_unmapped_daily",
           "senti_post",
           "senti_raw",
           "senti_raw_window",

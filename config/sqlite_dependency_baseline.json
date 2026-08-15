@@ -335,6 +335,26 @@
       "sunset_condition": "Replace with the approved data-access layer when the relevant cutover units leave SQLite."
     },
     {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "domain": "sentiment three-day retention transition",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 1,
+      "reason": "The approved three-day retention writer uses one composite-key upsert on the private SQLite-shaped transition projection; the authoritative commit is performed by the audited PostgreSQL sentiment adapter.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when retention uses a native PostgreSQL repository and the transition projection is retired."
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "domain": "sentiment three-day retention transition",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 5,
+      "reason": "The additional composite-key upsert persists the permanent unmapped daily aggregate through the reviewed PostgreSQL-authoritative compatibility transaction; it does not reopen the retired SQLite writer.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when retail-window retention uses a native PostgreSQL repository and the transition projection is retired."
+    },
+    {
       "path": "tools/viewer/app.py",
       "domain": "read-only parallel Viewer candidate",
       "rule": "sqlite3_connect",

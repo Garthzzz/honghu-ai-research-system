@@ -253,6 +253,33 @@ CREATE TABLE IF NOT EXISTS sentiment_retention_window (
   created_at             TEXT NOT NULL,
   PRIMARY KEY(run_id, window_id, action)
 );
+
+-- 三天生命周期外、又没有 V2 window 映射的旧 raw 只保留数值事实。
+-- 该表不并入窗口聚合，避免和 legacy/V2 日表重复计数。
+CREATE TABLE IF NOT EXISTS senti_unmapped_daily (
+  trade_date             TEXT NOT NULL,
+  company_id             INTEGER NOT NULL,
+  ticker                 TEXT,
+  source_layer           TEXT NOT NULL,
+  platform               TEXT NOT NULL,
+  raw_count              INTEGER NOT NULL,
+  scored_count           INTEGER NOT NULL,
+  pos                    INTEGER NOT NULL,
+  neg                    INTEGER NOT NULL,
+  neu                    INTEGER NOT NULL,
+  weighted_pos           REAL NOT NULL,
+  weighted_neg           REAL NOT NULL,
+  weighted_neu           REAL NOT NULL,
+  heat_value_sum         REAL NOT NULL,
+  read_count_sum         INTEGER NOT NULL,
+  reply_count_sum        INTEGER NOT NULL,
+  aggregation_version    TEXT NOT NULL,
+  aggregate_sha256       TEXT NOT NULL,
+  computed_at            TEXT NOT NULL,
+  PRIMARY KEY(trade_date, company_id, source_layer, platform)
+);
+CREATE INDEX IF NOT EXISTS ix_senti_unmapped_daily_date
+  ON senti_unmapped_daily(trade_date, company_id);
 """
 
 
@@ -308,6 +335,16 @@ def ensure_schema(con: sqlite3.Connection) -> None:
             "sentiment.window_retention.v1",
             common.now_iso(),
             "窗口永久聚合、封存和原始评论滚动保留",
+        ),
+    )
+    con.execute(
+        """INSERT OR IGNORE INTO sentiment_schema_meta(
+             migration_id,applied_at,detail)
+           VALUES(?,?,?)""",
+        (
+            "sentiment.three_day_raw_lifecycle.v1",
+            common.now_iso(),
+            "三天 raw 生命周期和未映射数字事实",
         ),
     )
 
@@ -856,7 +893,15 @@ def seal_window(
         raise RuntimeError(f"非完整 window 需要显式授权: {window_id} status={status}")
     now_text = sealed_at or common.now_iso()
     now = datetime.fromisoformat(now_text)
-    anchor_text = str(ledger["finished_at"] or ledger["window_end"] or now_text)
+    # A partial window must not extend raw retention forever merely because a
+    # terminal retry updated ``finished_at``.  Its semantic data interval ends
+    # at ``window_end``; the exclusive retention lock and terminal source
+    # evidence decide whether finalization is safe.
+    anchor_text = str(
+        ledger["window_end"]
+        if not complete and allow_incomplete
+        else (ledger["finished_at"] or ledger["window_end"] or now_text)
+    )
     anchor = datetime.fromisoformat(anchor_text)
     purge_after = anchor + timedelta(days=grace_days)
     aggregate_window(

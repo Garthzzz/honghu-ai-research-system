@@ -18278,6 +18278,11 @@
         },
         {
           "database": "sentiment.db",
+          "object": "senti_unmapped_daily",
+          "kind": "table"
+        },
+        {
+          "database": "sentiment.db",
           "object": "sentiment_retention_run",
           "kind": "table"
         },
@@ -26637,6 +26642,14 @@
     },
     {
       "database": "sentiment.db",
+      "object": "senti_unmapped_daily",
+      "owning_cutover_unit": "sentiment_analytics",
+      "state": "S0",
+      "authoritative_backend": "sqlite_transition",
+      "writer_backend": "sentiment.db"
+    },
+    {
+      "database": "sentiment.db",
       "object": "sentiment_retention_run",
       "owning_cutover_unit": "sentiment_analytics",
       "state": "S0",
@@ -26697,10 +26710,10 @@
     "unknown_operation_owners": [],
     "unowned_live_tables": [],
     "configured_objects_not_in_live_schema": [],
-    "object_count": 134,
+    "object_count": 135,
     "writer_operation_count": 958,
     "transaction_boundary_count": 388,
     "passed": true
   },
-  "registry_sha256": "56d3502a12af875be7e0ac26f36026488bd288463fec38660bdbe385b7a4389d"
+  "registry_sha256": "1196432f4c4a589f0037fe59c278ebaf53c003900ca9e713745c4c63d01ffe47"
 }

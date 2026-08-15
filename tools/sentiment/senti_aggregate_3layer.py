@@ -32,6 +32,28 @@ _SEL_HEAT = f"""
     SUM(CASE WHEN attitude=3 THEN {_HW} ELSE 0 END) hneu"""
 
 
+def _assert_full_raw_history_available(con) -> None:
+    """Never rebuild historical facts from a deliberately truncated raw set."""
+    table = con.execute(
+        """SELECT 1 FROM sqlite_master
+           WHERE type='table' AND name='retail_window_ledger'"""
+    ).fetchone()
+    if not table:
+        return
+    purged = int(
+        con.execute(
+            """SELECT COUNT(*) FROM retail_window_ledger
+               WHERE raw_purged_at IS NOT NULL
+                  OR retention_state IN ('purged','purged_incomplete')"""
+        ).fetchone()[0]
+    )
+    if purged:
+        raise RuntimeError(
+            "full-history senti_raw aggregation is retired after raw retention; "
+            "use permanent window/daily facts"
+        )
+
+
 def span_of(bucket_id):
     dt = senti3.iso_to_dt(bucket_id + "+08:00")
     return senti3.bucket_for(dt)["span_hours"] if dt else 3
@@ -55,6 +77,7 @@ def _usable(bid_or_date, valid, cov, sig_min, cov_low):
 
 
 def agg_retail(con, now, weights, sig_min, cov_low, *, commit=True):
+    _assert_full_raw_history_available(con)
     rows = con.execute(f"""SELECT company_id, MAX(ticker) ticker, bucket_id, platform,
             SUM(CASE WHEN attitude=1 THEN 1 ELSE 0 END) pos,
             SUM(CASE WHEN attitude=2 THEN 1 ELSE 0 END) neg,
@@ -102,6 +125,7 @@ def agg_retail(con, now, weights, sig_min, cov_low, *, commit=True):
 
 
 def agg_news(con, now, sig_min, cov_low, *, commit=True):
+    _assert_full_raw_history_available(con)
     rows = con.execute(f"""SELECT company_id, MAX(ticker) ticker, bucket_id, platform,
             SUM(CASE WHEN attitude=1 THEN 1 ELSE 0 END) pos,
             SUM(CASE WHEN attitude=2 THEN 1 ELSE 0 END) neg,
@@ -147,6 +171,7 @@ def agg_news(con, now, sig_min, cov_low, *, commit=True):
 
 
 def agg_heat(con, now, *, commit=True):
+    _assert_full_raw_history_available(con)
     rows = con.execute("""SELECT company_id, MAX(ticker) ticker, bucket_id, source_layer, platform,
             COUNT(*) cnt, SUM(COALESCE(hot_value,0)) hot
           FROM senti_raw WHERE platform<>'weibo'
@@ -199,6 +224,7 @@ def _daily_weighted(con, layer, weights):
 
 def rollup_daily(con, now, sig_min, cov_low, weights, *, commit=True):
     """桶 → 日(overnight 桶归其起始日)。plain/coverage 从桶汇总;weighted 从 senti_raw 按日重算。"""
+    _assert_full_raw_history_available(con)
     # retail
     rw = _daily_weighted(con, "retail", weights)
     con.execute("DELETE FROM senti_retail_daily")
