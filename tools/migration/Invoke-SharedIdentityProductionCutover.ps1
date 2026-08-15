@@ -7,7 +7,7 @@ param(
     [string]$ProductionRoot = 'C:\industry_demo',
     [string]$InstallRoot = 'D:\honghu-postgresql',
     [string]$ReleaseRoot = 'D:\honghu-user-content-production',
-    [string]$PythonExe = 'C:\ProgramData\miniconda3\envs\quant\python.exe'
+    [string]$PythonExe = 'D:\honghu-postgresql\python-env\Scripts\python.exe'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -160,7 +160,7 @@ try {
         # requires forward repair.
         try {
             Invoke-Isolated 'tools.migration.stage4_authority_control' @(
-                '--runtime',$Runtime,'--unit','shared_identity','--allow-s2','--output',$FailureAuthority
+                '--runtime',$Runtime,'--unit','shared_identity','--role','migration','--allow-s2','--output',$FailureAuthority
             )
             $failureAuthorityValue = Get-Content -Raw -Encoding UTF8 -LiteralPath $FailureAuthority | ConvertFrom-Json
             $safeS1Abandon = $failureAuthorityValue.authority.state -eq 'S1'

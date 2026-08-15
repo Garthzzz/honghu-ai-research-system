@@ -365,7 +365,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     controller = _connection_from_runtime(args.runtime, "controller")
     writer = _connection_from_runtime(args.runtime, "writer_shared_identity")
-    reader = _connection_from_runtime(args.runtime, "reader")
+    # Authority-control reads are operational migration evidence, not Viewer
+    # application reads.  The production Viewer reader deliberately has no
+    # access to operations.cutover_unit_authority; use the audited migration
+    # role without broadening runtime Viewer privileges.
+    reader = _connection_from_runtime(args.runtime, "migration")
     try:
         result = cutover(
             controller=controller,

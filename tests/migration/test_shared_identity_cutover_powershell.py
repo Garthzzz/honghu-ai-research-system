@@ -39,6 +39,8 @@ def test_shared_identity_cutover_stops_viewer_rechecks_source_and_never_falls_ba
     assert "$authorityTransitionInvoked = $true" in text
     assert "Start-PriorUserContentViewer" in text
     assert "tools.migration.stage4_authority_control" in text
+    assert "--role','migration'" in text
+    assert "D:\\honghu-postgresql\\python-env\\Scripts\\python.exe" in text
     assert "$failureAuthorityValue.authority.state -eq 'S1'" in text
     assert "Durable authority is proven still S1" in text
     assert "shared_identity S1 abandon failed to restore prior Viewer" in text
