@@ -240,11 +240,12 @@ class PostgresDomainReadCache:
                 raise DomainDataError(f"PostgreSQL domain cache is unavailable: {self.unit}")
             return self._uri
 
-    def connect(self) -> sqlite3.Connection:
+    def connect(self, *, finalize_readonly: bool = True) -> sqlite3.Connection:
         uri = self.ensure_current()
         connection = sqlite3.connect(uri, uri=True)
         connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA query_only=ON")
+        if finalize_readonly:
+            connection.execute("PRAGMA query_only=ON")
         return connection
 
     def attach(self, connection: sqlite3.Connection) -> None:
@@ -685,7 +686,9 @@ def connect_domain_database(
         )
     if readonly:
         read_connection = (
-            projection.connect_readonly() if projection is not None else cache.connect()
+            projection.connect_readonly(finalize_readonly=False)
+            if projection is not None
+            else cache.connect(finalize_readonly=False)
         )
         try:
             for dependency in definition.dependencies:
@@ -726,6 +729,11 @@ def connect_domain_database(
         except Exception:
             read_connection.close()
             raise
+        # No caller can observe the compatibility connection before this
+        # final fence.  The persistent sentiment main file is additionally
+        # opened with mode=ro; this PRAGMA also protects the in-memory
+        # projections and their TEMP dependency views.
+        read_connection.execute("PRAGMA query_only=ON")
         return read_connection
     if route.authority_state.value not in {"S3", "S4"}:
         raise DomainDataWriterFenced("formal PostgreSQL writes require S3/S4 authority")

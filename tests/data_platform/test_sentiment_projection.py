@@ -178,3 +178,30 @@ def test_persistent_sentiment_projection_attaches_as_readonly_dependency(
     with pytest.raises(sqlite3.OperationalError):
         consumer.execute("UPDATE sample SET name='forbidden' WHERE id=1")
     consumer.close()
+
+
+def test_persistent_sentiment_reader_is_file_readonly_before_router_fence(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    projection = PersistentSentimentProjection(tmp_path, lambda: None)
+    source = sqlite3.connect(projection.database_path)
+    _create_projection_schema(source, SCHEMAS)
+    source.execute("INSERT INTO sample VALUES(1,'from-postgresql-projection')")
+    source.execute(
+        "INSERT INTO __honghu_projection_meta VALUES(1,?,?,?,?,?)",
+        ("formal", "overlay", "{}", 1, "2026-08-15T00:00:00Z"),
+    )
+    source.commit()
+    source.close()
+    monkeypatch.setattr(projection, "ensure_current_locked", lambda: {"schemas": SCHEMAS})
+
+    connection = projection.connect_readonly(finalize_readonly=False)
+    try:
+        # TEMP dependency assembly remains possible, while the main database
+        # is already protected by its read-only URI.
+        connection.execute("CREATE TEMP VIEW dependency_probe AS SELECT 1 AS ok")
+        assert connection.execute("SELECT ok FROM dependency_probe").fetchone()[0] == 1
+        with pytest.raises(sqlite3.OperationalError, match="readonly"):
+            connection.execute("UPDATE sample SET name='forbidden' WHERE id=1")
+    finally:
+        connection.close()

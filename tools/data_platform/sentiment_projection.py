@@ -406,7 +406,9 @@ class PersistentSentimentProjection:
             self._sync_overlay(authority)
         return authority
 
-    def connect_readonly(self) -> sqlite3.Connection:
+    def connect_readonly(
+        self, *, finalize_readonly: bool = True
+    ) -> sqlite3.Connection:
         lock = _InterprocessLock(self.lock_path)
         lock.acquire()
         try:
@@ -417,7 +419,8 @@ class PersistentSentimentProjection:
             f"file:{self.database_path.as_posix()}?mode=ro", uri=True, timeout=30
         )
         connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA query_only=ON")
+        if finalize_readonly:
+            connection.execute("PRAGMA query_only=ON")
         return connection
 
     def attach(self, connection: sqlite3.Connection) -> None:
