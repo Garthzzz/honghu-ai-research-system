@@ -40,6 +40,11 @@ def test_start_contract_uses_exact_python_two_ports_tls_and_pid_binding() -> Non
     assert "SharedIdentityRouteConfig" in text
     assert "--shared-identity-route" in text
     assert "health.shared_identity.backend" in text
+    assert "Get-NetTCPConnection -LocalPort ([int]$listener.port)" in text
+    assert "$process = $listenerProcess" in text
+    assert "outer launcher PID" in text
+    assert "AddSeconds(90)" in text
+    assert 'api/health" -TimeoutSec 8' in text
 
 
 def test_stop_contract_refuses_pid_reuse_and_unknown_listener() -> None:

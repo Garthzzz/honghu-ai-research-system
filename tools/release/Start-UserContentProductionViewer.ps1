@@ -149,8 +149,26 @@ try {
             -RedirectStandardOutput (Join-Path $Runtime "$($listener.name).stdout.log") `
             -RedirectStandardError (Join-Path $Runtime "$($listener.name).stderr.log")
         Start-Sleep -Milliseconds 400
-        $process.Refresh()
-        if ($process.HasExited) { throw "$($listener.name) Viewer exited during start" }
+        $launcherProcess = $process
+        $listenerProcess = $null
+        $listenerDeadline = (Get-Date).AddSeconds(20)
+        do {
+            $bound = @(Get-NetTCPConnection -LocalPort ([int]$listener.port) -State Listen -ErrorAction SilentlyContinue)
+            $listenerPids = @($bound | Select-Object -ExpandProperty OwningProcess -Unique)
+            if ($listenerPids.Count -eq 1) {
+                $listenerProcess = Get-Process -Id ([int]$listenerPids[0]) -ErrorAction SilentlyContinue
+            }
+            if ($null -eq $listenerProcess) { Start-Sleep -Milliseconds 250 }
+        } while ($null -eq $listenerProcess -and (Get-Date) -lt $listenerDeadline)
+        if ($null -eq $listenerProcess) {
+            $launcherProcess.Refresh()
+            if ($launcherProcess.HasExited) { throw "$($listener.name) Viewer exited during start" }
+            throw "$($listener.name) listener process was not established"
+        }
+        # A Windows venv launcher may spawn the base interpreter.  The
+        # listener PID, not the outer launcher PID, is the durable process
+        # identity exposed by health and used by fail-safe cleanup.
+        $process = $listenerProcess
         $cim = Get-CimInstance Win32_Process -Filter "ProcessId=$($process.Id)" -ErrorAction Stop
         if (-not $cim -or -not $cim.ExecutablePath -or -not $cim.CommandLine) {
             throw "$($listener.name) Viewer process identity is incomplete"
@@ -170,12 +188,12 @@ try {
             ).Replace('-','').ToLowerInvariant())
         }
     }
-    $deadline = (Get-Date).AddSeconds(45)
+    $deadline = (Get-Date).AddSeconds(90)
     do {
         $httpReady = $false
         $httpsReady = $false
         try {
-            $health = Invoke-RestMethod "http://127.0.0.1:$HttpPort/api/health" -TimeoutSec 2
+            $health = Invoke-RestMethod "http://127.0.0.1:$HttpPort/api/health" -TimeoutSec 8
             $httpRecord = @($records | Where-Object {$_.name -eq 'http'})[0]
             $httpReady = [bool](
                 $health.ok -and

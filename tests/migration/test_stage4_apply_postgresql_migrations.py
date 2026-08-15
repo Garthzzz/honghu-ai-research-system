@@ -87,6 +87,30 @@ def test_s1_migration_role_gets_only_authority_read_access() -> None:
     assert 'TO "honghu_migration"' in rendered
 
 
+def test_shared_identity_reader_can_bind_cache_to_authority_revision() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0006_shared_identity_role_grants.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_role_grant(
+        source,
+        {
+            "writer_role": "honghu_writer_shared_identity",
+            "reader_role": "honghu_viewer_reader",
+            "controller_role": "honghu_controller",
+            "audit_reader_role": "honghu_audit_reader",
+        },
+    )
+    assert (
+        'GRANT SELECT ON operations.cutover_unit_authority TO "honghu_viewer_reader"'
+        in rendered
+    )
+    assert "UPDATE ON operations.cutover_unit_authority" not in rendered
+    assert "DELETE ON operations.cutover_unit_authority" not in rendered
+
+
 def test_s1_callers_do_not_require_control_plane_update_privilege() -> None:
     callers = (
         "stage4_shared_identity_s1.py",
