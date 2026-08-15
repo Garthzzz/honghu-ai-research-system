@@ -159,7 +159,6 @@ def promote_generic_unit_s1(
             SELECT cutover_unit,state,authoritative_backend
               FROM operations.cutover_unit_authority
              WHERE cutover_unit=ANY(%s)
-             FOR SHARE
             """,
             (list(dependency_names),),
         ).fetchall()
@@ -172,7 +171,7 @@ def promote_generic_unit_s1(
             """
             SELECT state,state_revision,authoritative_backend
               FROM operations.cutover_unit_authority
-             WHERE cutover_unit=%s FOR UPDATE
+             WHERE cutover_unit=%s
             """,
             (unit,),
         ).fetchone()
