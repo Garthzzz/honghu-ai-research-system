@@ -33,6 +33,12 @@ UNITS = (
     "sentiment_analytics",
 )
 
+CONTINUOUS_RUNNER_UNITS = {
+    "dynamic_intelligence",
+    "operations_governance",
+    "sentiment_analytics",
+}
+
 
 class RemainingUnitCutoverError(RuntimeError):
     pass
@@ -53,6 +59,16 @@ def _load(path: Path) -> dict[str, Any]:
     return value
 
 
+def _verify_embedded_hash(
+    payload: dict[str, Any], *, field: str = "evidence_sha256"
+) -> str:
+    claimed = str(payload.get(field) or "")
+    core = {key: value for key, value in payload.items() if key != field}
+    if not re.fullmatch(r"[0-9a-f]{64}", claimed) or _sha(core) != claimed:
+        raise RemainingUnitCutoverError(f"evidence identity mismatch: {field}")
+    return claimed
+
+
 def _write(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
@@ -68,6 +84,8 @@ def validate_inputs(
     decision: dict[str, Any],
     s1: dict[str, Any],
     recovery: dict[str, Any],
+    rehearsal: dict[str, Any],
+    runner: dict[str, Any] | None,
     registry: CutoverUnitRegistry,
     expected_commit: str,
 ) -> None:
@@ -119,6 +137,7 @@ def validate_inputs(
         or s1.get("source_content_sha256") != s1.get("target_content_sha256")
     ):
         raise RemainingUnitCutoverError("exact S1 reconciliation is incomplete")
+    _verify_embedded_hash(s1)
 
     if recovery.get("schema_version") not in {
         "honghu.stage4_production_recovery.v1",
@@ -146,6 +165,48 @@ def validate_inputs(
         or authority.get("authoritative_backend") != "sqlite_transition"
     ):
         raise RemainingUnitCutoverError("off-VM recovery does not bind unit S1 authority")
+    _verify_embedded_hash(recovery)
+
+    if rehearsal.get("schema_version") != "honghu.remaining_unit_postgresql_rehearsal.v1":
+        raise RemainingUnitCutoverError("unsupported PostgreSQL rehearsal evidence")
+    if (
+        rehearsal.get("cutover_unit") != unit
+        or rehearsal.get("adapter_application_commit_sha") != expected_commit
+        or rehearsal.get("state") != "S3"
+        or rehearsal.get("authoritative_backend") != "postgresql_production"
+        or rehearsal.get("idempotent_replay") is not True
+        or rehearsal.get("stale_revision_rejected") is not True
+        or rehearsal.get("outside_ownership_rejected") is not True
+        or rehearsal.get("production_target_permitted") is not False
+    ):
+        raise RemainingUnitCutoverError(
+            "exact-commit PostgreSQL adapter rehearsal is incomplete"
+        )
+    _verify_embedded_hash(rehearsal)
+
+    if unit in CONTINUOUS_RUNNER_UNITS:
+        if not isinstance(runner, dict) or runner.get("schema_version") != (
+            "honghu.temporary_local_runner_readiness.v1"
+        ):
+            raise RemainingUnitCutoverError(
+                "continuous unit lacks temporary unique-runner evidence"
+            )
+        if (
+            runner.get("cutover_unit") != unit
+            or runner.get("application_commit_sha") != expected_commit
+            or runner.get("unique_runner") is not True
+            or runner.get("stable_operation_identity") is not True
+            or runner.get("postgresql_failure_fails_closed") is not True
+            or runner.get("scheduled_task_definition_unchanged") is not True
+            or runner.get("stage5_runner_host_migration") is not False
+            or not str(runner.get("runner_host") or "").strip()
+            or not str(runner.get("checkpoint_watermark") or "").strip()
+            or not str(runner.get("exit_condition") or "").strip()
+        ):
+            raise RemainingUnitCutoverError(
+                "temporary local runner evidence is incomplete"
+            )
+        _verify_embedded_hash(runner)
 
 
 def _authority(connection: Any, unit: str) -> dict[str, Any]:
@@ -364,6 +425,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--decision", type=Path, required=True)
     parser.add_argument("--s1-evidence", type=Path, required=True)
     parser.add_argument("--recovery-evidence", type=Path, required=True)
+    parser.add_argument("--rehearsal-evidence", type=Path, required=True)
+    parser.add_argument("--runner-evidence", type=Path)
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--expected-commit", required=True)
     parser.add_argument("--writer-identity", required=True)
@@ -375,11 +438,15 @@ def main(argv: list[str] | None = None) -> int:
     decision = _load(args.decision)
     s1 = _load(args.s1_evidence)
     recovery = _load(args.recovery_evidence)
+    rehearsal = _load(args.rehearsal_evidence)
+    runner = _load(args.runner_evidence) if args.runner_evidence else None
     validate_inputs(
         unit=args.unit,
         decision=decision,
         s1=s1,
         recovery=recovery,
+        rehearsal=rehearsal,
+        runner=runner,
         registry=registry,
         expected_commit=args.expected_commit,
     )

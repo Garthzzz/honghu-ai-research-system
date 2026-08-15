@@ -303,6 +303,9 @@ class PostgresDomainCompatibilityConnection:
         self._operation_id = operation_id
         self._actor = actor
         self._transaction_index = 0
+        self._pending_batch_key: str | None = None
+        self._pending_request_hash: str | None = None
+        self._pending_mutations: list[dict[str, Any]] | None = None
         self._closed = False
         self._connection = sqlite3.connect(":memory:")
         self._connection.row_factory = sqlite3.Row
@@ -480,11 +483,30 @@ class PostgresDomainCompatibilityConnection:
     def commit(self) -> None:
         mutations = self._mutations()
         if not mutations:
+            if self._pending_batch_key is not None:
+                raise DomainDataError(
+                    "PostgreSQL mutation outcome is unresolved; reconcile or retry the "
+                    "same logical mutation before committing different state"
+                )
             self._connection.commit()
             return
-        self._transaction_index += 1
-        batch_key = f"{self._operation_id}:{self._transaction_index:08d}"
         request_hash = _sha256_json(mutations)
+        if self._pending_batch_key is None:
+            self._transaction_index += 1
+            self._pending_batch_key = (
+                f"{self._operation_id}:{self._transaction_index:08d}"
+            )
+            self._pending_request_hash = request_hash
+            self._pending_mutations = mutations
+        elif (
+            request_hash != self._pending_request_hash
+            or mutations != self._pending_mutations
+        ):
+            raise DomainDataError(
+                "PostgreSQL mutation outcome is unresolved and local transaction state "
+                "changed; fail closed until the original operation is reconciled"
+            )
+        batch_key = self._pending_batch_key
         try:
             with self._write_connect() as connection:
                 row = connection.execute(
@@ -507,7 +529,7 @@ class PostgresDomainCompatibilityConnection:
                     raise DomainDataError("PostgreSQL mutation returned no result")
         except Exception as exc:
             raise DomainDataError(
-                "PostgreSQL mutation result is uncertain; retry only with the same operation identity"
+                "PostgreSQL mutation result is uncertain; retry reuses the same operation identity"
             ) from exc
         self._connection.commit()
         for mutation in mutations:
@@ -521,8 +543,16 @@ class PostgresDomainCompatibilityConnection:
                     mutation["payload"], int(mutation["expected_revision"]) + 1
                 )
             self._revisions[identity] = int(mutation["expected_revision"]) + 1
+        self._pending_batch_key = None
+        self._pending_request_hash = None
+        self._pending_mutations = None
 
     def rollback(self) -> None:
+        if self._pending_batch_key is not None:
+            raise DomainDataError(
+                "PostgreSQL mutation outcome is unresolved; local rollback cannot prove "
+                "the authoritative transaction did not commit"
+            )
         self._connection.rollback()
 
     def attach_read_dependency(self, cache: Any) -> None:

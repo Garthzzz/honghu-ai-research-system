@@ -46,6 +46,14 @@ def validate_target(host: str, dbname: str) -> None:
         raise RemainingUnitRehearsalError("database name must identify an isolated rehearsal")
 
 
+def validate_application_commit(value: str) -> str:
+    if not re.fullmatch(r"[0-9a-f]{40}", value):
+        raise RemainingUnitRehearsalError(
+            "rehearsal requires an exact lowercase application commit"
+        )
+    return value
+
+
 def _connect(host: str, port: int, dbname: str, user: str) -> Any:
     import psycopg
 
@@ -67,8 +75,11 @@ def _connect(host: str, port: int, dbname: str, user: str) -> Any:
     return connection
 
 
-def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, Any]:
+def run_rehearsal(
+    *, host: str, port: int, dbname: str, unit: str, application_commit_sha: str
+) -> dict[str, Any]:
     validate_target(host, dbname)
+    adapter_release = validate_application_commit(application_commit_sha)
     try:
         source_database, source_table = REPRESENTATIVE_OBJECTS[unit]
     except KeyError as exc:
@@ -83,7 +94,6 @@ def run_rehearsal(*, host: str, port: int, dbname: str, unit: str) -> dict[str, 
     epoch = f"rehearsal:{uuid.uuid4().hex}"
     approval = "rehearsal-only-not-production-approval"
     source_release = "b" * 40
-    adapter_release = "a" * 40
     source_payload = {"id": 1, "value": "baseline"}
     source_key = _sha([["id", 1]])
     row_sha = _sha(source_payload)
@@ -342,10 +352,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--port", type=int, default=55432)
     parser.add_argument("--dbname", required=True)
     parser.add_argument("--unit", choices=sorted(REPRESENTATIVE_OBJECTS), required=True)
+    parser.add_argument("--application-commit-sha", required=True)
     parser.add_argument("--output", type=Path)
     args = parser.parse_args(argv)
     result = run_rehearsal(
-        host=args.host, port=args.port, dbname=args.dbname, unit=args.unit
+        host=args.host,
+        port=args.port,
+        dbname=args.dbname,
+        unit=args.unit,
+        application_commit_sha=args.application_commit_sha,
     )
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

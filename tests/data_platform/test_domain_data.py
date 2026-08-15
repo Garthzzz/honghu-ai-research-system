@@ -264,6 +264,62 @@ def test_uncertain_postgresql_response_fails_closed() -> None:
     connection.close()
 
 
+def test_uncertain_postgresql_response_reuses_exact_batch_identity() -> None:
+    calls = []
+    attempts = []
+
+    class UncertainThenReplay(_WriterConnection):
+        def execute(self, sql, params):
+            attempts.append((sql, params))
+            if len(attempts) == 1:
+                raise OSError("commit response lost")
+            calls.append((sql, params))
+            return _Cursor(one=({"mutation_count": len(json.loads(params[4]))},))
+
+    connection = PostgresDomainCompatibilityConnection(
+        "research_publication",
+        _WriterReadConnection,
+        lambda: UncertainThenReplay(calls),
+        owned_objects=frozenset({("research.db", "sample")}),
+        writer_identity="honghu_writer_research_publication",
+        operation_scope="publication",
+        operation_id="release-replay",
+        actor="authenticated:analyst",
+    )
+    connection.execute("UPDATE sample SET name='after-uncertain' WHERE id=1")
+    with pytest.raises(DomainDataError, match="uncertain"):
+        connection.commit()
+    with pytest.raises(DomainDataError, match="cannot prove"):
+        connection.rollback()
+    connection.commit()
+
+    assert len(attempts) == 2
+    assert attempts[0][1][2] == attempts[1][1][2] == "release-replay:00000001"
+    assert attempts[0][1][3] == attempts[1][1][3]
+    assert attempts[0][1][4] == attempts[1][1][4]
+    connection.close()
+
+
+def test_uncertain_postgresql_response_rejects_changed_local_state() -> None:
+    connection = PostgresDomainCompatibilityConnection(
+        "research_publication",
+        _WriterReadConnection,
+        lambda: _WriterConnection([], fail=True),
+        owned_objects=frozenset({("research.db", "sample")}),
+        writer_identity="honghu_writer_research_publication",
+        operation_scope="publication",
+        operation_id="release-mutated-after-uncertain",
+        actor="authenticated:analyst",
+    )
+    connection.execute("UPDATE sample SET name='first-state' WHERE id=1")
+    with pytest.raises(DomainDataError, match="uncertain"):
+        connection.commit()
+    connection.execute("UPDATE sample SET name='different-state' WHERE id=1")
+    with pytest.raises(DomainDataError, match="state changed"):
+        connection.commit()
+    connection.close()
+
+
 def test_compatibility_connection_recreates_a_tombstone_at_next_revision() -> None:
     class TombstoneRead(_WriterReadConnection):
         def execute(self, sql, _params=None):

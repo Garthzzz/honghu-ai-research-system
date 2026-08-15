@@ -52,16 +52,21 @@ def get_senti_db(
 
 def attach_research_ro(con: sqlite3.Connection):
     """在 sentiment.db 连接上 ATTACH research.db 只读(viewer JOIN 用)。"""
+    if getattr(con, "unit", None) == "sentiment_analytics":
+        # The common PostgreSQL adapter has already attached the authoritative
+        # shared-identity dependency as read-only TEMP views.  Re-attaching the
+        # frozen research.db identity tables here would silently resurrect the
+        # retired identity authority.
+        return
     uri = f"file:{RESEARCH_DB.as_posix()}?mode=ro"
     con.execute(f"ATTACH DATABASE '{uri}' AS research")
 
 
 def research_ro_conn() -> sqlite3.Connection:
-    """独立只读连接读 research.db(闭集校验 / 取 dp)。"""
-    uri = f"file:{RESEARCH_DB.as_posix()}?mode=ro"
-    con = sqlite3.connect(uri, uri=True)
-    con.row_factory = sqlite3.Row
-    return con
+    """读取当前权威共享身份；PostgreSQL 失败时绝不回退旧 SQLite。"""
+    from tools.data_platform.shared_identity import connect_shared_identity_database
+
+    return connect_shared_identity_database(RESEARCH_DB)
 
 
 def load_closed_set():
@@ -87,6 +92,12 @@ def mark_seen(con, kind, source, native_id) -> bool:
 
 def assert_senti_only(con: sqlite3.Connection):
     """门C 守卫:main 必须是 sentiment.db;任何 attach 的 research 必须 ro。"""
+    if getattr(con, "unit", None) == "sentiment_analytics":
+        # PostgresDomainCompatibilityConnection has already verified the
+        # durable S3/S4 authority row, exact unit writer role and reviewed
+        # ownership set.  Its in-memory transaction surface has no filesystem
+        # path by design, so the legacy filesystem-path assertion is inapplicable.
+        return
     for r in con.execute("PRAGMA database_list"):
         name, file = r[1], (r[2] or "")
         if name == "main" and not file.replace("\\", "/").endswith("data/sentiment.db"):

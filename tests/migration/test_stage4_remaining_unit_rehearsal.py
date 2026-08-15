@@ -5,6 +5,7 @@ import pytest
 from tools.migration.stage4_remaining_unit_rehearsal import (
     REPRESENTATIVE_OBJECTS,
     RemainingUnitRehearsalError,
+    validate_application_commit,
     validate_target,
 )
 
@@ -28,3 +29,9 @@ def test_every_remaining_unit_has_a_distinct_representative_owned_object() -> No
         "sentiment_analytics",
     }
     assert len(set(REPRESENTATIVE_OBJECTS.values())) == len(REPRESENTATIVE_OBJECTS)
+
+
+def test_rehearsal_requires_exact_application_commit() -> None:
+    assert validate_application_commit("a" * 40) == "a" * 40
+    with pytest.raises(RemainingUnitRehearsalError, match="exact lowercase"):
+        validate_application_commit("A" * 40)
