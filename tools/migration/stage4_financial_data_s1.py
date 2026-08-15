@@ -238,7 +238,7 @@ def promote_financial_data_s1(
             """
             SELECT state,state_revision,authoritative_backend
               FROM operations.cutover_unit_authority
-             WHERE cutover_unit='financial_data' FOR UPDATE
+             WHERE cutover_unit='financial_data'
             """
         ).fetchone()
         if authority is None:

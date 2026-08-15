@@ -216,7 +216,7 @@ def promote_shared_identity_s1(
             """
             SELECT state,state_revision,authoritative_backend
               FROM operations.cutover_unit_authority
-             WHERE cutover_unit='shared_identity' FOR UPDATE
+             WHERE cutover_unit='shared_identity'
             """
         ).fetchone()
         if authority is None:

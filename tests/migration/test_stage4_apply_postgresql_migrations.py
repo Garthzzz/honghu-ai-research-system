@@ -85,3 +85,28 @@ def test_s1_migration_role_gets_only_authority_read_access() -> None:
     assert "0009_stage4_s1_authority_read_grant" in rendered
     assert "migration_sha256=current_setting('honghu.migration_sha256')" in rendered
     assert 'TO "honghu_migration"' in rendered
+
+
+def test_s1_callers_do_not_require_control_plane_update_privilege() -> None:
+    callers = (
+        "stage4_shared_identity_s1.py",
+        "stage4_financial_data_s1.py",
+        "stage4_generic_unit_s1.py",
+    )
+    for name in callers:
+        source = (ROOT / "tools" / "migration" / name).read_text(encoding="utf-8")
+        assert "FROM operations.cutover_unit_authority" in source
+        assert "FOR UPDATE" not in source
+        assert "FOR SHARE" not in source
+
+    # The least-privilege caller supplies an expected state/revision.  The
+    # SECURITY DEFINER control plane remains responsible for the real row lock
+    # and rejects a stale concurrent transition atomically.
+    controller = (
+        ROOT / "migrations" / "postgresql" / "0002_user_content_notes_cutover_expand.sql"
+    ).read_text(encoding="utf-8")
+    transition = controller.split(
+        "CREATE OR REPLACE FUNCTION operations.transition_cutover_unit", 1
+    )[1].split("$$;", 1)[0]
+    assert "FOR UPDATE" in transition
+    assert "p_expected_revision" in transition
