@@ -65,6 +65,12 @@ def _identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+def _finalize_readonly(connection: sqlite3.Connection) -> None:
+    """Apply the caller-visible read fence after internal view assembly."""
+
+    connection.execute("PRAGMA query_only=ON")
+
+
 def _sqlite_type(value: str | None) -> str:
     declared = str(value or "").upper()
     if "INT" in declared:
@@ -245,7 +251,7 @@ class PostgresDomainReadCache:
         connection = sqlite3.connect(uri, uri=True)
         connection.row_factory = sqlite3.Row
         if finalize_readonly:
-            connection.execute("PRAGMA query_only=ON")
+            _finalize_readonly(connection)
         return connection
 
     def attach(self, connection: sqlite3.Connection) -> None:
@@ -731,9 +737,8 @@ def connect_domain_database(
             raise
         # No caller can observe the compatibility connection before this
         # final fence.  The persistent sentiment main file is additionally
-        # opened with mode=ro; this PRAGMA also protects the in-memory
-        # projections and their TEMP dependency views.
-        read_connection.execute("PRAGMA query_only=ON")
+        # opened with mode=ro throughout dependency assembly.
+        _finalize_readonly(read_connection)
         return read_connection
     if route.authority_state.value not in {"S3", "S4"}:
         raise DomainDataWriterFenced("formal PostgreSQL writes require S3/S4 authority")
