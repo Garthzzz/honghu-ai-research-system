@@ -467,7 +467,13 @@ class PersistentSentimentProjection:
                 raise DomainDataWriterFenced(
                     "sentiment projection writer does not own PostgreSQL authority"
                 )
-            connection = sqlite3.connect(self.database_path, timeout=30)
+            # URI parsing must remain enabled on the physical compatibility
+            # connection because PostgreSQL-authoritative read dependencies
+            # are attached through reviewed ``file:...mode=memory`` or
+            # ``file:...mode=ro`` URIs.  Without SQLITE_OPEN_URI, Windows
+            # treats the URI as a disk filename and a read-only release fails
+            # with an opaque "unable to open database" error.
+            connection = sqlite3.connect(self.database_path, timeout=30, uri=True)
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA foreign_keys=ON")
             return PersistentSentimentConnection(

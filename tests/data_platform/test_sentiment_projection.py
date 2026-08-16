@@ -218,3 +218,45 @@ def test_persistent_sentiment_reader_is_file_readonly_before_router_fence(
             connection.execute("UPDATE sample SET name='forbidden' WHERE id=1")
     finally:
         connection.close()
+
+
+def test_persistent_sentiment_writer_accepts_reviewed_dependency_uri(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    projection = PersistentSentimentProjection(tmp_path, lambda: None)
+    source = sqlite3.connect(projection.database_path)
+    _create_projection_schema(source, SCHEMAS)
+    source.execute(
+        "INSERT INTO __honghu_projection_meta VALUES(1,?,?,?,?,?)",
+        ("formal", "overlay", "{}", 0, "2026-08-17T00:00:00Z"),
+    )
+    source.commit()
+    source.close()
+    monkeypatch.setattr(
+        projection,
+        "ensure_current_locked",
+        lambda: {
+            "formal": {"writer_identity": "honghu_writer_sentiment_analytics"},
+            "schemas": SCHEMAS,
+        },
+    )
+    dependency_uri = "file:sentiment_writer_dependency?mode=memory&cache=shared"
+    keeper = sqlite3.connect(dependency_uri, uri=True)
+    keeper.execute("CREATE TABLE dependency_probe(value TEXT NOT NULL)")
+    keeper.execute("INSERT INTO dependency_probe VALUES('available')")
+    keeper.commit()
+    connection = projection.connect_writer(
+        lambda: _Writer([]),
+        writer_identity="honghu_writer_sentiment_analytics",
+        operation_scope="uri-dependency",
+        operation_id="uri-dependency-1",
+        actor="principal:test",
+    )
+    try:
+        connection.execute("ATTACH DATABASE ? AS dependency", (dependency_uri,))
+        assert connection.execute(
+            "SELECT value FROM dependency.dependency_probe"
+        ).fetchone()[0] == "available"
+    finally:
+        connection.close()
+        keeper.close()
