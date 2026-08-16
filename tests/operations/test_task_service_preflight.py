@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from tools.operations import task_service_preflight
+from tools.release.direct_candidate import ALLOWED_MODULES
 from tools.operations.task_credential_transfer import TASK_ROLES
 
 
@@ -92,3 +93,6 @@ def test_service_preflight_fails_when_current_user_differs(
     result = _run(tmp_path, monkeypatch, wrong_user=True)
     assert result["postgresql_roles_verified"] is False
     assert result["overall_verified"] is False
+def test_service_preflight_is_reachable_through_exact_release_bootstrap():
+    assert ALLOWED_MODULES["tools.operations.task_service_preflight"] == "main"
+
