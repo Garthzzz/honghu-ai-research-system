@@ -24,7 +24,9 @@ ALLOWED_MODULES = {
     "tools.operations.task_runner": "main",
     "tools.operations.task_child": "main",
     "tools.operations.task_credential_transfer": "main",
+    "tools.operations.backup_credential_transfer": "main",
     "tools.operations.wal_offvm_sync": "main",
+    "tools.operations.stage5_recovery_cycle": "main",
     "tools.operations.recovery_health": "main",
 }
 

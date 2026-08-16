@@ -460,8 +460,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--recoverable-target-at", required=True)
     parser.add_argument("--target-wal-segment", required=True)
     parser.add_argument("--expected-storage-identity")
+    parser.add_argument("--at-rest-encryption-evidence", type=Path)
     parser.add_argument("--wal-segment-size-bytes", type=int, default=16 * 1024 * 1024)
     args = parser.parse_args(argv)
+    encryption_evidence = (
+        _read_json(args.at_rest_encryption_evidence)
+        if args.at_rest_encryption_evidence
+        else None
+    )
     result = sync_archived_wal(
         source_archive=args.source_archive,
         destination=args.destination,
@@ -469,6 +475,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         target_wal_segment=args.target_wal_segment,
         expected_storage_identity=args.expected_storage_identity,
         wal_segment_size_bytes=args.wal_segment_size_bytes,
+        at_rest_encryption_evidence=encryption_evidence,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

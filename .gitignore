@@ -42,6 +42,7 @@
 /tools/dynamic/secrets/
 **/*credential*
 !tools/operations/task_credential_transfer.py
+!tools/operations/backup_credential_transfer.py
 **/*credentials*
 **/*storage_state*
 **/*cookie*.json
