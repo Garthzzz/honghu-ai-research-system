@@ -529,17 +529,16 @@ class SharedIdentityReadCache:
             for table in SHARED_IDENTITY_TABLES:
                 quoted = _quote(table)
                 internal = _quote(f"__pg_shared_identity_{table}")
-                columns = self._keeper.execute(
-                    f"PRAGMA table_info({quoted})"
-                ).fetchall()
+                source = self._keeper.execute(f"SELECT * FROM {quoted}")
+                names = [str(item[0]) for item in (source.description or ())]
+                rows = source.fetchall()
                 definitions = ",".join(
-                    f"{_quote(str(column[1]))} {str(column[2] or 'TEXT')}"
-                    for column in columns
+                    f"{_quote(name)} {_sqlite_type([row[index] for row in rows])}"
+                    for index, name in enumerate(names)
                 )
                 connection.execute(f"CREATE TEMP TABLE {internal} ({definitions})")
-                rows = self._keeper.execute(f"SELECT * FROM {quoted}").fetchall()
                 if rows:
-                    marks = ",".join("?" for _ in columns)
+                    marks = ",".join("?" for _ in names)
                     connection.executemany(
                         f"INSERT INTO {internal} VALUES ({marks})",
                         rows,
