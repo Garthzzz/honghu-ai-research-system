@@ -108,7 +108,7 @@ $values = @(
     '--module','tools.operations.task_service_preflight',
     '--credential-transfer',$transfer,
     '--release-dir',$ReleaseDir,
-    '--site-packages',$SitePackages,
+    '--locked-site-packages',$SitePackages,
     '--manifest',$manifest,
     '--runtime-catalog',$RuntimeCatalog,
     '--registry',$registry,

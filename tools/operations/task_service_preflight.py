@@ -174,7 +174,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--credential-transfer", type=Path, required=True)
     parser.add_argument("--release-dir", type=Path, required=True)
-    parser.add_argument("--site-packages", type=Path, required=True)
+    # The outer exact-release bootstrap owns ``--site-packages``.  A distinct
+    # inner option prevents parse_known_args() from consuming this value.
+    parser.add_argument(
+        "--locked-site-packages", dest="site_packages", type=Path, required=True
+    )
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--runtime-catalog", type=Path, required=True)
     parser.add_argument("--registry", type=Path, required=True)

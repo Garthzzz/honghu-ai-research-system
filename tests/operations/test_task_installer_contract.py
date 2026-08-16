@@ -39,6 +39,7 @@ def test_service_account_provisioning_keeps_secrets_out_of_arguments_and_evidenc
     assert "encrypted_transfer_removed=$true" in text
     assert "secret_recorded=$false" in text
     assert "tools.operations.task_service_preflight" in text
+    assert "'--locked-site-packages',$SitePackages" in text
     assert "service_account_preflight_verified=$true" in text
     assert "postgresql_roles_verified" in text
     assert "Password =" not in text

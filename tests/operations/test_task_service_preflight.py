@@ -96,3 +96,41 @@ def test_service_preflight_fails_when_current_user_differs(
 def test_service_preflight_is_reachable_through_exact_release_bootstrap():
     assert ALLOWED_MODULES["tools.operations.task_service_preflight"] == "main"
 
+
+def test_service_preflight_accepts_non_conflicting_locked_site_option(
+    monkeypatch, tmp_path
+):
+    captured = {}
+    transfer = tmp_path / "transfer"
+    transfer.write_bytes(b"opaque")
+    output = tmp_path / "evidence.json"
+
+    def fake_import(source, _catalog):
+        source.unlink()
+        return {"verified": True}
+
+    monkeypatch.setattr(task_service_preflight, "import_transfer", fake_import)
+
+    def fake_run(**kwargs):
+        captured.update(kwargs)
+        return {
+            "schema_version": "honghu.production_task_service_preflight.v1",
+            "overall_verified": True,
+            "secret_recorded": False,
+        }
+
+    monkeypatch.setattr(task_service_preflight, "run_service_account_preflight", fake_run)
+    assert task_service_preflight.main([
+        "--credential-transfer", str(transfer),
+        "--release-dir", str(tmp_path),
+        "--locked-site-packages", str(tmp_path / "site"),
+        "--manifest", str(tmp_path / "manifest.json"),
+        "--runtime-catalog", str(tmp_path / "runtime.json"),
+        "--registry", str(tmp_path / "registry.json"),
+        "--runtime-dir", str(tmp_path / "state"),
+        "--data-root", str(tmp_path / "data"),
+        "--content-root", str(tmp_path / "content"),
+        "--expected-principal", "HOST\\runner",
+        "--output", str(output),
+    ]) == 0
+    assert captured["site_packages"] == tmp_path / "site"
