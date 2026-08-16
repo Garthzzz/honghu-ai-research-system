@@ -33,6 +33,7 @@ LOGDIR = RUNTIME_LAYOUT.cache_root / "dynamic_fetch_log"
 import yaml
 from tools.dynamic.database import connect_operations
 from tools.data_platform.run_domain_operation import (
+    derived_operation_id,
     derived_operation_environment,
     install_operation_context,
 )
@@ -212,6 +213,28 @@ def try_lock(con, sid) -> bool:
     return cur.rowcount == 1
 
 
+def _operation_connection(step: str):
+    """Open one retry-stable schedule mutation stream.
+
+    The PostgreSQL compatibility adapter numbers commits per connection.  A
+    single connection spanning an order-dependent target loop would therefore
+    give a later target a different publication identity after a partial
+    retry.  Each schedule/phase gets its own stable root and exactly one
+    commit, while the read snapshot remains separate.
+    """
+
+    operation_id = (
+        derived_operation_id(step)
+        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+        else None
+    )
+    return connect_operations(
+        DB,
+        operation_scope="dynamic_scheduler_step",
+        operation_id=operation_id,
+    )
+
+
 def tick():
     # 周末完全静默：不建日志、不动排程状态、不累计错误。
     if quiet_hours.is_weekend():
@@ -229,8 +252,8 @@ def tick():
         operation_scope="dynamic_scheduler_tick",
         logical_window=tick_time.isoformat(timespec="minutes"),
     )
-    con = connect_operations(DB, operation_scope="dynamic_scheduler_tick")
-    rows = con.execute("SELECT * FROM fetch_schedule WHERE is_active=1 ORDER BY next_run_at").fetchall()
+    read_con = connect_operations(DB, readonly=True)
+    rows = read_con.execute("SELECT * FROM fetch_schedule WHERE is_active=1 ORDER BY next_run_at").fetchall()
     ran = deferred_count = failed_count = skipped = stale_reset = 0
     log(f"TICK start — {len(rows)} active targets")
     for row in rows:
@@ -243,8 +266,20 @@ def tick():
         if row["is_running"]:
             started = row["running_started_at"]
             if started and (now() - datetime.fromisoformat(started)) >= timedelta(minutes=STALE_MIN):
-                con.execute("UPDATE fetch_schedule SET is_running=0, last_error='stale_reset' WHERE id=?", (sid,))
-                con.commit(); stale_reset += 1
+                stale_con = _operation_connection(
+                    f"schedule:{sid}:stale-reset:{started}"
+                )
+                try:
+                    stale_con.execute(
+                        """UPDATE fetch_schedule
+                              SET is_running=0,last_error='stale_reset'
+                            WHERE id=? AND is_running=1 AND running_started_at=?""",
+                        (sid, started),
+                    )
+                    stale_con.commit()
+                finally:
+                    stale_con.close()
+                stale_reset += 1
                 log(f"  stale lock reset: {row['target_label']}")
             else:
                 skipped += 1; continue
@@ -254,26 +289,33 @@ def tick():
         if row["next_run_at"] and datetime.fromisoformat(row["next_run_at"]) > now():
             skipped += 1; continue
         # 原子加锁(防并发 tick 抢同一 target)
-        if not try_lock(con, sid):
+        due_key = str(row["next_run_at"] or "initial")
+        acquire_con = _operation_connection(f"schedule:{sid}:acquire:{due_key}")
+        try:
+            acquired = try_lock(acquire_con, sid)
+            acquire_con.commit()
+        finally:
+            acquire_con.close()
+        if not acquired:
             skipped += 1; continue
-        con.commit()
         outcome = "success"; err = None
         try:
-            run_fetch(con, row)
+            run_fetch(read_con, row)
         except ScheduledFetchDeferred as e:
             outcome = "deferred"; err = str(e)[:200]
         except Exception as e:
             outcome = "error"; err = str(e)[:200]
         # R5:完成时用最新时刻算 next_run_at(不是 tick 开始时刻)
-        base_freq = freq_for(con, row)
+        base_freq = freq_for(read_con, row)
         completed_at = now()
         ts = completed_at.isoformat(timespec="seconds")
+        outcome_con = _operation_connection(f"schedule:{sid}:outcome:{due_key}")
         if outcome == "success":
             next_at = completed_at + timedelta(minutes=base_freq)
             if is_voice:
                 next_at = next_allowed_voice_time(next_at)
             nxt = next_at.isoformat(timespec="seconds")
-            con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
+            outcome_con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
                            error_count=0, last_error=NULL, running_started_at=NULL,
                            status='active', updated_at=? WHERE id=?""",
                         (ts, nxt, ts, sid))
@@ -289,7 +331,7 @@ def tick():
             if is_voice:
                 next_at = next_allowed_voice_time(next_at)
             nxt = next_at.isoformat(timespec="seconds")
-            con.execute("""UPDATE fetch_schedule SET is_running=0, next_run_at=?,
+            outcome_con.execute("""UPDATE fetch_schedule SET is_running=0, next_run_at=?,
                            running_started_at=NULL, updated_at=? WHERE id=?""",
                         (nxt, ts, sid))
             deferred_count += 1
@@ -308,16 +350,19 @@ def tick():
             # ``error``；超时等未包装异常也必须 fail closed 为 ``error``。
             st = "paused" if ec >= 3 else "error"
             failed_count += 1
-            con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
+            outcome_con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
                            error_count=?, last_error=?, running_started_at=NULL,
                            status=?, updated_at=? WHERE id=?""",
                         (ts, nxt, ec, err, st, ts, sid))
             log(f"  FAIL {row['target_label']}: {err} | ec={ec} base={base_freq}min "
                 f"backoff_freq={backoff_freq}min next={nxt}{' → PAUSED' if st=='paused' else ''}")
-        con.commit()
+        try:
+            outcome_con.commit()
+        finally:
+            outcome_con.close()
     log(f"TICK done — ran={ran} deferred={deferred_count} skipped={skipped} "
         f"stale_reset={stale_reset}")
-    con.close()
+    read_con.close()
     if failed_count:
         return 2
     if deferred_count and not ran:

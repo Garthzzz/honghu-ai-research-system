@@ -73,13 +73,17 @@ function Get-TaskXml([object]$Definition, [string]$User, [bool]$Enabled) {
     $arguments = Get-TaskArguments $Definition.task_id
     $trigger = Get-TriggerXml $Definition.schedule
     $enabledText = if ($Enabled) { 'true' } else { 'false' }
+    # The Python runner owns the reviewed business timeout and records the
+    # failure.  Give it fifteen minutes to kill/reap its Job before Task
+    # Scheduler may hard-terminate the runner itself.
+    $schedulerLimitMinutes = [int][Math]::Ceiling(([int]$Definition.execution_timeout_seconds + 900) / 60)
     return @"
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo><Description>Honghu exact-release PostgreSQL production task; no SQLite fallback.</Description></RegistrationInfo>
   <Triggers>$trigger</Triggers>
   <Principals><Principal id="Author"><UserId>$(Escape-Xml $User)</UserId><LogonType>Password</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
-  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><AllowHardTerminate>true</AllowHardTerminate><StartWhenAvailable>true</StartWhenAvailable><RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable><Enabled>$enabledText</Enabled><Hidden>false</Hidden><ExecutionTimeLimit>PT$([int][Math]::Ceiling([int]$Definition.execution_timeout_seconds / 3600))H</ExecutionTimeLimit><Priority>7</Priority></Settings>
+  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries><StopIfGoingOnBatteries>false</StopIfGoingOnBatteries><AllowHardTerminate>true</AllowHardTerminate><StartWhenAvailable>true</StartWhenAvailable><RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable><Enabled>$enabledText</Enabled><Hidden>false</Hidden><ExecutionTimeLimit>PT${schedulerLimitMinutes}M</ExecutionTimeLimit><Priority>7</Priority></Settings>
   <Actions Context="Author"><Exec><Command>$(Escape-Xml $python)</Command><Arguments>$(Escape-Xml $arguments)</Arguments><WorkingDirectory>$(Escape-Xml $ReleaseDir)</WorkingDirectory></Exec></Actions>
 </Task>
 "@
@@ -92,8 +96,18 @@ if (-not $Registry) { $Registry = Join-Path $ReleaseDir 'config\migration\cutove
 foreach ($path in @($ReleaseDir,$SitePackages,$RuntimeCatalog,$Registry,$Manifest)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required task deployment path is absent: $path" }
 }
+$PythonExe = (Get-Item 'C:\ProgramData\miniconda3\envs\quant\python.exe').FullName
+$ReleaseBootstrap = Join-Path $ReleaseDir 'tools\release\direct_candidate.py'
+$ReleaseManifest = Join-Path $ReleaseDir 'RELEASE_MANIFEST.json'
+$LocalEvidenceCollector = Join-Path $ReleaseDir 'tools\operations\Collect-LocalDisabledTaskEvidence.ps1'
+foreach ($path in @($PythonExe,$ReleaseBootstrap,$ReleaseManifest,$LocalEvidenceCollector)) {
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Required exact-release identity file is absent: $path"
+    }
+}
 $payload = Get-Content -Raw -LiteralPath $Manifest | ConvertFrom-Json
 $tasks = @($payload.tasks)
+$verificationResult = $null
 if ($payload.schema_version -ne 'honghu.production_task_manifest.v1' -or $tasks.Count -ne 7) {
     throw 'Production task manifest is not the reviewed seven-task contract.'
 }
@@ -129,26 +143,22 @@ if ($Mode -eq 'InstallDisabled') {
                 throw 'Enable requires local-disabled and controlled-trial evidence.'
             }
         }
-        $localEvidence = Get-Content -Raw -LiteralPath $LocalDisabledEvidence | ConvertFrom-Json
-        $trial = Get-Content -Raw -LiteralPath $TrialEvidence | ConvertFrom-Json
-        $manifestSha = (Get-FileHash $Manifest -Algorithm SHA256).Hash.ToLowerInvariant()
-        $releaseIdentity = Get-Content -Raw -LiteralPath (Join-Path $ReleaseDir 'RELEASE_MANIFEST.json') | ConvertFrom-Json
-        $localTask = @($localEvidence.tasks | Where-Object { $_.task_id -eq $TaskName })
-        if (
-            $localEvidence.schema_version -ne 'honghu.local_task_disabled_evidence.v1' -or
-            $localEvidence.host -eq $env:COMPUTERNAME -or
-            $localTask.Count -ne 1 -or
-            -not [bool]$localTask[0].present -or
-            [bool]$localTask[0].enabled
-        ) { throw 'Local unique-runner disabled evidence is invalid.' }
-        if (
-            $trial.schema_version -ne 'honghu.production_task_run.v1' -or
-            $trial.task_id -ne $TaskName -or
-            $trial.status -notin @('succeeded','skipped') -or
-            $trial.application_commit_sha -ne $releaseIdentity.commit_sha -or
-            $trial.manifest_sha256 -ne $manifestSha -or
-            -not $trial.business_checkpoint_after_sha256
-        ) { throw 'Controlled production task trial evidence is invalid.' }
+        $verification = (& $PythonExe -I -B -S $ReleaseBootstrap `
+            --site-packages $SitePackages `
+            --module tools.operations.task_enable_evidence `
+            --manifest $Manifest `
+            --collector-script $LocalEvidenceCollector `
+            --release-manifest $ReleaseManifest `
+            --local-evidence $LocalDisabledEvidence `
+            --trial-evidence $TrialEvidence `
+            --task $TaskName | Out-String)
+        if ($LASTEXITCODE -ne 0) {
+            throw 'Unique-runner enable evidence failed strict verification.'
+        }
+        $verificationResult = $verification | ConvertFrom-Json
+        if (-not [bool]$verificationResult.verified) {
+            throw 'Unique-runner enable evidence is not verified.'
+        }
         $current = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
         if ([bool]$current.Settings.Enabled) { throw 'Task is already enabled; idempotent enable requires manual review.' }
         Enable-ScheduledTask -TaskName $TaskName | Out-Null
@@ -175,6 +185,10 @@ $evidence = [ordered]@{
     checked_at=(Get-Date).ToUniversalTime().ToString('o')
     mode=$Mode; host=$env:COMPUTERNAME; manifest_sha256=(Get-FileHash $Manifest -Algorithm SHA256).Hash.ToLowerInvariant()
     release_dir=$ReleaseDir; service_account_expected=$true
+    release_commit_sha=(Get-Content -Raw -LiteralPath $ReleaseManifest | ConvertFrom-Json).commit_sha
+    enable_evidence_verified=($Mode -ne 'Enable' -or [bool]$verificationResult.verified)
+    local_disabled_evidence_sha256=$(if ($Mode -eq 'Enable') { (Get-FileHash $LocalDisabledEvidence -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null })
+    trial_evidence_sha256=$(if ($Mode -eq 'Enable') { (Get-FileHash $TrialEvidence -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null })
     tasks=@($observed); all_present=(@($observed | Where-Object { -not $_.present }).Count -eq 0)
 }
 Write-JsonNoBom (Join-Path $RuntimeDir 'evidence\production_task_installation.json') $evidence

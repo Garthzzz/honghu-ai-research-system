@@ -56,6 +56,7 @@ def run_cycle(
     destination: Path,
     expected_storage_identity: str,
     at_rest_encryption_evidence: Mapping[str, Any],
+    initial_recovery_boundary: Mapping[str, Any],
     wal_segment_size_bytes: int = 16 * 1024 * 1024,
     timeout_seconds: float = 90.0,
     connection_factory: Callable[[], Any] | None = None,
@@ -102,6 +103,7 @@ def run_cycle(
         expected_storage_identity=expected_storage_identity,
         wal_segment_size_bytes=wal_segment_size_bytes,
         at_rest_encryption_evidence=at_rest_encryption_evidence,
+        initial_recovery_boundary=initial_recovery_boundary,
     )
     return {
         "schema_version": "honghu.stage5_recovery_cycle.v1",
@@ -113,6 +115,13 @@ def run_cycle(
         "manifest_identity_sha256": verification["manifest_identity_sha256"],
         "storage_identity": verification["storage"]["derived_storage_identity"],
         "at_rest_encryption": verification["at_rest_encryption"],
+        "base_recovery_set_identity_sha256": verification[
+            "initial_recovery_boundary"
+        ]["base_recovery_set_identity_sha256"],
+        "first_required_wal_segment": verification[
+            "initial_recovery_boundary"
+        ]["first_required_wal_segment"],
+        "retention": verification["retention"],
         "formal_business_data_written": False,
         "secret_recorded": False,
     }
@@ -125,18 +134,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--destination", type=Path, required=True)
     parser.add_argument("--expected-storage-identity", required=True)
     parser.add_argument("--at-rest-encryption-evidence", type=Path, required=True)
+    parser.add_argument("--initial-recovery-boundary", type=Path, required=True)
     parser.add_argument("--wal-segment-size-bytes", type=int, default=16 * 1024 * 1024)
     parser.add_argument("--timeout-seconds", type=float, default=90.0)
     args = parser.parse_args(argv)
     evidence = read_json(args.at_rest_encryption_evidence)
     if not isinstance(evidence, Mapping):
         raise RecoveryCycleError("at-rest encryption evidence must be an object")
+    initial_boundary = read_json(args.initial_recovery_boundary)
+    if not isinstance(initial_boundary, Mapping):
+        raise RecoveryCycleError("initial recovery boundary evidence must be an object")
     result = run_cycle(
         runtime_catalog=args.runtime_catalog,
         source_archive=args.source_archive,
         destination=args.destination,
         expected_storage_identity=args.expected_storage_identity,
         at_rest_encryption_evidence=evidence,
+        initial_recovery_boundary=initial_boundary,
         wal_segment_size_bytes=args.wal_segment_size_bytes,
         timeout_seconds=args.timeout_seconds,
     )

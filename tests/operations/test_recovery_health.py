@@ -30,6 +30,25 @@ def _evidence() -> dict[str, object]:
                 "continuous_production_rpo": False,
             },
         },
+        "recovery_set_retention": {
+            "verified": True,
+            "inventory_complete": True,
+            "max_retained": 2,
+            "retained_count": 2,
+            "unverified_set_count": 0,
+            "sets": [
+                {
+                    "identity_sha256": "1" * 64,
+                    "verified": True,
+                    "created_at_utc": "2026-08-16T00:50:00+00:00",
+                },
+                {
+                    "identity_sha256": "2" * 64,
+                    "verified": True,
+                    "created_at_utc": "2026-08-15T00:50:00+00:00",
+                },
+            ],
+        },
         "continuous_rpo": {
             "metric_name": "continuous_production_rpo_seconds",
             "seconds": 15,
@@ -169,3 +188,18 @@ def test_missing_evidence_sections_return_blocked_health_instead_of_crashing() -
     result = _evaluate({})
     assert result["status"] == "blocked"
     assert len(result["blockers"]) >= 1
+
+
+def test_more_than_two_or_unverified_recovery_sets_block_retention_gate() -> None:
+    evidence = _evidence()
+    evidence["recovery_set_retention"]["retained_count"] = 3
+    evidence["recovery_set_retention"]["sets"].append(
+        {
+            "identity_sha256": "3" * 64,
+            "verified": True,
+            "created_at_utc": "2026-08-14T00:50:00+00:00",
+        }
+    )
+    result = _evaluate(evidence)
+    assert result["status"] == "blocked"
+    assert any("exactly two latest verified" in item for item in result["blockers"])

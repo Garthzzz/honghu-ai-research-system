@@ -15,6 +15,7 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "LastTaskResult -ne 0" in source
     assert "ExpectedStorageIdentity" in source
     assert "AtRestEncryptionEvidence" in source
+    assert "InitialRecoveryBoundary" in source
     assert "Password $plain" in source
     assert "secret_recorded=$false" in source
 
@@ -35,6 +36,7 @@ def test_recovery_wrapper_requires_encrypted_smb_and_never_carries_password_argu
     assert "[bool]$smb.Encrypted" in source
     assert "stage5_recovery_cycle" in source
     assert "--at-rest-encryption-evidence" in source
+    assert "--initial-recovery-boundary" in source
     assert "-Password" not in source
 
 

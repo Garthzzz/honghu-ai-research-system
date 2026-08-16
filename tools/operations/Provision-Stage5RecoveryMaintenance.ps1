@@ -7,6 +7,7 @@ param(
     [Parameter(Mandatory=$true)][string]$CredentialBlobPath,
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedStorageIdentity,
     [Parameter(Mandatory=$true)][string]$AtRestEncryptionEvidence,
+    [Parameter(Mandatory=$true)][string]$InitialRecoveryBoundary,
     [string]$RuntimeCatalog = 'D:\honghu-postgresql\runtime\postgresql_runtime.json',
     [string]$SourceArchive = 'D:\honghu-postgresql\wal-archive',
     [string]$RuntimeDir = 'D:\honghu-stage5-runtime',
@@ -35,7 +36,7 @@ function Assert-Administrator {
 
 Assert-Administrator
 if ($env:COMPUTERNAME -ne 'DESKTOP-VGD07J4') { throw 'Recovery runner is bound to the reviewed VM.' }
-foreach ($path in @($ReleaseDir,$SitePackages,$RuntimeCatalog,$SourceArchive,$CredentialBlobPath,$AtRestEncryptionEvidence)) {
+foreach ($path in @($ReleaseDir,$SitePackages,$RuntimeCatalog,$SourceArchive,$CredentialBlobPath,$AtRestEncryptionEvidence,$InitialRecoveryBoundary)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required recovery path is absent: $path" }
 }
 $python = 'C:\ProgramData\miniconda3\envs\quant\python.exe'
@@ -101,6 +102,7 @@ $values = @(
     '-ReleaseDir',$ReleaseDir,'-BootstrapPythonExe',$python,'-SitePackages',$SitePackages,
     '-RuntimeCatalog',$RuntimeCatalog,'-SourceArchive',$SourceArchive,'-OffVmRoot',$OffVmRoot,
     '-ExpectedStorageIdentity',$ExpectedStorageIdentity,'-AtRestEncryptionEvidence',$AtRestEncryptionEvidence,
+    '-InitialRecoveryBoundary',$InitialRecoveryBoundary,
     '-SmbUser',$SmbUser,'-CredentialBlobPath',$CredentialBlobPath,'-OutputPath',$output
 )
 $argumentString = ($values | ForEach-Object { Quote-Arg ([string]$_) }) -join ' '

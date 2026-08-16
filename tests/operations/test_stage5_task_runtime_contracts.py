@@ -72,7 +72,7 @@ def test_event_partial_fetch_is_a_failed_task_exit(monkeypatch) -> None:
     monkeypatch.setattr(event_ingest, "CORE_TICKERS", ["000001.SZ"])
     monkeypatch.setattr(event_ingest.quiet_hours, "is_weekend", lambda: False)
     monkeypatch.setattr(event_ingest.argparse.ArgumentParser, "parse_args", lambda _self: args)
-    monkeypatch.setattr(event_ingest.common, "get_senti_db", lambda: senti)
+    monkeypatch.setattr(event_ingest.common, "get_senti_db", lambda **_: senti)
     monkeypatch.setattr(event_ingest.common, "assert_senti_only", lambda _con: None)
     monkeypatch.setattr(event_ingest.common, "load_closed_set", lambda: ({1}, None))
     monkeypatch.setattr(event_ingest.common, "research_ro_conn", lambda: research)
@@ -85,8 +85,98 @@ def test_event_partial_fetch_is_a_failed_task_exit(monkeypatch) -> None:
     monkeypatch.setattr(event_ingest, "llm_client", None)
 
     assert event_ingest.main() == 2
-    senti.close.assert_called_once()
+    assert senti.close.call_count == 2
     research.close.assert_called_once()
+
+
+def test_event_company_streams_have_retry_stable_operation_identities(
+    monkeypatch,
+) -> None:
+    sentiment_dir = ROOT / "tools" / "sentiment"
+    monkeypatch.syspath_prepend(str(sentiment_dir))
+    import event_ingest
+
+    monkeypatch.setenv(
+        "HONGHU_OPERATION_ID", "stage5:IndustryDemo_EventIngest:2026-08-17"
+    )
+    calls: list[dict] = []
+    connection = mock.MagicMock()
+    monkeypatch.setattr(
+        event_ingest.common,
+        "get_senti_db",
+        lambda **kwargs: calls.append(kwargs) or connection,
+    )
+    monkeypatch.setattr(event_ingest.common, "assert_senti_only", lambda _con: None)
+
+    event_ingest._operation_connection("company:688041:org")
+    event_ingest._operation_connection("company:688041:announcements")
+    event_ingest._operation_connection("scoring")
+
+    assert [item["operation_scope"] for item in calls] == [
+        "event_ingest_step",
+        "event_ingest_step",
+        "event_ingest_step",
+    ]
+    assert [item["operation_id"] for item in calls] == [
+        "stage5:IndustryDemo_EventIngest:2026-08-17:step:company:688041:org",
+        "stage5:IndustryDemo_EventIngest:2026-08-17:step:company:688041:announcements",
+        "stage5:IndustryDemo_EventIngest:2026-08-17:step:scoring",
+    ]
+
+
+def test_dynamic_schedule_phases_have_retry_stable_operation_identities(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(
+        "HONGHU_OPERATION_ID", "stage5:IndustryDemo_DynamicTick:2026-08-17T10:30"
+    )
+    calls: list[dict] = []
+    connection = mock.MagicMock()
+    monkeypatch.setattr(
+        scheduler,
+        "connect_operations",
+        lambda *_args, **kwargs: calls.append(kwargs) or connection,
+    )
+
+    scheduler._operation_connection("schedule:41:acquire:2026-08-17T10:30:00")
+    scheduler._operation_connection("schedule:41:outcome:2026-08-17T10:30:00")
+
+    assert [item["operation_id"] for item in calls] == [
+        "stage5:IndustryDemo_DynamicTick:2026-08-17T10:30:step:"
+        "schedule:41:acquire:2026-08-17T10:30:00",
+        "stage5:IndustryDemo_DynamicTick:2026-08-17T10:30:step:"
+        "schedule:41:outcome:2026-08-17T10:30:00",
+    ]
+
+
+def test_recruit_company_streams_have_retry_stable_operation_identities(
+    monkeypatch,
+) -> None:
+    sentiment_dir = ROOT / "tools" / "sentiment"
+    monkeypatch.syspath_prepend(str(sentiment_dir))
+    import recruit_scrape
+
+    monkeypatch.setenv(
+        "HONGHU_OPERATION_ID", "stage5:IndustryDemo_RecruitWeekly:2026-W34:step:recruit_scrape"
+    )
+    calls: list[dict] = []
+    connection = mock.MagicMock()
+    monkeypatch.setattr(
+        recruit_scrape.common,
+        "get_senti_db",
+        lambda **kwargs: calls.append(kwargs) or connection,
+    )
+    monkeypatch.setattr(recruit_scrape.common, "assert_senti_only", lambda _con: None)
+
+    recruit_scrape._operation_connection("source-registry")
+    recruit_scrape._operation_connection("company:336:688041.SH")
+
+    assert [item["operation_id"] for item in calls] == [
+        "stage5:IndustryDemo_RecruitWeekly:2026-W34:step:recruit_scrape:"
+        "step:source-registry",
+        "stage5:IndustryDemo_RecruitWeekly:2026-W34:step:recruit_scrape:"
+        "step:company:336:688041.SH",
+    ]
 
 
 @pytest.mark.parametrize(

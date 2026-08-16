@@ -16,11 +16,18 @@ def test_installer_is_exact_release_disabled_first_and_noninteractive():
     assert "Disable-ScheduledTask" in text
     assert "LocalDisabledEvidence" in text
     assert "TrialEvidence" in text
-    assert "business_checkpoint_after_sha256" in text
+    assert "tools.operations.task_enable_evidence" in text
+    assert "collector-script" in text
     assert "Interactive" not in text
     assert "sqlite_transition" not in text
     assert "research.db" not in text
     assert "sentiment.db" not in text
+    verifier = (ROOT / "tools/operations/task_enable_evidence.py").read_text(
+        encoding="utf-8"
+    )
+    assert "business_checkpoint_after_sha256" in verifier
+    assert "local_disabled_evidence_max_age_seconds" in verifier
+    assert "legacy_runner_process_count" in verifier
 
 
 def test_service_account_provisioning_keeps_secrets_out_of_arguments_and_evidence():
@@ -31,6 +38,9 @@ def test_service_account_provisioning_keeps_secrets_out_of_arguments_and_evidenc
     assert "DPAPI LocalMachine" in text
     assert "encrypted_transfer_removed=$true" in text
     assert "secret_recorded=$false" in text
+    assert "tools.operations.task_service_preflight" in text
+    assert "service_account_preflight_verified=$true" in text
+    assert "postgresql_roles_verified" in text
     assert "Password =" not in text
 
 
@@ -76,6 +86,12 @@ def test_local_disabled_evidence_reads_scheduler_without_mutating_tasks():
     assert "Get-ScheduledTask" in text
     assert "Export-ScheduledTask" in text
     assert "definition_sha256" in text
+    assert "legacy_runner_process_count" in text
+    assert "source_host_identity_sha256" in text
+    assert "checked_at" in text
+    assert "collector_sha256" in text
+    assert "MachineGuid" in text
+    assert "machine_guid_recorded=$false" in text
     assert "Enable-ScheduledTask" not in text
     assert "Disable-ScheduledTask" not in text
     assert "Register-ScheduledTask" not in text

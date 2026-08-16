@@ -6,7 +6,7 @@
 公告数超过 LLM 配额，后续日任务也会继续收口，不会被去重账本永久跳过。
 """
 from __future__ import annotations
-import sys, json, ssl, time, argparse, urllib.request, urllib.error
+import os, sys, json, ssl, time, argparse, urllib.request, urllib.error
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 if sys.stdout is None:
@@ -23,7 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "dynamic"))
 import common
 import quiet_hours
-from tools.data_platform.run_domain_operation import install_operation_context
+from tools.data_platform.run_domain_operation import (
+    derived_operation_id,
+    install_operation_context,
+)
 try:
     import llm_client
 except Exception:
@@ -34,6 +37,22 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 
 TZ = timezone(timedelta(hours=8))
 CORE_TICKERS = ["300308.SZ", "300502.SZ", "300394.SZ", "601138.SH", "000977.SZ", "688008.SH",
                 "002371.SZ", "002156.SZ", "002463.SZ", "301308.SZ", "688981.SH", "002230.SZ"]
+
+
+def _operation_connection(step: str):
+    """Open one stable mutation stream instead of a process-order stream."""
+
+    operation_id = (
+        derived_operation_id(step)
+        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+        else None
+    )
+    connection = common.get_senti_db(
+        operation_scope="event_ingest_step",
+        operation_id=operation_id,
+    )
+    common.assert_senti_only(connection)
+    return connection
 
 
 def _post(url, form):
@@ -131,8 +150,8 @@ def score_pending(con, max_items):
                 (materiality, sentiment, summary, row["id"]),
             )
             result["judged"] += 1
-        if result["attempted"] % 10 == 0:
-            con.commit()
+        # One scoring window is one mutation batch.  Intermediate commits made
+        # retry identity depend on how many rows a previous attempt completed.
     con.commit()
     result["pending_after"] = int(con.execute(
         """SELECT COUNT(*) FROM event_item
@@ -156,8 +175,6 @@ def main():
     ap.add_argument("--all", action="store_true", help="覆盖全部闭集 A 股(非仅 12 只 CORE_TICKERS)")
     ap.add_argument("--verbose", action="store_true", help="输出每只股票的抓取结果；默认只输出真实新增或失败")
     args = ap.parse_args()
-    con = common.get_senti_db()
-    common.assert_senti_only(con)                       # 门C
     comps, _ = common.load_closed_set()
     rc = common.research_ro_conn()
     now = common.now_iso()
@@ -176,7 +193,11 @@ def main():
         if not crow or crow[0] not in comps:
             stat["skip_closed"] += 1; continue
         cid, name = crow[0], crow[1]
-        org, market, _ = get_orgid(con, code)
+        org_connection = _operation_connection(f"company:{code}:org")
+        try:
+            org, market, _ = get_orgid(org_connection, code)
+        finally:
+            org_connection.close()
         if not org:
             stat["fetch_failed"] += 1
             print(f"  失败 {name} {tk}: orgId 未取到"); continue
@@ -187,26 +208,34 @@ def main():
             continue
         stat["ann"] += len(anns)
         company_new = 0
-        for a in anns:
-            if not a["url"] or not a["title"]:
-                continue
-            if not common.mark_seen(con, "event", "cninfo", a["url"]):
-                continue                                 # 已见跳过
-            cur = con.execute("""INSERT OR IGNORE INTO event_item
-                (entity_type,entity_id,event_type,title,summary_ai,url,published_at,source,
-                 sentiment,materiality,ai_tagged_by,ai_tier,source_url,as_of,fetched_at)
-                VALUES('company',?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (cid, "announcement", a["title"], None, a["url"], a["published_at"], "cninfo",
-                 None, None, None, 2, a["url"], a["published_at"], now))
-            if cur.rowcount == 1:
-                company_new += 1
-                stat["new"] += 1
-        con.commit()
+        company_connection = _operation_connection(f"company:{code}:announcements")
+        try:
+            for a in anns:
+                if not a["url"] or not a["title"]:
+                    continue
+                if not common.mark_seen(company_connection, "event", "cninfo", a["url"]):
+                    continue                                 # 已见跳过
+                cur = company_connection.execute("""INSERT OR IGNORE INTO event_item
+                    (entity_type,entity_id,event_type,title,summary_ai,url,published_at,source,
+                     sentiment,materiality,ai_tagged_by,ai_tier,source_url,as_of,fetched_at)
+                    VALUES('company',?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (cid, "announcement", a["title"], None, a["url"], a["published_at"], "cninfo",
+                     None, None, None, 2, a["url"], a["published_at"], now))
+                if cur.rowcount == 1:
+                    company_new += 1
+                    stat["new"] += 1
+            company_connection.commit()
+        finally:
+            company_connection.close()
         if company_new or args.verbose:
             print(f"  {name} {tk}: 返回 {len(anns)} 条，真实新增 {company_new} 条")
         time.sleep(0.6)
     rc.close()
-    scoring = score_pending(con, args.max_llm)
+    scoring_connection = _operation_connection("scoring")
+    try:
+        scoring = score_pending(scoring_connection, args.max_llm)
+    finally:
+        scoring_connection.close()
     print(
         "\n=== 公告日任务完成: "
         f"返回 {stat['ann']} | 真实新增 {stat['new']} | 抓取失败 {stat['fetch_failed']} | "
@@ -215,7 +244,6 @@ def main():
     )
     if llm_client:
         print("DeepSeek:", "启用" if llm_client.enabled() else "未启用(materiality/sentiment 留空,不造数)", getattr(llm_client, "USAGE", ""))
-    con.close()
     return 2 if stat["fetch_failed"] else 0
 
 

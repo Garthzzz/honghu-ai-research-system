@@ -22,6 +22,8 @@ from tools.migration.stage4_recovery_set import (
 WAL_NAME = re.compile(r"^[0-9A-F]{24}$")
 MANIFEST_SCHEMA = "honghu.stage5_offvm_wal_manifest.v1"
 POINTER_SCHEMA = "honghu.stage5_offvm_wal_pointer.v1"
+INITIAL_BOUNDARY_SCHEMA = "honghu.stage5_wal_initial_boundary.v1"
+MAX_RETAINED_MANIFESTS = 2
 
 
 class WalSyncError(RuntimeError):
@@ -195,6 +197,38 @@ def _encryption_state(
     }
 
 
+def _initial_boundary_state(
+    storage: Mapping[str, Any],
+    evidence: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    if evidence is None:
+        raise WalSyncError(
+            "first off-VM WAL sync requires a verified base-recovery first-required WAL boundary"
+        )
+    allowed = {
+        "schema_version",
+        "verified",
+        "base_recovery_set_identity_sha256",
+        "first_required_wal_segment",
+        "storage_identity",
+        "verified_at_utc",
+    }
+    core = {key: evidence.get(key) for key in sorted(allowed)}
+    if core.get("schema_version") != INITIAL_BOUNDARY_SCHEMA or core.get("verified") is not True:
+        raise WalSyncError("initial WAL boundary evidence is not verified")
+    if not re.fullmatch(
+        r"[0-9a-f]{64}",
+        str(core.get("base_recovery_set_identity_sha256") or ""),
+    ):
+        raise WalSyncError("initial WAL boundary lacks a base recovery-set identity")
+    if not WAL_NAME.fullmatch(str(core.get("first_required_wal_segment") or "")):
+        raise WalSyncError("initial WAL boundary has an invalid first-required segment")
+    if core.get("storage_identity") != storage.get("derived_storage_identity"):
+        raise WalSyncError("initial WAL boundary belongs to another off-VM storage endpoint")
+    _parse_time(core.get("verified_at_utc"), field="initial WAL boundary verified_at_utc")
+    return {**core, "evidence_identity_sha256": sha256_json(core)}
+
+
 def _load_latest(destination: Path) -> tuple[dict[str, Any], dict[str, Any]] | None:
     pointer_path = destination / "latest_verified_wal_manifest.json"
     if not pointer_path.exists():
@@ -217,6 +251,60 @@ def _load_latest(destination: Path) -> tuple[dict[str, Any], dict[str, Any]] | N
     return pointer, manifest
 
 
+def _prune_immutable_manifests(
+    *,
+    destination: Path,
+    current_identity: str,
+) -> dict[str, Any]:
+    manifest_dir = destination / "manifests"
+    observed: list[tuple[datetime, str, Path]] = []
+    for path in manifest_dir.iterdir():
+        if not path.is_file():
+            continue
+        if not re.fullmatch(r"[0-9a-f]{64}\.json", path.name):
+            raise WalSyncError("off-VM manifest directory contains an unexpected file")
+        manifest = _read_json(path)
+        core = dict(manifest)
+        identity = core.pop("manifest_identity_sha256", None)
+        if (
+            identity != path.stem
+            or sha256_json(core) != identity
+            or manifest.get("schema_version") != MANIFEST_SCHEMA
+        ):
+            raise WalSyncError("refusing retention cleanup because an immutable manifest is invalid")
+        published = _parse_time(
+            manifest.get("published_at_utc"),
+            field="retained manifest published_at_utc",
+        )
+        observed.append((published, str(identity), path))
+    identities = {item[1] for item in observed}
+    if current_identity not in identities:
+        raise WalSyncError("current WAL manifest is absent before retention cleanup")
+    newest = sorted(observed, key=lambda item: (item[0], item[1]), reverse=True)
+    keep_identities = {current_identity}
+    for _, identity, _ in newest:
+        if len(keep_identities) >= MAX_RETAINED_MANIFESTS:
+            break
+        keep_identities.add(identity)
+    removed: list[str] = []
+    for _, identity, path in observed:
+        if identity in keep_identities:
+            continue
+        path.unlink()
+        removed.append(identity)
+    remaining = sorted(path.stem for path in manifest_dir.glob("*.json"))
+    if current_identity not in remaining or len(remaining) > MAX_RETAINED_MANIFESTS:
+        raise WalSyncError("WAL manifest retention did not converge to the approved maximum")
+    return {
+        "max_retained_manifests": MAX_RETAINED_MANIFESTS,
+        "retained_manifest_count": len(remaining),
+        "retained_manifest_identities": remaining,
+        "removed_manifest_identities": sorted(removed),
+        "wal_artifacts_pruned": False,
+        "wal_retention_boundary": "oldest_retained_base_backup_managed_separately",
+    }
+
+
 def _verify_manifest_content(
     *,
     destination: Path,
@@ -232,7 +320,18 @@ def _verify_manifest_content(
         raise WalSyncError("off-VM WAL manifest identity is invalid")
     if manifest.get("storage_identity") != storage.get("derived_storage_identity"):
         raise WalSyncError("off-VM WAL manifest belongs to another storage endpoint")
-    configured_size = int(manifest.get("wal_segment_size_bytes") or 0)
+    boundary = manifest.get("initial_recovery_boundary")
+    if not isinstance(boundary, Mapping):
+        raise WalSyncError("off-VM WAL manifest lacks its initial base-recovery boundary")
+    normalized_boundary = _initial_boundary_state(storage, boundary)
+    if normalized_boundary.get("evidence_identity_sha256") != boundary.get(
+        "evidence_identity_sha256"
+    ):
+        raise WalSyncError("off-VM WAL initial base-recovery boundary identity is invalid")
+    try:
+        configured_size = int(manifest.get("wal_segment_size_bytes") or 0)
+    except (TypeError, ValueError) as exc:
+        raise WalSyncError("off-VM WAL manifest has an invalid segment size") from exc
     if segment_size_bytes is not None and configured_size != segment_size_bytes:
         raise WalSyncError("WAL segment size changed across sync attempts")
     artifacts = manifest.get("artifacts")
@@ -297,6 +396,11 @@ def verify_wal_sync(
     recovery_point_age = (observed_now - target_at).total_seconds()
     if max_age_seconds < 0 or recovery_point_age > max_age_seconds:
         raise WalSyncError("off-VM WAL recovery point is stale")
+    manifest_paths = sorted((destination / "manifests").glob("*.json"))
+    if not manifest_paths or len(manifest_paths) > MAX_RETAINED_MANIFESTS:
+        raise WalSyncError("off-VM WAL immutable manifest retention exceeds the approved maximum")
+    if not any(path.stem == manifest["manifest_identity_sha256"] for path in manifest_paths):
+        raise WalSyncError("current off-VM WAL manifest is absent from the retained set")
     return {
         "schema_version": "honghu.stage5_offvm_wal_verification.v1",
         "verified": True,
@@ -311,9 +415,17 @@ def verify_wal_sync(
         "first_wal_segment": manifest["first_wal_segment"],
         "last_wal_segment": manifest["last_wal_segment"],
         "artifact_count": len(manifest["artifacts"]),
+        "initial_recovery_boundary": manifest["initial_recovery_boundary"],
         "continuous_rpo_measured": False,
         "continuous_rpo_note": "measure against a later failure cutoff using this pre-existing recovery point",
         "pointer": pointer,
+        "retention": {
+            "max_retained_manifests": MAX_RETAINED_MANIFESTS,
+            "retained_manifest_count": len(manifest_paths),
+            "retained_manifest_identities": [path.stem for path in manifest_paths],
+            "wal_artifacts_pruned": False,
+            "wal_retention_boundary": "oldest_retained_base_backup_managed_separately",
+        },
     }
 
 
@@ -326,6 +438,7 @@ def sync_archived_wal(
     expected_storage_identity: str | None = None,
     wal_segment_size_bytes: int = 16 * 1024 * 1024,
     at_rest_encryption_evidence: Mapping[str, Any] | None = None,
+    initial_recovery_boundary: Mapping[str, Any] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     storage = _storage_evidence(destination, expected_storage_identity)
@@ -342,13 +455,11 @@ def sync_archived_wal(
         raise WalSyncError("recoverable target cannot be in the future")
     if not WAL_NAME.fullmatch(target_wal_segment):
         raise WalSyncError("target WAL segment name is invalid")
-    source = _source_segments(source_archive)
-    selected_names = sorted(name for name in source if name <= target_wal_segment)
-    if target_wal_segment not in source:
-        raise WalSyncError("target WAL segment is not durably present in the source archive")
-    _require_contiguous(selected_names, segment_size_bytes=wal_segment_size_bytes)
     with _exclusive_lock(destination):
         prior = _load_latest(destination)
+        source = _source_segments(source_archive)
+        if target_wal_segment not in source:
+            raise WalSyncError("target WAL segment is not durably present in the source archive")
         if prior is not None:
             _verify_manifest_content(
                 destination=destination,
@@ -356,6 +467,59 @@ def sync_archived_wal(
                 storage=storage,
                 segment_size_bytes=wal_segment_size_bytes,
             )
+            boundary = prior[1].get("initial_recovery_boundary")
+            if not isinstance(boundary, Mapping):
+                raise WalSyncError("prior WAL manifest lacks its initial base-recovery boundary")
+            if initial_recovery_boundary is not None:
+                requested_boundary = _initial_boundary_state(storage, initial_recovery_boundary)
+                if requested_boundary["evidence_identity_sha256"] != boundary.get(
+                    "evidence_identity_sha256"
+                ):
+                    raise WalSyncError("initial WAL boundary changed after the chain was published")
+            prior_last = str(prior[1].get("last_wal_segment") or "")
+            prior_position = _wal_position(prior_last, segment_size_bytes=wal_segment_size_bytes)
+            target_position = _wal_position(
+                target_wal_segment,
+                segment_size_bytes=wal_segment_size_bytes,
+            )
+            if target_position < prior_position:
+                raise WalSyncError("WAL sync target cannot move behind the published recovery point")
+            selected_names = sorted(
+                name
+                for name in source
+                if prior_position < _wal_position(name, segment_size_bytes=wal_segment_size_bytes) <= target_position
+            )
+            if selected_names:
+                _require_contiguous(selected_names, segment_size_bytes=wal_segment_size_bytes)
+                first_position = _wal_position(
+                    selected_names[0],
+                    segment_size_bytes=wal_segment_size_bytes,
+                )
+                if first_position != (prior_position[0], prior_position[1] + 1):
+                    raise WalSyncError("new archived WAL does not continue the published off-VM chain")
+            elif target_position != prior_position:
+                raise WalSyncError("target WAL is newer but no continuing archived segment is available")
+        else:
+            boundary = _initial_boundary_state(storage, initial_recovery_boundary)
+            first_required = str(boundary["first_required_wal_segment"])
+            first_position = _wal_position(
+                first_required,
+                segment_size_bytes=wal_segment_size_bytes,
+            )
+            target_position = _wal_position(
+                target_wal_segment,
+                segment_size_bytes=wal_segment_size_bytes,
+            )
+            if target_position < first_position:
+                raise WalSyncError("target WAL precedes the verified base-recovery boundary")
+            if first_required not in source:
+                raise WalSyncError("first-required WAL segment is absent from the source archive")
+            selected_names = sorted(
+                name
+                for name in source
+                if first_position <= _wal_position(name, segment_size_bytes=wal_segment_size_bytes) <= target_position
+            )
+            _require_contiguous(selected_names, segment_size_bytes=wal_segment_size_bytes)
         for name in selected_names:
             source_path = source[name]
             destination_path = destination / "wal" / name
@@ -391,6 +555,8 @@ def sync_archived_wal(
             if path.is_file() and WAL_NAME.fullmatch(path.name)
         )
         _require_contiguous(destination_names, segment_size_bytes=wal_segment_size_bytes)
+        if destination_names[0] != boundary["first_required_wal_segment"]:
+            raise WalSyncError("off-VM WAL chain does not begin at the verified base-recovery boundary")
         if destination_names[-1] != target_wal_segment:
             raise WalSyncError("off-VM WAL directory contains data beyond or short of the declared target")
         artifacts = [
@@ -427,8 +593,14 @@ def sync_archived_wal(
             "prior_manifest_identity_sha256": (
                 prior[1].get("manifest_identity_sha256") if prior is not None else None
             ),
+            "initial_recovery_boundary": dict(boundary),
             "at_rest_encryption": encryption,
             "continuous_rpo_measured": False,
+            "retention_policy": {
+                "max_immutable_wal_manifests": MAX_RETAINED_MANIFESTS,
+                "full_recovery_sets_managed_separately": True,
+                "wal_artifacts_require_oldest_retained_base_boundary": True,
+            },
         }
         identity = sha256_json(core)
         manifest = {**core, "manifest_identity_sha256": identity}
@@ -445,6 +617,10 @@ def sync_archived_wal(
             "published_at_utc": _iso(observed_now),
         }
         _atomic_json(destination / "latest_verified_wal_manifest.json", pointer)
+        _prune_immutable_manifests(
+            destination=destination,
+            current_identity=identity,
+        )
     return verify_wal_sync(
         destination=destination,
         expected_storage_identity=expected_storage_identity,
@@ -461,11 +637,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--target-wal-segment", required=True)
     parser.add_argument("--expected-storage-identity")
     parser.add_argument("--at-rest-encryption-evidence", type=Path)
+    parser.add_argument("--initial-recovery-boundary", type=Path)
     parser.add_argument("--wal-segment-size-bytes", type=int, default=16 * 1024 * 1024)
     args = parser.parse_args(argv)
     encryption_evidence = (
         _read_json(args.at_rest_encryption_evidence)
         if args.at_rest_encryption_evidence
+        else None
+    )
+    initial_boundary = (
+        _read_json(args.initial_recovery_boundary)
+        if args.initial_recovery_boundary
         else None
     )
     result = sync_archived_wal(
@@ -476,6 +658,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         expected_storage_identity=args.expected_storage_identity,
         wal_segment_size_bytes=args.wal_segment_size_bytes,
         at_rest_encryption_evidence=encryption_evidence,
+        initial_recovery_boundary=initial_boundary,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

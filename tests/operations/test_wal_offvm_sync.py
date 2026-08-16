@@ -15,6 +15,17 @@ IDENTITY = "a" * 64
 NOW = datetime(2026, 8, 16, 1, 0, 0, tzinfo=timezone.utc)
 
 
+def _boundary(first: str = "000000010000000000000001") -> dict[str, object]:
+    return {
+        "schema_version": wal_offvm_sync.INITIAL_BOUNDARY_SCHEMA,
+        "verified": True,
+        "base_recovery_set_identity_sha256": "d" * 64,
+        "first_required_wal_segment": first,
+        "storage_identity": IDENTITY,
+        "verified_at_utc": (NOW - timedelta(minutes=5)).isoformat(),
+    }
+
+
 def _remote_storage(_: Path) -> dict[str, object]:
     return {
         "kind": "windows_unc",
@@ -56,6 +67,7 @@ def _sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dict[s
         recoverable_target_at=NOW - timedelta(seconds=2),
         target_wal_segment="000000010000000000000002",
         expected_storage_identity=IDENTITY,
+        initial_recovery_boundary=_boundary(),
         now=NOW,
     )
     return destination, result
@@ -89,6 +101,7 @@ def test_local_path_never_counts_as_offvm(
             destination=tmp_path / "another-drive",
             recoverable_target_at=NOW,
             target_wal_segment="000000010000000000000001",
+            initial_recovery_boundary=_boundary(),
             now=NOW,
         )
 
@@ -104,6 +117,7 @@ def test_source_gap_fails_closed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
             destination=tmp_path / "offvm",
             recoverable_target_at=NOW,
             target_wal_segment="000000010000000000000003",
+            initial_recovery_boundary=_boundary(),
             now=NOW,
         )
 
@@ -118,6 +132,7 @@ def test_target_segment_must_exist(tmp_path: Path, monkeypatch: pytest.MonkeyPat
             destination=tmp_path / "offvm",
             recoverable_target_at=NOW,
             target_wal_segment="000000010000000000000002",
+            initial_recovery_boundary=_boundary(),
             now=NOW,
         )
 
@@ -183,6 +198,7 @@ def test_recent_manifest_cannot_hide_stale_recoverable_target(
         destination=destination,
         recoverable_target_at=NOW - timedelta(hours=1),
         target_wal_segment="000000010000000000000001",
+        initial_recovery_boundary=_boundary(),
         now=NOW,
     )
     with pytest.raises(WalSyncError, match="stale"):
@@ -246,5 +262,92 @@ def test_verified_at_rest_encryption_must_bind_storage(
             recoverable_target_at=NOW,
             target_wal_segment="000000010000000000000001",
             at_rest_encryption_evidence=evidence,
+            initial_recovery_boundary=_boundary(),
             now=NOW,
         )
+
+
+def test_first_sync_requires_explicit_verified_base_recovery_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", _remote_storage)
+    source = tmp_path / "archive"
+    _wal(source, "000000010000000000000001", b"old")
+    _wal(source, "000000010000000000000002", b"target")
+    with pytest.raises(WalSyncError, match="first-required WAL boundary"):
+        sync_archived_wal(
+            source_archive=source,
+            destination=tmp_path / "offvm",
+            recoverable_target_at=NOW,
+            target_wal_segment="000000010000000000000002",
+            now=NOW,
+        )
+
+
+def test_first_sync_starts_at_verified_boundary_not_archive_origin(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", _remote_storage)
+    source = tmp_path / "archive"
+    for number in range(1, 6):
+        _wal(source, f"00000001000000000000000{number}", f"wal-{number}".encode())
+    destination = tmp_path / "offvm"
+    result = sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW,
+        target_wal_segment="000000010000000000000005",
+        initial_recovery_boundary=_boundary("000000010000000000000004"),
+        now=NOW,
+    )
+    assert result["first_wal_segment"] == "000000010000000000000004"
+    assert result["artifact_count"] == 2
+    assert not (destination / "wal" / "000000010000000000000001").exists()
+
+
+def test_initial_boundary_must_bind_approved_offvm_storage(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", _remote_storage)
+    source = tmp_path / "archive"
+    _wal(source, "000000010000000000000001", b"wal")
+    boundary = _boundary()
+    boundary["storage_identity"] = "e" * 64
+    with pytest.raises(WalSyncError, match="another off-VM storage"):
+        sync_archived_wal(
+            source_archive=source,
+            destination=tmp_path / "offvm",
+            recoverable_target_at=NOW,
+            target_wal_segment="000000010000000000000001",
+            initial_recovery_boundary=boundary,
+            now=NOW,
+        )
+
+
+def test_only_two_latest_immutable_wal_manifests_are_retained(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", _remote_storage)
+    source = tmp_path / "archive"
+    destination = tmp_path / "offvm"
+    for number in range(1, 4):
+        _wal(source, f"00000001000000000000000{number}", f"wal-{number}".encode())
+    identities: list[str] = []
+    for number in range(1, 4):
+        result = sync_archived_wal(
+            source_archive=source,
+            destination=destination,
+            recoverable_target_at=NOW + timedelta(seconds=number),
+            target_wal_segment=f"00000001000000000000000{number}",
+            initial_recovery_boundary=_boundary() if number == 1 else None,
+            now=NOW + timedelta(seconds=number),
+        )
+        identities.append(result["manifest_identity_sha256"])
+    retained = {path.stem for path in (destination / "manifests").glob("*.json")}
+    assert retained == set(identities[-2:])
+    assert result["retention"]["retained_manifest_count"] == 2
+    assert result["retention"]["wal_artifacts_pruned"] is False

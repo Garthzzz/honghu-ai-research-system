@@ -50,6 +50,14 @@ def test_cycle_rotates_wal_and_publishes_verified_target(tmp_path, monkeypatch):
             "manifest_identity_sha256": "a" * 64,
             "storage": {"derived_storage_identity": "b" * 64},
             "at_rest_encryption": {"status": "verified", "verified": True},
+            "initial_recovery_boundary": {
+                "base_recovery_set_identity_sha256": "d" * 64,
+                "first_required_wal_segment": SEGMENT,
+            },
+            "retention": {
+                "max_retained_manifests": 2,
+                "retained_manifest_count": 1,
+            },
         }
 
     monkeypatch.setattr(cycle, "sync_archived_wal", fake_sync)
@@ -59,6 +67,7 @@ def test_cycle_rotates_wal_and_publishes_verified_target(tmp_path, monkeypatch):
         destination=tmp_path / "offvm",
         expected_storage_identity="b" * 64,
         at_rest_encryption_evidence={"status": "verified"},
+        initial_recovery_boundary={"verified": True},
         wal_segment_size_bytes=3,
         connection_factory=lambda: connection,
     )
@@ -66,6 +75,7 @@ def test_cycle_rotates_wal_and_publishes_verified_target(tmp_path, monkeypatch):
     assert result["formal_business_data_written"] is False
     assert observed["target_wal_segment"] == SEGMENT
     assert observed["recoverable_target_at"] == NOW
+    assert observed["initial_recovery_boundary"] == {"verified": True}
     assert any("pg_switch_wal" in query for query in connection.queries)
     assert connection.closed is True
 
@@ -83,6 +93,7 @@ def test_cycle_fails_when_archived_segment_is_incomplete(tmp_path, monkeypatch):
             destination=tmp_path / "offvm",
             expected_storage_identity="b" * 64,
             at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
             wal_segment_size_bytes=16,
             timeout_seconds=0,
             connection_factory=lambda: connection,
@@ -101,6 +112,7 @@ def test_invalid_postgresql_wal_identity_fails_closed(tmp_path, monkeypatch):
             destination=tmp_path / "offvm",
             expected_storage_identity="b" * 64,
             at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
             timeout_seconds=0,
             connection_factory=lambda: connection,
         )

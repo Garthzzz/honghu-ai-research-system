@@ -6,6 +6,8 @@ import argparse
 import runpy
 import sys
 
+from tools.operations.windows_job import ensure_self_killing_job
+
 
 ALLOWED_TASK_MODULES = {
     "tools.dynamic.scheduler",
@@ -32,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     args, remainder = parser.parse_known_args(argv)
     if remainder[:1] == ["--"]:
         remainder = remainder[1:]
+    # Enrol before importing the producer.  All producer descendants then
+    # share one OS-enforced lifetime even if the task root is killed.
+    ensure_self_killing_job()
     sys.argv = [args.task_module, *remainder]
     try:
         runpy.run_module(args.task_module, run_name="__main__", alter_sys=False)

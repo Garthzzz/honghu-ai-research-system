@@ -8,6 +8,7 @@ param(
     [Parameter(Mandatory=$true)][ValidatePattern('^\\\\')][string]$OffVmRoot,
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedStorageIdentity,
     [Parameter(Mandatory=$true)][string]$AtRestEncryptionEvidence,
+    [Parameter(Mandatory=$true)][string]$InitialRecoveryBoundary,
     [Parameter(Mandatory=$true)][string]$SmbUser,
     [Parameter(Mandatory=$true)][string]$CredentialBlobPath,
     [Parameter(Mandatory=$true)][string]$OutputPath
@@ -16,7 +17,7 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-foreach ($path in @($ReleaseDir,$BootstrapPythonExe,$SitePackages,$RuntimeCatalog,$SourceArchive,$AtRestEncryptionEvidence,$CredentialBlobPath)) {
+foreach ($path in @($ReleaseDir,$BootstrapPythonExe,$SitePackages,$RuntimeCatalog,$SourceArchive,$AtRestEncryptionEvidence,$InitialRecoveryBoundary,$CredentialBlobPath)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required recovery input is absent: $path" }
 }
 $bootstrap = Join-Path $ReleaseDir 'tools\release\direct_candidate.py'
@@ -58,7 +59,8 @@ try {
         --source-archive $SourceArchive `
         --destination $destination `
         --expected-storage-identity $ExpectedStorageIdentity `
-        --at-rest-encryption-evidence $AtRestEncryptionEvidence | Out-String
+        --at-rest-encryption-evidence $AtRestEncryptionEvidence `
+        --initial-recovery-boundary $InitialRecoveryBoundary | Out-String
     if ($LASTEXITCODE -ne 0) { throw 'Stage5 continuous WAL recovery cycle failed.' }
     $result = $json | ConvertFrom-Json
     if ($result.status -ne 'pass' -or $result.storage_identity -ne $ExpectedStorageIdentity) {

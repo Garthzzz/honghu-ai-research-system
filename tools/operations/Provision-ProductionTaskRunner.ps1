@@ -32,7 +32,7 @@ function Assert-Administrator {
 Assert-Administrator
 $computer = $env:COMPUTERNAME
 if ($computer -ne 'DESKTOP-VGD07J4') { throw 'Task runner provisioning is bound to the reviewed VM.' }
-foreach ($path in @($ReleaseDir,$SitePackages,$RuntimeCatalog)) {
+foreach ($path in @($ReleaseDir,$SitePackages,$RuntimeCatalog,$DataRoot,$ContentRoot)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required provisioning path is absent: $path" }
 }
 $existingEnabled = @(Get-ScheduledTask -TaskName 'IndustryDemo_*' -ErrorAction SilentlyContinue | Where-Object { $_.Settings.Enabled })
@@ -57,6 +57,23 @@ $bootstrap = Join-Path $ReleaseDir 'tools\release\direct_candidate.py'
 $manifest = Join-Path $ReleaseDir 'config\operations\production_tasks.json'
 $registry = Join-Path $ReleaseDir 'config\migration\cutover_unit_registry.json'
 $migrationEvidence = Join-Path $RuntimeDir 'evidence\stage5_migration_application.json'
+$servicePreflightEvidence = Join-Path $RuntimeDir 'evidence\production_task_service_preflight.json'
+foreach ($path in @($bootstrap,$manifest,$registry,(Join-Path $ReleaseDir 'RELEASE_MANIFEST.json'))) {
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw "Exact-release task dependency is absent: $path"
+    }
+}
+foreach ($directory in @(
+    $RuntimeDir,
+    (Join-Path $RuntimeDir 'locks'),
+    (Join-Path $RuntimeDir 'task_logs'),
+    (Join-Path $RuntimeDir 'evidence'),
+    (Join-Path $RuntimeDir 'credential-transfer')
+)) {
+    New-Item -ItemType Directory -Force $directory | Out-Null
+    & icacls.exe $directory "/grant:r" "$computer\$LocalUser`:(OI)(CI)(M)" 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Task runtime ACL failed: $directory" }
+}
 
 # Expand the control-plane schema and bind disabled definitions before any
 # service-account task can be registered.  This does not run a business task.
@@ -88,8 +105,18 @@ if ($LASTEXITCODE -ne 0) { throw 'Credential transfer ACL failed.' }
 $bootstrapTask = 'HonghuStage5_CredentialBootstrap'
 $values = @(
     '-I','-B','-S',$bootstrap,'--site-packages',$SitePackages,
-    '--module','tools.operations.task_credential_transfer','import',
-    '--source',$transfer,'--catalog',$RuntimeCatalog
+    '--module','tools.operations.task_service_preflight',
+    '--credential-transfer',$transfer,
+    '--release-dir',$ReleaseDir,
+    '--site-packages',$SitePackages,
+    '--manifest',$manifest,
+    '--runtime-catalog',$RuntimeCatalog,
+    '--registry',$registry,
+    '--runtime-dir',$RuntimeDir,
+    '--data-root',$DataRoot,
+    '--content-root',$ContentRoot,
+    '--expected-principal',"$computer\$LocalUser",
+    '--output',$servicePreflightEvidence
 )
 $arguments = ($values | ForEach-Object { Quote-Arg ([string]$_) }) -join ' '
 $action = New-ScheduledTaskAction -Execute $python -Argument $arguments -WorkingDirectory $ReleaseDir
@@ -104,8 +131,28 @@ try {
         $state = (Get-ScheduledTask -TaskName $bootstrapTask).State
     } while ($state -eq 'Running' -and (Get-Date) -lt $deadline)
     $info = Get-ScheduledTaskInfo -TaskName $bootstrapTask
-    if ($state -eq 'Running' -or $info.LastTaskResult -ne 0 -or (Test-Path -LiteralPath $transfer)) {
-        throw "Service-account credential/PostgreSQL probe failed: state=$state result=$($info.LastTaskResult)"
+    if (
+        $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or
+        (Test-Path -LiteralPath $transfer) -or
+        -not (Test-Path -LiteralPath $servicePreflightEvidence -PathType Leaf)
+    ) {
+        throw "Service-account access/credential/PostgreSQL preflight failed: state=$state result=$($info.LastTaskResult)"
+    }
+    $servicePreflight = Get-Content -Raw -LiteralPath $servicePreflightEvidence | ConvertFrom-Json
+    $releaseIdentity = Get-Content -Raw -LiteralPath (Join-Path $ReleaseDir 'RELEASE_MANIFEST.json') | ConvertFrom-Json
+    $manifestSha = (Get-FileHash -LiteralPath $manifest -Algorithm SHA256).Hash.ToLowerInvariant()
+    if (
+        $servicePreflight.schema_version -ne 'honghu.production_task_service_preflight.v1' -or
+        -not [bool]$servicePreflight.overall_verified -or
+        [bool]$servicePreflight.secret_recorded -or
+        $servicePreflight.application_commit_sha -ne $releaseIdentity.commit_sha -or
+        $servicePreflight.task_manifest_sha256 -ne $manifestSha -or
+        $servicePreflight.principal -ne "$computer\$LocalUser" -or
+        -not [bool]$servicePreflight.access_verified -or
+        -not [bool]$servicePreflight.postgresql_roles_verified -or
+        @($servicePreflight.postgresql_roles).Count -ne 4
+    ) {
+        throw 'Service-account preflight evidence does not match the exact release contract.'
     }
 } finally {
     Unregister-ScheduledTask -TaskName $bootstrapTask -Confirm:$false -ErrorAction SilentlyContinue
@@ -127,6 +174,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Disabled production task installation failed.'
     credential_store='Windows Credential Manager under dedicated principal'
     credential_roles=4
     encrypted_transfer_removed=$true
+    service_account_preflight_verified=$true
+    service_account_preflight_sha256=(Get-FileHash -LiteralPath $servicePreflightEvidence -Algorithm SHA256).Hash.ToLowerInvariant()
     tasks_installed_disabled=7
     secret_recorded=$false
 } | ConvertTo-Json -Depth 8

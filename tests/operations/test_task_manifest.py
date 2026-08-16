@@ -19,6 +19,11 @@ def test_production_manifest_has_exactly_seven_safe_tasks():
     assert all(task.command[0] == "-m" for task in manifest.tasks.values())
     assert all(task.command[1].startswith("tools.") for task in manifest.tasks.values())
     assert not any("--compact" in task.command for task in manifest.tasks.values())
+    assert manifest.legacy_runner_host == "WIN-G7VO0DD37CE"
+    assert manifest.legacy_runner_host != manifest.runner_host
+    assert manifest.local_disabled_evidence_max_age_seconds == 900
+    assert all(task.legacy_definition_sha256 for task in manifest.tasks.values())
+    assert all(task.legacy_principal == "zhang" for task in manifest.tasks.values())
 
 
 @pytest.mark.parametrize(
@@ -29,6 +34,10 @@ def test_production_manifest_has_exactly_seven_safe_tasks():
         (lambda data: data["tasks"][0].update(command=["cmd", "/c", "echo"]), "reviewed"),
         (lambda data: data["tasks"][0].update(command=["-m", "tools.x", "a&b"]), "unsafe"),
         (lambda data: data["tasks"][0].update(writer_units=["unknown"]), "writer unit"),
+        (lambda data: data.update(legacy_runner_host=data["runner_host"]), "distinct"),
+        (lambda data: data.update(legacy_runner_host_identity_sha256="fake"), "host identity"),
+        (lambda data: data.update(local_disabled_evidence_max_age_seconds=0), "freshness"),
+        (lambda data: data["tasks"][0].update(legacy_definition_sha256="fake"), "legacy definition"),
     ],
 )
 def test_manifest_fails_closed(tmp_path: Path, mutator, message: str):

@@ -98,3 +98,33 @@ def test_definition_enable_is_exact_identity_checked_before_update():
     assert "manifest_sha256,application_commit_sha,runner_host" in source
     assert "task definition identity does not match exact release" in source
     assert "definition_revision=definition_revision+1" in source
+
+
+def test_outer_timeout_covers_reviewed_child_and_catch_up_budgets():
+    dynamic = MANIFEST.tasks["IndustryDemo_DynamicTick"]
+    recruit = MANIFEST.tasks["IndustryDemo_RecruitWeekly"]
+    retail = [
+        MANIFEST.tasks["IndustryDemo_Retail_Preopen"],
+        MANIFEST.tasks["IndustryDemo_Retail_Morning"],
+        MANIFEST.tasks["IndustryDemo_Retail_Afternoon"],
+    ]
+    retention = MANIFEST.tasks["IndustryDemo_SentimentRetention"]
+
+    # Event-calendar dispatch can run two 600-second producers sequentially.
+    assert dynamic.execution_timeout_seconds >= 2 * 600 + 300
+    # Recruit runs two sequential children with independent 5400-second caps.
+    assert recruit.execution_timeout_seconds >= 2 * 5400 + 600
+    # Retail preserves one current window plus the reviewed three-window
+    # catch-up, one lock wait and one orphan wait (62 hours total).
+    for task in retail:
+        assert "--no-auto-backfill" not in task.command
+        assert task.execution_timeout_seconds >= (8 + 6 + 4 * 12) * 3600
+    assert retention.execution_timeout_seconds >= 12 * 3600
+
+
+def test_scheduler_hard_limit_exceeds_runner_timeout_for_cleanup():
+    installer = (ROOT / "tools/operations/Install-ProductionTasks.ps1").read_text(
+        encoding="utf-8-sig"
+    )
+    assert "execution_timeout_seconds + 900" in installer
+    assert "PT${schedulerLimitMinutes}M" in installer

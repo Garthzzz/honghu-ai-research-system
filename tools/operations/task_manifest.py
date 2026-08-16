@@ -11,6 +11,7 @@ from typing import Any
 
 
 TASK_ID = re.compile(r"^IndustryDemo_[A-Za-z0-9_]+$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
 UNITS = {
     "operations_governance",
     "dynamic_intelligence",
@@ -43,6 +44,8 @@ class TaskDefinition:
     freshness_seconds: int
     execution_timeout_seconds: int
     command: tuple[str, ...]
+    legacy_definition_sha256: str
+    legacy_principal: str
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,9 @@ class TaskManifest:
     sha256: str
     timezone: str
     runner_host: str
+    legacy_runner_host: str
+    legacy_runner_host_identity_sha256: str
+    local_disabled_evidence_max_age_seconds: int
     tasks: dict[str, TaskDefinition]
 
 
@@ -82,6 +88,17 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
     host = str(payload.get("runner_host") or "").strip().upper()
     if not host:
         raise TaskManifestError("runner host is required")
+    legacy_host = str(payload.get("legacy_runner_host") or "").strip().upper()
+    legacy_host_identity = str(
+        payload.get("legacy_runner_host_identity_sha256") or ""
+    ).strip().lower()
+    max_evidence_age = int(payload.get("local_disabled_evidence_max_age_seconds") or 0)
+    if not legacy_host or legacy_host == host:
+        raise TaskManifestError("legacy runner host must be distinct from the VM runner host")
+    if not SHA256.fullmatch(legacy_host_identity):
+        raise TaskManifestError("legacy runner host identity is invalid")
+    if not 60 <= max_evidence_age <= 3600:
+        raise TaskManifestError("local disabled evidence freshness is outside bounds")
     definitions: dict[str, TaskDefinition] = {}
     for raw_task in payload.get("tasks") or ():
         task_id = str(raw_task.get("task_id") or "")
@@ -107,13 +124,23 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
                 raise TaskManifestError(f"task {task_id} slot identity differs")
         freshness = int(raw_task.get("freshness_seconds") or 0)
         timeout = int(raw_task.get("execution_timeout_seconds") or 0)
-        if not 60 <= freshness <= 14 * 86400 or not 60 <= timeout <= 86400:
+        # Retail preserves its bounded three-window catch-up contract.  Its
+        # reviewed worst case is one lock wait + one orphan wait + four
+        # sequential 12-hour windows, so a one-day cap would terminate a
+        # healthy writer before its own child budgets expire.
+        if not 60 <= freshness <= 14 * 86400 or not 60 <= timeout <= 3 * 86400:
             raise TaskManifestError(f"task {task_id} time contract is outside bounds")
         if task_id not in TASK_MODULES:
             raise TaskManifestError("the reviewed seven-task identity set changed")
         command = _command(raw_task.get("command"))
         if command[1] != TASK_MODULES[task_id]:
             raise TaskManifestError(f"task {task_id} module is not the reviewed producer")
+        legacy_definition_sha256 = str(
+            raw_task.get("legacy_definition_sha256") or ""
+        ).strip().lower()
+        legacy_principal = str(raw_task.get("legacy_principal") or "").strip()
+        if not SHA256.fullmatch(legacy_definition_sha256) or not legacy_principal:
+            raise TaskManifestError(f"task {task_id} legacy definition identity is invalid")
         kind = schedule["kind"]
         if kind == "weekday_interval":
             start = _clock(schedule.get("start"), field=f"task {task_id} start")
@@ -134,6 +161,8 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
             freshness_seconds=freshness,
             execution_timeout_seconds=timeout,
             command=command,
+            legacy_definition_sha256=legacy_definition_sha256,
+            legacy_principal=legacy_principal,
         )
     if set(definitions) != set(TASK_MODULES):
         raise TaskManifestError("the production manifest must contain exactly seven tasks")
@@ -142,5 +171,8 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
         sha256=hashlib.sha256(raw).hexdigest(),
         timezone="Asia/Shanghai",
         runner_host=host,
+        legacy_runner_host=legacy_host,
+        legacy_runner_host_identity_sha256=legacy_host_identity,
+        local_disabled_evidence_max_age_seconds=max_evidence_age,
         tasks=definitions,
     )

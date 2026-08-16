@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -139,6 +140,42 @@ def evaluate_recovery_health(
         restore_fresh = False
     check("restore_freshness", restore_fresh, "last real restore is stale or has invalid time evidence")
 
+    retention = _mapping(evidence.get("recovery_set_retention"), field="recovery_set_retention")
+    sets = retention.get("sets")
+    set_times: list[datetime] = []
+    if isinstance(sets, list):
+        try:
+            set_times = [
+                parse_utc(item.get("created_at_utc"), field="recovery set created_at")
+                for item in sets
+                if isinstance(item, Mapping)
+            ]
+        except RecoveryMetricError:
+            set_times = []
+    retention_ok = (
+        retention.get("verified") is True
+        and retention.get("inventory_complete") is True
+        and retention.get("max_retained") == 2
+        and retention.get("retained_count") == 2
+        and retention.get("unverified_set_count") == 0
+        and isinstance(sets, list)
+        and len(sets) == 2
+        and all(
+            isinstance(item, Mapping)
+            and item.get("verified") is True
+            and isinstance(item.get("identity_sha256"), str)
+            and re.fullmatch(r"[0-9a-f]{64}", item["identity_sha256"]) is not None
+            for item in sets
+        )
+        and len(set_times) == 2
+        and set_times == sorted(set_times, reverse=True)
+    )
+    check(
+        "recovery_set_retention",
+        retention_ok,
+        "exactly two latest verified recovery sets are not proven",
+    )
+
     continuous_rpo = _mapping(evidence.get("continuous_rpo"), field="continuous_rpo")
     continuous_valid = (
         continuous_rpo.get("metric_name") == "continuous_production_rpo_seconds"
@@ -236,6 +273,7 @@ def evaluate_recovery_health(
             "recovery_set_target_gap_seconds": target_gap.get("seconds"),
             "continuous_production_rpo_seconds": continuous_rpo.get("seconds"),
             "full_system_rto_seconds": full_rto.get("seconds"),
+            "retained_recovery_set_count": retention.get("retained_count"),
         },
     }
 

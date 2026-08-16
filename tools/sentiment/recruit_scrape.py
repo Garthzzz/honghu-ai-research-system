@@ -6,11 +6,12 @@
 用法:python recruit_scrape.py [--only 300308.SZ]
 """
 from __future__ import annotations
-import sys, re, json, hashlib, argparse
+import os, sys, re, json, hashlib, argparse
 from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import common
+from tools.data_platform.run_domain_operation import derived_operation_id
 
 # ?? 各公司官网招贤纳士页位置(一次性记录;待补的标 url=None status=todo)
 SOURCES = [
@@ -515,39 +516,62 @@ def load_db_sources(con):
     return extra
 
 
+def _operation_connection(step: str):
+    """Open one retry-stable mutation stream for one scrape step."""
+
+    operation_id = (
+        derived_operation_id(step)
+        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+        else None
+    )
+    connection = common.get_senti_db(
+        operation_scope="recruit_scrape_step",
+        operation_id=operation_id,
+    )
+    common.assert_senti_only(connection)
+    return connection
+
+
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument("--only", default=None)
     args = ap.parse_args()
-    con = common.get_senti_db()
-    common.assert_senti_only(con)
     comps, _ = common.load_closed_set()
     rc = common.research_ro_conn()
     now = common.now_iso(); today = common.today()
     # 合并 DB 中已配置的额外公司源(agent 录入的 93 家)
-    ALL_SOURCES = SOURCES + load_db_sources(con)
-    # upsert recruit_source(位置记录)
-    for s in ALL_SOURCES:
-        crow = rc.execute("SELECT id FROM company WHERE ticker=?", (s["ticker"],)).fetchone()
-        s["company_id"] = crow[0] if crow else None
-        if s["company_id"] is None or s["company_id"] not in comps:
-            continue
-        con.execute("""INSERT INTO recruit_source(company_id,ticker,name,career_url,extractor,active,status)
-                       VALUES(?,?,?,?,?,1,?)
-                       ON CONFLICT(company_id) DO UPDATE SET career_url=excluded.career_url, extractor=excluded.extractor""",
-                    (s["company_id"], s["ticker"], s["name"], s["url"], s["extractor"], "todo" if not s["url"] else "pending"))
-    con.commit()
-    rc.close()
+    registry_con = _operation_connection("source-registry")
+    try:
+        ALL_SOURCES = SOURCES + load_db_sources(registry_con)
+        # upsert recruit_source(位置记录)
+        for s in ALL_SOURCES:
+            crow = rc.execute("SELECT id FROM company WHERE ticker=?", (s["ticker"],)).fetchone()
+            s["company_id"] = crow[0] if crow else None
+            if s["company_id"] is None or s["company_id"] not in comps:
+                continue
+            registry_con.execute("""INSERT INTO recruit_source(company_id,ticker,name,career_url,extractor,active,status)
+                           VALUES(?,?,?,?,?,1,?)
+                           ON CONFLICT(company_id) DO UPDATE SET career_url=excluded.career_url, extractor=excluded.extractor""",
+                        (s["company_id"], s["ticker"], s["name"], s["url"], s["extractor"], "todo" if not s["url"] else "pending"))
+        registry_con.commit()
+    finally:
+        registry_con.close()
+        rc.close()
 
     todo = [s for s in ALL_SOURCES if s.get("company_id") and (not args.only or s["ticker"] == args.only)]
     print(f"招聘源:{len(todo)} 家(已配 URL {sum(1 for s in todo if s.get('url'))} / 待补 {sum(1 for s in todo if not s.get('url'))})\n")
     for s in todo:
         if not s.get("company_id"):
             continue
-        st, no, nn, ncl = process(con, s, now, today)
-        con.commit()
+        company_con = _operation_connection(
+            f"company:{s['company_id']}:{s['ticker']}"
+        )
+        try:
+            st, no, nn, ncl = process(company_con, s, now, today)
+            company_con.commit()
+        finally:
+            company_con.close()
         print(f"  {s['name']:<8}{s['ticker']}: {st} | 在招{no} 新增{nn} 下架{ncl}")
     print("\n说明:官网 JS 渲染走 Playwright;js_blocked=渲染出但未识别到职位(需为该家定制抽取);unreachable=沙箱网络;生产中国IP更稳。绝不伪造 JD。")
-    con.close()
 
 
 if __name__ == "__main__":
