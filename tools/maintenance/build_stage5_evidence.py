@@ -18,6 +18,7 @@ FILES = (
     "tools/operations/task_manifest.py",
     "tools/operations/task_runner.py",
     "tools/operations/task_child.py",
+    "tools/operations/task_credential_transfer.py",
     "tools/operations/task_business_probe.py",
     "tools/operations/Install-ProductionTasks.ps1",
     "tools/operations/Provision-ProductionTaskRunner.ps1",

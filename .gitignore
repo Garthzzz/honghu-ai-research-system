@@ -41,6 +41,7 @@
 # Credentials, browser profiles and local login state
 /tools/dynamic/secrets/
 **/*credential*
+!tools/operations/task_credential_transfer.py
 **/*credentials*
 **/*storage_state*
 **/*cookie*.json
