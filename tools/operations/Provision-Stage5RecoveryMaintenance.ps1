@@ -48,7 +48,8 @@ if ($null -eq $account) {
     New-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires -PasswordNeverExpires `
         -UserMayNotChangePassword -Description 'Honghu off-VM recovery runner' | Out-Null
 } else {
-    Set-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires -PasswordNeverExpires
+    Set-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires `
+        -PasswordNeverExpires $true -UserMayChangePassword $false
 }
 $principalName = "$env:COMPUTERNAME\$LocalUser"
 if ((Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue).Name -contains $principalName) {
@@ -80,12 +81,16 @@ $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minu
 try {
     Register-ScheduledTask -TaskName $credentialTask -Action $bootstrapAction -Settings $settings `
         -User $principalName -Password $plain -RunLevel Limited -Force | Out-Null
+    $before = Get-ScheduledTaskInfo $credentialTask
     Start-ScheduledTask -TaskName $credentialTask
     $deadline = (Get-Date).AddMinutes(3)
-    do { Start-Sleep -Seconds 2; $state=(Get-ScheduledTask $credentialTask).State } `
-        while($state -eq 'Running' -and (Get-Date) -lt $deadline)
-    $info = Get-ScheduledTaskInfo $credentialTask
-    if ($state -eq 'Running' -or $info.LastTaskResult -ne 0 -or (Test-Path $transfer)) {
+    do {
+        Start-Sleep -Seconds 2
+        $state=(Get-ScheduledTask $credentialTask).State
+        $info=Get-ScheduledTaskInfo $credentialTask
+        $ran=($info.LastRunTime -gt $before.LastRunTime)
+    } while(((-not $ran) -or $state -eq 'Running') -and (Get-Date) -lt $deadline)
+    if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or (Test-Path $transfer)) {
         throw "Backup credential bootstrap failed: state=$state result=$($info.LastTaskResult)"
     }
 } finally {
@@ -119,12 +124,16 @@ $xml = @"
 "@
 Register-ScheduledTask -TaskName $taskName -Xml $xml -User $principalName -Password $plain -Force | Out-Null
 Enable-ScheduledTask $taskName | Out-Null
+$before=Get-ScheduledTaskInfo $taskName
 Start-ScheduledTask $taskName
 $deadline=(Get-Date).AddMinutes(4)
-do { Start-Sleep -Seconds 3; $state=(Get-ScheduledTask $taskName).State } `
-    while($state -eq 'Running' -and (Get-Date) -lt $deadline)
-$info=Get-ScheduledTaskInfo $taskName
-if ($state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (Test-Path $output -PathType Leaf)) {
+do {
+    Start-Sleep -Seconds 3
+    $state=(Get-ScheduledTask $taskName).State
+    $info=Get-ScheduledTaskInfo $taskName
+    $ran=($info.LastRunTime -gt $before.LastRunTime)
+} while(((-not $ran) -or $state -eq 'Running') -and (Get-Date) -lt $deadline)
+if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (Test-Path $output -PathType Leaf)) {
     Disable-ScheduledTask $taskName | Out-Null
     throw "Initial continuous recovery cycle failed: state=$state result=$($info.LastTaskResult)"
 }

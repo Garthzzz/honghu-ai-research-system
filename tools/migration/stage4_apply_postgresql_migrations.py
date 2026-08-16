@@ -32,6 +32,7 @@ REVIEWED_MIGRATIONS = (
     "0012_remaining_unit_reconciliation_read_grant.sql",
     "0013_stage5_task_operations.sql",
     "0014_stage5_delegated_unit_writers.sql",
+    "0015_stage5_initial_overlay_revision.sql",
 )
 
 MIGRATION_IDENTIFIERS = {

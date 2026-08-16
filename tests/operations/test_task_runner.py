@@ -71,6 +71,19 @@ def test_delegated_task_writer_keeps_unit_owner_and_membership_fences():
     assert "DROP " not in sql.upper()
 
 
+def test_new_post_cutover_objects_start_at_revision_one():
+    base_sql = (
+        ROOT / "migrations/postgresql/0010_remaining_units_common_data_plane.sql"
+    ).read_text(encoding="utf-8")
+    migration_sql = (
+        ROOT / "migrations/postgresql/0015_stage5_initial_overlay_revision.sql"
+    ).read_text(encoding="utf-8")
+    assert "revision bigint NOT NULL CHECK (revision > 0)" in base_sql
+    assert "CHECK (revision > 0) NOT VALID" in migration_sql
+    assert "VALIDATE CONSTRAINT record_overlay_revision_check" in migration_sql
+    assert "0015_stage5_initial_overlay_revision" in migration_sql
+
+
 def test_child_command_is_import_isolated_and_bytecode_free(tmp_path, monkeypatch):
     release = tmp_path / "release"
     bootstrap = release / "tools" / "release" / "direct_candidate.py"

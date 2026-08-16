@@ -16,6 +16,7 @@ FILES = (
     "config/operations/production_tasks.json",
     "migrations/postgresql/0013_stage5_task_operations.sql",
     "migrations/postgresql/0014_stage5_delegated_unit_writers.sql",
+    "migrations/postgresql/0015_stage5_initial_overlay_revision.sql",
     "tools/operations/task_manifest.py",
     "tools/operations/task_runner.py",
     "tools/operations/task_child.py",

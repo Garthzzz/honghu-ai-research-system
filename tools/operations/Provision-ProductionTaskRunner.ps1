@@ -101,6 +101,7 @@ foreach ($readOnlyRoot in $readOnlyRoots) {
     --repo-root $ReleaseDir --runtime $RuntimeCatalog `
     --migration '0013_stage5_task_operations.sql' `
     --migration '0014_stage5_delegated_unit_writers.sql' `
+    --migration '0015_stage5_initial_overlay_revision.sql' `
     --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
 & $python -I -B -S $bootstrap --site-packages $SitePackages `

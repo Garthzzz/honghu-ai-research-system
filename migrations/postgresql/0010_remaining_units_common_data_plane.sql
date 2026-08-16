@@ -57,7 +57,10 @@ CREATE TABLE IF NOT EXISTS domain_data.record_overlay (
     source_key text NOT NULL,
     payload jsonb NOT NULL CHECK (jsonb_typeof(payload)='object'),
     row_sha256 text NOT NULL CHECK (row_sha256 ~ '^[0-9a-f]{64}$'),
-    revision bigint NOT NULL CHECK (revision > 1),
+    -- Existing baseline rows start at revision 1 and their first overlay is
+    -- revision 2.  A genuinely new post-cutover object has no baseline row,
+    -- so its first durable overlay is revision 1.
+    revision bigint NOT NULL CHECK (revision > 0),
     deleted boolean NOT NULL DEFAULT false,
     operation_key text NOT NULL,
     updated_by text NOT NULL CHECK (btrim(updated_by) <> ''),
