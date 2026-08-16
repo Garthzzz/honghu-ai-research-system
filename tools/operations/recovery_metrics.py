@@ -1,11 +1,33 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Mapping
 
 
 class RecoveryMetricError(ValueError):
     """Raised when recovery timestamps cannot support the claimed metric."""
+
+
+_ISO_FRACTION = re.compile(
+    r"^(?P<prefix>.+?)(?P<fraction>\.\d+)(?P<offset>[+-]\d{2}:\d{2})?$"
+)
+
+
+def _python_microsecond_iso(raw: str) -> str:
+    """Normalize PowerShell's seven-digit ISO fraction for Python 3.10."""
+
+    match = _ISO_FRACTION.fullmatch(raw)
+    if match is None:
+        return raw
+    digits = match.group("fraction")[1:]
+    normalized = (digits + "000000")[:6]
+    return (
+        match.group("prefix")
+        + "."
+        + normalized
+        + (match.group("offset") or "")
+    )
 
 
 def parse_utc(value: str | datetime, *, field: str) -> datetime:
@@ -15,6 +37,7 @@ def parse_utc(value: str | datetime, *, field: str) -> datetime:
         raw = value.strip()
         if raw.endswith("Z"):
             raw = raw[:-1] + "+00:00"
+        raw = _python_microsecond_iso(raw)
         try:
             parsed = datetime.fromisoformat(raw)
         except ValueError as exc:

@@ -88,6 +88,29 @@ def test_sync_copies_contiguous_wal_and_publishes_immutable_manifest(
     assert pointer["manifest_identity_sha256"] in manifest_path.name
 
 
+def test_sync_accepts_powershell_seven_digit_boundary_timestamp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", _remote_storage)
+    source = tmp_path / "archive"
+    destination = tmp_path / "offvm"
+    first = "000000010000000000000001"
+    _wal(source, first, b"wal")
+    boundary = _boundary(first)
+    boundary["verified_at_utc"] = "2026-08-16T19:18:01.9167873+00:00"
+    result = sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW - timedelta(seconds=2),
+        target_wal_segment=first,
+        expected_storage_identity=IDENTITY,
+        initial_recovery_boundary=boundary,
+        now=NOW,
+    )
+    assert result["verified"] is True
+
+
 def test_local_path_never_counts_as_offvm(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

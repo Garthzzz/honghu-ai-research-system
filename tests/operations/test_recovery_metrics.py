@@ -9,6 +9,7 @@ from tools.operations.recovery_metrics import (
     measure_continuous_production_rpo,
     measure_full_system_rto,
     measure_recovery_set_target_gap,
+    parse_utc,
 )
 
 
@@ -86,3 +87,11 @@ def test_metrics_reject_naive_datetime() -> None:
             durable_target_at=datetime(2026, 8, 16, 1, 0, 0),
             recovered_watermark_at=datetime(2026, 8, 16, 0, 59, 59, tzinfo=timezone.utc),
         )
+
+
+def test_parse_utc_accepts_powershell_seven_digit_fraction_on_python_310() -> None:
+    parsed = parse_utc(
+        "2026-08-16T19:18:01.9167873+00:00",
+        field="powershell timestamp",
+    )
+    assert parsed == datetime(2026, 8, 16, 19, 18, 1, 916787, tzinfo=timezone.utc)

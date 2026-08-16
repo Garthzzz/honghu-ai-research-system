@@ -17,6 +17,7 @@ from tools.migration.stage4_recovery_set import (
     sha256_file,
     sha256_json,
 )
+from tools.operations.recovery_metrics import RecoveryMetricError, parse_utc
 
 
 WAL_NAME = re.compile(r"^[0-9A-F]{24}$")
@@ -42,18 +43,11 @@ def _iso(value: datetime) -> str:
 
 
 def _parse_time(value: Any, *, field: str) -> datetime:
-    if not isinstance(value, str) or not value.strip():
-        raise WalSyncError(f"{field} must be an ISO-8601 timestamp")
-    raw = value.strip()
-    if raw.endswith("Z"):
-        raw = raw[:-1] + "+00:00"
     try:
-        parsed = datetime.fromisoformat(raw)
-    except ValueError as exc:
+        parsed = parse_utc(value, field=field)
+    except RecoveryMetricError as exc:
         raise WalSyncError(f"{field} is not a valid ISO-8601 timestamp") from exc
-    if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise WalSyncError(f"{field} must include a timezone")
-    return parsed.astimezone(timezone.utc)
+    return parsed
 
 
 def _atomic_json(path: Path, value: Mapping[str, Any]) -> None:
