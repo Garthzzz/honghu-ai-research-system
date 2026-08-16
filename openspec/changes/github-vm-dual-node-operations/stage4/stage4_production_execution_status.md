@@ -1,5 +1,7 @@
 # Stage 4 Production Execution Status
 
+> 历史检查点：本文件记录九个单元进入 S3 之前的 production bootstrap/S1 现场，不再代表当前 authority。最终状态以 `stage4_remaining_units_completion_report.md` 与 `tasks.md` 为准；不得用本文件中的旧 S1 描述恢复 SQLite writer。
+
 This file is a tracked, redacted status summary.  It is not authority evidence.
 The final evidence bundle remains Git-excluded and is verified by hash.
 

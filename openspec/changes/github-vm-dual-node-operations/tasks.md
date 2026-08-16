@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0—3 已获用户批准退出。`user_content_notes` 与 `shared_identity` 均处于 durable S3：PostgreSQL 是唯一 authority/writer，SQLite 仅为迁移基线、审计档案和有限修复材料，不是 production rollback target。其余七个 cutover unit 已于 2026-08-15 完成 exact-commit S1 promotion，共 2,240,746 行 source/target 数量和内容哈希一致，继续由 SQLite 独占正式 authority/writer，PostgreSQL 只保存可放弃的非正式迁移基线。当前 production Viewer 运行 main commit `cf726923b2da3c46196765bcb1178c2d36a8041b`，同时从 PostgreSQL 读取两个 S3 单元且无 SQLite fallback。用户的批量授权不包含阶段 5 的计划任务或 runner-host 迁移，也不允许 dual writer、shadow write、silent fallback 或为迁移修改 live SQLite。
+> 当前状态：阶段 0—3 已获用户批准退出。九个 cutover unit 均已进入 durable S3：PostgreSQL 是唯一 authority/writer，所有 SQLite writer flag 为 false；旧 SQLite 只作迁移基线、审计档案和有限修复材料，不是 production rollback target。最终 production Viewer 运行 exact commit `076dc982b343a851ae1dbbf30f99cb8e10104bdb`，以 `production_hybrid` 明确展示 9/9 per-unit PostgreSQL authority 且无 SQLite fallback。本机七个 `IndustryDemo_*` 计划任务保持 Disabled，VM 未安装同名生产任务；阶段 5 的任务/runner-host 迁移仍未授权。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -141,17 +141,17 @@
 - [x] [首单元恢复门禁] `user_content_notes` 已完成另一故障域加密 recovery set、whole/authority/side restore 与 S3 后 authority snapshot 复核；同 VM 盘符、布尔声明或伪 hash 均未被用于关闭门禁。该证据只适用于首单元，不替代其余 cutover unit 各自的恢复验证。
 - [x] [首单元生产状态] `user_content_notes` 已进入 durable S3，PostgreSQL 为唯一 authority/writer；SQLite writer 已 fenced，旧 SQLite 仅为迁移基线、审计和有限修复材料。当前处于 S3 observation，明确不推进 S4。
 - [x] [第二单元生产状态] `shared_identity` 已于 2026-08-15 进入 durable S3，3,539 条正式身份记录由 PostgreSQL 唯一承载，SQLite writer 已 fenced；异机 recovery set 已完成 whole/side/authority restore，实测 RPO 0.016 秒、RTO 0.687 秒。生产 Viewer 的 `user_content_notes` 与 `shared_identity` 均 fail-closed 使用 PostgreSQL。
-- [x] [其余单元 S1] `financial_data`、`research_publication`、`dynamic_intelligence`、`operations_governance`、`investment_hypotheses`、`opportunity_lens`、`sentiment_analytics` 已完成 durable S1 promotion：2,240,746 行逐单元 source/target count 与 content SHA256 一致，`formal_business_data=false`、`application_compatibility_ready=false`、未进入 S2/S3。它们继续以 SQLite 为唯一正式 authority/writer；在各自 adapter、writer fence、事务兼容和恢复门禁完成前不得切换。
-- [ ] [本阶段必须] 每个切换单元进入 S2 前先完成该 unit 所需的 VM 外 backup、migration rehearsal、增量追平、权限和按 target RPO/RTO 设计的真实恢复路径验证，并冻结 owning unit、dependency、权威后端、唯一 writer/reader/runner 清单；不得机械推迟到阶段 5，阶段 5 只做整体任务迁移、空机恢复和 measured RPO/RTO 收口。
-- [ ] [本阶段必须] 每个切换单元执行源目标计数、关系、时间序列、状态机、稳定身份映射和业务不变量对账；验证相关页面、API、publisher 和写路径。2026-08-13 exact commit `af510bce455a59c47a0007cfc54928951303b48b` 已将九个 unit 的 2,244,285 行非正式 migration staging 数据逐单元顶层提交到 production PostgreSQL，并从全新连接验证 9/9 `reconciled`、source/target identity 一致、authority 未变；页面/API/publisher/正式写路径和最终 mapping 批准仍未完成，因此本项保持未勾选。
-- [ ] [本阶段必须] 在短维护窗口切换唯一 writer；优先 shadow read。进入 S2 时 PostgreSQL 是唯一指定 writer、SQLite writer 已停止并冻结；记录 cutover epoch、SQLite 最终权威业务水位、PostgreSQL 首条正式业务 commit 水位、验证写、uncertain response、操作者和证据。首条必须保留的正式写提交即进入 S3，无法证明未提交的 uncertain response 按 S3。任何连接失败不得静默回写 SQLite；未经独立批准不得 shadow write。
-- [ ] [本阶段必须] 保留研究 staging/reviewer/publisher、financial revision/reconciliation、用户内容 revision/audit 和任务 ledger；验证 publication/release identity、幂等 retry、expected revision、stale conflict 和依赖簇事务原子性。
-- [ ] [本阶段必须] 分别记录数据后端和任务执行节点。允许本地唯一 runner 在受限权限下暂连 production PostgreSQL，但必须登记任务、临时 owner、开始时间、唯一 runner、数据库角色/权限、网络/凭据、checkpoint、暂留原因、退出条件、下一 HALT、VM 前置和逾期升级方式；本地断线不得触发 SQLite 回退。若不采用，该 runner 与切换单元同窗切换。任何状态均不得双 runner。
-- [ ] [仅 SQLite 过渡期需要] 生成切换单元对应的一致 SQLite 基线和 migration manifest；禁止作为日常开发同步源，并在 S3 后标明“不可直接恢复生产 writer”。
-- [ ] [本阶段必须] 演练 S1 放弃、S2 在停写与水位证明下的回退、S2 uncertain response 按 S3 收口，以及 S3 后 PostgreSQL 前向修复/兼容代码回滚/旁路恢复选择性修复；不得用同一“rollback”标签混淆这些动作。
-- [ ] [本阶段必须] 对单域逻辑错误将备份恢复到旁路环境，选择性提取并审计修复；禁止为单域错误原地回退整个 production database。
-- [ ] [本阶段必须] 稳定观察期后把旧 SQLite 标记为迁移基线与审计档案；删除应用写入口，不立即删除文件。
-- [ ] [HALT] 每个切换单元仍须形成独立的对账、性能、身份映射、并发、故障与恢复 evidence。用户已批量授权其余八个单元在自身全部门禁通过后按冻结顺序继续 S2→S3，因此普通单元完成不再单独等待批准；只有全部 Stage 4 单元完成，或出现无法由 Codex 关闭的外部 hard blocker 时统一 HALT。阶段 5 始终需要单独授权。
+- [x] [其余单元 S3] `financial_data`、`research_publication`、`dynamic_intelligence`、`operations_governance`、`investment_hypotheses`、`opportunity_lens`、`sentiment_analytics` 已在各自 gate 通过后按冻结顺序进入 durable S3；authority revision 均为 4，PostgreSQL 是唯一 authority/writer，SQLite writer 均已 fenced。S1 的 2,240,746 行逐单元 source/target count 与 content SHA256 一致，最终 delta/watermark、adapter、事务/API、稳定身份和正式 writer 边界在 S2 前复核通过。
+- [x] [本阶段必须] 九个切换单元进入 S2 前均完成 VM 外 recovery、migration rehearsal、增量追平、权限和 target RPO/RTO 对应恢复路径验证；最终 post-S3 恢复又统一核验 9/9 authority snapshot、whole/side/authority restore 和两份验证集 retention。原始恢复材料保持 Git 外。
+- [x] [本阶段必须] 九个单元已执行源目标计数、关系/时间序列、状态机、稳定身份和业务不变量对账；2,244,285 行结构化迁移基线一致，相关页面/API/operation adapter 与代表性生产读链路通过。`user_content_notes` revision/audit 不重复计入该迁移基线总数。
+- [x] [本阶段必须] 每个单元已在受控窗口切换唯一 writer并记录 cutover epoch、SQLite final watermark、PostgreSQL first-formal watermark、验证写/uncertain response、可信 actor/approval 和 authority ledger；首条必须保留写与 S2→S3 原子提交，连接失败不回写 SQLite。
+- [x] [本阶段必须] 研究 staging/reviewer/publisher、financial revision/reconciliation、用户内容 revision/audit/idempotency 和 operations ledger 均由单元 adapter 保留；publication/release identity、expected revision、stale conflict 和事务边界有代码与 PostgreSQL rehearsal 覆盖。
+- [x] [本阶段必须] 数据后端与任务执行节点已分开记录：九个数据单元为 PostgreSQL S3；本机七个 `IndustryDemo_*` 任务均 Disabled，VM 没有同名生产任务，因此没有双 runner。任务启动、checkpoint 追平和 VM runner 迁移留给阶段 5。
+- [x] [仅 SQLite 过渡期需要] 每个切换单元均有一致 SQLite baseline/migration manifest；S3 后已明确标记“仅 migration baseline/audit，不可直接恢复 production writer”，文件暂不删除。
+- [x] [本阶段必须] 已覆盖 S1 放弃、S2 零正式新写回退、S2 uncertain response 按 S3、S3 前向修复、schema-compatible code rollback 和旁路选择性恢复；各动作不再混用同一个 rollback 标签。
+- [x] [本阶段必须] 最终异机 recovery set 已完成 whole-database、authority-control 和 side-domain restore；单域逻辑错误采用旁路提取/对账/审计修复，不允许原地回退整个 production database。
+- [x] [本阶段必须] 九个单元的旧 SQLite 已标记为 migration baseline/audit，应用 operation-level SQLite 写入口由 authority fence 禁用；文件继续保留，不推进 S4。
+- [ ] [HALT] 九个切换单元的独立对账、身份/并发、应用兼容、故障与恢复 evidence 已形成，当前统一 HALT 等待用户人工批准 Stage 4 退出。不得自行勾选本项；阶段 5 的七个任务、runner、空机恢复和整体 measured RPO/RTO 收口始终需要单独授权。
 
 **退出条件**：该切换单元 PostgreSQL 是唯一 writer；权威后端和唯一 runner 明确；旧 SQLite 角色与当前状态一致；备份可恢复；无未解释数据差异或并发覆盖。
 

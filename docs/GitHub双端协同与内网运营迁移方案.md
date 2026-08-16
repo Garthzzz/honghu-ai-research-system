@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统 GitHub—PostgreSQL—VM 运营迁移方案
 
-> 状态：架构审查稿，尚未批准实施。  
-> OpenSpec 权威变更：`openspec/changes/github-vm-dual-node-operations/`。  
+> 状态：阶段 0—3 已获批准退出；Stage 4 九个数据切换单元已全部进入 durable S3，正在等待用户人工批准 Stage 4 退出。Stage 5 的七个任务与 runner 迁移尚未授权。
+> OpenSpec 权威变更：`openspec/changes/github-vm-dual-node-operations/`。
 > 本文是便于团队阅读的总览；阶段、门槛和验收以该 change 的 `baseline.md`、`design.md`、`tasks.md` 和 capability specs 为准。
 
 ## 1. 为什么重写原方案
@@ -17,6 +17,8 @@
 长期正常边界仍优先采用 private/公司治理仓库。用户已明确批准迁移实施和人工审核期间保持 public，便于核验 Actions、提交和阶段证据；该公开例外不允许新增数据库、papers、用户内容、凭据或其他敏感资产，也不使个人账号仓库自动成为 production authority。
 
 SQLite 不立即下线，但只作为按业务切换单元迁移的现状。PostgreSQL 产生必须保留的新写入后，旧 SQLite 主要是冻结迁移基线、审计档案和有限修复材料，不再是默认无损回滚点。
+
+截至 2026-08-16，`user_content_notes`、`shared_identity`、`financial_data`、`research_publication`、`dynamic_intelligence`、`operations_governance`、`investment_hypotheses`、`opportunity_lens` 与 `sentiment_analytics` 均为 S3/`postgresql_production`，所有 SQLite writer 均已 fenced。Production Viewer 以 `production_hybrid` 展示逐单元 authority；该名称表示应用仍有外置文件、兼容 projection 和未迁移 runner，不表示任何数据单元可回退 SQLite writer。最终 evidence 与 recovery identity 见 Stage 4 completion report 和 `BACKUP_REGISTRY.md`。
 
 ## 2. 目标架构
 
