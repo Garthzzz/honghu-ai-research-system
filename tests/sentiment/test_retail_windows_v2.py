@@ -334,7 +334,7 @@ class RetailDataLayerTests(unittest.TestCase):
             self.assertEqual([item.window_id for item in due_before], [window.window_id])
             seed.close()
 
-            def connect():
+            def connect(**_kwargs):
                 con = sqlite3.connect(db_path)
                 con.row_factory = sqlite3.Row
                 con.execute("PRAGMA foreign_keys=ON")
@@ -530,7 +530,7 @@ class RetailDataLayerTests(unittest.TestCase):
             seed.commit()
             seed.close()
 
-            def connect():
+            def connect(**_kwargs):
                 con = sqlite3.connect(db_path)
                 con.row_factory = sqlite3.Row
                 con.execute("PRAGMA foreign_keys=ON")

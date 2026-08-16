@@ -60,13 +60,25 @@ jobs:
 
       - name: Build evidence bound to the checked-out commit
         shell: pwsh
-        run: python tools/maintenance/build_stage1_evidence.py
+        env:
+          GITHUB_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python tools/maintenance/build_stage1_evidence.py
+          python -m tools.maintenance.build_stage5_evidence
 
       - name: Upload exact-commit Stage 1 evidence
         uses: actions/upload-artifact@v4
         with:
           name: stage1-evidence-${{ github.sha }}
           path: cache/git_bootstrap/stage1_evidence/
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload exact-commit Stage 5 code identity
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage5-code-identity-${{ github.sha }}
+          path: cache/git_bootstrap/stage5_evidence/
           if-no-files-found: error
           retention-days: 30
 

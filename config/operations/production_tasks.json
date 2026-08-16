@@ -1,0 +1,77 @@
+{
+  "schema_version": "honghu.production_task_manifest.v1",
+  "timezone": "Asia/Shanghai",
+  "runner_host": "DESKTOP-VGD07J4",
+  "tasks": [
+    {
+      "task_id": "IndustryDemo_DynamicTick",
+      "cutover_unit": "operations_governance",
+      "writer_units": ["operations_governance", "dynamic_intelligence"],
+      "schedule": {"kind": "weekday_interval", "start": "08:00", "end": "20:00", "minutes": 15},
+      "window": {"kind": "quarter_hour", "minutes": 15},
+      "freshness_seconds": 2700,
+      "execution_timeout_seconds": 840,
+      "command": ["-m", "tools.dynamic.scheduler", "tick"]
+    },
+    {
+      "task_id": "IndustryDemo_EventIngest",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "10:30"},
+      "window": {"kind": "business_date"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 28800,
+      "command": ["-m", "tools.sentiment.event_ingest", "--all", "--max-llm", "600", "--per-stock", "30"]
+    },
+    {
+      "task_id": "IndustryDemo_RecruitWeekly",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekly_at", "weekday": "Monday", "at": "11:00"},
+      "window": {"kind": "iso_week"},
+      "freshness_seconds": 691200,
+      "execution_timeout_seconds": 10800,
+      "command": ["-m", "tools.sentiment.recruit_weekly"]
+    },
+    {
+      "task_id": "IndustryDemo_Retail_Preopen",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "10:00"},
+      "window": {"kind": "business_date_slot", "slot": "preopen"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 28800,
+      "command": ["-m", "tools.sentiment.retail_window_tick", "--slot", "preopen"]
+    },
+    {
+      "task_id": "IndustryDemo_Retail_Morning",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "14:00"},
+      "window": {"kind": "business_date_slot", "slot": "morning"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 28800,
+      "command": ["-m", "tools.sentiment.retail_window_tick", "--slot", "morning"]
+    },
+    {
+      "task_id": "IndustryDemo_Retail_Afternoon",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "17:00"},
+      "window": {"kind": "business_date_slot", "slot": "afternoon"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 28800,
+      "command": ["-m", "tools.sentiment.retail_window_tick", "--slot", "afternoon"]
+    },
+    {
+      "task_id": "IndustryDemo_SentimentRetention",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "21:00"},
+      "window": {"kind": "business_date"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 14400,
+      "command": ["-m", "tools.maintenance.sentiment_retention", "--apply", "--grace-days", "3", "--include-expired-incomplete", "--incomplete-age-days", "3"]
+    }
+  ]
+}

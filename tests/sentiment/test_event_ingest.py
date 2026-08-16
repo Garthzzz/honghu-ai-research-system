@@ -63,6 +63,18 @@ class EventIngestTests(unittest.TestCase):
         child.assert_not_called()
         output.assert_not_called()
 
+    def test_recruit_child_failure_is_propagated_and_stops_classification(self):
+        weekday = mock.Mock()
+        weekday.weekday.return_value = 0
+        weekday.isocalendar.return_value = (2026, 34, 1)
+        clock = mock.Mock()
+        clock.now.return_value = weekday
+        with mock.patch.object(recruit_weekly, "datetime", clock), \
+             mock.patch.object(recruit_weekly, "run", return_value=False) as child, \
+             mock.patch("tools.data_platform.run_domain_operation.install_operation_context"):
+            self.assertEqual(recruit_weekly.main(), 2)
+        child.assert_called_once_with("recruit_scrape.py")
+
     def test_pending_scores_are_recovered_newest_first_and_audited(self):
         con = self.make_connection()
         con.executemany(

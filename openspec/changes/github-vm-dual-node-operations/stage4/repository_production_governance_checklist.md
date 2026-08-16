@@ -1,6 +1,7 @@
 # Repository production governance evidence
 
 > 最近只读核验：2026-08-16。本文件不包含凭据、deploy secret 或 GitHub 私有设置值；仓库可见性继续遵守用户当前要求。
+> Stage 5 实施期间的正式临时 exception 与退出条件见 `../stage5/repository_production_governance_exception.md`；本文件保留 GitHub 只读事实，不把 exception 解释为完整 company governance 已通过。
 
 ## 已由 GitHub API 核实
 

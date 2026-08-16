@@ -11,9 +11,11 @@ from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-SENTI_DB = ROOT / "data" / "sentiment.db"
-RESEARCH_DB = ROOT / "data" / "research.db"
-SECRETS = ROOT / "tools" / "dynamic" / "secrets"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+SENTI_DB = RUNTIME_LAYOUT.data_root / "sentiment.db"
+RESEARCH_DB = RUNTIME_LAYOUT.data_root / "research.db"
+SECRETS = RUNTIME_LAYOUT.content_root / "tools" / "dynamic" / "secrets"
 TZ = timezone(timedelta(hours=8))
 
 

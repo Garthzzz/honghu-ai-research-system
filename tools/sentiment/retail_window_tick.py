@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -21,6 +22,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
 sys.path.insert(0, str(HERE))
 
 import common
@@ -31,7 +34,7 @@ import senti3
 DEFAULT_GUBA_PAGES = int(
     (senti3.load_layer_config().get("guba", {}) or {}).get("pages_per_stock", 128)
 )
-TICK_LOCK_PATH = ROOT / "cache" / "retail_window_tick.lock"
+TICK_LOCK_PATH = RUNTIME_LAYOUT.cache_root / "retail_window_tick.lock"
 TICK_LOCK_TIMEOUT_SECONDS = 8 * 60 * 60
 XINGHAN_CHILD_TIMEOUT_SECONDS = 6 * 60 * 60
 XINGHAN_ORPHAN_STALE_SECONDS = 10 * 60
@@ -186,10 +189,26 @@ def build_commands(
 
 
 def run_child(command: ChildCommand) -> ChildResult:
+    from tools.data_platform.run_domain_operation import derived_operation_environment
+    window_id = "unknown-window"
+    if "--window-id" in command.args:
+        window_id = command.args[command.args.index("--window-id") + 1]
     try:
+        bootstrap = os.environ.get("HONGHU_RELEASE_BOOTSTRAP", "").strip()
+        site_packages = os.environ.get("HONGHU_LOCKED_SITE_PACKAGES", "").strip()
+        if not bootstrap or not site_packages:
+            raise RuntimeError("exact-release child bootstrap contract is unavailable")
+        module = f"tools.sentiment.{Path(command.script).stem}"
         proc = subprocess.run(
-            [sys.executable, str(HERE / command.script), *command.args],
+            [
+                sys.executable, "-I", "-B", "-S", bootstrap,
+                "--site-packages", site_packages,
+                "--module", "tools.operations.task_child",
+                "--task-module", module,
+                "--", *command.args,
+            ],
             cwd=str(ROOT),
+            env=derived_operation_environment(f"retail:{window_id}:{command.source}"),
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -842,7 +861,16 @@ def execute_window(
     score_max: int,
     force: bool = False,
 ) -> tuple[int, dict]:
-    con = common.get_senti_db()
+    from tools.data_platform.run_domain_operation import derived_operation_id
+
+    con = common.get_senti_db(
+        operation_scope="retail_window",
+        operation_id=(
+            derived_operation_id(f"window:{window.window_id}")
+            if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+            else None
+        ),
+    )
     common.assert_senti_only(con)
     retail_windows_v2.ensure_schema(con)
     retail_windows_v2.ensure_window(con, window)
@@ -985,7 +1013,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         with exclusive_tick_lock():
-            recovery_con = common.get_senti_db()
+            from tools.data_platform.run_domain_operation import derived_operation_id
+
+            recovery_con = common.get_senti_db(
+                operation_scope="retail_recovery",
+                operation_id=(
+                    derived_operation_id("controller:recovery")
+                    if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+                    else None
+                ),
+            )
             common.assert_senti_only(recovery_con)
             orphan_wait = wait_for_fresh_orphaned_xinghan(recovery_con)
             if orphan_wait:
@@ -1021,7 +1058,14 @@ def main(argv: list[str] | None = None) -> int:
                 newer_due.window_id if yield_to_newer_window else None
             )
             if not args.no_auto_backfill and not yield_to_newer_window:
-                scan_con = common.get_senti_db()
+                scan_con = common.get_senti_db(
+                    operation_scope="retail_backfill_scan",
+                    operation_id=(
+                        derived_operation_id("controller:backfill-scan")
+                        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+                        else None
+                    ),
+                )
                 common.assert_senti_only(scan_con)
                 backfill_windows = due_auto_backfill_windows(
                     scan_con,

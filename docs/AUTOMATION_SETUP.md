@@ -1,21 +1,22 @@
 # 动态情报自动化部署(E3)
 
-> 当前状态：本文记录现有本地/SQLite 任务部署事实，不授权 GitHub—PostgreSQL—VM 迁移。未来迁移必须分别记录“数据权威后端”和“唯一任务 runner”；任务主机从本地切到 VM 不等于数据后端切换，反之亦然。正式边界见 `openspec/changes/github-vm-dual-node-operations/`。
+> 当前状态（2026-08-16）：Stage 4 已获人工批准退出，九个 cutover unit 均为 durable S3，PostgreSQL 是唯一 production authority/writer；SQLite 只作 migration baseline/audit，不是失败回退后端。Stage 5 已获授权并正在实施七个任务的 VM runner、checkpoint、恢复和监控迁移，但尚未宣布完成。数据权威后端与唯一任务 runner 是两个独立状态；任务主机迁到 VM 不改变 PostgreSQL authority。正式边界见 `openspec/changes/github-vm-dual-node-operations/`。
 
 scheduler 进程本身是短生命周期 tick，靠外部定时器每 15 分钟唤醒；核心业务调度状态主要在数据库，但运行正确性还依赖 runtime lock、checkpoint、segment heartbeat、API 限流状态、pagination offset 和部分可恢复 cache。因此不能把它描述成“全部状态都在数据库”的完全无状态任务。
 
-## 当前任务事实与目标配置
+## 当前任务事实、Stage 5 合同与历史说明
 
-2026-08-03 第三轮只读复核显示，当前七个 `IndustryDemo_*` 任务仍全部使用 `InteractiveToken`、运行用户为 `zhang`，并混用 base 与 `quant` 解释器。复核时状态均为 Ready；最近结果为 DynamicTick/EventIngest/RecruitWeekly=`0`，三个 Retail 任务=`2`，SentimentRetention=`0x40010004`。这些是会变化的审计快照，Ready 不等于执行成功，迁移前必须重新读取任务定义、checkpoint 和真实数据效果。
+2026-08-16 Stage 5 启动时的只读复核显示，本地七个 `IndustryDemo_*` 任务全部为 `Disabled`，仍属于用户 `zhang` 的 Interactive 配置；DynamicTick、EventIngest、RecruitWeekly 最近结果为 `0`，三个 Retail 任务为 `0x2`，SentimentRetention 为 `0x800710E0`。这些是会变化的现场快照，不表示 VM 任务已经安装，也不能用 `Disabled`、进程退出码或任务状态替代 checkpoint、业务结果和 freshness 验证。2026-08-03 的 Ready/旧退出码仅是历史快照，已不再代表当前状态。
 
-下文“勾选不管用户是否登录都运行”是新建任务时的目标安装配置，不是当前七个任务已经达到的事实。GitHub—PostgreSQL—VM 迁移后的 production 目标是经批准的非交互、最小权限服务身份、固定解释器/lockfile、canonical task manifest 和可审计 checkpoint；本轮没有修改任何任务。
+Stage 5 的正式声明入口是 `config/operations/production_tasks.json`，受 `tools/operations/task_manifest.py` 严格校验；统一 runner 是 `tools/operations/task_runner.py`，VM 安装入口是 `tools/operations/Provision-ProductionTaskRunner.ps1` 与 `tools/operations/Install-ProductionTasks.ps1`。安装必须绑定经过 CI 和人工批准的 immutable release、固定 Python 3.10 lock 环境、外置 runtime/data/content、非交互最小权限服务身份和 PostgreSQL task ledger。任务先 disabled 安装，真实试跑和对账通过后才可逐项启用；不得从 `PATH` 猜解释器，不得使用 live 项目目录作为可变代码根，不得在 PostgreSQL 失败时写回 SQLite，也不得让本地与 VM 同名任务同时启用。
+
+本文后续章节保留各 producer 的业务窗口、来源、补漏和历史入口说明。出现 `research.db`、`sentiment.db` 或本地 cache 的段落描述的是历史物理实现或仍需外置的可恢复运行状态；Stage 5 production 写入必须通过已经处于 S3 的 PostgreSQL unit adapter。若正文与 canonical manifest、authority matrix 或 OpenSpec 冲突，以后三者为准。
 
 ## 1. Windows 任务计划程序挂 scheduler tick(每 15 分钟)
 1. 任务计划程序 → 创建任务。
 2. 触发器:周一至周五,重复间隔 **15 分钟**,持续到 20:00；周末不启动。
 3. 操作:程序 `<python.exe 绝对路径>`,参数 `tools\dynamic\scheduler.py tick`,起始于 `D:\quant\industry_demo`。
-4. 目标安装时勾选「不管用户是否登录都运行」；现有任务仍是 Interactive，不能用本条说明反向证明已经配置完成。
-（或用 NSSM 把 `python scheduler.py`(循环版)包成 Windows 服务。)
+4. 历史本地安装曾使用 Interactive 配置。Stage 5 VM 只能使用批准的非交互服务身份和统一 installer；不得用手工勾选、NSSM 或个人登录会话绕过 canonical manifest 与 task ledger。
 
 每 tick 只跑到点的 target（所有意见领袖统一在北京时间 09:00—17:00 每 60 分钟检查一次；17:00 后不再启动 KOL 抓取；news/event 沿用各自节奏），并发锁防重入，失败指数退避。代码入口另有上海时区周末静默门禁：即使任务被误触发，也不请求外部服务、不写失败告警、不累计错误。
 `status=active` 表示最近一次来源检查成功；首次失败立即为 `error`，连续第三次失败才 `paused`；`is_running=1` 才表示当前正在执行。
@@ -39,9 +40,9 @@ scheduler 进程本身是短生命周期 tick，靠外部定时器每 15 分钟�
 - 平台/频率/时区/突发簇/相关性关键词全在 `config.yaml`。
 
 ## 5. 数据流(全自动)
-一般动态源：`工作日任务计划器 → scheduler tick → run_fetch(event/news/voice subprocess) → ingest 去重 → relevance_classifier → ai_tagger → research.db → viewer`。
+一般动态源：`工作日任务计划器 → scheduler tick → run_fetch(event/news/voice subprocess) → ingest 去重 → relevance_classifier → ai_tagger → PostgreSQL dynamic_intelligence → viewer`。旧 `research.db` 行只作迁移基线/audit，不再接收 production task 写入。
 
-微博 KOL：`工作日 scheduler → voice_ingest → 舆情 API（微博重点账号）→ 作者 UID 精确匹配 → research.db.voice_post → viewer`。该链路与散户情绪完全分离；散户库不再抓取、保存或计算微博。
+微博 KOL：`工作日 scheduler → voice_ingest → 舆情 API（微博重点账号）→ 作者 UID 精确匹配 → PostgreSQL dynamic_intelligence voice_post → viewer`。该链路与散户情绪完全分离；散户域不再抓取、保存或计算微博。
 AI 标注/事件前瞻本期为 CC session 版(grounded);`ANTHROPIC_API_KEY` 到位后切 API 版(接口一致)。
 
 ## 6. 散户情绪市场窗口 V2
@@ -52,14 +53,14 @@ AI 标注/事件前瞻本期为 CC session 版(grounded);`ANTHROPIC_API_KEY` 到
 - 14:00 `morning`：本交易日 09:30-13:00。
 - 17:00 `afternoon`：本交易日 13:00-16:00。
 
-安装器默认仅打印 dry-run，不会修改系统任务：
+以下 installer 仅是 SQLite 时代的兼容/历史入口，不得用于 Stage 5 VM production 安装：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\sentiment\install_retail_window_tasks.ps1
 powershell -ExecutionPolicy Bypass -File tools\sentiment\install_retail_window_tasks.ps1 -Apply
 ```
 
-`-Apply` 会先注册周一至周五 10:30 执行的 `IndustryDemo_EventIngest`，再注册三个散户窗口任务。公告任务使用 `pythonw.exe` 后台运行，输出写入 `cache/sentiment/event_ingest.log`；它每次先抓取全量闭集公司的最新公告，再自动补判本轮和历史尚未评分的公告。公告任务不启用错过后补跑，避免电脑恢复时在错误时段执行；散户窗口仍启用 `StartWhenAvailable`。所有自动抓取周末静默，周一由各自既有补漏逻辑收口。全部任务注册成功后，安装器会删除任何残留的旧 `IndustryDemo_SentiTick`，避免旧入口被误启用。
+`-Apply` 的历史行为会直接注册本地任务，因此迁移期间禁止执行。Stage 5 的 VM 定义只能由统一 installer 从 exact-release manifest 生成；它必须先 disabled 安装、保存 definition identity，并在受控试跑、checkpoint/freshness 对账和本地 Disabled 复核后逐任务启用。
 
 手工只读审计/迁移入口：
 
@@ -75,7 +76,7 @@ python -m tools.sentiment.migrate_retail_windows_v2 --apply --allow-live
 
 东财股吧通过官方 WAP `WebArticleList` JSON 接口按原帖发布时间倒序读取，并在一个窗口内复用 HTTP session；不再依赖会落入“身份核实”页的浏览器列表。接口页长固定为 50（更大页长会产生跨页重叠），生产深度从 `sentiment_layers.guba.pages_per_stock` 读取（当前安全上限为 128 页，可覆盖极活跃股票约 6400 帖）；逐页读取原帖发布时间，只有整页越过窗口起点才算完整，接口异常、空首页和达到页数上限仍未越界都会明确记为失败/`truncated`。置顶帖和跨页重复按 `post_id` 去重；瞬时 HTTP/接口异常会换新 session 重试一次，失败公司会结构化写入 run 结果。
 
-三个窗口虽然使用三个 Windows Task Scheduler 任务名，但 `retail_window_tick.py` 会持有同一个项目级跨进程锁。前一窗口尚未结束时，后一窗口排队等待并在获得锁后补跑，避免不同任务名绕过 `MultipleInstances` 后并发抓取或竞争写入 `sentiment.db`。若父 tick 被系统强制终止但 Xinghan 子进程仍在分页，下一次取得锁的 tick 会先识别最近 10 分钟仍在推进的 segment/checkpoint 心跳并等待其收口，避免第二个进程交错使用相同 snapshot/offset；心跳停止或必需请求闭合后，才把遗留 `running` 状态如实收敛为 `partial/failed` 并重算草稿聚合，再执行当前窗口，不会长期伪装成仍在运行。
+三个窗口虽然使用三个 Windows Task Scheduler 任务名，但 `retail_window_tick.py` 仍须共享同一业务资源锁，并由 Stage 5 task runner 另加 task-level PostgreSQL advisory lock。前一窗口尚未结束时，后一窗口等待或延期，避免不同任务名绕过 `MultipleInstances` 后并发抓取或竞争写入 PostgreSQL `sentiment_analytics`。若父 tick 被系统强制终止但 Xinghan 子进程仍在分页，下一次取得锁的 tick 会先识别仍在推进的 segment/checkpoint 心跳并等待其收口；心跳停止或必需请求闭合后，才把遗留 `running` 状态如实收敛为 `partial/failed` 并重算草稿聚合，再执行当前窗口。
 
 `IndustryDemo_SentimentRetention` 每个工作日 21:00 只做本地数据库维护，不请求外部服务。窗口聚合先保存三类标签数量、三类加权总量、平台分布、计算版本和哈希；完整窗口通过复算封存后即可删除逐帖正文、归属副本和窗口映射，不再设置固定 14 天等待期。`running`、存在 checkpoint、未封存以及默认的 `partial/failed` 窗口全部受保护。维护入口 `python -m tools.maintenance.sentiment_retention` 默认仅输出计划；只有显式 `--apply` 才逻辑清理。物理收缩必须另行停写、完成外部一致备份后，带 `--compact --apply --backup-confirmation <路径>` 人工执行。
 
@@ -83,8 +84,8 @@ python -m tools.sentiment.migrate_retail_windows_v2 --apply --allow-live
 
 K 线负载按窗口分层：10:00 对动态上市公司全集做日线与 90 天 60m 回填；14:00 只取 5 天 60m 增量；17:00 取 10 天日线与 5 天 60m 增量。相同 ticker 只请求一次再分发到公司，`delisted/unlisted/private/pre_ipo` 等客观无当前行情实体不进入动态池。港股五位交易所代码会在 Yahoo provider 边界转为四位代码，例如 `09888.HK` 转为 `9888.HK`；历史 `3324.TW` 转为 Yahoo 正确代码 `3324.TWO`。A 股日线优先使用 Tushare；yfinance 无法提供的 A 股当日 60 分钟线由 Tushare 官方 `rt_min` 多代码批量接口补齐，并在 source audit 中保留 fallback 状态。yfinance 日线即使非空也会校验所在市场本地时间下应有的最近工作日；发现滞后会用明确日期范围和 yfinance `repair` 再取一次并记录 warning。股票日线缺少/为零成交量的平线不入库，避免拆股停牌期的 Yahoo 伪 bar 污染股价轴。
 
-公司身份以 `research.db.company` 为 canonical。重复公司合并后，research 的 `company_identity_redirect/company_identity_alias` 和 sentiment 的 `company_id_redirect/company_alias` 保留旧 ID、旧名与旧 ticker；K 线、情绪 raw/aggregate 和页面跳转统一到 canonical ID。Yahoo 的 `.SS`、港股四位代码等只允许存在于 provider 请求边界，数据库始终保存 research canonical ticker。
+公司身份以 PostgreSQL `shared_identity` 为 production canonical。旧 SQLite `research.db.company` 及 research/sentiment redirect/alias 表只保留 migration/legacy/audit 映射；K 线、情绪 raw/aggregate 和页面跳转统一到 PostgreSQL stable identity。Yahoo 的 `.SS`、港股四位代码等只允许存在于 provider 请求边界，权威身份始终保存规范 ticker/venue。
 
 ## 7. 招聘周任务
 
-`IndustryDemo_RecruitWeekly` 固定在北京时间每周一 11:00 执行 `tools/sentiment/recruit_weekly.py`，依次抓取招聘页并更新新增/下架变化，再进行职能、领域和城市分类；只写 `sentiment.db`。Windows 任务使用周一触发器，脚本内部继续保留周末静默门禁，迟到启动也不得在周末请求外部服务。
+`IndustryDemo_RecruitWeekly` 固定在北京时间每周一 11:00 执行 `tools.sentiment.recruit_weekly`，依次抓取招聘页并更新新增/下架变化，再进行职能、领域和城市分类；production 只写 PostgreSQL `sentiment_analytics`。Windows 任务使用周一触发器，脚本内部继续保留周末静默门禁，迟到启动也不得在周末请求外部服务；child failure 必须向统一 runner 返回非零结果。

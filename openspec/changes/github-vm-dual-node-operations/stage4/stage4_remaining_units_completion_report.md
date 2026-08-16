@@ -1,6 +1,6 @@
 # Stage 4 全部数据单元生产迁移收口报告
 
-> 状态：九个 cutover unit 均为 durable S3；本报告只提交脱敏结论和 evidence identity。数据库、恢复集、凭据、TLS 私钥、用户内容及 VM 原始 evidence 保持在 Git 外。Stage 5 的七个任务与 runner 尚未迁移。
+> 状态：九个 cutover unit 均为 durable S3；本报告只提交脱敏结论和 evidence identity。数据库、恢复集、凭据、TLS 私钥、用户内容及 VM 原始 evidence 保持在 Git 外。用户已于 2026-08-16 批准 Stage 4 退出并授权 Stage 5；七个任务与 runner 的迁移仍须由 Stage 5 现场 evidence 验收。
 
 ## 1. 结论
 
@@ -44,14 +44,14 @@ Stage 4 的数据 authority 迁移已经完成工程验收。九个单元都由 
 
 - recovery set identity：`5854c08a44b4b25d6a7ae6662f52ac89df263fd20d0110528d02482ee0072cc5`；
 - recovery evidence 内容 identity：`06bea500760b96d4856e3f7bdc886a167c07f396f1ce18f227c45c3568a22ac2`；文件 SHA256：`b5148947baaa870917b64db8f266e526a6c63641797544a2281d3c3c089b9089`；
-- measured RPO / RTO：0.007 秒 / 8.047 秒；
+- 本次 recovery-set target gap：0.007 秒；该固定 target 的数据库 restore elapsed：8.047 秒。前者不等于持续生产 RPO，后者不等于包含空机、凭据、Viewer、task/checkpoint 和补抓的全系统 RTO；Stage 5 另行实测并与 target 对账；
 - validated retention：保留 `stage4-20260815T231501Z-aedb9d2e` 与 `stage4-20260815T185455Z-6b56b3aa`；最旧有效集已由 retention 删除，唯一未验证失败目录也经独立审计清理，异机端最终只剩两份有效集。
 
 同 VM 的本机 base backup 和 restore-test 目录不计作 off-VM 副本。最终清理 evidence SHA256 为 `fd119838b16cf2d75b29657d6ac89d45d0b42a4fb0a134a55209aeb0b094d622`：删除 4 个旧 execution 目录、21 个旧 immutable release、4 个本机 backup source、3 个 restore-test 和 4 个 legacy Stage 4 根目录，D 盘可用空间恢复至约 151.5 GB；只保留最终 `076dc982…`、上一稳定版 `61bb3bed…`、live PostgreSQL/WAL、最终 evidence 和仍有审计价值的 SQLite baseline。异机失败目录清理 evidence SHA256 为 `3b44c82353f63f9d77cecad97133945572d38a4875b408d14e1a408ccd33a700`。
 
 ## 5. Runner 与 Stage 5 边界
 
-本机七个 `IndustryDemo_*` 计划任务当前全部 Disabled；VM 上不存在同名生产任务。因此 Stage 4 没有迁移 runner，也没有双 runner。当前数据 authority 已在 PostgreSQL，但任务自动启动、checkpoint 连续、漏窗补跑、服务账户和 VM runner 切换仍属于 Stage 5，必须由用户另行授权。
+Stage 4 收口时本机七个 `IndustryDemo_*` 计划任务全部 Disabled，VM 上不存在同名生产任务；因此 Stage 4 没有迁移 runner，也没有双 runner。当前数据 authority 已在 PostgreSQL。用户后来于 2026-08-16 单独授权 Stage 5 实施任务自动启动、checkpoint 连续、漏窗补跑、服务账户和 VM runner 切换；这不改变本报告记录的 Stage 4 现场事实。
 
 ## 6. Repository governance
 
@@ -59,4 +59,4 @@ GitHub API 已核实 main 的两个 required checks、strict update、管理员�
 
 ## 7. Stage 4 退出建议
 
-九个 cutover unit 已满足 Stage 4 的 S3、唯一 writer、对账、应用兼容和恢复合同；因此建议用户人工批准 Stage 4 退出。该建议不等于批准 S4，也不授权 Stage 5、七个任务迁移、runner 切换或无人审核自动部署。
+九个 cutover unit 已满足 Stage 4 的 S3、唯一 writer、对账、应用兼容和恢复合同；用户已于 2026-08-16 接受该建议并批准 Stage 4 退出。该批准不等于推进 S4；Stage 5 虽已另行授权，仍禁止无人审核自动部署并须独立完成七任务、恢复和 measured RPO/RTO 验收。

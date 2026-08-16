@@ -1,0 +1,55 @@
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_installer_is_exact_release_disabled_first_and_noninteractive():
+    text = (ROOT / "tools/operations/Install-ProductionTasks.ps1").read_text(encoding="utf-8")
+    assert "InstallDisabled" in text
+    assert "LogonType>Password" in text
+    assert "RunLevel>LeastPrivilege" in text
+    assert "direct_candidate.py" in text
+    assert "--site-packages" in text
+    assert "tools.operations.task_runner" in text
+    assert "Disable-ScheduledTask" in text
+    assert "LocalDisabledEvidence" in text
+    assert "TrialEvidence" in text
+    assert "business_checkpoint_after_sha256" in text
+    assert "Interactive" not in text
+    assert "sqlite_transition" not in text
+    assert "research.db" not in text
+    assert "sentiment.db" not in text
+
+
+def test_service_account_provisioning_keeps_secrets_out_of_arguments_and_evidence():
+    text = (ROOT / "tools/operations/Provision-ProductionTaskRunner.ps1").read_text(encoding="utf-8")
+    assert "HonghuTaskRunner" in text
+    assert "local_administrator=$false" in text
+    assert "task_credential_transfer" in text
+    assert "DPAPI LocalMachine" in text
+    assert "encrypted_transfer_removed=$true" in text
+    assert "secret_recorded=$false" in text
+    assert "Password =" not in text
+
+
+def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():
+    text = (ROOT / "tools/operations/task_credential_transfer.py").read_text(encoding="utf-8")
+    assert "TASK_ROLES" in text
+    assert "writer_operations_governance" in text
+    assert "writer_dynamic_intelligence" in text
+    assert "writer_sentiment_analytics" in text
+    assert "CRYPTPROTECT_LOCAL_MACHINE" in text
+    assert "source.unlink()" in text
+
+
+def test_local_disabled_evidence_reads_scheduler_without_mutating_tasks():
+    text = (ROOT / "tools/operations/Collect-LocalDisabledTaskEvidence.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "Get-ScheduledTask" in text
+    assert "Export-ScheduledTask" in text
+    assert "definition_sha256" in text
+    assert "Enable-ScheduledTask" not in text
+    assert "Disable-ScheduledTask" not in text
+    assert "Register-ScheduledTask" not in text

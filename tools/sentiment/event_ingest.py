@@ -11,7 +11,8 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 if sys.stdout is None:
     # Task Scheduler 使用 pythonw.exe，避免每天弹出可见控制台；输出保留到日志。
-    _log_dir = Path(__file__).resolve().parents[2] / "cache" / "sentiment"
+    from tools.runtime_paths import resolve_runtime_layout
+    _log_dir = resolve_runtime_layout(Path(__file__).resolve().parents[2]).cache_root / "sentiment"
     _log_dir.mkdir(parents=True, exist_ok=True)
     _log_handle = (_log_dir / "event_ingest.log").open("a", encoding="utf-8", buffering=1)
     sys.stdout = _log_handle
@@ -215,7 +216,7 @@ def main():
     if llm_client:
         print("DeepSeek:", "启用" if llm_client.enabled() else "未启用(materiality/sentiment 留空,不造数)", getattr(llm_client, "USAGE", ""))
     con.close()
-    return 0
+    return 2 if stat["fetch_failed"] else 0
 
 
 if __name__ == "__main__":

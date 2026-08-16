@@ -18,7 +18,8 @@ from typing import Callable
 
 
 ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_CACHE_DIR = ROOT / "cache" / "yuqing"
+from tools.runtime_paths import resolve_runtime_layout
+DEFAULT_CACHE_DIR = resolve_runtime_layout(ROOT).cache_root / "yuqing"
 DEFAULT_INTERVAL_SECONDS = 65.0
 
 

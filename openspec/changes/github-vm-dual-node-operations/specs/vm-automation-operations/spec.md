@@ -7,6 +7,10 @@ Every production scheduled or continuous job SHALL be declared in a canonical ma
 - **WHEN** an audit detects an undeclared task or a trigger, account, command, or policy mismatch
 - **THEN** the mismatch SHALL block cutover and produce a concrete remediation record
 
+#### Scenario: Task is installed from a mutable or ambiguous runtime
+- **WHEN** the installed command is not bound to one approved immutable release, lock environment, absolute interpreter, external runtime roots, and manifest identity
+- **THEN** the task SHALL remain disabled and SHALL NOT infer an interpreter, checkout, credential, or data path from `PATH`, an interactive profile, or the current working directory
+
 ### Requirement: Production jobs run without interactive login
 VM production jobs SHALL use approved least-privilege service identities, fixed runtime paths, and approved credentials without requiring an interactive desktop session.
 
@@ -20,6 +24,10 @@ Every job SHALL use a domain-appropriate run lock and idempotency identity so re
 #### Scenario: Prior run is active or stale
 - **WHEN** a new trigger finds an active or stale run record
 - **THEN** the runner SHALL distinguish live execution from abandoned state, avoid blind overlap, and record the resolution
+
+#### Scenario: Process exits zero but business state is not current
+- **WHEN** the runner process succeeds while a producer checkpoint, source audit, required segment, or logical window remains incomplete
+- **THEN** the task SHALL NOT be reported as fresh solely from the exit code; ledger and health SHALL retain the incomplete, degraded, or catch-up state
 
 ### Requirement: VM downtime produces an explicit catch-up decision
 The operation layer SHALL record the last successful logical window and, after startup, determine which missed windows are safely recoverable, bounded, unavailable, or already completed.
@@ -41,6 +49,17 @@ Migration SHALL move each job through disabled installation, manual real run, lo
 #### Scenario: VM trial fails
 - **WHEN** the disabled/manual VM trial or freshness validation fails
 - **THEN** the VM task SHALL remain disabled and the local production task MAY resume from the last verified checkpoint
+
+#### Scenario: Disabled VM installation is ready for a real trial
+- **WHEN** a task definition, service principal, credential, release, manifest, authority backend, and checkpoint have all been verified
+- **THEN** only that task MAY receive an explicit controlled trial; successful registration or process startup alone SHALL NOT authorize enabling its recurring trigger
+
+### Requirement: Task recovery follows authority and checkpoint validation
+After a host or database recovery, production tasks SHALL remain disabled until PostgreSQL authority-control state, application/schema compatibility, installed definition identity, task credentials, and the last durable task/business checkpoints have been verified.
+
+#### Scenario: Database is restored but task checkpoint is uncertain
+- **WHEN** PostgreSQL is reachable but the last consumed logical window or an uncertain task attempt cannot be reconciled
+- **THEN** the runner SHALL stay fenced, classify the window conservatively, and SHALL NOT replay blindly or fall back to SQLite
 
 ### Requirement: Data-backend cutover and runner-host cutover are independent states
 Each job SHALL record both its authoritative data backend and its unique execution host. Moving SQLite to PostgreSQL SHALL NOT implicitly move the job to the VM, and moving the job host SHALL NOT change data authority.

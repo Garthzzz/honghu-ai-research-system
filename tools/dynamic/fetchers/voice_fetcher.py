@@ -22,7 +22,8 @@ from xml.etree import ElementTree as ET
 from email.utils import parsedate_to_datetime
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
-SECRETS = ROOT / "tools" / "dynamic" / "secrets"
+from tools.runtime_paths import resolve_runtime_layout
+SECRETS = resolve_runtime_layout(ROOT).content_root / "tools" / "dynamic" / "secrets"
 UA_POOL = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",

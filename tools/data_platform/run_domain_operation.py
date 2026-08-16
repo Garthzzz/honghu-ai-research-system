@@ -56,6 +56,31 @@ def install_operation_context(
     return generated
 
 
+def derived_operation_id(step: str) -> str:
+    """Return a retry-stable identity for one child/connection stream."""
+
+    value = step.strip()
+    if not value or any(char in value for char in "\r\n"):
+        raise ValueError("operation step is required")
+    root = os.environ.get("HONGHU_OPERATION_ID", "").strip()
+    if not root:
+        raise RuntimeError("root operation identity is unavailable")
+    return f"{root}:step:{value}"
+
+
+def derived_operation_environment(step: str) -> dict[str, str]:
+    """Return an environment with a retry-stable child/step identity.
+
+    A fresh compatibility connection starts its transaction counter at one.
+    Parent and child processes must therefore not reuse the same operation id
+    for independent mutation streams.
+    """
+
+    environment = dict(os.environ)
+    environment["HONGHU_OPERATION_ID"] = derived_operation_id(step)
+    return environment
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 

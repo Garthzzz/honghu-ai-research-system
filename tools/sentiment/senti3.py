@@ -12,7 +12,9 @@ from pathlib import Path
 from datetime import date, datetime, time as clock_time, timedelta, timezone
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-CACHE_YUQING = ROOT / "cache" / "yuqing"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+CACHE_YUQING = RUNTIME_LAYOUT.cache_root / "yuqing"
 FETCHER_DIR = ROOT / "tools" / "dynamic" / "fetchers"
 if str(FETCHER_DIR) not in sys.path:
     sys.path.insert(0, str(FETCHER_DIR))

@@ -278,6 +278,14 @@ class SchedulerContractTest(unittest.TestCase):
         )
         with (
             mock.patch.object(scheduler.subprocess, "run", return_value=completed),
+            mock.patch.dict(
+                scheduler.os.environ,
+                {
+                    "HONGHU_RELEASE_BOOTSTRAP": "C:/candidate/direct_candidate.py",
+                    "HONGHU_LOCKED_SITE_PACKAGES": "C:/candidate/site-packages",
+                    "HONGHU_OPERATION_ID": "stage5:test:voice",
+                },
+            ),
             mock.patch.object(scheduler, "log"),
         ):
             with self.assertRaises(scheduler.ScheduledFetchDeferred):

@@ -97,6 +97,16 @@
       "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition loader is retired."
     },
     {
+      "path": "tools/operations/task_runner.py",
+      "domain": "Stage 5 PostgreSQL production task control plane",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 1,
+      "reason": "The static SQLite ratchet also recognizes PostgreSQL ON CONFLICT. This upsert executes only through psycopg against operations.production_task_definition and never opens or mutates a SQLite database.",
+      "owner": "VM production task operations governance",
+      "future_cutover_unit_candidate": "operations_governance",
+      "sunset_condition": "Remove when the ratchet distinguishes PostgreSQL dialect context or the task definition registration contract is replaced."
+    },
+    {
       "path": "tools/migration/stage4_shared_identity_s1.py",
       "domain": "Stage 4 shared-identity PostgreSQL S1 preparation",
       "rule": "sqlite_conflict_dml",

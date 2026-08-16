@@ -18,7 +18,8 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(ROOT))
-DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+DB = resolve_runtime_layout(ROOT).data_root / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
 import event_store

@@ -75,6 +75,14 @@ The migration/cutover authority-control class SHALL separately protect cutover-u
 - **WHEN** whole-database, isolated single-domain, or bare-machine restore evidence is missing
 - **THEN** acceptance SHALL remain blocked until measured recoverable point, elapsed recovery time, unrecovered data, refetch time, and selective-repair time are recorded and compared with the approved targets
 
+#### Scenario: A fixed recovery set has a small target gap
+- **WHEN** one tested recovery set records the interval between its durable target and recovered watermark plus the elapsed database restore time
+- **THEN** those values SHALL be labelled recovery-set target gap and target restore elapsed; they SHALL NOT be reported as arbitrary-failure continuous production RPO or full-system RTO unless continuous off-VM WAL, credentials/config, application, task checkpoints, content dependencies, refetch, and clean-environment recovery are included in the measured exercise
+
+#### Scenario: Full-system measured RPO/RTO is accepted
+- **WHEN** Stage 5 recovery acceptance is evaluated
+- **THEN** evidence SHALL use backup/WAL already durable outside the failed VM before the exercise, identify the actual recoverable watermark, include authority and task-checkpoint validation plus missing-data/refetch/selective-repair time, and compare the result with each approved target class
+
 ### Requirement: Whole-database disaster recovery is distinct from domain logical repair
 A logical error limited to one domain SHALL NOT cause an in-place rewind of the entire production database by default.
 

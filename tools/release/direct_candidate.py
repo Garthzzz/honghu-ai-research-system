@@ -21,6 +21,11 @@ ALLOWED_MODULES = {
     "tools.release.cli": "main",
     "tools.release.readonly_smoke": "main",
     "tools.release.user_content_production": "main",
+    "tools.operations.task_runner": "main",
+    "tools.operations.task_child": "main",
+    "tools.operations.task_credential_transfer": "main",
+    "tools.operations.wal_offvm_sync": "main",
+    "tools.operations.recovery_health": "main",
 }
 
 

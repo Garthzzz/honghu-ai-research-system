@@ -30,9 +30,11 @@ except ImportError:  # 兼容 voice_fetcher 把本目录加入 sys.path 后的�
     from yuqing_rate_limit import DEFAULT_INTERVAL_SECONDS, SharedSubjectInfosLimiter
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
-SECRETS = ROOT / "tools" / "dynamic" / "secrets"
-CACHEDIR = ROOT / "cache" / "yuqing"
-ALERTDIR = ROOT / "cache" / "dynamic_alerts"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+SECRETS = RUNTIME_LAYOUT.content_root / "tools" / "dynamic" / "secrets"
+CACHEDIR = RUNTIME_LAYOUT.cache_root / "yuqing"
+ALERTDIR = RUNTIME_LAYOUT.cache_root / "dynamic_alerts"
 BASE = "https://dowding-gwa.istarshine.com/yqms/v4/api"
 TIMEOUT = 30
 _TAG = re.compile(r"<[^>]+>")

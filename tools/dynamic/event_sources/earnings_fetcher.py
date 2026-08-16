@@ -23,9 +23,11 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(ROOT))
-DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DB = RUNTIME_LAYOUT.data_root / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
-PENDING = ROOT / "cache" / "STAGE3B_EARNINGS_PENDING.md"
+PENDING = RUNTIME_LAYOUT.cache_root / "STAGE3B_EARNINGS_PENDING.md"
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
 import event_store
 import yaml

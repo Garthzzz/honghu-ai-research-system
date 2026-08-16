@@ -19,18 +19,23 @@ voice 子进程的认证/系统错误会进入 ``error``，连续第三次失败
   python scheduler.py status    # 看 fetch_schedule 当前状态
 """
 from __future__ import annotations
-import sys, json, subprocess
+import os, sys, json, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
-DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DB = RUNTIME_LAYOUT.data_root / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
-LOGDIR = ROOT / "cache" / "dynamic_fetch_log"
+LOGDIR = RUNTIME_LAYOUT.cache_root / "dynamic_fetch_log"
 import yaml
 from tools.dynamic.database import connect_operations
-from tools.data_platform.run_domain_operation import install_operation_context
+from tools.data_platform.run_domain_operation import (
+    derived_operation_environment,
+    install_operation_context,
+)
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 STALE_MIN = CFG["schedule"].get("stale_lock_minutes", 30)
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
@@ -127,9 +132,26 @@ def freq_for(con, row) -> int:
 EVDIR = ROOT / "tools" / "dynamic" / "event_sources"
 
 
-def _run_script(path: Path, label: str):
+def _isolated_child(module: str, *arguments: str) -> list[str]:
+    bootstrap = os.environ.get("HONGHU_RELEASE_BOOTSTRAP", "").strip()
+    site_packages = os.environ.get("HONGHU_LOCKED_SITE_PACKAGES", "").strip()
+    if not bootstrap or not site_packages:
+        raise RuntimeError("exact-release child bootstrap contract is unavailable")
+    return [
+        sys.executable, "-I", "-B", "-S", bootstrap,
+        "--site-packages", site_packages,
+        "--module", "tools.operations.task_child",
+        "--task-module", module,
+        "--", *arguments,
+    ]
+
+
+def _run_script(path: Path, label: str, *, step: str):
     """subprocess 跑重型 fetcher(隔离 stdout/yfinance);失败抛异常(交 tick 退避)。"""
-    p = subprocess.run([sys.executable, str(path)], cwd=str(ROOT), capture_output=True,
+    relative = path.resolve().relative_to(ROOT).with_suffix("")
+    module = ".".join(relative.parts)
+    p = subprocess.run(_isolated_child(module), cwd=str(ROOT), capture_output=True,
+                       env=derived_operation_environment(step),
                        text=True, encoding="utf-8", errors="replace", timeout=600)
     tail = (p.stdout or "").strip().splitlines()[-1:] or [""]
     log(f"    {label}: rc={p.returncode} | {tail[0][:120]}")
@@ -140,14 +162,16 @@ def _run_script(path: Path, label: str):
 def run_fetch(con, row) -> int:
     """调用对应来源；微博 voice_ingest 只使用舆情 API。"""
     tt, label = row["target_type"], row["target_label"]
+    schedule_id = row.get("id", f"{tt}:{row.get('target_id', 'unknown')}")
     if tt == "event_calendar":
         # B7:真跑 大会 loader(快/幂等)+ 财报 fetcher(yfinance)
-        _run_script(EVDIR / "conference_loader.py", "conference_loader")
-        _run_script(EVDIR / "earnings_fetcher.py", "earnings_fetcher")
+        _run_script(EVDIR / "conference_loader.py", "conference_loader", step=f"schedule:{schedule_id}:conference")
+        _run_script(EVDIR / "earnings_fetcher.py", "earnings_fetcher", step=f"schedule:{schedule_id}:earnings")
     elif tt == "voice_leader":
         # D3:真调 voice_ingest 抓该 leader(subprocess 隔离),失败抛异常 → 退避(P0-1)
-        vi = ROOT / "tools" / "dynamic" / "voice_ingest.py"
-        p = subprocess.run([sys.executable, str(vi), "--leader-id", str(row["target_id"])],
+        p = subprocess.run(_isolated_child(
+                               "tools.dynamic.voice_ingest", "--leader-id", str(row["target_id"])),
+                           env=derived_operation_environment(f"schedule:{schedule_id}:voice:{row['target_id']}"),
                            cwd=str(ROOT), capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=120)
         tail = (p.stdout or "").strip().splitlines()[-2:] or [""]
@@ -163,8 +187,9 @@ def run_fetch(con, row) -> int:
             )
     elif tt == "news_source":
         # C4:真调 news_ingest 抓该 source(subprocess 隔离),失败抛异常 → tick 退避(P0-1)
-        ni = ROOT / "tools" / "dynamic" / "news_ingest.py"
-        p = subprocess.run([sys.executable, str(ni), "--source-id", str(row["target_id"])],
+        p = subprocess.run(_isolated_child(
+                               "tools.dynamic.news_ingest", "--source-id", str(row["target_id"])),
+                           env=derived_operation_environment(f"schedule:{schedule_id}:news:{row['target_id']}"),
                            cwd=str(ROOT), capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=180)
         tail = (p.stdout or "").strip().splitlines()[-2:] or [""]
@@ -206,7 +231,7 @@ def tick():
     )
     con = connect_operations(DB, operation_scope="dynamic_scheduler_tick")
     rows = con.execute("SELECT * FROM fetch_schedule WHERE is_active=1 ORDER BY next_run_at").fetchall()
-    ran = deferred_count = skipped = stale_reset = 0
+    ran = deferred_count = failed_count = skipped = stale_reset = 0
     log(f"TICK start — {len(rows)} active targets")
     for row in rows:
         sid = row["id"]
@@ -282,6 +307,7 @@ def tick():
             # 任意异常都不能伪装成最近检查成功。ScheduledFetchError 可显式给出
             # ``error``；超时等未包装异常也必须 fail closed 为 ``error``。
             st = "paused" if ec >= 3 else "error"
+            failed_count += 1
             con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
                            error_count=?, last_error=?, running_started_at=NULL,
                            status=?, updated_at=? WHERE id=?""",
@@ -292,6 +318,11 @@ def tick():
     log(f"TICK done — ran={ran} deferred={deferred_count} skipped={skipped} "
         f"stale_reset={stale_reset}")
     con.close()
+    if failed_count:
+        return 2
+    if deferred_count and not ran:
+        return 75
+    return 0
 
 
 def status():
@@ -310,4 +341,4 @@ if __name__ == "__main__":
     if cmd == "status":
         status()
     else:
-        tick()
+        raise SystemExit(tick() or 0)
