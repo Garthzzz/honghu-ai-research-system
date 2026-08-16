@@ -65,7 +65,9 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--module tools.migration.stage4_apply_postgresql_migrations" in text
     assert "-I -B -S $bootstrap --site-packages $SitePackages" in text
     assert "--repo-root $ReleaseDir --runtime $RuntimeCatalog" in text
-    assert "--migration '0013_stage5_task_operations.sql' --output $migrationEvidence" in text
+    assert "--migration '0013_stage5_task_operations.sql'" in text
+    assert "--migration '0014_stage5_delegated_unit_writers.sql'" in text
+    assert "--output $migrationEvidence" in text
     assert "--migrations-dir" not in text
     assert "--evidence $migrationEvidence" not in text
 

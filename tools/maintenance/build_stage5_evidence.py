@@ -15,6 +15,7 @@ OUTPUT = ROOT / "cache" / "git_bootstrap" / "stage5_evidence" / "stage5_code_ide
 FILES = (
     "config/operations/production_tasks.json",
     "migrations/postgresql/0013_stage5_task_operations.sql",
+    "migrations/postgresql/0014_stage5_delegated_unit_writers.sql",
     "tools/operations/task_manifest.py",
     "tools/operations/task_runner.py",
     "tools/operations/task_child.py",

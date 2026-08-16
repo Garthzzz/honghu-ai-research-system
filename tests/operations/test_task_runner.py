@@ -59,6 +59,18 @@ def test_stage5_migration_is_expand_only_and_least_privilege():
     assert "transition_cutover_unit" not in sql
 
 
+def test_delegated_task_writer_keeps_unit_owner_and_membership_fences():
+    sql = (
+        ROOT / "migrations/postgresql/0014_stage5_delegated_unit_writers.sql"
+    ).read_text(encoding="utf-8")
+    assert "pg_has_role(session_user,p_writer_identity,'MEMBER')" in sql
+    assert "p_writer_identity<>('honghu_writer_'||p_cutover_unit)" in sql
+    assert "v_authority.writer_identity<>p_writer_identity" in sql
+    assert "session_user<>p_writer_identity" not in sql
+    assert "session_user<>('honghu_writer_'||p_cutover_unit)" not in sql
+    assert "DROP " not in sql.upper()
+
+
 def test_child_command_is_import_isolated_and_bytecode_free(tmp_path, monkeypatch):
     release = tmp_path / "release"
     bootstrap = release / "tools" / "release" / "direct_candidate.py"
