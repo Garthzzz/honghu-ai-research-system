@@ -108,6 +108,26 @@ def test_postgresql_identity_temp_views_shadow_only_legacy_identity() -> None:
     cache.close()
 
 
+def test_identity_cache_attaches_to_readonly_file_connection(tmp_path: Path) -> None:
+    database = tmp_path / "readonly-consumer.db"
+    writable = sqlite3.connect(database)
+    writable.execute("CREATE TABLE source(id integer,title text)")
+    writable.execute("INSERT INTO source VALUES(1,'kept')")
+    writable.commit()
+    writable.close()
+    consumer = sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True)
+    cache = SharedIdentityReadCache(lambda: _Postgres(), refresh_check_seconds=60)
+    try:
+        cache.attach(consumer)
+        assert consumer.execute("SELECT ticker FROM company WHERE id=1").fetchone()[0] == "PG.SH"
+        assert consumer.execute("SELECT title FROM source WHERE id=1").fetchone()[0] == "kept"
+        with pytest.raises(sqlite3.OperationalError, match="view"):
+            consumer.execute("UPDATE company SET name='forbidden' WHERE id=1")
+    finally:
+        consumer.close()
+        cache.close()
+
+
 def test_independent_identity_caches_do_not_collide_on_same_authority_version(
     tmp_path: Path,
 ) -> None:

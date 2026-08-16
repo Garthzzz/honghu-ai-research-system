@@ -41,10 +41,14 @@ class _InterprocessLock:
 
     def acquire(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b")
-        handle.seek(0)
-        if handle.read(1) == b"":
-            handle.seek(0)
+        try:
+            with self.path.open("xb") as created:
+                created.write(b"0")
+                created.flush()
+        except FileExistsError:
+            pass
+        handle = self.path.open("r+b")
+        if self.path.stat().st_size == 0:
             handle.write(b"0")
             handle.flush()
         deadline = time.monotonic() + self.timeout_seconds

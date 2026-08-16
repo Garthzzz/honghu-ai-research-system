@@ -10,6 +10,7 @@ from tools.data_platform.sentiment_projection import (
     PersistentSentimentConnection,
     PersistentSentimentProjection,
     SentimentProjectionError,
+    _InterprocessLock,
     _create_projection_schema,
 )
 
@@ -25,6 +26,18 @@ SCHEMAS = {
         "indexes": [],
     }
 }
+
+
+def test_contending_projection_lock_waits_and_fails_with_domain_error(tmp_path) -> None:
+    path = tmp_path / "projection.lock"
+    first = _InterprocessLock(path, timeout_seconds=0.1)
+    second = _InterprocessLock(path, timeout_seconds=0.1)
+    first.acquire()
+    try:
+        with pytest.raises(SentimentProjectionError, match="timed out waiting"):
+            second.acquire()
+    finally:
+        first.release()
 
 
 class _Lock:
