@@ -63,6 +63,10 @@ def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():
     assert "writer_sentiment_analytics" in text
     assert "CRYPTPROTECT_LOCAL_MACHINE" in text
     assert "source.unlink()" in text
+    provisioner = (ROOT / "tools/operations/Provision-ProductionTaskRunner.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "$LocalUser`:(M)" in provisioner
 
 
 def test_local_disabled_evidence_reads_scheduler_without_mutating_tasks():

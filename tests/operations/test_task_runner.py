@@ -10,7 +10,9 @@ from tools.operations.task_runner import (
     _isolated_child_command,
     _most_recent_scheduled_at,
     logical_window,
+    set_definition_enabled,
 )
+import inspect
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -74,3 +76,25 @@ def test_child_command_is_import_isolated_and_bytecode_free(tmp_path, monkeypatc
     assert command[5:7] == ["--site-packages", str(site_packages.resolve())]
     assert command[7:9] == ["--module", "tools.operations.task_child"]
     assert command[9:12] == ["--task-module", "tools.dynamic.scheduler", "--"]
+
+
+def test_runtime_roots_are_bound_before_authority_and_checkpoint_probes():
+    source = inspect.getsource(__import__("tools.operations.task_runner", fromlist=["run_task"]).run_task)
+    state_assignment = source.index('"HONGHU_STATE_ROOT"')
+    authority_probe = source.index("_validate_authority(task)")
+    checkpoint_probe = source.index("checkpoint_before = probe_business_checkpoint")
+    assert state_assignment < authority_probe < checkpoint_probe
+
+
+def test_idempotent_skip_returns_full_exact_release_evidence_contract():
+    source = inspect.getsource(__import__("tools.operations.task_runner", fromlist=["run_task"]).run_task)
+    assert '"status": "skipped"' in source
+    assert '"application_commit_sha": str(prior[4])' in source
+    assert '"business_checkpoint_after_sha256"' in source
+
+
+def test_definition_enable_is_exact_identity_checked_before_update():
+    source = inspect.getsource(set_definition_enabled)
+    assert "manifest_sha256,application_commit_sha,runner_host" in source
+    assert "task definition identity does not match exact release" in source
+    assert "definition_revision=definition_revision+1" in source

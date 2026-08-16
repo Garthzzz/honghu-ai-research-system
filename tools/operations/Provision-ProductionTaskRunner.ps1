@@ -82,7 +82,7 @@ New-Item -ItemType Directory -Force (Split-Path -Parent $transfer) | Out-Null
 if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $transfer -PathType Leaf)) {
     throw 'Reviewed task-role credential export failed.'
 }
-& icacls.exe $transfer '/inheritance:r' "/grant:r" "$computer\$LocalUser`:(R)" 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
+& icacls.exe $transfer '/inheritance:r' "/grant:r" "$computer\$LocalUser`:(M)" 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Credential transfer ACL failed.' }
 
 $bootstrapTask = 'HonghuStage5_CredentialBootstrap'

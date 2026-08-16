@@ -608,6 +608,53 @@ _SHARED_IDENTITY_CACHES: dict[str, Any] = {}
 _SENTIMENT_PROJECTIONS: dict[str, Any] = {}
 
 
+def _authority_writer_factory(
+    catalog: Any,
+    *,
+    role_key: str,
+    expected_writer_identity: str,
+) -> Callable[[], Any]:
+    """Create connections operating as the exact authority writer role.
+
+    Dedicated task logins are accepted only when PostgreSQL proves membership
+    in the authority-matrix writer role and the session successfully assumes
+    that exact role.  Login-name similarity never grants write authority.
+    """
+
+    from tools.data_platform.postgres_runtime import build_catalog_connection_factory
+
+    base_factory = build_catalog_connection_factory(catalog, role=role_key)
+
+    def connect() -> Any:
+        connection = base_factory()
+        try:
+            current_user = str(connection.execute("SELECT current_user").fetchone()[0])
+            if current_user == expected_writer_identity:
+                return connection
+            allowed = bool(
+                connection.execute(
+                    "SELECT pg_has_role(current_user,%s,'USAGE')",
+                    (expected_writer_identity,),
+                ).fetchone()[0]
+            )
+            if not allowed:
+                raise DomainDataWriterFenced(
+                    "runtime login is not a reviewed member of the authority writer role"
+                )
+            connection.execute(f"SET ROLE {_identifier(expected_writer_identity)}")
+            assumed = str(connection.execute("SELECT current_user").fetchone()[0])
+            if assumed != expected_writer_identity:
+                raise DomainDataWriterFenced(
+                    "runtime connection did not assume the authority writer identity"
+                )
+            return connection
+        except Exception:
+            connection.close()
+            raise
+
+    return connect
+
+
 def _sentiment_projection(catalog_path: str, reader: Callable[[], Any]) -> Any:
     from tools.data_platform.sentiment_projection import PersistentSentimentProjection
     from tools.runtime_paths import resolve_runtime_layout
@@ -751,12 +798,12 @@ def connect_domain_database(
     if route.authority_state.value not in {"S3", "S4"}:
         raise DomainDataWriterFenced("formal PostgreSQL writes require S3/S4 authority")
     role_key = f"writer_{unit}"
-    writer_identity = catalog.role(role_key).user
-    if route.writer_identity != writer_identity:
-        raise DomainDataWriterFenced(
-            "authority writer identity does not match runtime credential role"
-        )
-    writer = build_catalog_connection_factory(catalog, role=role_key)
+    writer_identity = route.writer_identity
+    writer = _authority_writer_factory(
+        catalog,
+        role_key=role_key,
+        expected_writer_identity=writer_identity,
+    )
     trusted_actor = actor or os.environ.get("HONGHU_AUDIT_ACTOR", "")
     if not trusted_actor:
         from tools.data_platform.run_domain_operation import trusted_os_principal

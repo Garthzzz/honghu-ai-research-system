@@ -169,6 +169,45 @@ def register_definitions(
     return {"task_count": len(manifest.tasks), "manifest_sha256": manifest.sha256, "commit_sha": commit}
 
 
+def set_definition_enabled(
+    manifest: TaskManifest,
+    *,
+    catalog_path: Path,
+    release_dir: Path,
+    task_id: str,
+    enabled: bool,
+) -> dict[str, Any]:
+    if task_id not in manifest.tasks:
+        raise TaskRunnerError("task definition state change requires a reviewed task")
+    commit = _release_commit(release_dir)
+    connection = _operations_connection(catalog_path)
+    try:
+        observed = connection.execute(
+            "SELECT manifest_sha256,application_commit_sha,runner_host FROM operations.production_task_definition WHERE task_id=%s",
+            (task_id,),
+        ).fetchone()
+        if observed != (manifest.sha256, commit, manifest.runner_host):
+            raise TaskRunnerError("task definition identity does not match exact release")
+        connection.execute(
+            """UPDATE operations.production_task_definition
+                  SET enabled=%s,definition_revision=definition_revision+1,
+                      updated_at=clock_timestamp()
+                WHERE task_id=%s""",
+            (enabled, task_id),
+        )
+        connection.commit()
+    finally:
+        connection.close()
+    return {
+        "schema_version": "honghu.production_task_definition_control.v1",
+        "task_id": task_id,
+        "enabled": enabled,
+        "manifest_sha256": manifest.sha256,
+        "application_commit_sha": commit,
+        "runner_host": manifest.runner_host,
+    }
+
+
 def _classify(returncode: int, timed_out: bool) -> tuple[str, str | None]:
     if timed_out:
         return "failed", "timeout"
@@ -238,8 +277,13 @@ def run_task(
     if host != manifest.runner_host:
         raise TaskRunnerError(f"task manifest is bound to {manifest.runner_host}, not {host}")
     commit = _release_commit(release_dir)
-    os.environ["HONGHU_POSTGRES_RUNTIME_CONFIG"] = str(catalog_path.resolve())
-    os.environ["HONGHU_CUTOVER_UNIT_REGISTRY"] = str(registry_path.resolve())
+    os.environ.update({
+        "HONGHU_POSTGRES_RUNTIME_CONFIG": str(catalog_path.resolve()),
+        "HONGHU_CUTOVER_UNIT_REGISTRY": str(registry_path.resolve()),
+        "HONGHU_DATA_ROOT": str(data_root.resolve()),
+        "HONGHU_CONTENT_ROOT": str(content_root.resolve()),
+        "HONGHU_STATE_ROOT": str(runtime_dir.resolve()),
+    })
     _validate_authority(task)
     window = logical_window_value or logical_window(task)
     operation_id = f"stage5:{task.task_id}:{window}"
@@ -267,11 +311,32 @@ def run_task(
         if not bool(definition[3]) and not allow_disabled:
             raise TaskRunnerError("task definition is disabled")
         prior = connection.execute(
-            "SELECT status FROM operations.production_task_run WHERE task_id=%s AND logical_window=%s ORDER BY run_attempt DESC LIMIT 1",
+            """SELECT status,run_attempt,operation_id_sha256,manifest_sha256,
+                      application_commit_sha,business_checkpoint_before,
+                      business_checkpoint_after
+                 FROM operations.production_task_run
+                WHERE task_id=%s AND logical_window=%s
+                ORDER BY run_attempt DESC LIMIT 1""",
             (task.task_id, window),
         ).fetchone()
         if prior and str(prior[0]) == "succeeded":
-            return {"status": "skipped", "reason": "logical window already succeeded", "returncode": 0}
+            before = dict(prior[5] or {})
+            after = dict(prior[6] or {})
+            return {
+                "schema_version": "honghu.production_task_run.v1",
+                "task_id": task.task_id,
+                "logical_window": window,
+                "attempt": int(prior[1]),
+                "status": "skipped",
+                "reason": "logical window already succeeded",
+                "failure_classification": None,
+                "returncode": 0,
+                "operation_id_sha256": str(prior[2]),
+                "manifest_sha256": str(prior[3]),
+                "application_commit_sha": str(prior[4]),
+                "business_checkpoint_before_sha256": before.get("identity_sha256"),
+                "business_checkpoint_after_sha256": after.get("identity_sha256"),
+            }
         connection.execute(
             "UPDATE operations.production_task_run SET status='abandoned',failure_classification='advisory_lock_released_before_terminal_state',finished_at=clock_timestamp() WHERE task_id=%s AND logical_window=%s AND status='running'",
             (task.task_id, window),
@@ -493,7 +558,7 @@ def health(
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("register", "run", "health"))
+    parser.add_argument("command", choices=("register", "set-definition", "run", "health"))
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--postgres-runtime-catalog", type=Path, required=True)
     parser.add_argument("--cutover-unit-registry", type=Path)
@@ -516,6 +581,16 @@ def main(argv: list[str] | None = None) -> int:
         result = register_definitions(
             manifest, catalog_path=args.postgres_runtime_catalog,
             release_dir=args.release_dir, enabled=args.enabled,
+        )
+    elif args.command == "set-definition":
+        if args.release_dir is None or not args.task:
+            parser.error("set-definition requires --release-dir and --task")
+        result = set_definition_enabled(
+            manifest,
+            catalog_path=args.postgres_runtime_catalog,
+            release_dir=args.release_dir,
+            task_id=args.task,
+            enabled=args.enabled,
         )
     else:
         required = (
