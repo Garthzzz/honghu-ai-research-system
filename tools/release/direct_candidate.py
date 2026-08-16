@@ -62,7 +62,21 @@ def prepare_import_path(site_packages: str | Path) -> tuple[Path, Path]:
             continue
         if resolved not in {release_root, locked_site}:
             retained.append(item)
-    sys.path[:] = [str(release_root), str(locked_site), *retained]
+    # pywin32 installs its extension modules below ``win32`` and helper
+    # modules below ``win32/lib`` through a .pth file.  Isolated mode rightly
+    # avoids processing arbitrary .pth code, so include only these reviewed
+    # directories from the already hash-locked environment when present.
+    locked_extensions = [
+        candidate
+        for candidate in (locked_site / "win32", locked_site / "win32" / "lib")
+        if candidate.is_dir()
+    ]
+    sys.path[:] = [
+        str(release_root),
+        str(locked_site),
+        *(str(path) for path in locked_extensions),
+        *retained,
+    ]
     return release_root, locked_site
 
 
