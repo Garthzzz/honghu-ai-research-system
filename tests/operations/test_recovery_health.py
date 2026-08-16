@@ -17,6 +17,12 @@ def _evidence() -> dict[str, object]:
             "latest_recoverable_at_utc": "2026-08-16T00:59:45+00:00",
             "storage": {"independent_from_source_host": True},
             "at_rest_encryption": {"status": "verified", "verified": True},
+            "integrity_verification": {
+                "schema_version": "honghu.stage5_wal_integrity_chain.v1",
+                "current_manifest_is_self_contained": True,
+                "last_full_scrub_at_utc": "2026-08-16T00:55:00+00:00",
+                "last_full_scrub_age_seconds": 300,
+            },
         },
         "restore": {
             "whole_database_verified": True,
@@ -151,6 +157,16 @@ def test_recent_manifest_does_not_mask_stale_recoverable_watermark() -> None:
     result = _evaluate(evidence)
     assert result["status"] == "blocked"
     assert any("WAL recovery point is stale" in item for item in result["blockers"])
+
+
+def test_stale_full_scrub_blocks_incremental_chain_health() -> None:
+    evidence = _evidence()
+    evidence["wal_sync"]["integrity_verification"]["last_full_scrub_at_utc"] = (
+        "2026-08-14T00:00:00+00:00"
+    )
+    result = _evaluate(evidence)
+    assert result["status"] == "blocked"
+    assert any("full-content scrub" in item for item in result["blockers"])
 
 
 def test_authority_or_sqlite_writer_uncertainty_blocks() -> None:

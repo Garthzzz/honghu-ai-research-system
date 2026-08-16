@@ -25,6 +25,8 @@ MANIFEST_SCHEMA = "honghu.stage5_offvm_wal_manifest.v1"
 POINTER_SCHEMA = "honghu.stage5_offvm_wal_pointer.v1"
 INITIAL_BOUNDARY_SCHEMA = "honghu.stage5_wal_initial_boundary.v1"
 MAX_RETAINED_MANIFESTS = 2
+INTEGRITY_SCHEMA = "honghu.stage5_wal_integrity_chain.v1"
+DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS = 24 * 60 * 60
 
 
 class WalSyncError(RuntimeError):
@@ -299,7 +301,7 @@ def _prune_immutable_manifests(
     }
 
 
-def _verify_manifest_content(
+def _verify_manifest_structure(
     *,
     destination: Path,
     manifest: Mapping[str, Any],
@@ -343,11 +345,19 @@ def _verify_manifest_content(
         if not path.is_file() or path.is_symlink():
             raise WalSyncError(f"off-VM WAL artifact is missing or unsafe: {name}")
         observed_size = path.stat().st_size
-        observed_hash = sha256_file(path)
-        if observed_size != item.get("size") or observed_hash != item.get("sha256"):
+        declared_size = item.get("size")
+        declared_hash = item.get("sha256")
+        if (
+            not isinstance(declared_size, int)
+            or declared_size < 0
+            or not isinstance(declared_hash, str)
+            or re.fullmatch(r"[0-9a-f]{64}", declared_hash) is None
+        ):
+            raise WalSyncError(f"off-VM WAL artifact metadata is invalid: {name}")
+        if observed_size != declared_size:
             raise WalSyncError(f"off-VM WAL artifact integrity mismatch: {name}")
         names.append(name)
-        verified.append({"name": name, "size": observed_size, "sha256": observed_hash})
+        verified.append({"name": name, "size": observed_size, "sha256": declared_hash})
     if names != sorted(names) or len(names) != len(set(names)):
         raise WalSyncError("off-VM WAL artifact order or uniqueness is invalid")
     _require_contiguous(names, segment_size_bytes=configured_size)
@@ -360,7 +370,71 @@ def _verify_manifest_content(
         raise WalSyncError("off-VM WAL directory contains unmanifested complete segments")
     if manifest.get("first_wal_segment") != names[0] or manifest.get("last_wal_segment") != names[-1]:
         raise WalSyncError("off-VM WAL manifest boundary does not match its artifacts")
+    if manifest.get("artifact_count") != len(verified):
+        raise WalSyncError("off-VM WAL manifest artifact count is invalid")
     return verified
+
+
+def _verify_manifest_content(
+    *,
+    destination: Path,
+    manifest: Mapping[str, Any],
+    storage: Mapping[str, Any],
+    segment_size_bytes: int | None = None,
+) -> list[dict[str, Any]]:
+    declared = _verify_manifest_structure(
+        destination=destination,
+        manifest=manifest,
+        storage=storage,
+        segment_size_bytes=segment_size_bytes,
+    )
+    verified: list[dict[str, Any]] = []
+    for item in declared:
+        observed_hash = sha256_file(destination / "wal" / item["name"])
+        if observed_hash != item["sha256"]:
+            raise WalSyncError(f"off-VM WAL artifact integrity mismatch: {item['name']}")
+        verified.append({**item, "sha256": observed_hash})
+    return verified
+
+
+def _integrity_state(
+    manifest: Mapping[str, Any],
+    *,
+    observed_now: datetime,
+    max_full_scrub_age_seconds: float,
+    enforce_scrub_age: bool = True,
+) -> dict[str, Any]:
+    value = manifest.get("integrity_verification")
+    if not isinstance(value, Mapping) or value.get("schema_version") != INTEGRITY_SCHEMA:
+        raise WalSyncError("off-VM WAL manifest lacks incremental integrity-chain evidence")
+    scrubbed_at = _parse_time(
+        value.get("last_full_scrub_at_utc"),
+        field="last_full_scrub_at_utc",
+    )
+    age = (observed_now - scrubbed_at).total_seconds()
+    if age < 0:
+        raise WalSyncError("off-VM WAL full scrub is dated in the future")
+    if max_full_scrub_age_seconds <= 0:
+        raise WalSyncError("maximum full WAL scrub age must be positive")
+    if enforce_scrub_age and age > max_full_scrub_age_seconds:
+        raise WalSyncError("off-VM WAL full content scrub is stale")
+    parent = value.get("parent_manifest_identity_sha256")
+    if parent is not None and (
+        not isinstance(parent, str) or re.fullmatch(r"[0-9a-f]{64}", parent) is None
+    ):
+        raise WalSyncError("off-VM WAL integrity chain has an invalid parent identity")
+    if parent != manifest.get("prior_manifest_identity_sha256"):
+        raise WalSyncError("off-VM WAL integrity chain parent does not match the manifest")
+    for field in ("reused_artifact_count", "newly_verified_artifact_count"):
+        if not isinstance(value.get(field), int) or value[field] < 0:
+            raise WalSyncError("off-VM WAL integrity chain has an invalid artifact count")
+    if value["reused_artifact_count"] + value["newly_verified_artifact_count"] != manifest.get(
+        "artifact_count"
+    ):
+        raise WalSyncError("off-VM WAL integrity chain does not cover the manifest artifact set")
+    if value.get("current_manifest_is_self_contained") is not True:
+        raise WalSyncError("off-VM WAL integrity chain is not self-contained")
+    return {**dict(value), "last_full_scrub_age_seconds": age}
 
 
 def verify_wal_sync(
@@ -369,14 +443,44 @@ def verify_wal_sync(
     expected_storage_identity: str | None = None,
     max_age_seconds: float,
     now: datetime | None = None,
+    verification_mode: str = "full_content",
+    max_full_scrub_age_seconds: float = DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
 ) -> dict[str, Any]:
     storage = _storage_evidence(destination, expected_storage_identity)
     loaded = _load_latest(destination)
     if loaded is None:
         raise WalSyncError("off-VM WAL manifest pointer is absent")
     pointer, manifest = loaded
-    _verify_manifest_content(destination=destination, manifest=manifest, storage=storage)
     observed_now = _utc(now)
+    if verification_mode == "full_content":
+        _verify_manifest_content(destination=destination, manifest=manifest, storage=storage)
+        integrity = manifest.get("integrity_verification")
+        if isinstance(integrity, Mapping) and integrity.get("schema_version") == INTEGRITY_SCHEMA:
+            integrity_result = _integrity_state(
+                manifest,
+                observed_now=observed_now,
+                max_full_scrub_age_seconds=max_full_scrub_age_seconds,
+                enforce_scrub_age=False,
+            )
+            integrity_result["full_content_verified_at_utc"] = _iso(observed_now)
+            integrity_result["full_content_verified_this_call"] = True
+        else:
+            integrity_result = {
+                "schema_version": "honghu.stage5_wal_integrity_legacy_full_verification.v1",
+                "verification_mode": "full_content",
+                "last_full_scrub_at_utc": _iso(observed_now),
+                "last_full_scrub_age_seconds": 0.0,
+                "legacy_manifest": True,
+            }
+    elif verification_mode == "incremental_chain":
+        _verify_manifest_structure(destination=destination, manifest=manifest, storage=storage)
+        integrity_result = _integrity_state(
+            manifest,
+            observed_now=observed_now,
+            max_full_scrub_age_seconds=max_full_scrub_age_seconds,
+        )
+    else:
+        raise WalSyncError("unsupported WAL verification mode")
     published = _parse_time(manifest.get("published_at_utc"), field="published_at_utc")
     publication_age = (observed_now - published).total_seconds()
     if publication_age < 0:
@@ -409,6 +513,9 @@ def verify_wal_sync(
         "first_wal_segment": manifest["first_wal_segment"],
         "last_wal_segment": manifest["last_wal_segment"],
         "artifact_count": len(manifest["artifacts"]),
+        "verification_mode": verification_mode,
+        "full_content_verified_this_call": verification_mode == "full_content",
+        "integrity_verification": integrity_result,
         "initial_recovery_boundary": manifest["initial_recovery_boundary"],
         "continuous_rpo_measured": False,
         "continuous_rpo_note": "measure against a later failure cutoff using this pre-existing recovery point",
@@ -434,6 +541,7 @@ def sync_archived_wal(
     at_rest_encryption_evidence: Mapping[str, Any] | None = None,
     initial_recovery_boundary: Mapping[str, Any] | None = None,
     now: datetime | None = None,
+    max_full_scrub_age_seconds: float = DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
 ) -> dict[str, Any]:
     storage = _storage_evidence(destination, expected_storage_identity)
     destination.mkdir(parents=True, exist_ok=True)
@@ -449,18 +557,69 @@ def sync_archived_wal(
         raise WalSyncError("recoverable target cannot be in the future")
     if not WAL_NAME.fullmatch(target_wal_segment):
         raise WalSyncError("target WAL segment name is invalid")
+    if max_full_scrub_age_seconds <= 0:
+        raise WalSyncError("maximum full WAL scrub age must be positive")
     with _exclusive_lock(destination):
         prior = _load_latest(destination)
         source = _source_segments(source_archive)
         if target_wal_segment not in source:
             raise WalSyncError("target WAL segment is not durably present in the source archive")
+        prior_artifacts: list[dict[str, Any]] = []
+        full_scrub_performed = prior is None
+        last_full_scrub_at = observed_now
         if prior is not None:
-            _verify_manifest_content(
+            prior_artifacts = _verify_manifest_structure(
                 destination=destination,
                 manifest=prior[1],
                 storage=storage,
                 segment_size_bytes=wal_segment_size_bytes,
             )
+            prior_integrity = prior[1].get("integrity_verification")
+            if isinstance(prior_integrity, Mapping) and prior_integrity.get(
+                "schema_version"
+            ) == INTEGRITY_SCHEMA:
+                validated_integrity = _integrity_state(
+                    prior[1],
+                    observed_now=observed_now,
+                    max_full_scrub_age_seconds=max_full_scrub_age_seconds,
+                    enforce_scrub_age=False,
+                )
+                last_full_scrub_at = _parse_time(
+                    validated_integrity["last_full_scrub_at_utc"],
+                    field="last_full_scrub_at_utc",
+                )
+                scrub_age = validated_integrity["last_full_scrub_age_seconds"]
+                if scrub_age > max_full_scrub_age_seconds:
+                    prior_artifacts = _verify_manifest_content(
+                        destination=destination,
+                        manifest=prior[1],
+                        storage=storage,
+                        segment_size_bytes=wal_segment_size_bytes,
+                    )
+                    full_scrub_performed = True
+                    last_full_scrub_at = observed_now
+            else:
+                # The v1 publisher calculated every destination artifact hash
+                # before atomically publishing the manifest.  Its publication
+                # time is therefore a valid one-time full-scrub trust anchor for
+                # an in-place upgrade; it is not necessary to re-read the whole
+                # recovery chain merely to add the incremental lineage fields.
+                last_full_scrub_at = _parse_time(
+                    prior[1].get("published_at_utc"),
+                    field="legacy full scrub published_at_utc",
+                )
+                legacy_scrub_age = (observed_now - last_full_scrub_at).total_seconds()
+                if legacy_scrub_age < 0:
+                    raise WalSyncError("legacy off-VM WAL manifest is dated in the future")
+                if legacy_scrub_age > max_full_scrub_age_seconds:
+                    prior_artifacts = _verify_manifest_content(
+                        destination=destination,
+                        manifest=prior[1],
+                        storage=storage,
+                        segment_size_bytes=wal_segment_size_bytes,
+                    )
+                    full_scrub_performed = True
+                    last_full_scrub_at = observed_now
             boundary = prior[1].get("initial_recovery_boundary")
             if not isinstance(boundary, Mapping):
                 raise WalSyncError("prior WAL manifest lacks its initial base-recovery boundary")
@@ -514,6 +673,7 @@ def sync_archived_wal(
                 if first_position <= _wal_position(name, segment_size_bytes=wal_segment_size_bytes) <= target_position
             )
             _require_contiguous(selected_names, segment_size_bytes=wal_segment_size_bytes)
+        new_artifacts: list[dict[str, Any]] = []
         for name in selected_names:
             source_path = source[name]
             destination_path = destination / "wal" / name
@@ -527,6 +687,9 @@ def sync_archived_wal(
                     or sha256_file(destination_path) != source_hash
                 ):
                     raise WalSyncError(f"refusing to overwrite a different off-VM WAL segment: {name}")
+                new_artifacts.append(
+                    {"name": name, "size": source_size, "sha256": source_hash}
+                )
                 continue
             temporary = destination_path.with_name(f".{name}.{os.getpid()}.tmp")
             try:
@@ -541,8 +704,13 @@ def sync_archived_wal(
                         raise WalSyncError(f"concurrent WAL copy differs: {name}")
                 else:
                     os.replace(temporary, destination_path)
+                if sha256_file(destination_path) != source_hash:
+                    raise WalSyncError(f"off-VM WAL final copy verification failed: {name}")
             finally:
                 temporary.unlink(missing_ok=True)
+            new_artifacts.append(
+                {"name": name, "size": source_size, "sha256": source_hash}
+            )
         destination_names = sorted(
             path.name
             for path in (destination / "wal").iterdir()
@@ -553,14 +721,12 @@ def sync_archived_wal(
             raise WalSyncError("off-VM WAL chain does not begin at the verified base-recovery boundary")
         if destination_names[-1] != target_wal_segment:
             raise WalSyncError("off-VM WAL directory contains data beyond or short of the declared target")
-        artifacts = [
-            {
-                "name": name,
-                "size": (destination / "wal" / name).stat().st_size,
-                "sha256": sha256_file(destination / "wal" / name),
-            }
-            for name in destination_names
-        ]
+        artifact_by_name = {
+            item["name"]: dict(item) for item in [*prior_artifacts, *new_artifacts]
+        }
+        if set(artifact_by_name) != set(destination_names):
+            raise WalSyncError("incremental WAL artifact chain does not cover the destination")
+        artifacts = [artifact_by_name[name] for name in destination_names]
         encryption = _encryption_state(
             storage,
             at_rest_encryption_evidence,
@@ -589,6 +755,24 @@ def sync_archived_wal(
             ),
             "initial_recovery_boundary": dict(boundary),
             "at_rest_encryption": encryption,
+            "integrity_verification": {
+                "schema_version": INTEGRITY_SCHEMA,
+                "verification_mode": (
+                    "full_scrub_plus_incremental_copy"
+                    if full_scrub_performed
+                    else "incremental_manifest_chain"
+                ),
+                "parent_manifest_identity_sha256": (
+                    prior[1].get("manifest_identity_sha256") if prior is not None else None
+                ),
+                "reused_artifact_count": len(prior_artifacts),
+                "newly_verified_artifact_count": len(new_artifacts),
+                "last_full_scrub_at_utc": _iso(last_full_scrub_at),
+                "max_full_scrub_age_seconds": max_full_scrub_age_seconds,
+                "full_scrub_performed_this_cycle": full_scrub_performed,
+                "current_manifest_is_self_contained": True,
+                "historical_hash_reuse_is_bounded_by_full_scrub": True,
+            },
             "continuous_rpo_measured": False,
             "retention_policy": {
                 "max_immutable_wal_manifests": MAX_RETAINED_MANIFESTS,
@@ -620,6 +804,8 @@ def sync_archived_wal(
         expected_storage_identity=expected_storage_identity,
         max_age_seconds=(observed_now - target_at).total_seconds() + 0.001,
         now=observed_now,
+        verification_mode="incremental_chain",
+        max_full_scrub_age_seconds=max_full_scrub_age_seconds,
     )
 
 
@@ -633,6 +819,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--at-rest-encryption-evidence", type=Path)
     parser.add_argument("--initial-recovery-boundary", type=Path)
     parser.add_argument("--wal-segment-size-bytes", type=int, default=16 * 1024 * 1024)
+    parser.add_argument(
+        "--max-full-scrub-age-seconds",
+        type=float,
+        default=DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
+    )
     args = parser.parse_args(argv)
     encryption_evidence = (
         _read_json(args.at_rest_encryption_evidence)
@@ -653,6 +844,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         wal_segment_size_bytes=args.wal_segment_size_bytes,
         at_rest_encryption_evidence=encryption_evidence,
         initial_recovery_boundary=initial_boundary,
+        max_full_scrub_age_seconds=args.max_full_scrub_age_seconds,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

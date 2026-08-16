@@ -11,7 +11,8 @@ param(
     [Parameter(Mandatory=$true)][string]$InitialRecoveryBoundary,
     [Parameter(Mandatory=$true)][string]$SmbUser,
     [Parameter(Mandatory=$true)][string]$CredentialBlobPath,
-    [Parameter(Mandatory=$true)][string]$OutputPath
+    [Parameter(Mandatory=$true)][string]$OutputPath,
+    [ValidateRange(3600,604800)][int]$MaxFullScrubAgeSeconds = 86400
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,7 +61,8 @@ try {
             --at-rest-encryption-evidence $AtRestEncryptionEvidence `
             --initial-recovery-boundary $InitialRecoveryBoundary `
             --archive-only `
-            --max-archive-age-seconds 900 2>&1 | Out-String
+            --max-archive-age-seconds 900 `
+            --max-full-scrub-age-seconds $MaxFullScrubAgeSeconds 2>&1 | Out-String
         $pythonExitCode = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $savedErrorActionPreference

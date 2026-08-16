@@ -58,6 +58,8 @@ def test_cycle_rotates_wal_and_publishes_verified_target(tmp_path, monkeypatch):
                 "max_retained_manifests": 2,
                 "retained_manifest_count": 1,
             },
+            "verification_mode": "incremental_chain",
+            "integrity_verification": {"last_full_scrub_age_seconds": 1.0},
         }
 
     monkeypatch.setattr(cycle, "sync_archived_wal", fake_sync)
@@ -76,6 +78,7 @@ def test_cycle_rotates_wal_and_publishes_verified_target(tmp_path, monkeypatch):
     assert observed["target_wal_segment"] == SEGMENT
     assert observed["recoverable_target_at"] == NOW
     assert observed["initial_recovery_boundary"] == {"verified": True}
+    assert observed["max_full_scrub_age_seconds"] == 86400
     assert any("pg_switch_wal" in query for query in connection.queries)
     assert connection.closed is True
 
@@ -139,6 +142,8 @@ def test_archive_only_cycle_uses_latest_complete_segment_without_database(tmp_pa
                 "first_required_wal_segment": first.name,
             },
             "retention": {"max_retained_manifests": 2, "retained_manifest_count": 1},
+            "verification_mode": "incremental_chain",
+            "integrity_verification": {"last_full_scrub_age_seconds": 1.0},
         }
 
     monkeypatch.setattr(cycle, "sync_archived_wal", fake_sync)
@@ -160,6 +165,7 @@ def test_archive_only_cycle_uses_latest_complete_segment_without_database(tmp_pa
     assert result["database_credential_used"] is False
     assert result["wal_rotation_requested"] is False
     assert result["formal_business_data_written"] is False
+    assert result["wal_verification_mode"] == "incremental_chain"
 
 
 def test_archive_only_cycle_rejects_incomplete_only_archive(tmp_path):

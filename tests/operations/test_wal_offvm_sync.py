@@ -73,6 +73,23 @@ def _sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, dict[s
     return destination, result
 
 
+def _rewrite_current_manifest_as_legacy(destination: Path) -> None:
+    pointer_path = destination / "latest_verified_wal_manifest.json"
+    pointer = json.loads(pointer_path.read_text())
+    old_path = destination / pointer["manifest_path"]
+    manifest = json.loads(old_path.read_text())
+    manifest.pop("integrity_verification")
+    manifest.pop("manifest_identity_sha256")
+    identity = sha256_json(manifest)
+    manifest["manifest_identity_sha256"] = identity
+    new_path = destination / "manifests" / f"{identity}.json"
+    new_path.write_text(json.dumps(manifest), encoding="utf-8")
+    old_path.unlink()
+    pointer["manifest_path"] = f"manifests/{identity}.json"
+    pointer["manifest_identity_sha256"] = identity
+    pointer_path.write_text(json.dumps(pointer), encoding="utf-8")
+
+
 def test_sync_copies_contiguous_wal_and_publishes_immutable_manifest(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -374,3 +391,144 @@ def test_only_two_latest_immutable_wal_manifests_are_retained(
     assert retained == set(identities[-2:])
     assert result["retention"]["retained_manifest_count"] == 2
     assert result["retention"]["wal_artifacts_pruned"] is False
+
+
+def test_incremental_cycle_reuses_prior_verified_hashes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination, _ = _sync(tmp_path, monkeypatch)
+    source = tmp_path / "archive"
+    third = "000000010000000000000003"
+    _wal(source, third, b"wal-3")
+    original = wal_offvm_sync.sha256_file
+    hashed: list[Path] = []
+
+    def observed_hash(path: Path) -> str:
+        hashed.append(Path(path))
+        return original(path)
+
+    monkeypatch.setattr(wal_offvm_sync, "sha256_file", observed_hash)
+    result = sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW + timedelta(seconds=1),
+        target_wal_segment=third,
+        expected_storage_identity=IDENTITY,
+        now=NOW + timedelta(seconds=1),
+    )
+    assert result["verification_mode"] == "incremental_chain"
+    assert result["full_content_verified_this_call"] is False
+    assert result["integrity_verification"]["reused_artifact_count"] == 2
+    assert result["integrity_verification"]["newly_verified_artifact_count"] == 1
+    assert result["integrity_verification"]["full_scrub_performed_this_cycle"] is False
+    assert all(path.name not in {
+        "000000010000000000000001",
+        "000000010000000000000002",
+    } for path in hashed)
+    assert {path.name for path in hashed} == {third, f".{third}.{wal_offvm_sync.os.getpid()}.tmp"}
+
+
+def test_legacy_v1_manifest_is_reused_as_recent_full_scrub_anchor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination, _ = _sync(tmp_path, monkeypatch)
+    _rewrite_current_manifest_as_legacy(destination)
+    source = tmp_path / "archive"
+    third = "000000010000000000000003"
+    _wal(source, third, b"wal-3")
+    original = wal_offvm_sync.sha256_file
+    hashed: list[str] = []
+
+    def observed_hash(path: Path) -> str:
+        hashed.append(Path(path).name)
+        return original(path)
+
+    monkeypatch.setattr(wal_offvm_sync, "sha256_file", observed_hash)
+    result = sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW + timedelta(seconds=1),
+        target_wal_segment=third,
+        expected_storage_identity=IDENTITY,
+        now=NOW + timedelta(seconds=1),
+    )
+    assert result["integrity_verification"]["full_scrub_performed_this_cycle"] is False
+    assert "000000010000000000000001" not in hashed
+    assert "000000010000000000000002" not in hashed
+
+
+def test_incremental_cycle_still_fails_on_missing_prior_segment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination, _ = _sync(tmp_path, monkeypatch)
+    (destination / "wal" / "000000010000000000000001").unlink()
+    _wal(tmp_path / "archive", "000000010000000000000003", b"wal-3")
+    with pytest.raises(WalSyncError, match="missing or unsafe"):
+        sync_archived_wal(
+            source_archive=tmp_path / "archive",
+            destination=destination,
+            recoverable_target_at=NOW + timedelta(seconds=1),
+            target_wal_segment="000000010000000000000003",
+            expected_storage_identity=IDENTITY,
+            now=NOW + timedelta(seconds=1),
+        )
+
+
+def test_overdue_full_scrub_detects_same_size_historical_tamper(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination, _ = _sync(tmp_path, monkeypatch)
+    (destination / "wal" / "000000010000000000000001").write_bytes(b"evil!")
+    _wal(tmp_path / "archive", "000000010000000000000003", b"wal-3")
+    with pytest.raises(WalSyncError, match="integrity mismatch"):
+        sync_archived_wal(
+            source_archive=tmp_path / "archive",
+            destination=destination,
+            recoverable_target_at=NOW + timedelta(seconds=61),
+            target_wal_segment="000000010000000000000003",
+            expected_storage_identity=IDENTITY,
+            now=NOW + timedelta(seconds=61),
+            max_full_scrub_age_seconds=60,
+        )
+
+
+def test_explicit_full_verification_detects_historical_tamper_before_scrub_due(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination, _ = _sync(tmp_path, monkeypatch)
+    (destination / "wal" / "000000010000000000000001").write_bytes(b"evil!")
+    with pytest.raises(WalSyncError, match="integrity mismatch"):
+        verify_wal_sync(
+            destination=destination,
+            expected_storage_identity=IDENTITY,
+            max_age_seconds=60,
+            now=NOW,
+        )
+
+
+def test_overdue_clean_chain_runs_full_scrub_then_continues_incrementally(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    destination, _ = _sync(tmp_path, monkeypatch)
+    third = "000000010000000000000003"
+    _wal(tmp_path / "archive", third, b"wal-3")
+    result = sync_archived_wal(
+        source_archive=tmp_path / "archive",
+        destination=destination,
+        recoverable_target_at=NOW + timedelta(seconds=61),
+        target_wal_segment=third,
+        expected_storage_identity=IDENTITY,
+        now=NOW + timedelta(seconds=61),
+        max_full_scrub_age_seconds=60,
+    )
+    integrity = result["integrity_verification"]
+    assert integrity["full_scrub_performed_this_cycle"] is True
+    assert integrity["last_full_scrub_age_seconds"] == 0
+    assert integrity["reused_artifact_count"] == 2
+    assert integrity["newly_verified_artifact_count"] == 1

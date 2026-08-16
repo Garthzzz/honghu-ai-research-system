@@ -25,6 +25,7 @@ from tools.data_platform.postgres_runtime import (
 )
 from tools.migration.stage4_json_io import read_json
 from tools.operations.wal_offvm_sync import sync_archived_wal
+from tools.operations.wal_offvm_sync import DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS
 
 
 WAL_NAME = re.compile(r"^[0-9A-F]{24}$")
@@ -88,6 +89,7 @@ def run_cycle(
     connection_factory: Callable[[], Any] | None = None,
     archive_only: bool = False,
     max_archive_age_seconds: float | None = None,
+    max_full_scrub_age_seconds: float = DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
     now_factory: Callable[[], datetime] | None = None,
 ) -> dict[str, Any]:
     if not source_archive.is_dir():
@@ -158,6 +160,7 @@ def run_cycle(
         wal_segment_size_bytes=wal_segment_size_bytes,
         at_rest_encryption_evidence=at_rest_encryption_evidence,
         initial_recovery_boundary=initial_recovery_boundary,
+        max_full_scrub_age_seconds=max_full_scrub_age_seconds,
     )
     return {
         "schema_version": "honghu.stage5_recovery_cycle.v1",
@@ -181,6 +184,8 @@ def run_cycle(
             "initial_recovery_boundary"
         ]["first_required_wal_segment"],
         "retention": verification["retention"],
+        "wal_verification_mode": verification["verification_mode"],
+        "integrity_verification": verification["integrity_verification"],
         "formal_business_data_written": False,
         "secret_recorded": False,
     }
@@ -202,6 +207,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Publish the latest fully archived segment without a database connection.",
     )
     parser.add_argument("--max-archive-age-seconds", type=float)
+    parser.add_argument(
+        "--max-full-scrub-age-seconds",
+        type=float,
+        default=DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
+    )
     args = parser.parse_args(argv)
     evidence = read_json(args.at_rest_encryption_evidence)
     if not isinstance(evidence, Mapping):
@@ -220,6 +230,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         timeout_seconds=args.timeout_seconds,
         archive_only=args.archive_only,
         max_archive_age_seconds=args.max_archive_age_seconds,
+        max_full_scrub_age_seconds=args.max_full_scrub_age_seconds,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0

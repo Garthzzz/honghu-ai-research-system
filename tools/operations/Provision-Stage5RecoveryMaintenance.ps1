@@ -11,7 +11,8 @@ param(
     [string]$RuntimeCatalog = 'D:\honghu-postgresql\runtime\postgresql_runtime.json',
     [string]$SourceArchive = 'D:\honghu-postgresql\wal-archive',
     [string]$RuntimeDir = 'D:\honghu-stage5-runtime',
-    [string]$LocalUser = 'HonghuBackupRunner'
+    [string]$LocalUser = 'HonghuBackupRunner',
+    [ValidateRange(3600,604800)][int]$MaxFullScrubAgeSeconds = 86400
 )
 
 $ErrorActionPreference = 'Stop'
@@ -67,7 +68,8 @@ $values = @(
     '-RuntimeCatalog',$RuntimeCatalog,'-SourceArchive',$SourceArchive,'-OffVmRoot',$OffVmRoot,
     '-ExpectedStorageIdentity',$ExpectedStorageIdentity,'-AtRestEncryptionEvidence',$AtRestEncryptionEvidence,
     '-InitialRecoveryBoundary',$InitialRecoveryBoundary,
-    '-SmbUser',$SmbUser,'-CredentialBlobPath',$CredentialBlobPath,'-OutputPath',$output
+    '-SmbUser',$SmbUser,'-CredentialBlobPath',$CredentialBlobPath,'-OutputPath',$output,
+    '-MaxFullScrubAgeSeconds',[string]$MaxFullScrubAgeSeconds
 )
 $argumentString = ($values | ForEach-Object { Quote-Arg ([string]$_) }) -join ' '
 $start = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
@@ -105,6 +107,7 @@ if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (
     database_business_write_possible=$false
     archive_timeout_required=$true
     maximum_archive_age_seconds=900
+    maximum_full_scrub_age_seconds=$MaxFullScrubAgeSeconds
     execution_time_limit_minutes=15
     enabled=$true
     interval_minutes=5

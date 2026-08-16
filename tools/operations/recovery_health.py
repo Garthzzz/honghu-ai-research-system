@@ -56,6 +56,7 @@ def evaluate_recovery_health(
     now: datetime | None = None,
     max_wal_age_seconds: float,
     max_restore_age_seconds: float,
+    max_full_scrub_age_seconds: float = 86400,
 ) -> dict[str, Any]:
     observed_now = now or datetime.now(timezone.utc)
     if observed_now.tzinfo is None or observed_now.utcoffset() is None:
@@ -105,6 +106,29 @@ def evaluate_recovery_health(
         wal_age = None
         wal_fresh = False
     check("wal_freshness", wal_fresh, "off-VM WAL recovery point is stale or has invalid time evidence")
+    integrity = _mapping(
+        wal.get("integrity_verification"),
+        field="wal_sync.integrity_verification",
+    )
+    try:
+        scrubbed_at = parse_utc(
+            integrity.get("last_full_scrub_at_utc"),
+            field="WAL last full scrub at",
+        )
+        scrub_age = (observed_now - scrubbed_at).total_seconds()
+    except (RecoveryMetricError, TypeError):
+        scrub_age = None
+    integrity_ok = (
+        integrity.get("schema_version") == "honghu.stage5_wal_integrity_chain.v1"
+        and integrity.get("current_manifest_is_self_contained") is True
+        and isinstance(scrub_age, (int, float))
+        and 0 <= scrub_age <= max_full_scrub_age_seconds
+    )
+    check(
+        "wal_full_scrub_freshness",
+        integrity_ok,
+        "off-VM WAL incremental chain lacks a current full-content scrub",
+    )
 
     restore = _mapping(evidence.get("restore"), field="restore")
     check("whole_restore", restore.get("whole_database_verified") is True, "whole-database restore is unverified")
@@ -268,6 +292,7 @@ def evaluate_recovery_health(
         "warnings": warnings,
         "observed": {
             "wal_age_seconds": wal_age,
+            "wal_full_scrub_age_seconds": scrub_age,
             "restore_age_seconds": restore_age,
             "at_rest_encryption_status": encryption.get("status", "unknown"),
             "recovery_set_target_gap_seconds": target_gap.get("seconds"),
@@ -283,6 +308,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("evidence", type=Path)
     parser.add_argument("--max-wal-age-seconds", type=float, required=True)
     parser.add_argument("--max-restore-age-seconds", type=float, required=True)
+    parser.add_argument("--max-full-scrub-age-seconds", type=float, default=86400)
     args = parser.parse_args(argv)
     payload = read_json(args.evidence)
     if not isinstance(payload, Mapping):
@@ -291,6 +317,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         payload,
         max_wal_age_seconds=args.max_wal_age_seconds,
         max_restore_age_seconds=args.max_restore_age_seconds,
+        max_full_scrub_age_seconds=args.max_full_scrub_age_seconds,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if result["status"] == "pass" else 2
