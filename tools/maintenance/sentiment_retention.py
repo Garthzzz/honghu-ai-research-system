@@ -177,9 +177,12 @@ def _terminal_checkpoint_evidence(
 ) -> dict[str, Any]:
     """Prove that every resumable cursor belongs to a terminal segment.
 
-    Callers hold the same exclusive tick lock used by the scheduler and a
-    ``BEGIN IMMEDIATE`` SQLite transaction.  Status evidence, rather than a
-    stale PID guess, decides whether a cursor can be retired.
+    Callers hold the same exclusive tick lock used by the scheduler.  The
+    transition SQLite backend additionally owns a ``BEGIN IMMEDIATE``
+    transaction; the PostgreSQL-authoritative compatibility projection already
+    owns its unique writer lock and one bounded mutation transaction.  Status
+    evidence, rather than a stale PID guess, decides whether a cursor can be
+    retired.
     """
     source_rows = connection.execute(
         """SELECT source,status,error_code,finished_at
@@ -1450,7 +1453,13 @@ def apply_retention(
     mutation_operation_id = _retention_mutation_operation_id(as_of, run_id)
     started_at = _now().isoformat(timespec="seconds")
     with closing(_connect(db_path, operation_id=mutation_operation_id)) as connection:
-        connection.execute("BEGIN IMMEDIATE")
+        # The PostgreSQL-authoritative compatibility connection is an in-memory
+        # projection whose lifetime already defines one atomic mutation batch.
+        # Starting a second SQLite transaction inside that projection fails and
+        # would prevent the unique VM retention runner from making progress.
+        # The retired S0/S1 SQLite path keeps its original early write lock.
+        if connection.__class__.__module__ == "sqlite3":
+            connection.execute("BEGIN IMMEDIATE")
         try:
             migration = migrate_and_seal(
                 connection,

@@ -896,39 +896,8 @@ def execute_window(
            WHERE window_id=?""",
         (window.window_id,),
     ).fetchone()
-    controlled_session_date = str(
-        os.environ.get("HONGHU_CONTROLLED_SESSION_DATE") or ""
-    ).strip()
-    is_exact_controlled_historical_window = (
-        os.environ.get("HONGHU_TASK_CONTROLLED_TRIAL") == "1"
-        and controlled_session_date == window.session_date.isoformat()
-    )
     if existing and str(existing["retention_state"] or "live") != "live":
         state = str(existing["retention_state"])
-        if (
-            is_exact_controlled_historical_window
-            and existing["status"] == "complete"
-            and not force
-            and all(
-                _source_is_satisfied(con, window.window_id, item.source)
-                for item in commands
-            )
-        ):
-            states = {
-                source: str(row["status"])
-                for source, row in _source_rows(con, window.window_id).items()
-            }
-            result = {
-                "ok": True,
-                "window_id": window.window_id,
-                "status": "complete",
-                "retention_state": state,
-                "sources": states,
-                "kline_ok": True,
-                "skipped": "idempotent",
-            }
-            con.close()
-            return 0, result
         con.close()
         return 2, {
             "ok": False,
@@ -941,10 +910,7 @@ def execute_window(
         existing
         and existing["status"] == "complete"
         and not force
-        and (
-            is_exact_controlled_historical_window
-            or not _window_needs_empty_recheck(con, window.window_id)
-        )
+        and not _window_needs_empty_recheck(con, window.window_id)
         and all(_source_is_satisfied(con, window.window_id, item.source) for item in commands)
     ):
         states = {
