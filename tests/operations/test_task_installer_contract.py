@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -31,6 +32,15 @@ def test_service_account_provisioning_keeps_secrets_out_of_arguments_and_evidenc
     assert "encrypted_transfer_removed=$true" in text
     assert "secret_recorded=$false" in text
     assert "Password =" not in text
+
+
+def test_service_account_description_respects_windows_48_character_limit():
+    text = (ROOT / "tools/operations/Provision-ProductionTaskRunner.ps1").read_text(
+        encoding="utf-8"
+    )
+    descriptions = re.findall(r"-Description '([^']+)'", text)
+    assert descriptions
+    assert all(len(value) <= 48 for value in descriptions)
 
 
 def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():

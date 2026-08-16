@@ -45,7 +45,7 @@ $secure = ConvertTo-SecureString $plain -AsPlainText -Force
 $account = Get-LocalUser -Name $LocalUser -ErrorAction SilentlyContinue
 if ($null -eq $account) {
     New-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires -PasswordNeverExpires `
-        -UserMayNotChangePassword -Description 'Honghu least-privilege off-VM recovery runner' | Out-Null
+        -UserMayNotChangePassword -Description 'Honghu off-VM recovery runner' | Out-Null
 } else {
     Set-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires -PasswordNeverExpires
 }

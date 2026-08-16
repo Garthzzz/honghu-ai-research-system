@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 
@@ -16,6 +17,15 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "AtRestEncryptionEvidence" in source
     assert "Password $plain" in source
     assert "secret_recorded=$false" in source
+
+
+def test_recovery_service_account_description_respects_windows_limit():
+    source = (
+        ROOT / "tools" / "operations" / "Provision-Stage5RecoveryMaintenance.ps1"
+    ).read_text(encoding="utf-8")
+    descriptions = re.findall(r"-Description '([^']+)'", source)
+    assert descriptions
+    assert all(len(value) <= 48 for value in descriptions)
 
 
 def test_recovery_wrapper_requires_encrypted_smb_and_never_carries_password_argument():

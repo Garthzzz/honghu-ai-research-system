@@ -44,7 +44,7 @@ $account = Get-LocalUser -Name $LocalUser -ErrorAction SilentlyContinue
 if ($null -eq $account) {
     New-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires -PasswordNeverExpires `
         -UserMayNotChangePassword `
-        -Description 'Honghu least-privilege PostgreSQL production task runner' | Out-Null
+        -Description 'Honghu PostgreSQL task runner' | Out-Null
 } else {
     Set-LocalUser -Name $LocalUser -Password $secure -AccountNeverExpires -PasswordNeverExpires $true
 }
