@@ -14,7 +14,6 @@ rate_limited/cached_stale/upstream_not_ready 返回稳定延期码 22，schedule
 from __future__ import annotations
 import argparse
 import json
-import sqlite3
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,6 +35,7 @@ import yaml
 from voice_fetcher import make_fetcher
 import ai_funnel
 from relevance_classifier import RelevanceClassifier
+from tools.dynamic.database import connect_dynamic
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 NOW = datetime.now().isoformat(timespec="seconds")
 # relevance 闸只对这些 handle 生效(如马斯克);其余领袖只富化不丢
@@ -305,7 +305,7 @@ def main(argv=None):
         weibo_api = (CFG.get("platforms", {}).get("weibo", {}) or {}).get("api") or {}
         weibo_api["wait_for_token"] = True
         weibo_api.setdefault("wait_timeout_sec", 600)
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    con = connect_dynamic(DB, operation_scope="dynamic_voice_ingest")
     q = "SELECT * FROM opinion_leader WHERE is_active=1"
     params = ()
     if args.leader_id is not None:

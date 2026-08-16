@@ -26,6 +26,11 @@ if not (REPOSITORY_ROOT / "AGENTS.md").is_file():
 sys.path.insert(0, str(REPOSITORY_ROOT))
 
 from tools.release.manager import verify_release
+from tools.data_platform.postgres_runtime import (
+    build_catalog_connection_factory,
+    load_postgres_runtime_catalog,
+)
+from tools.data_platform.routing import load_authority_matrix
 
 
 class ProductionServeError(RuntimeError):
@@ -38,13 +43,17 @@ def configure_environment(args: argparse.Namespace) -> dict:
     commit = str(verification.get("commit_sha") or "").lower()
     if commit != args.expected_commit.lower() or not re.fullmatch(r"[0-9a-f]{40}", commit):
         raise ProductionServeError("release commit is not the approved exact commit")
+    common_runtime = getattr(args, "postgres_runtime_catalog", None)
+    common_registry = getattr(args, "cutover_unit_registry", None)
+    if (common_runtime is None) != (common_registry is None):
+        raise ProductionServeError(
+            "PostgreSQL runtime catalog and cutover-unit registry are required together"
+        )
+    common_mode = common_runtime is not None
     for path, kind in (
         (args.data_root, "data root"),
         (args.content_root, "content root"),
         (args.state_root, "state root"),
-        (args.route_config, "authority route"),
-        (args.postgres_config, "PostgreSQL runtime"),
-        (args.identity_mapping, "identity mapping"),
         (args.security_config, "security configuration"),
     ):
         resolved = path.resolve()
@@ -53,34 +62,74 @@ def configure_environment(args: argparse.Namespace) -> dict:
                 raise ProductionServeError(f"missing {kind}")
         elif not resolved.is_file():
             raise ProductionServeError(f"missing {kind}")
-    route = json.loads(args.route_config.read_text(encoding="utf-8-sig"))
-    if route.get("authority_state") not in {"S2", "S3", "S4"}:
-        raise ProductionServeError("production route is outside S2/S3/S4")
-    if (
-        route.get("backend") != "postgresql_production"
-        or route.get("sqlite_writer_enabled") is not False
-        or route.get("production_postgresql_enabled") is not True
-    ):
-        raise ProductionServeError("production route does not fence SQLite")
-    os.environ.update(
-        {
-            "HONGHU_DATA_ROOT": str(args.data_root.resolve()),
-            "HONGHU_CONTENT_ROOT": str(args.content_root.resolve()),
-            "HONGHU_STATE_ROOT": str(args.state_root.resolve()),
-            "HONGHU_VIEWER_MODE": "production_postgresql",
-            "HONGHU_RELEASE_COMMIT": commit,
-            "HONGHU_RELEASE_MANIFEST": str(release / "RELEASE_MANIFEST.json"),
-            "HONGHU_USER_CONTENT_ROUTE_CONFIG": str(args.route_config.resolve()),
-            "HONGHU_USER_CONTENT_POSTGRES_CONFIG": str(args.postgres_config.resolve()),
-            "HONGHU_USER_CONTENT_IDENTITY_MAPPING": str(args.identity_mapping.resolve()),
-            "HONGHU_USER_CONTENT_SECURITY_CONFIG": str(args.security_config.resolve()),
-            "HONGHU_PRODUCTION_LAUNCH_ID": args.launch_id,
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "PYTHONUTF8": "1",
-            "PYTHONIOENCODING": "utf-8",
-        }
-    )
-    shared_route = getattr(args, "shared_identity_route", None)
+    environment = {
+        "HONGHU_DATA_ROOT": str(args.data_root.resolve()),
+        "HONGHU_CONTENT_ROOT": str(args.content_root.resolve()),
+        "HONGHU_STATE_ROOT": str(args.state_root.resolve()),
+        "HONGHU_VIEWER_MODE": "production_hybrid" if common_mode else "production_postgresql",
+        "HONGHU_RELEASE_COMMIT": commit,
+        "HONGHU_RELEASE_MANIFEST": str(release / "RELEASE_MANIFEST.json"),
+        "HONGHU_USER_CONTENT_SECURITY_CONFIG": str(args.security_config.resolve()),
+        "HONGHU_PRODUCTION_LAUNCH_ID": args.launch_id,
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONUTF8": "1",
+        "PYTHONIOENCODING": "utf-8",
+    }
+    if common_mode:
+        for path, label in (
+            (common_runtime, "PostgreSQL runtime catalog"),
+            (common_registry, "cutover-unit registry"),
+        ):
+            if not path.resolve().is_file():
+                raise ProductionServeError(f"missing {label}")
+        if any(
+            value is not None
+            for value in (args.route_config, args.postgres_config, args.identity_mapping)
+        ):
+            raise ProductionServeError(
+                "common authority matrix cannot be combined with legacy per-unit inputs"
+            )
+        catalog = load_postgres_runtime_catalog(common_runtime)
+        if catalog.application_commit_sha.lower() != commit:
+            raise ProductionServeError("PostgreSQL runtime catalog is not bound to release commit")
+        reader_factory = build_catalog_connection_factory(catalog, role="reader")
+        _, matrix = load_authority_matrix(common_registry, reader_factory)
+        for required in ("user_content_notes", "shared_identity"):
+            route = matrix.routes[required]
+            if route.authority_state.value not in {"S3", "S4"}:
+                raise ProductionServeError(f"required production unit is not durable S3: {required}")
+        environment.update(
+            {
+                "HONGHU_POSTGRES_RUNTIME_CONFIG": str(common_runtime.resolve()),
+                "HONGHU_CUTOVER_UNIT_REGISTRY": str(common_registry.resolve()),
+            }
+        )
+    else:
+        for path, kind in (
+            (args.route_config, "authority route"),
+            (args.postgres_config, "PostgreSQL runtime"),
+            (args.identity_mapping, "identity mapping"),
+        ):
+            if path is None or not path.resolve().is_file():
+                raise ProductionServeError(f"missing {kind}")
+        route = json.loads(args.route_config.read_text(encoding="utf-8-sig"))
+        if route.get("authority_state") not in {"S2", "S3", "S4"}:
+            raise ProductionServeError("production route is outside S2/S3/S4")
+        if (
+            route.get("backend") != "postgresql_production"
+            or route.get("sqlite_writer_enabled") is not False
+            or route.get("production_postgresql_enabled") is not True
+        ):
+            raise ProductionServeError("production route does not fence SQLite")
+        environment.update(
+            {
+                "HONGHU_USER_CONTENT_ROUTE_CONFIG": str(args.route_config.resolve()),
+                "HONGHU_USER_CONTENT_POSTGRES_CONFIG": str(args.postgres_config.resolve()),
+                "HONGHU_USER_CONTENT_IDENTITY_MAPPING": str(args.identity_mapping.resolve()),
+            }
+        )
+    os.environ.update(environment)
+    shared_route = getattr(args, "shared_identity_route", None) if not common_mode else None
     shared_runtime = getattr(args, "shared_identity_postgres_config", None)
     if (shared_route is None) != (shared_runtime is None):
         raise ProductionServeError(
@@ -147,9 +196,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--data-root", type=Path, required=True)
     parser.add_argument("--content-root", type=Path, required=True)
     parser.add_argument("--state-root", type=Path, required=True)
-    parser.add_argument("--route-config", type=Path, required=True)
-    parser.add_argument("--postgres-config", type=Path, required=True)
-    parser.add_argument("--identity-mapping", type=Path, required=True)
+    parser.add_argument("--route-config", type=Path)
+    parser.add_argument("--postgres-config", type=Path)
+    parser.add_argument("--identity-mapping", type=Path)
+    parser.add_argument("--postgres-runtime-catalog", type=Path)
+    parser.add_argument("--cutover-unit-registry", type=Path)
     parser.add_argument("--security-config", type=Path, required=True)
     parser.add_argument("--shared-identity-route", type=Path)
     parser.add_argument("--shared-identity-postgres-config", type=Path)

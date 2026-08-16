@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import pytest
 
@@ -40,3 +41,29 @@ def test_financial_postgresql_route_fences_legacy_writer(
     with pytest.raises(FinancialDataWriterFenced):
         connect(tmp_path / "should-not-exist.db", readonly=False)
     assert not (tmp_path / "should-not-exist.db").exists()
+
+
+def test_financial_common_matrix_read_uses_schema_aware_domain_adapter(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from tools.data_platform.routing import Backend
+    from tools.financial import db
+
+    expected = object()
+    calls = []
+    monkeypatch.setattr(
+        db,
+        "_postgres_route",
+        lambda: (SimpleNamespace(backend=Backend.POSTGRESQL_PRODUCTION), Backend),
+    )
+    monkeypatch.setenv("HONGHU_POSTGRES_RUNTIME_CONFIG", str(tmp_path / "runtime.json"))
+    monkeypatch.setenv("HONGHU_CUTOVER_UNIT_REGISTRY", str(tmp_path / "registry.json"))
+    monkeypatch.setattr(
+        "tools.data_platform.domain_data.connect_domain_database",
+        lambda unit, path, *, readonly, **_kwargs: calls.append(
+            (unit, path, readonly)
+        )
+        or expected,
+    )
+    assert db.connect(tmp_path / "financial.db", readonly=True) is expected
+    assert calls == [("financial_data", tmp_path / "financial.db", True)]

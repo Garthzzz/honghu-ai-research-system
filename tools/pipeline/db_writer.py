@@ -41,11 +41,23 @@ ROOT    = Path(__file__).resolve().parent.parent.parent
 DB_PATH = ROOT / "data" / "research.db"
 
 
-def get_db(db_path: Optional[Path] = None) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(db_path or DB_PATH))
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys=ON")
-    return conn
+def get_db(
+    db_path: Optional[Path] = None,
+    *,
+    operation_scope: str | None = None,
+    operation_id: str | None = None,
+    actor: str | None = None,
+) -> sqlite3.Connection:
+    from tools.data_platform.domain_data import connect_domain_database
+
+    return connect_domain_database(
+        "research_publication",
+        db_path or DB_PATH,
+        readonly=False,
+        operation_scope=operation_scope or "canonical_research_publication",
+        operation_id=operation_id,
+        actor=actor,
+    )
 
 
 VALID_EXTRACTION_METHODS = ("pdf_direct", "web_fetch", "template_estimate", "inferred", "unknown")

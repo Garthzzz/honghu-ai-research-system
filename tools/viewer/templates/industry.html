@@ -646,9 +646,13 @@ document.addEventListener('click', (e) => {
     sec.querySelectorAll('.it-f').forEach(f => body[f.dataset.f] = f.value);
     if (editConsensus) { body.edit_consensus = 1; body.consensus_narrative = editEl.value; }
     try {
-      const r = await (await fetch('/api/industry_thesis/' + iid, {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
-      })).json();
+      const result = await HonghuDomainMutations.postJSON(
+        'industry-thesis:' + iid,
+        '/api/industry_thesis/' + iid,
+        body
+      );
+      const r = result.data || {};
+      if (result.uncertain) throw new Error('mutation result is uncertain; retry unchanged');
       st.textContent = r.ok ? ' 已保存' : ('失败:'+(r.error||''));
       if (r.ok) {
         const todo = sec.querySelector('.it-todo');

@@ -15,7 +15,7 @@ AbstractTagger.tag(text) -> {tags_company:[int], tags_industry:[int], summary, c
 用法:python ai_tagger.py --news        # 标 news_item(ai_tagged_by IS NULL)
 """
 from __future__ import annotations
-import sqlite3, sys, io, json, argparse
+import sys, io, json, argparse
 from abc import ABC, abstractmethod
 from pathlib import Path
 from datetime import date
@@ -26,9 +26,11 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 import yaml
+from tools.dynamic.database import connect_dynamic
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 TAGGER_ID = f"cc_session_{date.today().isoformat()}"
 
@@ -56,7 +58,7 @@ class CCKeywordTagger(AbstractTagger):
 
 
 def tag_news(limit=None):
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    con = connect_dynamic(DB, operation_scope="dynamic_ai_tagger")
     tagger = CCKeywordTagger(con)
     rows = con.execute(
         "SELECT id, title, content_text, summary FROM news_item WHERE ai_tagged_by IS NULL"
@@ -103,7 +105,7 @@ def _post_type(text: str) -> str:
 
 
 def tag_voices(limit=None):
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    con = connect_dynamic(DB, operation_scope="dynamic_ai_tagger")
     tagger = CCKeywordTagger(con)
     rows = con.execute("SELECT id, content_text FROM voice_post WHERE ai_tagged_by IS NULL"
                        + (f" LIMIT {int(limit)}" if limit else "")).fetchall()

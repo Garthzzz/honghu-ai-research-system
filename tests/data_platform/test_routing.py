@@ -3,12 +3,86 @@ import pytest
 import json
 
 from tools.data_platform.routing import (
+    PRODUCTION_CUTOVER_UNITS,
     AuthorityState,
     Backend,
     CutoverRoute,
+    load_authority_matrix,
     load_cutover_route,
     require_backend,
 )
+
+
+class _MatrixConnection:
+    def __init__(self, rows):
+        self.rows = rows
+
+    def execute(self, _sql, _params):
+        return self
+
+    def fetchall(self):
+        return self.rows
+
+    def close(self):
+        pass
+
+
+def _registry_payload():
+    return {
+        "registry_sha256": "a" * 64,
+        "validation": {
+            "passed": True,
+            "ownership_conflicts": [],
+            "unknown_operation_owners": [],
+            "unowned_live_tables": [],
+            "configured_objects_not_in_live_schema": [],
+        },
+        "units": {
+            unit: {
+                "owner": f"owner-{unit}",
+                "dependencies": [],
+                "objects": [
+                    {
+                        "database": "research.db",
+                        "object": f"table_{unit}",
+                        "object_type": "table",
+                    }
+                ],
+                "writer_operations": [],
+                "transaction_boundaries": [],
+            }
+            for unit in PRODUCTION_CUTOVER_UNITS
+        },
+    }
+
+
+def test_authority_matrix_resolves_all_units_without_per_unit_files(tmp_path) -> None:
+    registry = tmp_path / "registry.json"
+    registry.write_text(json.dumps(_registry_payload()), encoding="utf-8")
+    rows = []
+    for unit in PRODUCTION_CUTOVER_UNITS:
+        if unit in {"user_content_notes", "shared_identity"}:
+            rows.append((unit, "S3", "postgresql_production", f"writer-{unit}", "epoch", "approval", 3))
+        else:
+            rows.append((unit, "S1", "sqlite_transition", None, None, None, 1))
+    _, matrix = load_authority_matrix(registry, lambda: _MatrixConnection(rows))
+    assert matrix.routes["shared_identity"].authority_state is AuthorityState.S3
+    assert matrix.routes["financial_data"].backend is Backend.SQLITE_TRANSITION
+    assert set(matrix.health_payload()) == set(PRODUCTION_CUTOVER_UNITS)
+
+
+def test_authority_matrix_fails_closed_when_unit_missing_or_state_backend_conflicts(tmp_path) -> None:
+    registry = tmp_path / "registry.json"
+    registry.write_text(json.dumps(_registry_payload()), encoding="utf-8")
+    rows = [
+        (unit, "S1", "sqlite_transition", None, None, None, 1)
+        for unit in PRODUCTION_CUTOVER_UNITS[:-1]
+    ]
+    with pytest.raises(RuntimeError, match="incomplete"):
+        load_authority_matrix(registry, lambda: _MatrixConnection(rows))
+    rows.append((PRODUCTION_CUTOVER_UNITS[-1], "S3", "sqlite_transition", "writer", "epoch", "approval", 2))
+    with pytest.raises(ValueError, match="must use postgresql"):
+        load_authority_matrix(registry, lambda: _MatrixConnection(rows))
 
 
 def test_route_has_no_implicit_fallback() -> None:

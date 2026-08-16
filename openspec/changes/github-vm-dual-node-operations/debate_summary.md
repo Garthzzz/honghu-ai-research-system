@@ -690,3 +690,9 @@ Codex独立发现恢复工具仍把 authority restore 固定为 S0/S1，无法�
 真实 VM 随后使用恢复工具提交 `0971b9cc03466b7ffdaea7b98616d6f8b4423e47` 创建新的加密异机 recovery set，并只从该集合完成 whole-database、authority-control 和 side restore。S3、backend、writer/epoch/watermarks/revision/approval 均保持一致，实测 RPO 0.02 秒、RTO 7.484 秒；保留策略复核后只留下最新两份有效集合。该现场证据仍保持 Git 外，Git 只记录其脱敏 identity 和 hash。
 
 最后一轮 DeepSeek只收到上述脱敏状态机、测试和恢复摘要，返回 `revise`。其意见没有给出任何可导致错误 PASS 的状态或可复现反例，并把提示中已经明确为秒的 RPO/RTO、测试项数量和两份保留策略误读成缺少定义。Codex拒绝这些无证据意见，并以状态机约束、真实 PostgreSQL恢复、exact recovery set、定向测试和 required CI 为准；未为了追求外部模型形式上的 `pass` 再扩张实现或继续循环。
+
+### Stage 4 剩余单元：通用路由与 sentiment 持久投影复核（2026-08-15）
+
+Codex 先独立完成通用 cutover-unit authority matrix、六个中小单元的有界 PostgreSQL 兼容事务面，以及 `sentiment_analytics` 的持久化、可丢弃 PostgreSQL 投影。后者从正式 PostgreSQL snapshot 与 overlay 构建运行时 cache，从不打开退役的 `sentiment.db`；跨进程锁串行化 rebuild/refresh/write，正式 mutation 先在 PostgreSQL 以稳定 batch identity 和 expected revision 提交，只有得到确定响应后才提交本地 cache。uncertain response 保留同一 batch，改变本地状态或回滚均 fail-closed。跨单元 sentiment 依赖同样通过只读 URI 使用该投影。
+
+第一轮通用 adapter 复核没有发现 must-fix，但 Codex 随后独立识别 sentiment 超过内存上限，未把该轮意见当作 sentiment 已完成。第二轮只发送脱敏后的崩溃/重试、锁、只读依赖、revision 与 evidence gate 合同；DeepSeek 返回 `pass`，没有 must-fix 或 should-fix，也未提出范围扩张。Codex 以真实隔离 PostgreSQL 持久投影 roundtrip、幂等/冲突/ownership rehearsal、894 项 core、35 项定向测试、compile、OpenSpec strict、tracked boundary 和 SQLite ratchet 为主要证据；外部 reviewer 不替代 exact-commit CI、VM recovery、S2/S3 现场执行或 Stage 5 授权。连续两轮没有有效新增问题，停止复核。

@@ -15,7 +15,7 @@ A3 反向 tag 过滤器 v2(板块级 10 tag;STAGE3G_TAG_FINAL v2)
 用法:python relevance_classifier.py --classify news|voice|event|all
 """
 from __future__ import annotations
-import sqlite3, sys, io, json, argparse
+import sys, io, json, argparse
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -25,9 +25,11 @@ except Exception:
     pass
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 import yaml
+from tools.dynamic.database import connect_dynamic
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 AI_CONTEXT = ["ai", "人工智能", "智能体", "大模型", "llm", "agi", "生成式", "机器学习", "算力"]
 GENERIC = {"agent"}   # 需 AI 上下文才算命中的通用词
@@ -70,7 +72,7 @@ class RelevanceClassifier(BaseClassifier):
 
 
 def run(target):
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    con = connect_dynamic(DB, operation_scope="dynamic_relevance_classifier")
     clf = RelevanceClassifier(con)
     specs = {"news": ("news_item", "COALESCE(title,'')||' '||COALESCE(content_text,'')"),
              "voice": ("voice_post", "COALESCE(content_text,'')"),

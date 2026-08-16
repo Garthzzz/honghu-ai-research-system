@@ -215,6 +215,33 @@ class RetailDataLayerTests(unittest.TestCase):
         self.assertEqual([window.window_id for window in due], expected)
         self.assertNotIn(legacy.window_id, [window.window_id for window in due])
 
+    def test_auto_backfill_cannot_reopen_three_day_finalized_or_expired_window(self):
+        expired = senti3.market_window(date(2026, 7, 15), "preopen")
+        finalized = senti3.market_window(date(2026, 7, 17), "preopen")
+        retail_windows_v2.ensure_window(self.con, expired)
+        retail_windows_v2.ensure_window(self.con, finalized)
+        retail_windows_v2.mark_window_status(self.con, expired.window_id, "partial")
+        retail_windows_v2.mark_window_status(self.con, finalized.window_id, "partial")
+        self.con.execute(
+            """UPDATE retail_window_ledger
+               SET retention_state='purged_incomplete'
+               WHERE window_id=?""",
+            (finalized.window_id,),
+        )
+        self.con.commit()
+
+        due = retail_window_tick.due_auto_backfill_windows(
+            self.con,
+            now=datetime.fromisoformat("2026-07-20T11:00:00+08:00"),
+            start_date=date(2026, 7, 15),
+            max_days=7,
+            limit=10,
+        )
+
+        ids = [window.window_id for window in due]
+        self.assertNotIn(expired.window_id, ids)
+        self.assertNotIn(finalized.window_id, ids)
+
     def test_new_empty_guba_window_is_partial_until_second_success(self):
         window = senti3.market_window(date(2026, 7, 20), "morning")
         retail_windows_v2.ensure_window(self.con, window)
@@ -532,6 +559,8 @@ class RetailDataLayerTests(unittest.TestCase):
         current = senti3.market_window(date(2026, 7, 20), "morning")
         older = senti3.market_window(date(2026, 7, 17), "afternoon")
         order = []
+        clock = mock.Mock()
+        clock.now.return_value.weekday.return_value = 0
 
         class DummyConnection:
             def close(self):
@@ -546,7 +575,8 @@ class RetailDataLayerTests(unittest.TestCase):
                 "kline_ok": True,
             }
 
-        with mock.patch.object(retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()), \
+        with mock.patch.object(retail_window_tick, "datetime", clock), \
+             mock.patch.object(retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()), \
              mock.patch.object(retail_window_tick.common, "get_senti_db", return_value=DummyConnection()), \
              mock.patch.object(retail_window_tick.common, "assert_senti_only"), \
              mock.patch.object(retail_window_tick, "wait_for_fresh_orphaned_xinghan", return_value=None), \
@@ -554,9 +584,7 @@ class RetailDataLayerTests(unittest.TestCase):
              mock.patch.object(retail_window_tick, "resolve_window", return_value=current), \
              mock.patch.object(retail_window_tick, "due_auto_backfill_windows", return_value=[older]), \
              mock.patch.object(retail_window_tick, "execute_window", side_effect=fake_execute), \
-             mock.patch("builtins.print"), \
-             mock.patch.object(retail_window_tick, "datetime") as clock:
-            clock.now.return_value = current.scheduled_for
+             mock.patch("builtins.print"):
             code = retail_window_tick.main(["--slot", "morning"])
 
         self.assertEqual(code, 0)
@@ -566,6 +594,8 @@ class RetailDataLayerTests(unittest.TestCase):
         current = senti3.market_window(date(2026, 7, 20), "morning")
         newer = senti3.market_window(date(2026, 7, 20), "afternoon")
         order = []
+        clock = mock.Mock()
+        clock.now.return_value.weekday.return_value = 0
 
         class DummyConnection:
             def close(self):
@@ -578,7 +608,8 @@ class RetailDataLayerTests(unittest.TestCase):
                 "status": "complete", "kline_ok": True,
             }
 
-        with mock.patch.object(retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()), \
+        with mock.patch.object(retail_window_tick, "datetime", clock), \
+             mock.patch.object(retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()), \
              mock.patch.object(retail_window_tick.common, "get_senti_db", return_value=DummyConnection()), \
              mock.patch.object(retail_window_tick.common, "assert_senti_only"), \
              mock.patch.object(retail_window_tick, "wait_for_fresh_orphaned_xinghan", return_value=None), \
@@ -586,9 +617,7 @@ class RetailDataLayerTests(unittest.TestCase):
              mock.patch.object(retail_window_tick, "resolve_window", side_effect=[current, newer]), \
              mock.patch.object(retail_window_tick, "due_auto_backfill_windows") as due, \
              mock.patch.object(retail_window_tick, "execute_window", side_effect=fake_execute), \
-             mock.patch("builtins.print") as printed, \
-             mock.patch.object(retail_window_tick, "datetime") as clock:
-            clock.now.return_value = current.scheduled_for
+             mock.patch("builtins.print") as printed:
             code = retail_window_tick.main(["--slot", "morning"])
 
         self.assertEqual(code, 0)
@@ -605,6 +634,8 @@ class RetailDataLayerTests(unittest.TestCase):
         older_two = senti3.market_window(date(2026, 7, 16), "afternoon")
         newer = senti3.market_window(date(2026, 7, 20), "morning")
         order = []
+        clock = mock.Mock()
+        clock.now.return_value.weekday.return_value = 0
 
         class DummyConnection:
             def close(self):
@@ -619,7 +650,8 @@ class RetailDataLayerTests(unittest.TestCase):
 
         # resolve_window: 主窗口、主窗口完成后的首次检查、第一项旧窗口前检查、
         # 第一项结束后第二次检查。最后一次模拟运行期间已跨过 14:00。
-        with mock.patch.object(retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()), \
+        with mock.patch.object(retail_window_tick, "datetime", clock), \
+             mock.patch.object(retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()), \
              mock.patch.object(retail_window_tick.common, "get_senti_db", return_value=DummyConnection()), \
              mock.patch.object(retail_window_tick.common, "assert_senti_only"), \
              mock.patch.object(retail_window_tick, "wait_for_fresh_orphaned_xinghan", return_value=None), \
@@ -635,9 +667,7 @@ class RetailDataLayerTests(unittest.TestCase):
                  return_value=[older_one, older_two],
              ), \
              mock.patch.object(retail_window_tick, "execute_window", side_effect=fake_execute), \
-             mock.patch("builtins.print") as printed, \
-             mock.patch.object(retail_window_tick, "datetime") as clock:
-            clock.now.return_value = current.scheduled_for
+             mock.patch("builtins.print") as printed:
             code = retail_window_tick.main(["--slot", "preopen"])
 
         self.assertEqual(code, 0)

@@ -7,9 +7,11 @@ param(
     [Parameter(Mandatory = $true)][string]$DataRoot,
     [Parameter(Mandatory = $true)][string]$ContentRoot,
     [Parameter(Mandatory = $true)][string]$StateRoot,
-    [Parameter(Mandatory = $true)][string]$RouteConfig,
-    [Parameter(Mandatory = $true)][string]$PostgresConfig,
-    [Parameter(Mandatory = $true)][string]$IdentityMapping,
+    [string]$RouteConfig = '',
+    [string]$PostgresConfig = '',
+    [string]$IdentityMapping = '',
+    [string]$PostgresRuntimeCatalog = '',
+    [string]$CutoverUnitRegistry = '',
     [Parameter(Mandatory = $true)][string]$SecurityConfig,
     [Parameter(Mandatory = $true)][string]$TlsCertificate,
     [Parameter(Mandatory = $true)][string]$TlsPrivateKey,
@@ -73,12 +75,26 @@ $Launcher = Resolve-RequiredFile (Join-Path $ReleaseDir 'tools\release\direct_ca
 $AgentsContract = Resolve-RequiredFile (Join-Path $ReleaseDir 'AGENTS.md') 'release AGENTS contract'
 $TlsCertificate = Resolve-RequiredFile $TlsCertificate 'TLS certificate'
 $TlsPrivateKey = Resolve-RequiredFile $TlsPrivateKey 'TLS private key'
-foreach ($item in @(
-    @($RouteConfig, 'route'), @($PostgresConfig, 'PostgreSQL runtime'),
-    @($IdentityMapping, 'identity mapping'), @($SecurityConfig, 'security configuration')
-)) {
-    Resolve-RequiredFile $item[0] $item[1] | Out-Null
+$CommonMode = [bool]$PostgresRuntimeCatalog -or [bool]$CutoverUnitRegistry
+if ([bool]$PostgresRuntimeCatalog -ne [bool]$CutoverUnitRegistry) {
+    throw 'PostgreSQL runtime catalog and cutover-unit registry must be supplied together'
 }
+if ($CommonMode) {
+    if ($RouteConfig -or $PostgresConfig -or $IdentityMapping -or
+        $SharedIdentityRouteConfig -or $SharedIdentityPostgresConfig) {
+        throw 'common authority matrix cannot be combined with per-unit inputs'
+    }
+    $PostgresRuntimeCatalog = Resolve-RequiredFile $PostgresRuntimeCatalog 'PostgreSQL runtime catalog'
+    $CutoverUnitRegistry = Resolve-RequiredFile $CutoverUnitRegistry 'cutover-unit registry'
+} else {
+    foreach ($item in @(
+        @($RouteConfig, 'route'), @($PostgresConfig, 'PostgreSQL runtime'),
+        @($IdentityMapping, 'identity mapping')
+    )) {
+        Resolve-RequiredFile $item[0] $item[1] | Out-Null
+    }
+}
+Resolve-RequiredFile $SecurityConfig 'security configuration' | Out-Null
 if ([bool]$SharedIdentityRouteConfig -ne [bool]$SharedIdentityPostgresConfig) {
     throw 'shared identity route and PostgreSQL runtime must be supplied together'
 }
@@ -119,13 +135,22 @@ $common = @(
     '--data-root', $DataRoot,
     '--content-root', $ContentRoot,
     '--state-root', $StateRoot,
-    '--route-config', $RouteConfig,
-    '--postgres-config', $PostgresConfig,
-    '--identity-mapping', $IdentityMapping,
     '--security-config', $SecurityConfig,
     '--host', '0.0.0.0'
 )
-if ($SharedIdentityRouteConfig) {
+if ($CommonMode) {
+    $common += @(
+        '--postgres-runtime-catalog', $PostgresRuntimeCatalog,
+        '--cutover-unit-registry', $CutoverUnitRegistry
+    )
+} else {
+    $common += @(
+        '--route-config', $RouteConfig,
+        '--postgres-config', $PostgresConfig,
+        '--identity-mapping', $IdentityMapping
+    )
+}
+if (-not $CommonMode -and $SharedIdentityRouteConfig) {
     $common += @(
         '--shared-identity-route', $SharedIdentityRouteConfig,
         '--shared-identity-postgres-config', $SharedIdentityPostgresConfig
@@ -198,7 +223,8 @@ try {
             $httpReady = [bool](
                 $health.ok -and
                 $health.user_content.backend -eq 'postgresql_production' -and
-                (-not $SharedIdentityRouteConfig -or $health.shared_identity.backend -eq 'postgresql_production') -and
+                (-not $CommonMode -or $health.viewer_mode -eq 'production_hybrid') -and
+                (-not ($CommonMode -or $SharedIdentityRouteConfig) -or $health.shared_identity.backend -eq 'postgresql_production') -and
                 $health.release.commit_sha -eq $ExpectedCommit -and
                 [int]$health.production_process.pid -eq [int]$httpRecord.pid -and
                 $health.production_process.launch_id -eq $httpRecord.launch_id
@@ -211,14 +237,16 @@ ctx=ssl.create_default_context(cafile=sys.argv[1])
 with urllib.request.urlopen(sys.argv[2], context=ctx, timeout=3) as r:
     p=json.load(r)
 assert p['ok'] and p['user_content']['backend']=='postgresql_production'
-if len(sys.argv) > 6 and sys.argv[6] == 'shared':
+if len(sys.argv) > 6 and sys.argv[6] in {'shared','common'}:
     assert p['shared_identity']['backend']=='postgresql_production'
+if len(sys.argv) > 6 and sys.argv[6] == 'common':
+    assert p['viewer_mode']=='production_hybrid' and len(p['backend_matrix'])==9
 assert p['release']['commit_sha']==sys.argv[3]
 assert int(p['production_process']['pid'])==int(sys.argv[4])
 assert p['production_process']['launch_id']==sys.argv[5]
 '@
             $httpsRecord = @($records | Where-Object {$_.name -eq 'https'})[0]
-            $sharedProbe = if ($SharedIdentityRouteConfig) { 'shared' } else { 'none' }
+            $sharedProbe = if ($CommonMode) { 'common' } elseif ($SharedIdentityRouteConfig) { 'shared' } else { 'none' }
             & $PythonExe -I -B -c $probe $TlsCertificate "https://localhost:$HttpsPort/api/health" $ExpectedCommit $httpsRecord.pid $httpsRecord.launch_id $sharedProbe
             $httpsReady = ($LASTEXITCODE -eq 0)
         } catch {}
@@ -234,7 +262,12 @@ assert p['production_process']['launch_id']==sys.argv[5]
     $payload = [ordered]@{
         schema_version = 'honghu.user_content_viewer_processes.v1'
         commit_sha = $ExpectedCommit
-        route_sha256 = (Get-FileHash -LiteralPath $RouteConfig -Algorithm SHA256).Hash.ToLowerInvariant()
+        authority_contract_sha256 = if ($CommonMode) {
+            (Get-FileHash -LiteralPath $CutoverUnitRegistry -Algorithm SHA256).Hash.ToLowerInvariant()
+        } else {
+            (Get-FileHash -LiteralPath $RouteConfig -Algorithm SHA256).Hash.ToLowerInvariant()
+        }
+        authority_contract_type = if ($CommonMode) { 'cutover_unit_registry' } else { 'legacy_unit_route' }
         created_at_utc = (Get-Date).ToUniversalTime().ToString('o')
         processes = $records
     }

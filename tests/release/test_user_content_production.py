@@ -29,6 +29,8 @@ def _restore_production_environment(monkeypatch: pytest.MonkeyPatch):
         "HONGHU_PRODUCTION_LAUNCH_ID",
         "HONGHU_SHARED_IDENTITY_ROUTE_CONFIG",
         "HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG",
+        "HONGHU_POSTGRES_RUNTIME_CONFIG",
+        "HONGHU_CUTOVER_UNIT_REGISTRY",
     )
     for name in names:
         monkeypatch.setenv(name, os.environ.get(name, "__pytest_restore_absent__"))
@@ -137,4 +139,43 @@ def test_production_environment_accepts_only_paired_fenced_shared_identity_route
 
     args.shared_identity_postgres_config = None
     with pytest.raises(ProductionServeError, match="supplied together"):
+        configure_environment(args)
+
+
+def test_common_authority_matrix_replaces_per_unit_runtime_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    args = _args(tmp_path)
+    args.route_config = None
+    args.postgres_config = None
+    args.identity_mapping = None
+    args.postgres_runtime_catalog = tmp_path / "catalog.json"
+    args.cutover_unit_registry = tmp_path / "registry.json"
+    args.postgres_runtime_catalog.write_text("{}", encoding="utf-8")
+    args.cutover_unit_registry.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        "tools.release.user_content_production.verify_release",
+        lambda _release: {"commit_sha": "a" * 40},
+    )
+    catalog = type("Catalog", (), {"application_commit_sha": "a" * 40})()
+    monkeypatch.setattr(
+        "tools.release.user_content_production.load_postgres_runtime_catalog",
+        lambda _path: catalog,
+    )
+    monkeypatch.setattr(
+        "tools.release.user_content_production.build_catalog_connection_factory",
+        lambda *_a, **_k: object(),
+    )
+    route = type("Route", (), {"authority_state": type("State", (), {"value": "S3"})()})()
+    matrix = type("Matrix", (), {"routes": {"user_content_notes": route, "shared_identity": route}})()
+    monkeypatch.setattr(
+        "tools.release.user_content_production.load_authority_matrix",
+        lambda *_a, **_k: (object(), matrix),
+    )
+    configure_environment(args)
+    assert os.environ["HONGHU_VIEWER_MODE"] == "production_hybrid"
+    assert os.environ["HONGHU_CUTOVER_UNIT_REGISTRY"] == str(args.cutover_unit_registry.resolve())
+
+    args.route_config = tmp_path / "legacy-route.json"
+    with pytest.raises(ProductionServeError, match="cannot be combined"):
         configure_environment(args)

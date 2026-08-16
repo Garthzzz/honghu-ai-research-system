@@ -30,6 +30,7 @@ ALLOWED_MODULES = {
     "tools.migration.stage4_runtime_release_binding": "main",
     "tools.migration.stage4_financial_data_s1": "main",
     "tools.migration.stage4_generic_unit_s1": "main",
+    "tools.migration.stage4_remaining_unit_cutover": "main",
     "tools.migration.stage4_shared_identity_cutover": "main",
     "tools.migration.stage4_shared_identity_s1": "main",
     "tools.migration.stage4_user_content_s1": "main",

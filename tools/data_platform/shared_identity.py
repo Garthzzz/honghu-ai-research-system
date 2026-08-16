@@ -11,10 +11,13 @@ there is deliberately no fallback to the SQLite baseline.
 
 import hashlib
 import json
+import os
 import sqlite3
 import threading
 import time
+import uuid
 from collections.abc import Callable
+from pathlib import Path
 from typing import Any
 
 from .routing import AuthorityState, Backend, CutoverRoute
@@ -276,6 +279,63 @@ class PostgresSharedIdentityRepository:
             raise translate_shared_identity_error(exc) from exc
 
 
+class PostgresSharedIdentityResolver:
+    """Resolve legacy UI references against authoritative PostgreSQL identity.
+
+    The frozen Stage 4 mapping remains migration/audit evidence.  Once
+    ``shared_identity`` is S3/S4 it must not cap the set of identities accepted
+    by dependent domains, so runtime resolution reads the current formal
+    identity table and fails closed on missing or ambiguous records.
+    """
+
+    _ENTITY_TABLES = {
+        "company": "company",
+        "industry": "industry",
+        "theme": "theme",
+    }
+
+    def __init__(self, connection_factory: Callable[[], Any]) -> None:
+        self._connect = connection_factory
+
+    def resolve(self, entity_type: str, legacy_id: str | int) -> str:
+        table = self._ENTITY_TABLES.get(str(entity_type))
+        if table is None:
+            raise SharedIdentityError(f"unsupported shared identity type: {entity_type}")
+        connection = self._connect()
+        try:
+            authority = connection.execute(
+                """
+                SELECT state,authoritative_backend
+                  FROM operations.cutover_unit_authority
+                 WHERE cutover_unit='shared_identity'
+                """
+            ).fetchone()
+            if authority is None or str(authority[0]) not in {"S3", "S4"} or str(
+                authority[1]
+            ) != "postgresql_production":
+                raise SharedIdentityWriterFenced(
+                    "shared_identity is not PostgreSQL-authoritative"
+                )
+            rows = connection.execute(
+                """
+                SELECT stable_key
+                  FROM shared_identity.legacy_record
+                 WHERE source_database='research.db'
+                   AND source_table=%s
+                   AND legacy_id=%s
+                   AND formal_business_data=true
+                """,
+                (table, str(legacy_id)),
+            ).fetchall()
+        finally:
+            connection.close()
+        if len(rows) != 1 or not str(rows[0][0] or "").strip():
+            raise SharedIdentityError(
+                f"authoritative shared identity is missing or ambiguous: {entity_type}:{legacy_id}"
+            )
+        return str(rows[0][0])
+
+
 def translate_shared_identity_error(exc: Exception) -> SharedIdentityError:
     if isinstance(exc, SharedIdentityError):
         return exc
@@ -321,6 +381,13 @@ class SharedIdentityReadCache:
     ) -> None:
         self._connection_factory = connection_factory
         self._refresh_check_seconds = refresh_check_seconds
+        # More than one reviewed adapter may need the shared-identity
+        # projection in the same process (the Viewer owns one and the generic
+        # domain router owns another).  A named SQLite shared-memory database
+        # is process-global, so the authority/version alone is not a unique
+        # cache identity.  Keep each cache instance isolated while preserving
+        # stable URIs across refreshes of that instance.
+        self._cache_id = uuid.uuid4().hex
         self._lock = threading.RLock()
         self._keeper: sqlite3.Connection | None = None
         self._uri: str | None = None
@@ -400,7 +467,10 @@ class SharedIdentityReadCache:
         return version, f"{version}_{row_version}", grouped
 
     def _build(self, version: str, grouped: dict[str, list[dict[str, Any]]]) -> None:
-        uri = f"file:honghu_shared_identity_{version}?mode=memory&cache=shared"
+        uri = (
+            f"file:honghu_shared_identity_{self._cache_id}_{version}"
+            "?mode=memory&cache=shared"
+        )
         keeper = sqlite3.connect(uri, uri=True, check_same_thread=False)
         try:
             for table in SHARED_IDENTITY_TABLES:
@@ -468,3 +538,53 @@ class SharedIdentityReadCache:
             self._uri = None
             self._version = None
             self._authority_token = None
+
+
+_ENVIRONMENT_READ_CACHES: dict[str, SharedIdentityReadCache] = {}
+
+
+def connect_shared_identity_database(sqlite_path: str | Path) -> sqlite3.Connection:
+    """Open the authoritative shared-identity read surface.
+
+    Before the shared-identity cutover this is a strictly read-only SQLite
+    connection.  In S3/S4 it is a process-memory compatibility database built
+    only from PostgreSQL.  A PostgreSQL/configuration failure is never allowed
+    to reopen the frozen SQLite identity baseline.
+    """
+
+    from tools.data_platform.postgres_runtime import (
+        build_catalog_connection_factory,
+        load_postgres_runtime_catalog,
+    )
+    from tools.data_platform.routing import (
+        Backend,
+        load_environment_authority_matrix,
+    )
+
+    path = Path(sqlite_path).resolve()
+    matrix = load_environment_authority_matrix()
+    route = (
+        matrix.route_for(
+            "shared_identity",
+            writer_operation="shared_identity_read",
+            transaction_boundary="one authoritative identity read transaction",
+        )
+        if matrix is not None
+        else None
+    )
+    if route is None or route.backend is Backend.SQLITE_TRANSITION:
+        connection = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA query_only=ON")
+        return connection
+    catalog_path = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+    if not catalog_path:
+        raise SharedIdentityWriterFenced(
+            "PostgreSQL-authoritative shared_identity lacks a runtime catalog"
+        )
+    catalog = load_postgres_runtime_catalog(catalog_path)
+    cache = _ENVIRONMENT_READ_CACHES.setdefault(
+        str(Path(catalog_path).resolve()),
+        SharedIdentityReadCache(build_catalog_connection_factory(catalog, role="reader")),
+    )
+    return cache.connect()

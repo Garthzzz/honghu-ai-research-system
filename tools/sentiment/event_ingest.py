@@ -22,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "dynamic"))
 import common
 import quiet_hours
+from tools.data_platform.run_domain_operation import install_operation_context
 try:
     import llm_client
 except Exception:
@@ -140,6 +141,11 @@ def score_pending(con, max_items):
 
 
 def main():
+    install_operation_context(
+        cutover_unit="sentiment_analytics",
+        operation_scope="event_ingest",
+        logical_window=datetime.now(TZ).date().isoformat(),
+    )
     # 自动或手动误触发都不应在周末访问公告源或 LLM；按用户要求静默返回。
     if quiet_hours.is_weekend():
         return 0

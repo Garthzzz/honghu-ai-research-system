@@ -60,14 +60,24 @@ from tools.financial.read_models import (  # noqa: E402
 )
 from tools.financial.valuation import historical_pb_roa, historical_pb_roe  # noqa: E402
 from tools.data_platform.postgres_runtime import (  # noqa: E402
+    build_catalog_connection_factory,
     build_postgres_connection_factory,
+    load_postgres_runtime_catalog,
     load_postgres_runtime_settings,
 )
+from tools.data_platform.domain_data import (  # noqa: E402
+    DomainDataError,
+    PostgresDomainReadCache,
+    connect_domain_database,
+)
 from tools.data_platform.routing import (  # noqa: E402
+    AuthorityMatrix,
     Backend as DataBackend,
+    load_authority_matrix,
     load_cutover_route,
 )
 from tools.data_platform.shared_identity import (  # noqa: E402
+    PostgresSharedIdentityResolver,
     PostgresSharedIdentityRepository,
     SharedIdentityConflict,
     SharedIdentityError,
@@ -246,61 +256,128 @@ app = Flask(
 app.config["HONGHU_READ_ONLY_CANDIDATE"] = readonly_candidate_enabled()
 app.config["OPPORTUNITY_LENS_DB_PATH"] = OPPORTUNITY_DB_PATH
 
+# The production runtime has one reviewed ownership registry and one durable
+# PostgreSQL authority matrix.  Legacy per-unit files remain a compatibility
+# entrypoint for the already deployed first two units, but new releases use
+# this common control plane and never infer whole-system authority from one
+# top-level backend label.
+COMMON_POSTGRES_RUNTIME_PATH = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+COMMON_CUTOVER_REGISTRY_PATH = os.environ.get("HONGHU_CUTOVER_UNIT_REGISTRY")
+if bool(COMMON_POSTGRES_RUNTIME_PATH) != bool(COMMON_CUTOVER_REGISTRY_PATH):
+    raise RuntimeError(
+        "production PostgreSQL runtime and cutover registry must be supplied together"
+    )
+POSTGRES_RUNTIME_CATALOG = None
+AUTHORITY_MATRIX: AuthorityMatrix | None = None
+COMMON_POSTGRES_READ_FACTORY = None
+if COMMON_POSTGRES_RUNTIME_PATH:
+    POSTGRES_RUNTIME_CATALOG = load_postgres_runtime_catalog(COMMON_POSTGRES_RUNTIME_PATH)
+    COMMON_POSTGRES_READ_FACTORY = build_catalog_connection_factory(
+        POSTGRES_RUNTIME_CATALOG, role="reader"
+    )
+    _, AUTHORITY_MATRIX = load_authority_matrix(
+        COMMON_CUTOVER_REGISTRY_PATH, COMMON_POSTGRES_READ_FACTORY
+    )
+
 USER_CONTENT_TRACKED_ROUTE = ROOT / "config" / "migration" / "user_content_backend_route.json"
 USER_CONTENT_RUNTIME_ROUTE = os.environ.get("HONGHU_USER_CONTENT_ROUTE_CONFIG")
-USER_CONTENT_ROUTE = load_cutover_route(
-    USER_CONTENT_TRACKED_ROUTE,
-    runtime_override=USER_CONTENT_RUNTIME_ROUTE,
+USER_CONTENT_ROUTE = (
+    AUTHORITY_MATRIX.route_for(
+        "user_content_notes",
+        writer_operation="analyst_note_mutation",
+        transaction_boundary="one analyst-note mutation under the owning authority",
+    )
+    if AUTHORITY_MATRIX is not None
+    else load_cutover_route(
+        USER_CONTENT_TRACKED_ROUTE,
+        runtime_override=USER_CONTENT_RUNTIME_ROUTE,
+    )
 )
-USER_CONTENT_IDENTITY_RESOLVER = (
-    IdentityMappingResolver.from_path(os.environ["HONGHU_USER_CONTENT_IDENTITY_MAPPING"])
-    if os.environ.get("HONGHU_USER_CONTENT_IDENTITY_MAPPING")
-    else None
-)
+USER_CONTENT_IDENTITY_RESOLVER = None
 USER_CONTENT_POSTGRES_READ_FACTORY = None
 USER_CONTENT_POSTGRES_WRITE_FACTORY = None
 if USER_CONTENT_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
-    runtime_path = os.environ.get("HONGHU_USER_CONTENT_POSTGRES_CONFIG")
-    if not runtime_path:
-        raise RuntimeError("PostgreSQL user-content route requires runtime connection config")
-    if USER_CONTENT_IDENTITY_RESOLVER is None:
-        raise RuntimeError("PostgreSQL user-content route requires a frozen identity mapping")
-    postgres_settings = load_postgres_runtime_settings(runtime_path)
-    USER_CONTENT_POSTGRES_READ_FACTORY = build_postgres_connection_factory(
-        postgres_settings, role="reader"
-    )
-    USER_CONTENT_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
-        postgres_settings, role="writer"
-    )
+    if AUTHORITY_MATRIX is not None:
+        USER_CONTENT_POSTGRES_READ_FACTORY = COMMON_POSTGRES_READ_FACTORY
+        USER_CONTENT_POSTGRES_WRITE_FACTORY = build_catalog_connection_factory(
+            POSTGRES_RUNTIME_CATALOG, role="writer_user_content_notes"
+        )
+        USER_CONTENT_IDENTITY_RESOLVER = PostgresSharedIdentityResolver(
+            COMMON_POSTGRES_READ_FACTORY
+        )
+    else:
+        runtime_path = os.environ.get("HONGHU_USER_CONTENT_POSTGRES_CONFIG")
+        if not runtime_path:
+            raise RuntimeError("PostgreSQL user-content route requires runtime connection config")
+        identity_mapping_path = os.environ.get("HONGHU_USER_CONTENT_IDENTITY_MAPPING")
+        if not identity_mapping_path:
+            raise RuntimeError("legacy PostgreSQL user-content route requires identity mapping")
+        USER_CONTENT_IDENTITY_RESOLVER = IdentityMappingResolver.from_path(
+            identity_mapping_path
+        )
+        postgres_settings = load_postgres_runtime_settings(runtime_path)
+        USER_CONTENT_POSTGRES_READ_FACTORY = build_postgres_connection_factory(
+            postgres_settings, role="reader"
+        )
+        USER_CONTENT_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
+            postgres_settings, role="writer"
+        )
 
 SHARED_IDENTITY_TRACKED_ROUTE = (
     ROOT / "config" / "migration" / "shared_identity_backend_route.json"
 )
 SHARED_IDENTITY_RUNTIME_ROUTE = os.environ.get("HONGHU_SHARED_IDENTITY_ROUTE_CONFIG")
-SHARED_IDENTITY_ROUTE = load_cutover_route(
-    SHARED_IDENTITY_TRACKED_ROUTE,
-    runtime_override=SHARED_IDENTITY_RUNTIME_ROUTE,
+SHARED_IDENTITY_ROUTE = (
+    AUTHORITY_MATRIX.route_for(
+        "shared_identity",
+        writer_operation="shared_identity_mutation",
+        transaction_boundary="one shared-identity mutation under the owning authority",
+    )
+    if AUTHORITY_MATRIX is not None
+    else load_cutover_route(
+        SHARED_IDENTITY_TRACKED_ROUTE,
+        runtime_override=SHARED_IDENTITY_RUNTIME_ROUTE,
+    )
 )
 SHARED_IDENTITY_READ_CACHE = None
 SHARED_IDENTITY_POSTGRES_WRITE_FACTORY = None
 SHARED_IDENTITY_REPOSITORY = None
 if SHARED_IDENTITY_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
-    shared_runtime_path = os.environ.get("HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG")
-    if not shared_runtime_path:
-        raise RuntimeError("PostgreSQL shared-identity route requires runtime config")
-    shared_settings = load_postgres_runtime_settings(shared_runtime_path)
-    shared_reader_factory = build_postgres_connection_factory(
-        shared_settings, role="reader"
-    )
-    SHARED_IDENTITY_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
-        shared_settings, role="writer"
-    )
+    if AUTHORITY_MATRIX is not None:
+        shared_reader_factory = COMMON_POSTGRES_READ_FACTORY
+        SHARED_IDENTITY_POSTGRES_WRITE_FACTORY = build_catalog_connection_factory(
+            POSTGRES_RUNTIME_CATALOG, role="writer_shared_identity"
+        )
+    else:
+        shared_runtime_path = os.environ.get("HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG")
+        if not shared_runtime_path:
+            raise RuntimeError("PostgreSQL shared-identity route requires runtime config")
+        shared_settings = load_postgres_runtime_settings(shared_runtime_path)
+        shared_reader_factory = build_postgres_connection_factory(
+            shared_settings, role="reader"
+        )
+        SHARED_IDENTITY_POSTGRES_WRITE_FACTORY = build_postgres_connection_factory(
+            shared_settings, role="writer"
+        )
     SHARED_IDENTITY_READ_CACHE = SharedIdentityReadCache(shared_reader_factory)
     SHARED_IDENTITY_REPOSITORY = PostgresSharedIdentityRepository(
         shared_reader_factory,
         SHARED_IDENTITY_POSTGRES_WRITE_FACTORY,
         SHARED_IDENTITY_ROUTE,
     )
+
+DOMAIN_READ_CACHES: dict[str, PostgresDomainReadCache] = {}
+if AUTHORITY_MATRIX is not None:
+    for unit in (
+        "research_publication",
+        "dynamic_intelligence",
+        "operations_governance",
+        "investment_hypotheses",
+    ):
+        if AUTHORITY_MATRIX.routes[unit].backend is DataBackend.POSTGRESQL_PRODUCTION:
+            DOMAIN_READ_CACHES[unit] = PostgresDomainReadCache(
+                unit, COMMON_POSTGRES_READ_FACTORY
+            )
 
 configure_user_content_security(
     app,
@@ -667,7 +744,24 @@ app.jinja_env.globals["freshness"] = freshness
 
 # ── DB 工具 ───────────────────────────────────────────
 def get_db() -> sqlite3.Connection:
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    research_units = (
+        "research_publication",
+        "dynamic_intelligence",
+        "operations_governance",
+        "investment_hypotheses",
+    )
+    research_is_fully_postgresql = bool(
+        AUTHORITY_MATRIX is not None
+        and all(
+            AUTHORITY_MATRIX.routes[unit].backend is DataBackend.POSTGRESQL_PRODUCTION
+            for unit in research_units
+        )
+    )
+    read_only_base = bool(
+        app.config.get("HONGHU_READ_ONLY_CANDIDATE")
+        or research_is_fully_postgresql
+    )
+    if read_only_base:
         conn = sqlite3.connect(
             f"file:{DB_PATH.resolve().as_posix()}?mode=ro",
             uri=True,
@@ -684,13 +778,60 @@ def get_db() -> sqlite3.Connection:
         # still use their current SQLite authority during the mixed window.
         # Any missed identity write fails because SQLite views are read-only.
         SHARED_IDENTITY_READ_CACHE.attach(conn)
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    for unit in research_units:
+        cache = DOMAIN_READ_CACHES.get(unit)
+        if cache is not None:
+            cache.attach(conn)
+    if read_only_base:
         conn.execute("PRAGMA query_only=ON")
-    if not app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    if not read_only_base:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
+
+
+def get_domain_write_db(unit: str, operation_scope: str):
+    """Return the one authoritative writer for a reviewed Viewer mutation.
+
+    SQLite-mode behavior stays backward compatible.  Once a unit is S3/S4,
+    the request must carry the existing authenticated principal, CSRF token
+    and a stable idempotency identity.  Failure never reopens SQLite.
+    """
+
+    route = AUTHORITY_MATRIX.routes[unit] if AUTHORITY_MATRIX is not None else None
+    if route is None or route.backend is DataBackend.SQLITE_TRANSITION:
+        return get_db()
+    principal = require_user_content_principal(
+        app, request, permission="analyst_note:write", csrf=True
+    )
+    operation_id = str(request.headers.get("X-Idempotency-Key") or "").strip()
+    if not operation_id:
+        raise UserContentSecurityError(
+            "X-Idempotency-Key is required for a PostgreSQL domain mutation",
+            code="idempotency_required",
+            http_status=400,
+        )
+    return connect_domain_database(
+        unit,
+        DB_PATH,
+        readonly=False,
+        operation_scope=operation_scope,
+        operation_id=operation_id,
+        actor=principal.subject,
+    )
+
+
+@app.errorhandler(DomainDataError)
+def _domain_data_error(exc: DomainDataError):
+    return jsonify(
+        {"ok": False, "error": str(exc), "code": "domain_writer_fenced"}
+    ), 503
+
+
+@app.errorhandler(UserContentSecurityError)
+def _user_content_security_error(exc: UserContentSecurityError):
+    return jsonify({"ok": False, "error": str(exc), "code": exc.code}), exc.http_status
 
 
 def row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
@@ -728,14 +869,14 @@ def analyst_note_entity_key(entity_type: str, entity_id: str | int) -> str:
     if USER_CONTENT_ROUTE.backend is DataBackend.SQLITE_TRANSITION:
         return f"sqlite-transition:{entity_type}:{entity_id}"
     if USER_CONTENT_IDENTITY_RESOLVER is None:
-        raise IdentityMappingError("frozen user-content identity mapping is unavailable")
+        raise IdentityMappingError("authoritative shared identity resolver is unavailable")
     return USER_CONTENT_IDENTITY_RESOLVER.resolve(entity_type, entity_id)
 
 
 def _user_content_error(exc: Exception):
     if isinstance(exc, (UserContentSecurityError, AnalystNoteError)):
         return jsonify({"ok": False, "error": str(exc), "code": exc.code}), exc.http_status
-    if isinstance(exc, IdentityMappingError):
+    if isinstance(exc, (IdentityMappingError, SharedIdentityError)):
         return jsonify(
             {"ok": False, "error": str(exc), "code": "identity_mapping_missing"}
         ), 409
@@ -748,16 +889,41 @@ SENTI_DB_PATH = RUNTIME_LAYOUT.data_root / "sentiment.db"
 
 
 def senti_conn() -> Optional[sqlite3.Connection]:
+    sentiment_is_postgresql = bool(
+        AUTHORITY_MATRIX is not None
+        and AUTHORITY_MATRIX.routes["sentiment_analytics"].backend
+        is DataBackend.POSTGRESQL_PRODUCTION
+    )
+    if sentiment_is_postgresql:
+        # The multi-million-row sentiment unit has a reviewed persistent,
+        # PostgreSQL-derived compatibility projection.  Do not open the
+        # retired sentiment.db baseline and do not route it through the
+        # bounded in-memory adapter used by smaller units.
+        return connect_domain_database(
+            "sentiment_analytics",
+            SENTI_DB_PATH,
+            readonly=True,
+        )
     if not SENTI_DB_PATH.exists():
         return None
     sentiment_uri = f"file:{SENTI_DB_PATH.resolve().as_posix()}"
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    read_only_base = bool(
+        app.config.get("HONGHU_READ_ONLY_CANDIDATE")
+    )
+    if read_only_base:
         sentiment_uri += "?mode=ro"
     conn = sqlite3.connect(sentiment_uri, uri=True)
     conn.row_factory = sqlite3.Row
-    if app.config.get("HONGHU_READ_ONLY_CANDIDATE"):
+    if SHARED_IDENTITY_READ_CACHE is not None:
+        SHARED_IDENTITY_READ_CACHE.attach(conn)
+    else:
+        conn.execute(f"ATTACH DATABASE 'file:{DB_PATH.as_posix()}?mode=ro' AS research")
+        for table in ("company", "company_industry", "industry"):
+            conn.execute(
+                f'CREATE TEMP VIEW "{table}" AS SELECT * FROM research."{table}"'
+            )
+    if read_only_base:
         conn.execute("PRAGMA query_only=ON")
-    conn.execute(f"ATTACH DATABASE 'file:{DB_PATH.as_posix()}?mode=ro' AS research")
     return conn
 
 
@@ -2903,10 +3069,12 @@ def _prepare_company_index_rows(
 
 def _company_opportunity_links(company_id: int, ticker: str | None) -> list[dict[str, Any]]:
     """Read-only cross-link; Opportunity Lens remains a separate database."""
-    if not OPPORTUNITY_DB_PATH.is_file():
+    from tools.opportunity_lens.db import connect as opportunity_connect
+
+    try:
+        conn = opportunity_connect(OPPORTUNITY_DB_PATH, readonly=True)
+    except (FileNotFoundError, sqlite3.OperationalError):
         return []
-    conn = sqlite3.connect(f"file:{OPPORTUNITY_DB_PATH.as_posix()}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
     try:
         exists = conn.execute(
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='opportunity_entity_investment_target'"
@@ -6353,7 +6521,7 @@ def api_company_thesis_upsert():
         conv = None
     author = (d.get("author") or "zhengze")
     edit_consensus = str(d.get("edit_consensus") or "").strip() in ("1", "true", "True")
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "company_thesis_upsert")
     try:
         existing = conn.execute(
             "SELECT id FROM company_thesis WHERE company_id=? AND IFNULL(industry_id,-1)=IFNULL(?,-1)",
@@ -6404,7 +6572,7 @@ def api_industry_thesis_upsert(industry_id: int):
         conv = None
     author = (d.get("author") or "zhengze")
     edit_consensus = str(d.get("edit_consensus") or "").strip() in ("1", "true", "True")
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "industry_thesis_upsert")
     try:
         existing = conn.execute("SELECT id FROM industry_thesis WHERE industry_id=?", (industry_id,)).fetchone()
         if existing:
@@ -6565,7 +6733,7 @@ def api_event_create():
             return json.loads(v)
         except Exception:
             return [x.strip() for x in str(v).split(",") if x.strip()]
-    conn = get_db()
+    conn = get_domain_write_db("dynamic_intelligence", "manual_event_create")
     try:
         import sys as _sys
         _sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
@@ -6591,7 +6759,7 @@ def api_event_analyst(event_id: int):
     if field not in ("analyst_preview", "analyst_recap"):
         return jsonify({"ok": False, "error": "field 须为 analyst_preview/analyst_recap"}), 400
     author = (d.get("author") or "zhengze")
-    conn = get_db()
+    conn = get_domain_write_db("dynamic_intelligence", "manual_event_analyst_update")
     try:
         if not conn.execute("SELECT 1 FROM event WHERE id=?", (event_id,)).fetchone():
             return jsonify({"ok": False, "error": "event 不存在"}), 404
@@ -7098,7 +7266,7 @@ def api_hypothesis_create():
         "event": _as_id_list(d.get("cite_event_ids")),
     }
 
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_create")
     try:
         # 研究员:数字 id 须存在;『其他研究员 / 实习生』+ 手填姓名 → 按名 upsert(不破坏现有关联)
         rid, rerr = _resolve_or_create_researcher(conn, rid_raw, rname)
@@ -7207,7 +7375,7 @@ def api_hypothesis_create():
 @app.route("/api/hypothesis/<int:hid>/edit", methods=["POST"])
 def api_hypothesis_edit(hid: int):
     d = _note_payload()
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_edit")
     try:
         old = conn.execute("SELECT * FROM hypothesis WHERE id=?", (hid,)).fetchone()
         if not old:
@@ -7306,7 +7474,7 @@ def api_hypothesis_signal_add(hid: int):
         return jsonify({"ok": False, "error": "signal_type 非法"}), 400
     if not desc:
         return jsonify({"ok": False, "error": "信号描述必填"}), 400
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_signal_add")
     try:
         h = conn.execute("SELECT researcher_id FROM hypothesis WHERE id=?", (hid,)).fetchone()
         if not h:
@@ -7330,7 +7498,7 @@ def api_hypothesis_signal_add(hid: int):
 # ── API:删除监控信号(修红叉删不掉:校验归属 + 写 log,不静默删)──
 @app.route("/api/hypothesis/<int:hid>/signal/<int:sid>/delete", methods=["POST"])
 def api_hypothesis_signal_delete(hid: int, sid: int):
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_signal_delete")
     try:
         h = conn.execute("SELECT researcher_id FROM hypothesis WHERE id=?", (hid,)).fetchone()
         if not h:
@@ -7357,7 +7525,7 @@ def api_hypothesis_signal_check(hid: int, sid: int):
     st = (d.get("current_status") or "").strip()
     if st not in ("not_triggered", "partially_triggered", "triggered", "contradicted"):
         return jsonify({"ok": False, "error": "current_status 非法"}), 400
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_signal_check")
     try:
         sig = conn.execute("SELECT * FROM hypothesis_monitoring_signal WHERE id=? AND hypothesis_id=?", (sid, hid)).fetchone()
         if not sig:
@@ -7398,7 +7566,7 @@ def api_hypothesis_trade(hid: int):
     new_status = (d.get("status") or "proposed").strip()
     if new_status not in ("proposed", "active", "closed_profit", "closed_loss", "abandoned"):
         new_status = "proposed"
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_trade_upsert")
     try:
         h = conn.execute("SELECT researcher_id FROM hypothesis WHERE id=?", (hid,)).fetchone()
         if not h:
@@ -7443,7 +7611,7 @@ def api_hypothesis_trade(hid: int):
 # ── API:删除单条交易方案(修重复卡 bug:可单独删除,不静默删真数据)──
 @app.route("/api/hypothesis/<int:hid>/trade/<int:tid>/delete", methods=["POST"])
 def api_hypothesis_trade_delete(hid: int, tid: int):
-    conn = get_db()
+    conn = get_domain_write_db("investment_hypotheses", "hypothesis_trade_delete")
     try:
         h = conn.execute("SELECT researcher_id FROM hypothesis WHERE id=?", (hid,)).fetchone()
         if not h:
@@ -7668,10 +7836,27 @@ def api_health():
                 "readonly_candidate"
                 if app.config.get("HONGHU_READ_ONLY_CANDIDATE")
                 else (
-                    "production_postgresql"
-                    if os.environ.get("HONGHU_VIEWER_MODE") == "production_postgresql"
+                    "production_hybrid"
+                    if os.environ.get("HONGHU_VIEWER_MODE")
+                    in {"production_postgresql", "production_hybrid"}
                     else "legacy_live"
                 )
+            ),
+            "backend_matrix": (
+                AUTHORITY_MATRIX.health_payload()
+                if AUTHORITY_MATRIX is not None
+                else {
+                    USER_CONTENT_ROUTE.cutover_unit: {
+                        "state": USER_CONTENT_ROUTE.authority_state.value,
+                        "authoritative_backend": USER_CONTENT_ROUTE.backend.value,
+                        "sqlite_writer_enabled": USER_CONTENT_ROUTE.sqlite_writer_enabled,
+                    },
+                    SHARED_IDENTITY_ROUTE.cutover_unit: {
+                        "state": SHARED_IDENTITY_ROUTE.authority_state.value,
+                        "authoritative_backend": SHARED_IDENTITY_ROUTE.backend.value,
+                        "sqlite_writer_enabled": SHARED_IDENTITY_ROUTE.sqlite_writer_enabled,
+                    },
+                }
             ),
             "user_content": {
                 "cutover_unit": USER_CONTENT_ROUTE.cutover_unit,
@@ -7717,7 +7902,7 @@ def api_health():
                 "launch_id": os.environ.get("HONGHU_CANDIDATE_LAUNCH_ID"),
                 "python_version": ".".join(map(str, sys.version_info[:3])),
             }
-        elif payload["viewer_mode"] == "production_postgresql":
+        elif payload["viewer_mode"] in {"production_postgresql", "production_hybrid"}:
             exact_manifest = Path(
                 os.environ.get("HONGHU_RELEASE_MANIFEST") or ""
             )
@@ -7860,7 +8045,7 @@ def _quant_fig(price, senti, freq):
 @app.route("/dynamic/sentiment")
 def dynamic_sentiment():
     """散户情绪墙：活动量取最新观察，评分按与公司页一致的完成口径回退。"""
-    research_names = {r["id"]: r for r in senti_all("SELECT id,name,ticker FROM research.company")}
+    research_names = {r["id"]: r for r in senti_all("SELECT id,name,ticker FROM company")}
     sentiment_names = {r["id"]: r for r in senti_all("SELECT id,name,ticker FROM senti_company")}
     redirect = {}
     if _senti_table_exists("company_id_redirect"):
@@ -7989,7 +8174,7 @@ def dynamic_sentiment():
     # 产业映射(research.db 只读;一家可多产业,取主营/最小 id 为主组)
     comp_ind: Dict[int, list] = {}
     for r in senti_all("""SELECT ci.company_id, i.id AS ind_id, i.name AS ind_name, ci.role
-                          FROM research.company_industry ci JOIN research.industry i ON i.id=ci.industry_id"""):
+                          FROM company_industry ci JOIN industry i ON i.id=ci.industry_id"""):
         comp_ind.setdefault(r["company_id"], []).append((r["ind_id"], r["ind_name"], r["role"]))
     # 散户发帖量 spark；redirect 后不再泄露 #900xxx identity。
     spark: Dict[int, list] = {}
@@ -8783,7 +8968,7 @@ def chain_sentiment():
         FROM senti_indicator_daily i
         JOIN (SELECT company_id, MAX(trade_date) md FROM senti_indicator_daily GROUP BY company_id) m
           ON m.company_id=i.company_id AND m.md=i.trade_date
-        JOIN research.company_industry ci ON ci.company_id=i.company_id
+        JOIN company_industry ci ON ci.company_id=i.company_id
         GROUP BY ci.industry_id"""):
         sib[row["iid"]] = row
     node_ids = set()
@@ -8814,7 +8999,7 @@ def _supplychain_senti():
         FROM senti_indicator_daily i
         JOIN (SELECT company_id, MAX(trade_date) md FROM senti_indicator_daily GROUP BY company_id) m
           ON m.company_id=i.company_id AND m.md=i.trade_date
-        JOIN research.company c ON c.id=i.company_id
+        JOIN company c ON c.id=i.company_id
         WHERE c.ticker IS NOT NULL AND i.sentiment_direction IS NOT NULL GROUP BY c.ticker"""):
         out[r["tk"]] = r["dir"]
         out[r["tk"].split(".")[0]] = r["dir"]      # 兼容去后缀匹配

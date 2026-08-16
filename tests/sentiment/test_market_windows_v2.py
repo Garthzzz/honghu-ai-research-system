@@ -98,7 +98,7 @@ class MarketWindowTests(unittest.TestCase):
     def test_live_auto_backfill_policy_is_bounded(self):
         start, max_days, max_windows = retail_window_tick.auto_backfill_policy()
         self.assertEqual(start, date(2026, 7, 15))
-        self.assertEqual(max_days, 7)
+        self.assertEqual(max_days, 3)
         self.assertEqual(max_windows, 3)
 
 

@@ -276,3 +276,30 @@ CREATE TABLE IF NOT EXISTS senti_retail_trading_daily (
 );
 CREATE INDEX IF NOT EXISTS ix_senti_retail_daily_date
   ON senti_retail_trading_daily(session_date, company_id);
+
+-- 超过三天且未能映射到 V2 窗口的历史 raw 不保留逐帖正文，只冻结数值事实。
+-- 该表与 V2 窗口聚合分开，避免把 legacy 行重复计入正式窗口统计。
+CREATE TABLE IF NOT EXISTS senti_unmapped_daily (
+  trade_date             TEXT NOT NULL,
+  company_id             INTEGER NOT NULL,
+  ticker                 TEXT,
+  source_layer           TEXT NOT NULL,
+  platform               TEXT NOT NULL,
+  raw_count              INTEGER NOT NULL,
+  scored_count           INTEGER NOT NULL,
+  pos                    INTEGER NOT NULL,
+  neg                    INTEGER NOT NULL,
+  neu                    INTEGER NOT NULL,
+  weighted_pos           REAL NOT NULL,
+  weighted_neg           REAL NOT NULL,
+  weighted_neu           REAL NOT NULL,
+  heat_value_sum         REAL NOT NULL,
+  read_count_sum         INTEGER NOT NULL,
+  reply_count_sum        INTEGER NOT NULL,
+  aggregation_version    TEXT NOT NULL,
+  aggregate_sha256       TEXT NOT NULL,
+  computed_at            TEXT NOT NULL,
+  PRIMARY KEY(trade_date, company_id, source_layer, platform)
+);
+CREATE INDEX IF NOT EXISTS ix_senti_unmapped_daily_date
+  ON senti_unmapped_daily(trade_date, company_id);

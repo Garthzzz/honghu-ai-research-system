@@ -399,7 +399,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='analyst_note_mutations.js') }}"></script>
 <script>
 function enhanceCompanyPerspective(){
   const body=document.getElementById('companyPerspectiveBody');
@@ -547,9 +546,13 @@ document.querySelectorAll('.an-editor').forEach(ed => {
       const f = ed.querySelector('.an-f[data-f="'+k+'"]'); if (f) body[k] = f.value;
     });
     try {
-      const r = await (await fetch('/api/company_thesis', {
-        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
-      })).json();
+      const result = await HonghuDomainMutations.postJSON(
+        'company-thesis:' + cid + ':' + iid,
+        '/api/company_thesis',
+        body
+      );
+      const r = result.data || {};
+      if (result.uncertain) throw new Error('mutation result is uncertain; retry unchanged');
       st.textContent = r.ok ? ' 已保存' : ('失败:' + (r.error||''));
     } catch (e) { st.textContent = '网络错误'; }
   });

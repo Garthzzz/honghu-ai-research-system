@@ -19,15 +19,18 @@ voice 子进程的认证/系统错误会进入 ``error``，连续第三次失败
   python scheduler.py status    # 看 fetch_schedule 当前状态
 """
 from __future__ import annotations
-import sqlite3, sys, json, subprocess
+import sys, json, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT))
 DB = ROOT / "data" / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
 LOGDIR = ROOT / "cache" / "dynamic_fetch_log"
 import yaml
+from tools.dynamic.database import connect_operations
+from tools.data_platform.run_domain_operation import install_operation_context
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 STALE_MIN = CFG["schedule"].get("stale_lock_minutes", 30)
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
@@ -193,7 +196,15 @@ def tick():
         log(f"QUIET HOURS — skip tick(上海 {quiet_hours.now_tz().strftime('%Y-%m-%d %H:%M')},静默 "
             f"{CFG['quiet_hours']['start']}–{CFG['quiet_hours']['end']})")
         return
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    tick_time = now().replace(second=0, microsecond=0)
+    tick_minutes = max(1, int((CFG.get("runtime", {}) or {}).get("tick_frequency_min", 15)))
+    tick_time = tick_time.replace(minute=tick_time.minute - tick_time.minute % tick_minutes)
+    install_operation_context(
+        cutover_unit="operations_governance",
+        operation_scope="dynamic_scheduler_tick",
+        logical_window=tick_time.isoformat(timespec="minutes"),
+    )
+    con = connect_operations(DB, operation_scope="dynamic_scheduler_tick")
     rows = con.execute("SELECT * FROM fetch_schedule WHERE is_active=1 ORDER BY next_run_at").fetchall()
     ran = deferred_count = skipped = stale_reset = 0
     log(f"TICK start — {len(rows)} active targets")
@@ -284,7 +295,7 @@ def tick():
 
 
 def status():
-    con = sqlite3.connect(str(DB)); con.row_factory = sqlite3.Row
+    con = connect_operations(DB, readonly=True)
     # P0附:freq_actual 列 —— voice_leader 显示按时区计算的实际频率 freq_for(row)
     print(f"{'type':<16}{'label':<16}{'freq':>6}{'freq_act':>9}{'ec':>4}{'run':>4}{'status':>9}  next_run_at")
     for r in con.execute("SELECT * FROM fetch_schedule ORDER BY target_type, id"):

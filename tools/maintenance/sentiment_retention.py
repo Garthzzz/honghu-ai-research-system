@@ -16,18 +16,20 @@ from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from tools.sentiment import retail_windows_v2
+from tools.sentiment import retail_windows_v2, retention_policy, senti3
 
 
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB = ROOT / "data" / "sentiment.db"
 BEIJING = ZoneInfo("Asia/Shanghai")
-# 完整窗口在永久聚合、版本与哈希校验通过后即可删除逐帖原文。
-# 未完成窗口仍由独立的显式门禁保护，不能因该值为 0 被顺带清理。
-DEFAULT_GRACE_DAYS = 0
+# 逐帖原文是短生命周期计算材料；窗口终结后三个自然日为统一上限。
+DEFAULT_GRACE_DAYS = retention_policy.RAW_RETENTION_DAYS
 DEFAULT_LEGACY_CUTOVER = "2026-07-15"
-DEFAULT_INCOMPLETE_AGE_DAYS = 30
+DEFAULT_INCOMPLETE_AGE_DAYS = retention_policy.INCOMPLETE_FINALIZATION_DAYS
 PAYLOAD_SAMPLE_ROWS = 10_000
+TERMINAL_SEGMENT_STATES = {"complete", "partial", "failed"}
+TERMINAL_SOURCE_STATES = {"complete", "partial", "empty", "failed", "skipped"}
+UNMAPPED_AGGREGATION_VERSION = "sentiment.unmapped_daily.v1"
 
 
 def _now() -> datetime:
@@ -46,8 +48,24 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _connect(path: Path, *, read_only: bool = False) -> sqlite3.Connection:
-    if read_only:
+def _connect(
+    path: Path,
+    *,
+    read_only: bool = False,
+    operation_id: str | None = None,
+    physical_sqlite: bool = False,
+) -> Any:
+    if not physical_sqlite:
+        from tools.data_platform.domain_data import connect_domain_database
+
+        connection = connect_domain_database(
+            "sentiment_analytics",
+            path,
+            readonly=read_only,
+            operation_scope="sentiment_retention",
+            operation_id=operation_id,
+        )
+    elif read_only:
         connection = sqlite3.connect(
             path.resolve().as_uri() + "?mode=ro",
             uri=True,
@@ -136,6 +154,131 @@ def _window_counts(connection: sqlite3.Connection, window_id: str) -> dict[str, 
     }
 
 
+def _effective_purge_after(row: sqlite3.Row, grace_days: int) -> datetime | None:
+    """Use the frozen retention watermark; only legacy rows need derivation.
+
+    A retry may update ``finished_at`` long after the semantic data window.  Once
+    a window is sealed, ``raw_purge_after`` is the audited lifecycle boundary
+    and must not be extended by a later retry timestamp.
+    """
+    frozen = str(row["raw_purge_after"] or "")
+    if frozen:
+        return datetime.fromisoformat(frozen)
+    anchor = str(row["finished_at"] or row["window_end"] or "")
+    if not anchor:
+        return None
+    return datetime.fromisoformat(anchor) + timedelta(days=grace_days)
+
+
+def _terminal_checkpoint_evidence(
+    connection: sqlite3.Connection,
+    window_id: str,
+) -> dict[str, Any]:
+    """Prove that every resumable cursor belongs to a terminal segment.
+
+    Callers hold the same exclusive tick lock used by the scheduler and a
+    ``BEGIN IMMEDIATE`` SQLite transaction.  Status evidence, rather than a
+    stale PID guess, decides whether a cursor can be retired.
+    """
+    source_rows = connection.execute(
+        """SELECT source,status,error_code,finished_at
+           FROM retail_window_source_run WHERE window_id=? ORDER BY source""",
+        (window_id,),
+    ).fetchall()
+    source_blockers = [
+        f"source:{row['source']}:{row['status']}"
+        for row in source_rows
+        if str(row["status"]) not in TERMINAL_SOURCE_STATES
+    ]
+    checkpoints = connection.execute(
+        """SELECT q.window_id,q.subject_id,q.request_variant,q.segment_start,
+                  q.segment_end,q.updated_at,s.status segment_status,
+                  s.updated_at segment_updated_at,s.error_code
+           FROM yuqing_fetch_checkpoint q
+           LEFT JOIN yuqing_fetch_segment_run s
+             ON s.window_id=q.window_id
+            AND s.subject_id=q.subject_id
+            AND s.request_variant=q.request_variant
+            AND s.segment_start=q.segment_start
+            AND s.segment_end=q.segment_end
+           WHERE q.window_id=?
+           ORDER BY q.subject_id,q.request_variant,q.segment_start,q.segment_end""",
+        (window_id,),
+    ).fetchall()
+    checkpoint_blockers = []
+    terminal_counts: dict[str, int] = {}
+    for row in checkpoints:
+        status = str(row["segment_status"] or "missing")
+        terminal_counts[status] = terminal_counts.get(status, 0) + 1
+        if status not in TERMINAL_SEGMENT_STATES:
+            checkpoint_blockers.append(
+                "checkpoint:"
+                f"{row['subject_id']}:{row['request_variant']}:"
+                f"{row['segment_start']}:{status}"
+            )
+    running_segments = int(
+        connection.execute(
+            """SELECT COUNT(*) FROM yuqing_fetch_segment_run
+               WHERE window_id=? AND status='running'""",
+            (window_id,),
+        ).fetchone()[0]
+    )
+    blockers = source_blockers + checkpoint_blockers
+    if running_segments:
+        blockers.append(f"running_segments:{running_segments}")
+    if not source_rows:
+        blockers.append("source_audit_absent")
+    return {
+        "eligible": not blockers,
+        "checkpoint_count": len(checkpoints),
+        "terminal_segment_counts": terminal_counts,
+        "source_statuses": {
+            str(row["source"]): str(row["status"]) for row in source_rows
+        },
+        "blockers": blockers,
+    }
+
+
+def _verify_window_aggregate_contract(
+    connection: sqlite3.Connection,
+    window_id: str,
+) -> dict[str, int]:
+    ledger = connection.execute(
+        """SELECT raw_count,scored_count,aggregate_sha256
+           FROM retail_window_ledger WHERE window_id=?""",
+        (window_id,),
+    ).fetchone()
+    mapped = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM senti_raw_window WHERE window_id=?",
+            (window_id,),
+        ).fetchone()[0]
+    )
+    totals = connection.execute(
+        """SELECT COUNT(*) fact_rows,COALESCE(SUM(raw_count),0) raw_count,
+                  COALESCE(SUM(scored_count),0) scored_count,
+                  SUM(CASE WHEN aggregate_sha256 IS NULL OR aggregate_sha256=''
+                           THEN 1 ELSE 0 END) missing_hashes
+           FROM senti_retail_window WHERE window_id=?""",
+        (window_id,),
+    ).fetchone()
+    if (
+        not ledger
+        or not str(ledger["aggregate_sha256"] or "")
+        or mapped != int(ledger["raw_count"] or 0)
+        or int(totals["raw_count"] or 0) != int(ledger["raw_count"] or 0)
+        or int(totals["scored_count"] or 0) != int(ledger["scored_count"] or 0)
+        or int(totals["missing_hashes"] or 0)
+    ):
+        raise RuntimeError(f"window permanent aggregate mismatch: {window_id}")
+    return {
+        "mapped_raw": mapped,
+        "fact_rows": int(totals["fact_rows"] or 0),
+        "raw_count": int(totals["raw_count"] or 0),
+        "scored_count": int(totals["scored_count"] or 0),
+    }
+
+
 def _candidate_complete(
     connection: sqlite3.Connection,
     *,
@@ -155,14 +298,9 @@ def _candidate_complete(
     output = []
     for row in rows:
         window_id = str(row["window_id"])
-        anchor_text = str(
-            row["finished_at"] or row["window_end"] or row["raw_purge_after"] or ""
-        )
-        if not anchor_text:
+        effective_purge_after = _effective_purge_after(row, grace_days)
+        if effective_purge_after is None:
             continue
-        effective_purge_after = datetime.fromisoformat(anchor_text) + timedelta(
-            days=grace_days
-        )
         if effective_purge_after > as_of:
             continue
         blocked = retail_windows_v2.window_has_active_work(connection, window_id)
@@ -199,14 +337,9 @@ def _candidate_incomplete(
     output = []
     for row in rows:
         window_id = str(row["window_id"])
-        anchor_text = str(
-            row["finished_at"] or row["window_end"] or row["raw_purge_after"] or ""
-        )
-        if not anchor_text:
+        effective_purge_after = _effective_purge_after(row, grace_days)
+        if effective_purge_after is None:
             continue
-        effective_purge_after = datetime.fromisoformat(anchor_text) + timedelta(
-            days=grace_days
-        )
         if effective_purge_after > as_of:
             continue
         blocked = retail_windows_v2.window_has_active_work(connection, window_id)
@@ -219,6 +352,44 @@ def _candidate_incomplete(
                 **_window_counts(connection, window_id),
                 "eligible": not blocked,
                 "excluded_reason": "active_work" if blocked else None,
+            }
+        )
+    return output
+
+
+def _candidate_live_incomplete_for_seal(
+    connection: sqlite3.Connection,
+    *,
+    as_of: datetime,
+    grace_days: int,
+) -> list[dict[str, Any]]:
+    cutoff = (as_of - timedelta(days=grace_days)).isoformat(timespec="seconds")
+    rows = connection.execute(
+        """SELECT window_id,status,session_date,window_end,retention_state,
+                  aggregate_sha256
+           FROM retail_window_ledger
+           WHERE status IN ('partial','failed')
+             AND retention_state='live'
+             AND raw_purged_at IS NULL
+             AND window_end<=?
+           ORDER BY window_end,window_id""",
+        (cutoff,),
+    ).fetchall()
+    output = []
+    for row in rows:
+        window_id = str(row["window_id"])
+        terminal = _terminal_checkpoint_evidence(connection, window_id)
+        output.append(
+            {
+                **dict(row),
+                **_window_counts(connection, window_id),
+                "terminal_checkpoint_evidence": terminal,
+                "eligible": bool(terminal["eligible"]),
+                "excluded_reason": (
+                    None
+                    if terminal["eligible"]
+                    else "terminal_evidence:" + ",".join(terminal["blockers"])
+                ),
             }
         )
     return output
@@ -362,6 +533,537 @@ def _candidate_legacy_weekend_orphans(
     ]
 
 
+def _candidate_unmapped_raw(
+    connection: sqlite3.Connection,
+    *,
+    cutoff: datetime,
+) -> list[dict[str, Any]]:
+    cutoff_text = cutoff.isoformat(timespec="seconds")
+    raw_columns = _columns(connection, "senti_raw")
+    fetched_expression = "r.fetched_at" if "fetched_at" in raw_columns else "r.publish_time"
+    row = connection.execute(
+        f"""SELECT COUNT(*) raw_rows,
+                  COUNT(DISTINCT substr(COALESCE(r.publish_time,{fetched_expression}),1,10)
+                        || ':' || company_id || ':' || source_layer || ':' || platform)
+                    aggregate_groups
+           FROM senti_raw r
+           WHERE {fetched_expression}<=?
+             AND NOT EXISTS(
+               SELECT 1 FROM senti_raw_window rw WHERE rw.raw_id=r.id
+             )""",
+        (cutoff_text,),
+    ).fetchone()
+    raw_rows = int(row["raw_rows"] or 0)
+    if not raw_rows:
+        return []
+    aggregate_sha256 = None
+    if _columns(connection, "senti_unmapped_daily"):
+        aggregate_sha256 = _unmapped_bundle_sha256(connection)
+    return [
+        {
+            "window_id": f"unmapped_raw_before:{cutoff_text}",
+            "status": "unmapped_legacy",
+            "session_date": None,
+            "cutoff": cutoff_text,
+            "raw_rows": raw_rows,
+            "mapping_rows": 0,
+            "feed_rows": 0,
+            "aggregate_groups": int(row["aggregate_groups"] or 0),
+            "aggregate_sha256": aggregate_sha256,
+            "eligible": True,
+            "excluded_reason": None,
+        }
+    ]
+
+
+def _legacy_pending_orphan_rows(
+    connection: sqlite3.Connection,
+    *,
+    cutoff: datetime,
+) -> list[sqlite3.Row]:
+    raw_columns = _columns(connection, "senti_raw")
+    fetched_expression = "r.fetched_at" if "fetched_at" in raw_columns else "r.publish_time"
+    cutoff_text = cutoff.isoformat(timespec="seconds")
+    return connection.execute(
+        f"""SELECT l.window_id,l.window_end,l.attempts,l.raw_count,l.scored_count,
+                  COUNT(rw.raw_id) mapping_rows
+           FROM retail_window_ledger l
+           JOIN senti_raw_window rw ON rw.window_id=l.window_id
+           JOIN senti_raw r ON r.id=rw.raw_id
+           WHERE l.status='pending'
+             AND l.retention_state='live'
+             AND l.raw_purged_at IS NULL
+             AND l.attempts=0
+             AND l.window_end<=?
+             AND NOT EXISTS(
+               SELECT 1 FROM retail_window_source_run s WHERE s.window_id=l.window_id
+             )
+             AND NOT EXISTS(
+               SELECT 1 FROM yuqing_fetch_segment_run s WHERE s.window_id=l.window_id
+             )
+             AND NOT EXISTS(
+               SELECT 1 FROM yuqing_fetch_checkpoint c WHERE c.window_id=l.window_id
+             )
+             AND NOT EXISTS(
+               SELECT 1 FROM yuqing_feed_raw f WHERE f.window_id=l.window_id
+             )
+             AND NOT EXISTS(
+               SELECT 1
+               FROM senti_raw_window rw2
+               JOIN senti_raw r2 ON r2.id=rw2.raw_id
+               JOIN senti_retail_daily d
+                 ON d.company_id=r2.company_id AND d.trade_date=l.session_date
+               WHERE rw2.window_id=l.window_id
+             )
+             AND NOT EXISTS(
+               SELECT 1
+               FROM senti_raw_window rw2
+               JOIN senti_raw r2 ON r2.id=rw2.raw_id
+               JOIN heat_volume_daily d
+                 ON d.company_id=r2.company_id AND d.trade_date=l.session_date
+               WHERE rw2.window_id=l.window_id
+             )
+           GROUP BY l.window_id,l.window_end,l.attempts,l.raw_count,l.scored_count
+           HAVING SUM(CASE WHEN {fetched_expression}>? THEN 1 ELSE 0 END)=0
+           ORDER BY l.window_end,l.window_id""",
+        (cutoff_text, cutoff_text),
+    ).fetchall()
+
+
+def _candidate_legacy_pending_orphans(
+    connection: sqlite3.Connection,
+    *,
+    cutoff: datetime,
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "window_id": str(row["window_id"]),
+            "status": "pending",
+            "session_date": None,
+            "window_end": str(row["window_end"]),
+            "raw_rows": int(row["mapping_rows"]),
+            "mapping_rows": int(row["mapping_rows"]),
+            "feed_rows": 0,
+            "eligible": True,
+            "excluded_reason": None,
+            "reason": "zero_attempt_legacy_mapping_without_run_audit",
+        }
+        for row in _legacy_pending_orphan_rows(
+            connection,
+            cutoff=cutoff,
+        )
+    ]
+
+
+def _unmapped_bundle_sha256(connection: sqlite3.Connection) -> str:
+    if not _columns(connection, "senti_unmapped_daily"):
+        return ""
+    rows = connection.execute(
+        """SELECT trade_date,company_id,source_layer,platform,aggregate_sha256
+           FROM senti_unmapped_daily
+           ORDER BY trade_date,company_id,source_layer,platform"""
+    ).fetchall()
+    return hashlib.sha256(
+        _json([list(row) for row in rows]).encode("utf-8")
+    ).hexdigest()
+
+
+def _freeze_unmapped_raw(
+    connection: sqlite3.Connection,
+    *,
+    cutoff: datetime,
+    computed_at: str,
+) -> dict[str, Any]:
+    cutoff_text = cutoff.isoformat(timespec="seconds")
+    raw_columns = _columns(connection, "senti_raw")
+    fetched_expression = "r.fetched_at" if "fetched_at" in raw_columns else "r.publish_time"
+    heat_expression = "r.heat_value" if "heat_value" in raw_columns else "0"
+    read_expression = "r.read_count" if "read_count" in raw_columns else "0"
+    reply_expression = "r.reply_count" if "reply_count" in raw_columns else "0"
+    rows = connection.execute(
+        f"""SELECT r.company_id,COALESCE(d.canonical_company_id,r.company_id) canonical_company_id,
+                  r.ticker,r.source_layer,r.platform,r.attitude,
+                  {heat_expression} heat_value,{read_expression} read_count,
+                  {reply_expression} reply_count,
+                  substr(COALESCE(r.publish_time,{fetched_expression}),1,10) trade_date
+           FROM senti_raw r
+           LEFT JOIN company_id_redirect d ON d.old_company_id=r.company_id
+           WHERE {fetched_expression}<=?
+             AND NOT EXISTS(
+               SELECT 1 FROM senti_raw_window rw WHERE rw.raw_id=r.id
+             )
+           ORDER BY trade_date,canonical_company_id,r.source_layer,r.platform,r.id""",
+        (cutoff_text,),
+    ).fetchall()
+    groups: dict[tuple[str, int, str, str], dict[str, Any]] = {}
+    for row in rows:
+        key = (
+            str(row["trade_date"]),
+            int(row["canonical_company_id"]),
+            str(row["source_layer"]),
+            str(row["platform"]),
+        )
+        item = groups.setdefault(
+            key,
+            {
+                "tickers": [],
+                "raw_count": 0,
+                "scored_count": 0,
+                "pos": 0,
+                "neg": 0,
+                "neu": 0,
+                "weighted_pos": 0.0,
+                "weighted_neg": 0.0,
+                "weighted_neu": 0.0,
+                "heat_value_sum": 0.0,
+                "read_count_sum": 0,
+                "reply_count_sum": 0,
+            },
+        )
+        item["tickers"].append(str(row["ticker"] or ""))
+        item["raw_count"] += 1
+        heat = max(float(row["heat_value"] or 0.0), 1.0)
+        item["heat_value_sum"] += float(row["heat_value"] or 0.0)
+        item["read_count_sum"] += int(row["read_count"] or 0)
+        item["reply_count_sum"] += int(row["reply_count"] or 0)
+        attitude = row["attitude"]
+        if attitude not in (1, 2, 3):
+            continue
+        item["scored_count"] += 1
+        label = "pos" if attitude == 1 else ("neg" if attitude == 2 else "neu")
+        item[label] += 1
+        item[f"weighted_{label}"] += heat * senti3.retail_weight(key[3])
+
+    for key, delta in groups.items():
+        trade_date, company_id, source_layer, platform = key
+        prior = connection.execute(
+            """SELECT * FROM senti_unmapped_daily
+               WHERE trade_date=? AND company_id=? AND source_layer=? AND platform=?""",
+            key,
+        ).fetchone()
+        numeric = (
+            "raw_count",
+            "scored_count",
+            "pos",
+            "neg",
+            "neu",
+            "weighted_pos",
+            "weighted_neg",
+            "weighted_neu",
+            "heat_value_sum",
+            "read_count_sum",
+            "reply_count_sum",
+        )
+        merged = {
+            name: (float(prior[name]) if prior and name.startswith(("weighted_", "heat_")) else int(prior[name]))
+            + delta[name]
+            if prior
+            else delta[name]
+            for name in numeric
+        }
+        tickers = [value for value in delta["tickers"] if value]
+        ticker = min(tickers) if tickers else (str(prior["ticker"] or "") if prior else "")
+        payload = {
+            "trade_date": trade_date,
+            "company_id": company_id,
+            "ticker": ticker or None,
+            "source_layer": source_layer,
+            "platform": platform,
+            **merged,
+            "aggregation_version": UNMAPPED_AGGREGATION_VERSION,
+        }
+        aggregate_sha256 = hashlib.sha256(
+            _json(payload).encode("utf-8")
+        ).hexdigest()
+        connection.execute(
+            """INSERT INTO senti_unmapped_daily(
+                 trade_date,company_id,ticker,source_layer,platform,raw_count,
+                 scored_count,pos,neg,neu,weighted_pos,weighted_neg,weighted_neu,
+                 heat_value_sum,read_count_sum,reply_count_sum,aggregation_version,
+                 aggregate_sha256,computed_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(trade_date,company_id,source_layer,platform) DO UPDATE SET
+                 ticker=excluded.ticker,raw_count=excluded.raw_count,
+                 scored_count=excluded.scored_count,pos=excluded.pos,neg=excluded.neg,
+                 neu=excluded.neu,weighted_pos=excluded.weighted_pos,
+                 weighted_neg=excluded.weighted_neg,weighted_neu=excluded.weighted_neu,
+                 heat_value_sum=excluded.heat_value_sum,
+                 read_count_sum=excluded.read_count_sum,
+                 reply_count_sum=excluded.reply_count_sum,
+                 aggregation_version=excluded.aggregation_version,
+                 aggregate_sha256=excluded.aggregate_sha256,computed_at=excluded.computed_at""",
+            (
+                trade_date,
+                company_id,
+                ticker or None,
+                source_layer,
+                platform,
+                *(merged[name] for name in numeric),
+                UNMAPPED_AGGREGATION_VERSION,
+                aggregate_sha256,
+                computed_at,
+            ),
+        )
+    return {
+        "cutoff": cutoff_text,
+        "raw_rows": len(rows),
+        "aggregate_groups": len(groups),
+        "aggregate_sha256": _unmapped_bundle_sha256(connection),
+    }
+
+
+def _retire_legacy_pending_orphans(
+    connection: sqlite3.Connection,
+    *,
+    cutoff: datetime,
+    retired_at: str,
+) -> list[dict[str, Any]]:
+    """Detach inert legacy mappings so their numeric facts can be frozen.
+
+    These are not failed production runs: they have zero attempts and no
+    source, segment, checkpoint or feed audit.  Their status remains
+    ``pending`` for historical truth; only their raw lifecycle is closed as an
+    explicitly incomplete legacy orphan.
+    """
+    cutoff_text = cutoff.isoformat(timespec="seconds")
+    raw_columns = _columns(connection, "senti_raw")
+    fetched_expression = "r.fetched_at" if "fetched_at" in raw_columns else "r.publish_time"
+    candidates = _legacy_pending_orphan_rows(connection, cutoff=cutoff)
+    retired: list[dict[str, Any]] = []
+    for row in candidates:
+        window_id = str(row["window_id"])
+        raw_rows = connection.execute(
+            f"""SELECT r.id,r.company_id,r.ticker,r.source_layer,r.platform,
+                       r.attitude,r.heat_value,r.publish_time,{fetched_expression} fetched_at
+                FROM senti_raw_window rw
+                JOIN senti_raw r ON r.id=rw.raw_id
+                WHERE rw.window_id=?
+                ORDER BY r.id""",
+            (window_id,),
+        ).fetchall()
+        if not raw_rows:
+            continue
+        if any(str(item["fetched_at"] or "") > cutoff_text for item in raw_rows):
+            continue
+        if int(row["raw_count"] or 0) or int(row["scored_count"] or 0):
+            raise RuntimeError(
+                f"legacy pending orphan has ledger facts and needs manual review: {window_id}"
+            )
+        payload = [
+            {
+                "id": int(item["id"]),
+                "company_id": int(item["company_id"]),
+                "ticker": str(item["ticker"] or ""),
+                "source_layer": str(item["source_layer"]),
+                "platform": str(item["platform"]),
+                "attitude": item["attitude"],
+                "heat_value": float(item["heat_value"] or 0.0),
+                "publish_time": str(item["publish_time"] or ""),
+                "fetched_at": str(item["fetched_at"] or ""),
+            }
+            for item in raw_rows
+        ]
+        aggregate_sha256 = hashlib.sha256(
+            _json(payload).encode("utf-8")
+        ).hexdigest()
+        mapping_rows = int(
+            connection.execute(
+                "DELETE FROM senti_raw_window WHERE window_id=?",
+                (window_id,),
+            ).rowcount
+        )
+        purge_after = (
+            datetime.fromisoformat(str(row["window_end"]))
+            + timedelta(days=retention_policy.RAW_RETENTION_DAYS)
+        ).isoformat(timespec="seconds")
+        connection.execute(
+            """UPDATE retail_window_ledger SET
+                 retention_state='purged_incomplete',sealed_at=?,
+                 seal_reason='legacy_pending_orphan_numeric_frozen',
+                 raw_purge_after=?,raw_purged_at=?,aggregate_sha256=?
+               WHERE window_id=?""",
+            (
+                retired_at,
+                purge_after,
+                retired_at,
+                aggregate_sha256,
+                window_id,
+            ),
+        )
+        retired.append(
+            {
+                "window_id": window_id,
+                "status": "pending",
+                "retention_state": "purged_incomplete",
+                "raw_rows": len(raw_rows),
+                "mapping_rows": mapping_rows,
+                "aggregate_sha256": aggregate_sha256,
+                "reason": "zero_attempt_legacy_mapping_without_run_audit",
+            }
+        )
+    return retired
+
+
+def _delete_unmapped_raw(
+    connection: sqlite3.Connection,
+    *,
+    cutoff: str,
+) -> dict[str, Any]:
+    raw_columns = _columns(connection, "senti_raw")
+    fetched_expression = "r.fetched_at" if "fetched_at" in raw_columns else "r.publish_time"
+    delete_fetched_expression = (
+        "senti_raw.fetched_at" if "fetched_at" in raw_columns else "senti_raw.publish_time"
+    )
+    before = int(
+        connection.execute(
+            f"""SELECT COUNT(*) FROM senti_raw r
+               WHERE {fetched_expression}<=?
+                 AND NOT EXISTS(
+                   SELECT 1 FROM senti_raw_window rw WHERE rw.raw_id=r.id
+                 )""",
+            (cutoff,),
+        ).fetchone()[0]
+    )
+    bundle = _unmapped_bundle_sha256(connection)
+    if before and not bundle:
+        raise RuntimeError("unmapped raw aggregate was not frozen")
+    connection.execute(
+        f"""DELETE FROM senti_raw
+           WHERE {delete_fetched_expression}<=?
+             AND NOT EXISTS(
+               SELECT 1 FROM senti_raw_window rw WHERE rw.raw_id=senti_raw.id
+             )""",
+        (cutoff,),
+    )
+    after = int(
+        connection.execute(
+            f"""SELECT COUNT(*) FROM senti_raw r
+               WHERE {fetched_expression}<=?
+                 AND NOT EXISTS(
+                   SELECT 1 FROM senti_raw_window rw WHERE rw.raw_id=r.id
+                 )""",
+            (cutoff,),
+        ).fetchone()[0]
+    )
+    if after or bundle != _unmapped_bundle_sha256(connection):
+        raise RuntimeError("unmapped raw purge verification failed")
+    return {
+        "raw_rows": before,
+        "mapping_rows": 0,
+        "feed_rows": 0,
+        "aggregate_sha256": bundle,
+    }
+
+
+def _build_plan_for_connection(
+    connection: sqlite3.Connection,
+    db_path: Path,
+    *,
+    as_of: datetime,
+    grace_days: int,
+    include_legacy: bool,
+    include_incomplete: bool,
+    legacy_cutover: str,
+) -> dict[str, Any]:
+    ready = schema_ready(connection)
+    complete = _candidate_complete(
+        connection,
+        as_of=as_of,
+        grace_days=grace_days,
+    )
+    incomplete = (
+        _candidate_incomplete(
+            connection,
+            as_of=as_of,
+            grace_days=grace_days,
+        )
+        if include_incomplete else []
+    )
+    seal_incomplete_candidates = (
+        _candidate_live_incomplete_for_seal(
+            connection,
+            as_of=as_of,
+            grace_days=grace_days,
+        )
+        if include_incomplete else []
+    )
+    legacy = (
+        _candidate_legacy(connection, cutover_date=legacy_cutover)
+        if include_legacy else []
+    )
+    unmapped = _candidate_unmapped_raw(
+        connection,
+        cutoff=as_of - timedelta(days=retention_policy.RAW_RETENTION_DAYS),
+    )
+    pending_orphans = (
+        _candidate_legacy_pending_orphans(
+            connection,
+            cutoff=as_of - timedelta(days=retention_policy.RAW_RETENTION_DAYS),
+        )
+        if include_incomplete else []
+    )
+    # The former weekend-only orphan rule is subsumed by the three-day
+    # numeric-freeze contract for every source layer and platform.
+    legacy_orphans: list[dict[str, Any]] = []
+    averages = {
+        table: _average_payload(connection, table)
+        for table in ("senti_raw", "senti_raw_window", "yuqing_feed_raw")
+    }
+    all_candidates = (
+        complete
+        + incomplete
+        + seal_incomplete_candidates
+        + pending_orphans
+        + legacy
+        + legacy_orphans
+        + unmapped
+    )
+    for row in all_candidates:
+        row["estimated_bytes"] = int(
+            row["raw_rows"] * averages["senti_raw"]
+            + row["mapping_rows"] * averages["senti_raw_window"]
+            + row["feed_rows"] * averages["yuqing_feed_raw"]
+        )
+    return {
+        "schema_version": "industry_demo.sentiment_retention_plan.v2",
+        "db_path": str(db_path.resolve()),
+        "db_bytes": db_path.stat().st_size,
+        "as_of": as_of.isoformat(timespec="seconds"),
+        "grace_days": grace_days,
+        "legacy_cutover": legacy_cutover,
+        "schema_ready": ready,
+        "table_counts": {
+            table: _table_count(connection, table)
+            for table in (
+                "senti_raw",
+                "senti_raw_window",
+                "yuqing_feed_raw",
+                "senti_retail_window",
+                "senti_retail_trading_daily",
+                "senti_unmapped_daily",
+            )
+            if _columns(connection, table)
+        },
+        "complete": complete,
+        "incomplete": incomplete,
+        "seal_incomplete_candidates": seal_incomplete_candidates,
+        "legacy_pending_orphans": pending_orphans,
+        "legacy": legacy,
+        "legacy_orphans": legacy_orphans,
+        "unmapped": unmapped,
+        "eligible_windows": sum(
+            1
+            for row in all_candidates
+            if row["eligible"]
+        ),
+        "estimated_reclaim_bytes": sum(
+            int(row["estimated_bytes"])
+            for row in all_candidates
+            if row["eligible"]
+        ),
+    }
+
+
 def build_plan(
     db_path: Path,
     *,
@@ -372,74 +1074,15 @@ def build_plan(
     legacy_cutover: str,
 ) -> dict[str, Any]:
     with closing(_connect(db_path, read_only=True)) as connection:
-        ready = schema_ready(connection)
-        complete = _candidate_complete(
+        return _build_plan_for_connection(
             connection,
+            db_path,
             as_of=as_of,
             grace_days=grace_days,
+            include_legacy=include_legacy,
+            include_incomplete=include_incomplete,
+            legacy_cutover=legacy_cutover,
         )
-        incomplete = (
-            _candidate_incomplete(
-                connection,
-                as_of=as_of,
-                grace_days=grace_days,
-            )
-            if include_incomplete else []
-        )
-        legacy = (
-            _candidate_legacy(connection, cutover_date=legacy_cutover)
-            if include_legacy else []
-        )
-        legacy_orphans = (
-            _candidate_legacy_weekend_orphans(
-                connection,
-                cutover_date=legacy_cutover,
-            )
-            if include_legacy else []
-        )
-        averages = {
-            table: _average_payload(connection, table)
-            for table in ("senti_raw", "senti_raw_window", "yuqing_feed_raw")
-        }
-        for row in complete + incomplete + legacy + legacy_orphans:
-            row["estimated_bytes"] = int(
-                row["raw_rows"] * averages["senti_raw"]
-                + row["mapping_rows"] * averages["senti_raw_window"]
-                + row["feed_rows"] * averages["yuqing_feed_raw"]
-            )
-        return {
-            "schema_version": "industry_demo.sentiment_retention_plan.v1",
-            "db_path": str(db_path.resolve()),
-            "db_bytes": db_path.stat().st_size,
-            "as_of": as_of.isoformat(timespec="seconds"),
-            "grace_days": grace_days,
-            "legacy_cutover": legacy_cutover,
-            "schema_ready": ready,
-            "table_counts": {
-                table: _table_count(connection, table)
-                for table in (
-                    "senti_raw",
-                    "senti_raw_window",
-                    "yuqing_feed_raw",
-                    "senti_retail_window",
-                    "senti_retail_trading_daily",
-                )
-            },
-            "complete": complete,
-            "incomplete": incomplete,
-            "legacy": legacy,
-            "legacy_orphans": legacy_orphans,
-            "eligible_windows": sum(
-                1
-                for row in complete + incomplete + legacy + legacy_orphans
-                if row["eligible"]
-            ),
-            "estimated_reclaim_bytes": sum(
-                int(row["estimated_bytes"])
-                for row in complete + incomplete + legacy + legacy_orphans
-                if row["eligible"]
-            ),
-        }
 
 
 def migrate_and_seal(
@@ -483,14 +1126,16 @@ def migrate_and_seal(
         )
         if not mapped and (ledger_raw or fact_rows):
             continue
-        migrated.append(
-            retail_windows_v2.seal_window(
+        sealed = retail_windows_v2.seal_window(
                 connection,
                 window_id,
                 grace_days=grace_days,
                 sealed_at=now.isoformat(timespec="seconds"),
             )
+        sealed["aggregate_contract"] = _verify_window_aggregate_contract(
+            connection, window_id
         )
+        migrated.append(sealed)
         session_dates.add(str(row["session_date"]))
     for session_date in sorted(session_dates):
         retail_windows_v2.aggregate_trading_day(
@@ -500,20 +1145,23 @@ def migrate_and_seal(
         )
     incomplete = []
     if include_incomplete:
-        incomplete_before = (
-            now - timedelta(days=incomplete_age_days)
-        ).isoformat(timespec="seconds")
+        incomplete_before = (now - timedelta(days=incomplete_age_days)).isoformat(
+            timespec="seconds"
+        )
         rows = connection.execute(
-            """SELECT window_id FROM retail_window_ledger
+            """SELECT window_id,scheduled_for,window_end
+               FROM retail_window_ledger
                WHERE status IN ('partial','failed')
-                 AND scheduled_for<=?
+                 AND window_end<=?
+                 AND retention_state='live'
                  AND raw_purged_at IS NULL
-               ORDER BY scheduled_for,window_id""",
+               ORDER BY window_end,window_id""",
             (incomplete_before,),
         ).fetchall()
         for row in rows:
             window_id = str(row["window_id"])
-            if retail_windows_v2.window_has_active_work(connection, window_id):
+            terminal = _terminal_checkpoint_evidence(connection, window_id)
+            if not terminal["eligible"]:
                 continue
             mapped = int(
                 connection.execute(
@@ -529,21 +1177,46 @@ def migrate_and_seal(
             )
             if not mapped and facts:
                 continue
-            incomplete.append(
-                retail_windows_v2.seal_window(
-                    connection,
-                    window_id,
-                    grace_days=grace_days,
-                    allow_incomplete=True,
-                    sealed_at=now.isoformat(timespec="seconds"),
-                )
+            retired_checkpoints = int(
+                connection.execute(
+                    "DELETE FROM yuqing_fetch_checkpoint WHERE window_id=?",
+                    (window_id,),
+                ).rowcount
             )
+            sealed = retail_windows_v2.seal_window(
+                connection,
+                window_id,
+                grace_days=grace_days,
+                allow_incomplete=True,
+                sealed_at=now.isoformat(timespec="seconds"),
+            )
+            sealed["aggregate_contract"] = _verify_window_aggregate_contract(
+                connection, window_id
+            )
+            sealed["terminal_checkpoint_evidence"] = terminal
+            sealed["retired_checkpoints"] = retired_checkpoints
+            incomplete.append(sealed)
+    legacy_pending_orphans = (
+        _retire_legacy_pending_orphans(
+            connection,
+            cutoff=now - timedelta(days=retention_policy.RAW_RETENTION_DAYS),
+            retired_at=now.isoformat(timespec="seconds"),
+        )
+        if include_incomplete else []
+    )
+    unmapped = _freeze_unmapped_raw(
+        connection,
+        cutoff=now - timedelta(days=retention_policy.RAW_RETENTION_DAYS),
+        computed_at=now.isoformat(timespec="seconds"),
+    )
     return {
         "migrated_windows": len(migrated),
         "sealed_incomplete_windows": len(incomplete),
         "session_dates": sorted(session_dates),
         "windows": migrated,
         "incomplete_windows": incomplete,
+        "legacy_pending_orphans": legacy_pending_orphans,
+        "unmapped": unmapped,
     }
 
 
@@ -759,117 +1432,118 @@ def apply_retention(
 ) -> dict[str, Any]:
     run_id = f"retention-{as_of.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
     started_at = _now().isoformat(timespec="seconds")
-    with closing(_connect(db_path)) as connection:
+    with closing(_connect(db_path, operation_id=run_id)) as connection:
         connection.execute("BEGIN IMMEDIATE")
-        migration = migrate_and_seal(
-            connection,
-            grace_days=grace_days,
-            now=as_of,
-            include_incomplete=include_incomplete,
-            incomplete_age_days=incomplete_age_days,
-        )
-        connection.commit()
-
-    plan = build_plan(
-        db_path,
-        as_of=as_of,
-        grace_days=grace_days,
-        include_legacy=include_legacy,
-        include_incomplete=include_incomplete,
-        legacy_cutover=legacy_cutover,
-    )
-    with closing(_connect(db_path)) as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        connection.execute(
-            """INSERT INTO sentiment_retention_run(
-                 run_id,mode,dry_run,grace_days,cutoff,include_legacy,
-                 include_incomplete,state,plan_json,result_json,started_at)
-               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
-            (
-                run_id,
-                "seal_and_purge",
-                0,
-                grace_days,
-                as_of.isoformat(timespec="seconds"),
-                int(include_legacy),
-                int(include_incomplete),
-                "running",
-                _json(plan),
-                "{}",
-                started_at,
-            ),
-        )
-        results = []
-        for action, rows in (
-            ("purge_complete", plan["complete"]),
-            ("purge_incomplete", plan["incomplete"]),
-            ("purge_legacy", plan["legacy"]),
-            ("purge_legacy_weekend_orphan", plan["legacy_orphans"]),
-        ):
-            for row in rows:
-                if not row["eligible"]:
-                    continue
-                window_id = str(row["window_id"])
-                if action == "purge_complete":
-                    outcome = _delete_complete_window(
-                        connection,
-                        window_id,
-                        purged_at=as_of.isoformat(timespec="seconds"),
-                    )
-                elif action == "purge_incomplete":
-                    outcome = _delete_incomplete_window(
-                        connection,
-                        window_id,
-                        purged_at=as_of.isoformat(timespec="seconds"),
-                    )
-                elif action == "purge_legacy":
-                    outcome = _delete_legacy_window(connection, window_id)
-                else:
-                    outcome = _delete_legacy_weekend_orphans(
-                        connection,
-                        cutover_date=legacy_cutover,
-                    )
-                connection.execute(
-                    """INSERT INTO sentiment_retention_window(
-                         run_id,window_id,action,prior_status,raw_rows,
-                         mapping_rows,feed_rows,estimated_bytes,
-                         aggregate_sha256,created_at)
-                       VALUES(?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        run_id,
-                        window_id,
-                        action,
-                        row.get("status"),
-                        outcome["raw_rows"],
-                        outcome["mapping_rows"],
-                        outcome["feed_rows"],
-                        int(row["estimated_bytes"]),
-                        outcome["aggregate_sha256"],
-                        as_of.isoformat(timespec="seconds"),
-                    ),
-                )
-                results.append(
-                    {"window_id": window_id, "action": action, **outcome}
-                )
-        result = {
-            "migration": migration,
-            "purged_windows": len(results),
-            "windows": results,
-        }
-        connection.execute(
-            """UPDATE sentiment_retention_run
-               SET state='complete',result_json=?,finished_at=?
-               WHERE run_id=?""",
-            (_json(result), _now().isoformat(timespec="seconds"), run_id),
-        )
-        integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
-        foreign_keys = connection.execute("PRAGMA foreign_key_check").fetchall()
-        if integrity != "ok" or foreign_keys:
-            raise RuntimeError(
-                f"清理后 SQLite 校验失败 integrity={integrity} "
-                f"foreign_keys={foreign_keys[:5]}"
+        try:
+            migration = migrate_and_seal(
+                connection,
+                grace_days=grace_days,
+                now=as_of,
+                include_incomplete=include_incomplete,
+                incomplete_age_days=incomplete_age_days,
             )
-        connection.commit()
+            plan = _build_plan_for_connection(
+                connection,
+                db_path,
+                as_of=as_of,
+                grace_days=grace_days,
+                include_legacy=include_legacy,
+                include_incomplete=include_incomplete,
+                legacy_cutover=legacy_cutover,
+            )
+            connection.execute(
+                """INSERT INTO sentiment_retention_run(
+                     run_id,mode,dry_run,grace_days,cutoff,include_legacy,
+                     include_incomplete,state,plan_json,result_json,started_at)
+                   VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    run_id,
+                    "seal_and_purge",
+                    0,
+                    grace_days,
+                    as_of.isoformat(timespec="seconds"),
+                    int(include_legacy),
+                    int(include_incomplete),
+                    "running",
+                    _json(plan),
+                    "{}",
+                    started_at,
+                ),
+            )
+            results = []
+            for action, rows in (
+                ("purge_complete", plan["complete"]),
+                ("purge_incomplete", plan["incomplete"]),
+                ("purge_legacy", plan["legacy"]),
+                ("purge_unmapped", plan["unmapped"]),
+            ):
+                for row in rows:
+                    if not row["eligible"]:
+                        continue
+                    window_id = str(row["window_id"])
+                    if action == "purge_complete":
+                        outcome = _delete_complete_window(
+                            connection,
+                            window_id,
+                            purged_at=as_of.isoformat(timespec="seconds"),
+                        )
+                    elif action == "purge_incomplete":
+                        outcome = _delete_incomplete_window(
+                            connection,
+                            window_id,
+                            purged_at=as_of.isoformat(timespec="seconds"),
+                        )
+                    elif action == "purge_legacy":
+                        outcome = _delete_legacy_window(connection, window_id)
+                    else:
+                        outcome = _delete_unmapped_raw(
+                            connection,
+                            cutoff=str(row["cutoff"]),
+                        )
+                    connection.execute(
+                        """INSERT INTO sentiment_retention_window(
+                             run_id,window_id,action,prior_status,raw_rows,
+                             mapping_rows,feed_rows,estimated_bytes,
+                             aggregate_sha256,created_at)
+                           VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                        (
+                            run_id,
+                            window_id,
+                            action,
+                            row.get("status"),
+                            outcome["raw_rows"],
+                            outcome["mapping_rows"],
+                            outcome["feed_rows"],
+                            int(row["estimated_bytes"]),
+                            outcome["aggregate_sha256"],
+                            as_of.isoformat(timespec="seconds"),
+                        ),
+                    )
+                    results.append(
+                        {"window_id": window_id, "action": action, **outcome}
+                    )
+            result = {
+                "migration": migration,
+                "purged_windows": len(results),
+                "windows": results,
+            }
+            connection.execute(
+                """UPDATE sentiment_retention_run
+                   SET state='complete',result_json=?,finished_at=?
+                   WHERE run_id=?""",
+                (_json(result), _now().isoformat(timespec="seconds"), run_id),
+            )
+            integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
+            foreign_keys = connection.execute("PRAGMA foreign_key_check").fetchall()
+            if integrity != "ok" or foreign_keys:
+                raise RuntimeError(
+                    f"清理后 SQLite 校验失败 integrity={integrity} "
+                    f"foreign_keys={foreign_keys[:5]}"
+                )
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
     return {
         "run_id": run_id,
         "plan": plan,
@@ -884,6 +1558,19 @@ def compact_database(
     *,
     backup_confirmation: Path,
 ) -> dict[str, Any]:
+    from tools.data_platform.routing import Backend, load_environment_authority_matrix
+
+    matrix = load_environment_authority_matrix()
+    if (
+        matrix is not None
+        and matrix.routes["sentiment_analytics"].backend
+        is Backend.POSTGRESQL_PRODUCTION
+    ):
+        raise RuntimeError(
+            "physical SQLite compaction is inapplicable after sentiment PostgreSQL "
+            "cutover; the retired SQLite file remains an audit baseline and the "
+            "PostgreSQL projection is rebuilt outside that file"
+        )
     backup_confirmation = backup_confirmation.resolve()
     if not backup_confirmation.exists():
         raise FileNotFoundError(
@@ -898,7 +1585,7 @@ def compact_database(
     for path in (temp_path, rollback_path):
         if path.exists():
             path.unlink()
-    with closing(_connect(db_path)) as connection:
+    with closing(_connect(db_path, physical_sqlite=True)) as connection:
         checkpoint = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
         if int(checkpoint[0]) != 0:
             raise RuntimeError(f"WAL checkpoint 被活动连接阻塞: {tuple(checkpoint)}")
@@ -911,7 +1598,9 @@ def compact_database(
         raise RuntimeError(f"WAL 仍包含未清空数据: {wal_path}")
     for sidecar in (wal_path, shm_path):
         sidecar.unlink(missing_ok=True)
-    with closing(_connect(temp_path, read_only=True)) as compacted:
+    with closing(
+        _connect(temp_path, read_only=True, physical_sqlite=True)
+    ) as compacted:
         integrity = compacted.execute("PRAGMA integrity_check").fetchone()[0]
         foreign_keys = compacted.execute("PRAGMA foreign_key_check").fetchall()
         counts = {
@@ -935,7 +1624,7 @@ def compact_database(
     os.replace(db_path, rollback_path)
     try:
         os.replace(temp_path, db_path)
-        with closing(_connect(db_path)) as installed:
+        with closing(_connect(db_path, physical_sqlite=True)) as installed:
             journal_mode = str(
                 installed.execute("PRAGMA journal_mode=WAL").fetchone()[0]
             )

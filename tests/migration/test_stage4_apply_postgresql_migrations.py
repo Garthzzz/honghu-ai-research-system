@@ -87,6 +87,30 @@ def test_s1_migration_role_gets_only_authority_read_access() -> None:
     assert 'TO "honghu_migration"' in rendered
 
 
+def test_cutover_reconciliation_role_gets_only_formal_snapshot_read_access() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0012_remaining_unit_reconciliation_read_grant.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_schema_migration(
+        source,
+        "a" * 64,
+        identifiers={"migration_role": "honghu_migration"},
+    )
+    assert 'GRANT USAGE ON SCHEMA domain_data TO "honghu_migration"' in rendered
+    assert (
+        'GRANT SELECT ON domain_data.formal_unit_snapshot TO "honghu_migration"'
+        in rendered
+    )
+    assert "INSERT ON domain_data" not in rendered
+    assert "UPDATE ON domain_data" not in rendered
+    assert "DELETE ON domain_data" not in rendered
+    assert "transition_remaining_unit" not in rendered
+    assert "0012_remaining_unit_reconciliation_read_grant" in rendered
+
+
 def test_shared_identity_reader_can_bind_cache_to_authority_revision() -> None:
     source = (
         ROOT
@@ -109,6 +133,25 @@ def test_shared_identity_reader_can_bind_cache_to_authority_revision() -> None:
     )
     assert "UPDATE ON operations.cutover_unit_authority" not in rendered
     assert "DELETE ON operations.cutover_unit_authority" not in rendered
+
+
+def test_sentiment_projection_reads_through_constrained_security_definer_contracts() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0011_sentiment_persistent_projection.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_schema_migration(
+        source,
+        "a" * 64,
+        identifiers={"reader_role": "honghu_viewer_reader"},
+    )
+    assert "unit_runtime_contract_v1" in rendered
+    assert "read_unit_overlay_v1" in rendered
+    assert rendered.count("SECURITY DEFINER") == 2
+    assert 'TO "honghu_viewer_reader"' in rendered
+    assert "GRANT SELECT ON operations.cutover_unit_authority" not in rendered
 
 
 def test_s1_callers_do_not_require_control_plane_update_privilege() -> None:

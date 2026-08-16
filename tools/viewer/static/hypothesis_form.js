@@ -170,8 +170,7 @@
   }
   const msg = $("#hyp-form-msg");
   async function postJSON(url, body) {
-    const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    return { ok: r.ok, data: await r.json().catch(() => ({})) };
+    return HonghuDomainMutations.postJSON('hypothesis:' + url, url, body);
   }
 
   async function submit(isDraft) {

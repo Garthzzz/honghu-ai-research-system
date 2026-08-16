@@ -110,8 +110,8 @@
       "path": "tools/data_platform/shared_identity.py",
       "domain": "Stage 4 shared-identity legacy read compatibility",
       "rule": "sqlite3_connect",
-      "max_count": 1,
-      "reason": "During the bounded mixed-migration compatibility window, PostgreSQL-authoritative identity rows are materialized into one process-memory SQLite database so existing legacy SELECTs can use unchanged table names. The cache is rebuilt only from PostgreSQL after S3/S4 authority verification and never reads or mutates the frozen SQLite identity baseline.",
+      "max_count": 2,
+      "reason": "During the bounded mixed-migration compatibility window, PostgreSQL-authoritative identity rows are materialized into one process-memory SQLite database so existing legacy SELECTs can use unchanged table names. The explicit environment reader opens the legacy identity file only while the authority matrix still declares SQLite and otherwise returns that PostgreSQL-derived cache. S3/S4 failures never read or mutate the frozen SQLite identity baseline.",
       "owner": "shared-identity cutover governance",
       "future_cutover_unit_candidate": "shared_identity",
       "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."
@@ -130,8 +130,8 @@
       "path": "tools/data_platform/shared_identity.py",
       "domain": "Stage 4 shared-identity legacy read compatibility",
       "rule": "pragma",
-      "max_count": 1,
-      "reason": "The sole PRAGMA makes the PostgreSQL-derived process-memory cache query-only after construction. It does not alter or inspect any live SQLite database.",
+      "max_count": 2,
+      "reason": "The PRAGMAs make the PostgreSQL-derived process-memory cache or pre-cutover legacy read connection query-only. They do not mutate a live SQLite database, and PostgreSQL authority never falls back to the legacy path.",
       "owner": "shared-identity cutover governance",
       "future_cutover_unit_candidate": "shared_identity",
       "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."
@@ -155,6 +155,86 @@
       "owner": "financial-data cutover governance",
       "future_cutover_unit_candidate": "financial_data",
       "sunset_condition": "Remove after all financial readers use native PostgreSQL repositories and the process-memory compatibility cache is retired."
+    },
+    {
+      "path": "tools/data_platform/domain_data.py",
+      "domain": "Stage 4 common cutover-unit transition adapter",
+      "rule": "sqlite3_connect",
+      "max_count": 7,
+      "reason": "The common adapter either opens the currently authoritative transition SQLite database under the authority matrix, or constructs a bounded process-memory SQLite compatibility surface from PostgreSQL-authoritative rows. PostgreSQL S3/S4 failures are fail-closed and never reopen the legacy SQLite file.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "remaining registered cutover units",
+      "sunset_condition": "Remove when all remaining production readers and writers use native PostgreSQL repositories and the process-memory transition adapter is retired."
+    },
+    {
+      "path": "tools/data_platform/domain_data.py",
+      "domain": "Stage 4 common cutover-unit transition adapter",
+      "rule": "attach",
+      "max_count": 2,
+      "reason": "The adapter attaches only PostgreSQL-derived process-memory dependency projections and shadows reviewed legacy table names with TEMP views. Attached dependency views remain read-only and never attach a frozen production SQLite baseline after PostgreSQL authority is active.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "remaining registered cutover units",
+      "sunset_condition": "Remove when cross-unit readers use native PostgreSQL joins/repositories and no process-memory dependency projection remains."
+    },
+    {
+      "path": "tools/data_platform/domain_data.py",
+      "domain": "Stage 4 common cutover-unit transition adapter",
+      "rule": "pragma",
+      "max_count": 7,
+      "reason": "The adapter uses only query_only and foreign-key PRAGMAs on the selected transition connection or private process-memory compatibility database. It never uses mutating PRAGMAs against live SQLite and authority routing remains fail-closed.",
+      "owner": "central data platform migration governance",
+      "future_cutover_unit_candidate": "remaining registered cutover units",
+      "sunset_condition": "Remove when the common SQLite-shaped transition adapter is retired after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "sqlite3_connect",
+      "max_count": 5,
+      "reason": "The sentiment domain exceeds the reviewed process-memory limit, so its S3 transition adapter builds and opens a disposable runtime SQLite projection exclusively from PostgreSQL-authoritative records. It never opens the retired live sentiment.db and PostgreSQL failures remain fail-closed.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when sentiment readers and writers use native PostgreSQL repositories and no SQLite-shaped runtime projection remains."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "pragma",
+      "max_count": 6,
+      "reason": "The disposable cache uses bounded WAL, durability, foreign-key, read-only and integrity PRAGMAs only on the PostgreSQL-derived runtime projection; no PRAGMA targets the retired live sentiment database.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove with the persistent transition projection after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "begin_immediate",
+      "max_count": 1,
+      "reason": "One bounded BEGIN IMMEDIATE serializes application of the authoritative PostgreSQL overlay into the disposable local cache while a cross-process lock is held; it is not a live SQLite authority transaction.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove with the persistent transition projection after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 4,
+      "reason": "Conflict clauses maintain cache metadata and PostgreSQL-derived rows idempotently inside the disposable projection. Formal mutation idempotency remains enforced independently by PostgreSQL operation identity and revision checks.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove with the persistent transition projection after native PostgreSQL repository adoption."
+    },
+    {
+      "path": "tools/data_platform/sentiment_projection.py",
+      "domain": "Stage 4 sentiment PostgreSQL-derived persistent projection",
+      "rule": "attach",
+      "max_count": 2,
+      "reason": "The persistent projection exposes one reviewed dependency method and one URI-mode read-only database attachment, both targeting the disposable PostgreSQL-derived cache. It never attaches the retired sentiment or research SQLite authority files.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when cross-unit dependencies use native PostgreSQL joins and the transition projection is retired."
     },
     {
       "path": "tools/migration/stage4_financial_data_s1.py",
@@ -253,6 +333,26 @@
       "owner": "application release governance",
       "future_cutover_unit_candidate": "Viewer data-access boundary",
       "sunset_condition": "Replace with the approved data-access layer when the relevant cutover units leave SQLite."
+    },
+    {
+      "path": "tools/maintenance/sentiment_retention.py",
+      "domain": "sentiment three-day retention transition",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 1,
+      "reason": "The approved three-day retention writer uses one composite-key upsert on the private SQLite-shaped transition projection; the authoritative commit is performed by the audited PostgreSQL sentiment adapter.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when retention uses a native PostgreSQL repository and the transition projection is retired."
+    },
+    {
+      "path": "tools/sentiment/retail_windows_v2.py",
+      "domain": "sentiment three-day retention transition",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 5,
+      "reason": "The additional composite-key upsert persists the permanent unmapped daily aggregate through the reviewed PostgreSQL-authoritative compatibility transaction; it does not reopen the retired SQLite writer.",
+      "owner": "sentiment-analytics cutover governance",
+      "future_cutover_unit_candidate": "sentiment_analytics",
+      "sunset_condition": "Remove when retail-window retention uses a native PostgreSQL repository and the transition projection is retired."
     },
     {
       "path": "tools/viewer/app.py",

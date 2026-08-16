@@ -25,6 +25,7 @@ sys.path.insert(0, str(HERE))
 
 import common
 import retail_windows_v2
+import retention_policy
 import senti3
 
 DEFAULT_GUBA_PAGES = int(
@@ -35,7 +36,7 @@ TICK_LOCK_TIMEOUT_SECONDS = 8 * 60 * 60
 XINGHAN_CHILD_TIMEOUT_SECONDS = 6 * 60 * 60
 XINGHAN_ORPHAN_STALE_SECONDS = 10 * 60
 DEFAULT_AUTO_BACKFILL_START = date(2026, 7, 15)
-DEFAULT_AUTO_BACKFILL_MAX_DAYS = 7
+DEFAULT_AUTO_BACKFILL_MAX_DAYS = retention_policy.INCOMPLETE_FINALIZATION_DAYS
 DEFAULT_AUTO_BACKFILL_MAX_WINDOWS = 3
 SENTIMENT_REQUIRED_SOURCES = ("guba", "xinghan", "score")
 FETCH_SUCCESS_STATES = frozenset({"complete", "empty"})
@@ -608,7 +609,11 @@ def due_auto_backfill_windows(
         return []
 
     local = now.astimezone(senti3.TZ)
-    floor = max(start, local.date() - timedelta(days=days))
+    # A window is no longer eligible for source recovery once it leaves the
+    # approved raw working set.  Keeping a wider scheduler lookback would
+    # recreate records after retention had sealed and purged the window.
+    recovery_days = min(days, retention_policy.INCOMPLETE_FINALIZATION_DAYS)
+    floor = max(start, local.date() - timedelta(days=recovery_days))
     excluded = exclude_window_ids or set()
     candidates: list[senti3.MarketWindow] = []
     cursor = floor
@@ -625,18 +630,25 @@ def due_auto_backfill_windows(
     window_ids = [window.window_id for window in candidates]
     placeholders = ",".join("?" for _ in window_ids)
     statuses = {
-        str(row["window_id"]): str(row["status"])
+        str(row["window_id"]): (
+            str(row["status"]), str(row["retention_state"] or "live")
+        )
         for row in con.execute(
-            f"SELECT window_id,status FROM retail_window_ledger WHERE window_id IN ({placeholders})",
+            f"""SELECT window_id,status,retention_state
+                FROM retail_window_ledger
+                WHERE window_id IN ({placeholders})""",
             window_ids,
         )
     }
     due = [
         window
         for window in candidates
-        if statuses.get(window.window_id) != "complete"
-        or _window_needs_empty_recheck(con, window.window_id)
-        or not _source_is_satisfied(con, window.window_id, "xinghan")
+        if statuses.get(window.window_id, ("pending", "live"))[1] == "live"
+        and (
+            statuses.get(window.window_id, ("pending", "live"))[0] != "complete"
+            or _window_needs_empty_recheck(con, window.window_id)
+            or not _source_is_satisfied(con, window.window_id, "xinghan")
+        )
     ]
     due.sort(key=lambda item: (item.scheduled_for, item.window_id))
     return due[:cap]
@@ -838,8 +850,20 @@ def execute_window(
         window, guba_pages=guba_pages, score_max=score_max, force=force
     )
     existing = con.execute(
-        "SELECT status FROM retail_window_ledger WHERE window_id=?", (window.window_id,)
+        """SELECT status,retention_state FROM retail_window_ledger
+           WHERE window_id=?""",
+        (window.window_id,),
     ).fetchone()
+    if existing and str(existing["retention_state"] or "live") != "live":
+        state = str(existing["retention_state"])
+        con.close()
+        return 2, {
+            "ok": False,
+            "window_id": window.window_id,
+            "status": str(existing["status"]),
+            "retention_state": state,
+            "error": "retention_finalized_window_cannot_resume",
+        }
     if (
         existing
         and existing["status"] == "complete"

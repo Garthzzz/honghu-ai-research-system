@@ -10,6 +10,7 @@ from typing import Any
 
 from tools.research_core.config import resolve_track_config
 from tools.research_core.content_cache import ContentAddressedCache
+from tools.data_platform.shared_identity import connect_shared_identity_database
 
 from .constants import (
     EARLY_SIGNAL_RULE_VERSION,
@@ -704,8 +705,7 @@ def _resolve_company_identity(target: dict[str, Any]) -> dict[str, Any]:
         return resolved
     if not Path(RESEARCH_DB_PATH).is_file():
         return resolved
-    conn = sqlite3.connect(f"file:{Path(RESEARCH_DB_PATH).as_posix()}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
+    conn = connect_shared_identity_database(RESEARCH_DB_PATH)
     try:
         rows: list[sqlite3.Row] = []
         if resolved.get("company_id") is not None:
