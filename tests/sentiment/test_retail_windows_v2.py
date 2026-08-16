@@ -590,6 +590,10 @@ class RetailDataLayerTests(unittest.TestCase):
                 timestamp="2026-07-16T10:00:00+08:00",
             )
             retail_windows_v2.mark_window_status(seed, window.window_id, "complete")
+            seed.execute(
+                "UPDATE retail_window_ledger SET retention_state='purged' WHERE window_id=?",
+                (window.window_id,),
+            )
             seed.commit()
             seed.close()
 
@@ -620,9 +624,29 @@ class RetailDataLayerTests(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertEqual(result["status"], "complete")
+            self.assertEqual(result["retention_state"], "purged")
             self.assertEqual(result["skipped"], "idempotent")
             recheck.assert_not_called()
             child.assert_not_called()
+
+            with mock.patch.dict(
+                retail_window_tick.os.environ,
+                {
+                    "HONGHU_TASK_CONTROLLED_TRIAL": "0",
+                    "HONGHU_CONTROLLED_SESSION_DATE": "",
+                },
+            ), mock.patch.object(
+                retail_window_tick.common, "get_senti_db", side_effect=connect
+            ), mock.patch.object(
+                retail_window_tick.common, "assert_senti_only"
+            ):
+                rejected_code, rejected = retail_window_tick.execute_window(
+                    window, guba_pages=1, score_max=0
+                )
+            self.assertEqual(rejected_code, 2)
+            self.assertEqual(
+                rejected["error"], "retention_finalized_window_cannot_resume"
+            )
 
     def test_execute_window_releases_parent_writer_before_child_and_uses_stable_phases(self):
         with tempfile.TemporaryDirectory() as tmp:
