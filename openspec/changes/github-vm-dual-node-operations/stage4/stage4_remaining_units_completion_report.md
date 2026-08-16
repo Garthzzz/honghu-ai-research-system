@@ -1,67 +1,62 @@
-# Stage 4 Remaining Units Completion Report
+# Stage 4 全部数据单元生产迁移收口报告
 
-## Outcome
+> 状态：九个 cutover unit 均为 durable S3；本报告只提交脱敏结论和 evidence identity。数据库、恢复集、凭据、TLS 私钥、用户内容及 VM 原始 evidence 保持在 Git 外。Stage 5 的七个任务与 runner 尚未迁移。
 
-As of 2026-08-15, two units are durable S3 and seven units are durable S1.
-Stage 4 is not complete because the seven S1 units do not yet have production
-application adapters, operation-level writer fencing and unit-specific recovery
-evidence sufficient for S2/S3.
+## 1. 结论
 
-## Production authority
+Stage 4 的数据 authority 迁移已经完成工程验收。九个单元都由 PostgreSQL 承担唯一 authority/writer，authority revision 均为 4；所有 SQLite writer flag 为 false。旧 SQLite 文件只保留为 migration baseline、审计档案和有限修复材料，不是 production rollback target。PostgreSQL 失败时应用 fail-closed，不允许 silent fallback、dual writer 或 shadow write。
 
-| cutover unit | state | formal authority | rows | result |
+最终 production Viewer 运行 exact commit `076dc982b343a851ae1dbbf30f99cb8e10104bdb`，模式为 `production_hybrid`。这里的 hybrid 表示数据 authority 已全部进入 PostgreSQL，但 papers/evidence、外置 content、运行时 projection 以及尚未迁移的任务主机仍按各自合同存在；它不表示 SQLite 仍可作为任一单元的生产 writer。
+
+## 2. 九个 cutover unit
+
+| cutover unit | state | authority / writer | 已核验迁移基线行数 | 当前角色 |
 | --- | --- | --- | ---: | --- |
-| `user_content_notes` | S3 | PostgreSQL | governed user-content rows | retained and healthy |
-| `shared_identity` | S3 | PostgreSQL | 3,539 | source/target reconciled, SQLite fenced |
-| `financial_data` | S1 | SQLite | 53,569 | PostgreSQL non-formal baseline reconciled |
-| `research_publication` | S1 | SQLite | 35,012 | PostgreSQL non-formal baseline reconciled |
-| `dynamic_intelligence` | S1 | SQLite | 19,091 | PostgreSQL non-formal baseline reconciled |
-| `operations_governance` | S1 | SQLite | 38 | PostgreSQL non-formal baseline reconciled |
-| `investment_hypotheses` | S1 | SQLite | 37 | PostgreSQL non-formal baseline reconciled |
-| `opportunity_lens` | S1 | SQLite | 19,048 | PostgreSQL non-formal baseline reconciled |
-| `sentiment_analytics` | S1 | SQLite | 2,113,951 | PostgreSQL non-formal baseline reconciled |
+| `user_content_notes` | S3 | PostgreSQL / `honghu_user_content_writer` | 空集 backfill；正式 revision/audit 另行保留 | 唯一正式读写与审计事实源 |
+| `shared_identity` | S3 | PostgreSQL / `honghu_writer_shared_identity` | 3,539 | 公司、行业、主题稳定身份权威 |
+| `financial_data` | S3 | PostgreSQL / `honghu_writer_financial_data` | 53,569 | 财务事实、revision 与 reconciliation 权威 |
+| `research_publication` | S3 | PostgreSQL / `honghu_writer_research_publication` | 35,012 | 研究发布、来源和版本治理权威 |
+| `dynamic_intelligence` | S3 | PostgreSQL / `honghu_writer_dynamic_intelligence` | 19,091 | 动态情报与 checkpoint 数据权威 |
+| `operations_governance` | S3 | PostgreSQL / `honghu_writer_operations_governance` | 38 | 运维、发布和控制记录权威 |
+| `investment_hypotheses` | S3 | PostgreSQL / `honghu_writer_investment_hypotheses` | 37 | 假说及其变更权威 |
+| `opportunity_lens` | S3 | PostgreSQL / `honghu_writer_opportunity_lens` | 19,048 | Opportunity Lens 结构化数据权威 |
+| `sentiment_analytics` | S3 | PostgreSQL / `honghu_writer_sentiment_analytics` | 2,113,951 | 情绪聚合、窗口和短期明细权威 |
 
-The seven S1 units total 2,240,746 rows.  Every source count equals its target
-count and every canonical source content SHA256 equals its target SHA256.
-Their evidence explicitly records `formal_business_data=false`,
-`production_cutover_authorized=false` and `s2_s3_entered=false`.
+上述结构化迁移基线合计 2,244,285 行（不把 `user_content_notes` 的 revision/audit 运行记录重复计入）。S1 时每个单元的 source/target count 与 canonical content SHA256 已一致；进入 S2 前又按最终 watermark 做 delta catch-up、stable identity/legacy mapping、依赖和事务边界复核。每个单元的 S2→S3 都记录 cutover epoch、唯一 writer、SQLite final watermark、PostgreSQL first-formal watermark、approval/actor、幂等 operation identity 和 authority ledger；uncertain commit 按 S3 保守对账。
 
-## Shared identity S3 and recovery
+## 3. 应用与发布证据
 
-The S3 authority revision records PostgreSQL as the only backend and
-`honghu_writer_shared_identity` as the only writer.  The final SQLite watermark
-contains 3,539 rows and is now an audit/migration baseline, not a rollback
-target.  The first formal PostgreSQL commit and cutover epoch are durably
-recorded in the authority ledger.
+- exact release commit：`076dc982b343a851ae1dbbf30f99cb8e10104bdb`。
+- immutable release manifest：`60e24aa2ee9fb4ff62a923d9983787aa1cf474bf1ce1b0325544e701d1c480d9`。
+- deployment evidence SHA256：`4611ead22cd668b85c7baf7d8445e70a9ee47c2a18da6b9f04e7b5ab4ca4da68`。
+- representative smoke evidence SHA256：`0ff1a0afafb05067d137eb2f0b60f83cd2e0d092b4840fad7b130935cc837f31`。
+- 16 项 production read smoke 全部通过；额外复核 `/`、`/company/1`、`/dynamic/sentiment`、`/opportunity-lens` 和 `/opportunity-lens/run/20` 均为 HTTP 200。
+- LAN `http://10.5.1.240:8080/api/health` 返回 exact commit、9/9 S3、0 个 SQLite writer。
+- 部署没有 authority transition、没有 formal business mutation，也没有恢复 SQLite writer；它只把已经完成 S3 的数据面接入经过 CI 验证的 immutable application release。
 
-An encrypted independent-host recovery set passed artifact hash, WAL target,
-sentinel, whole restore, side restore and authority-control restore checks.
-Measured recovery was RPO 0.016 seconds and RTO 0.687 seconds for the verified
-reopen path.  Retention keeps exactly the latest two verified recovery sets.
+本轮修复了两个真实只读兼容问题：SQLite projection 必须在 schema/data 装载完成后才能启用 `query_only`；同一进程内同 unit/version 的多个 `PostgresDomainReadCache` 必须使用独立 shared-memory URI，避免 schema collision。两项都有回归测试，最终 clean CI tier 为 909 passed、21 skipped、55 subtests；compile、OpenSpec strict、tracked boundary 与 SQLite dependency ratchet 均通过。PR #26 的 push/PR required checks 对 exact head 全绿。
 
-## Application validation
+## 4. 备份、WAL 与恢复
 
-The production Viewer reports exact commit
-`cf726923b2da3c46196765bcb1178c2d36a8041b`, mode
-`production_postgresql`, and S3/PostgreSQL for both active units.  Both SQLite
-writer flags are false.  HTTP and TLS listeners are bound to their actual
-listener processes, not the Windows venv launcher.  Representative read routes
-for research, companies, industry, company, tools and Opportunity Lens returned
-HTTP 200 after the S3 transition.
+最终 post-S3 recovery 使用批准的另一故障域 SMB storage，恢复集包含 base backup、达到目标 LSN 所需 WAL、sentinel、manifest、逐文件 hash、source/storage identity 和目标水位。restore 只读取异机 recovery set；whole-database、authority-control 和 side-domain restore 必须同时通过，恢复后的九个 authority snapshot 必须逐字段等于 durable source。
 
-## Remaining blockers
+最终 recovery evidence 在 Git 外，治理记录只冻结以下脱敏身份：
 
-The seven S1 units have 744 audited writer operations across 293 transaction
-boundaries.  They cannot safely enter S2/S3 until each unit has an explicit
-PostgreSQL adapter, operation-level writer fence, compatible API/read path,
-delta catch-up at the final watermark, unit-specific off-VM recovery evidence
-and a fail-closed production lifecycle.  Stage 5 task/runner migration remains
-outside the current authorization.
+- recovery set identity：`5854c08a44b4b25d6a7ae6662f52ac89df263fd20d0110528d02482ee0072cc5`；
+- recovery evidence 内容 identity：`06bea500760b96d4856e3f7bdc886a167c07f396f1ce18f227c45c3568a22ac2`；文件 SHA256：`b5148947baaa870917b64db8f266e526a6c63641797544a2281d3c3c089b9089`；
+- measured RPO / RTO：0.007 秒 / 8.047 秒；
+- validated retention：保留 `stage4-20260815T231501Z-aedb9d2e` 与 `stage4-20260815T185455Z-6b56b3aa`；最旧有效集已由 retention 删除，唯一未验证失败目录也经独立审计清理，异机端最终只剩两份有效集。
 
-Repository production authority also still requires a human governance
-decision for company ownership or an approved exception, a second administrator,
-2FA/recovery custody and company-controlled deploy credentials.  Until then the
-release contract remains: green CI, human approval of an exact SHA, then an
-immutable VM deployment.
+同 VM 的本机 base backup 和 restore-test 目录不计作 off-VM 副本。最终清理 evidence SHA256 为 `fd119838b16cf2d75b29657d6ac89d45d0b42a4fb0a134a55209aeb0b094d622`：删除 4 个旧 execution 目录、21 个旧 immutable release、4 个本机 backup source、3 个 restore-test 和 4 个 legacy Stage 4 根目录，D 盘可用空间恢复至约 151.5 GB；只保留最终 `076dc982…`、上一稳定版 `61bb3bed…`、live PostgreSQL/WAL、最终 evidence 和仍有审计价值的 SQLite baseline。异机失败目录清理 evidence SHA256 为 `3b44c82353f63f9d77cecad97133945572d38a4875b408d14e1a408ccd33a700`。
 
-Raw database, backup, credential and VM evidence is intentionally not tracked.
+## 5. Runner 与 Stage 5 边界
+
+本机七个 `IndustryDemo_*` 计划任务当前全部 Disabled；VM 上不存在同名生产任务。因此 Stage 4 没有迁移 runner，也没有双 runner。当前数据 authority 已在 PostgreSQL，但任务自动启动、checkpoint 连续、漏窗补跑、服务账户和 VM runner 切换仍属于 Stage 5，必须由用户另行授权。
+
+## 6. Repository governance
+
+GitHub API 已核实 main 的两个 required checks、strict update、管理员约束、conversation resolution、禁止 force push/delete。仍需人工处理：公司资产归属或正式例外、第二管理员、2FA/账号恢复，以及公司控制的 deploy credential。在关闭这些事项前，生产发布继续使用 `CI green → 人工批准 exact SHA → VM immutable deploy`，不启用 main merge 后无人审核自动上线。
+
+## 7. Stage 4 退出建议
+
+九个 cutover unit 已满足 Stage 4 的 S3、唯一 writer、对账、应用兼容和恢复合同；因此建议用户人工批准 Stage 4 退出。该建议不等于批准 S4，也不授权 Stage 5、七个任务迁移、runner 切换或无人审核自动部署。

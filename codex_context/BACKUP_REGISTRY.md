@@ -1,8 +1,8 @@
 # 项目备份注册表
 
-> 迁移边界：本文件描述当前 SQLite/广播包生产现状，不能被解释为未来 PostgreSQL 的恢复设计。按 `openspec/changes/github-vm-dual-node-operations/` 实施数据切换后，PostgreSQL 备份、RPO/RTO、旁路单域恢复和旧 SQLite 保留角色必须在获批阶段单独更新；PostgreSQL 已产生有效新写入后，当前 `backup/latest` 内的旧 SQLite 不是无损 production rollback target。
+> 迁移边界：本文件同时保留 SQLite/广播包时代的历史恢复事实，并登记当前 PostgreSQL S3 的脱敏恢复合同。PostgreSQL 已产生有效新写入，`backup/latest` 内的旧 SQLite 不是无损 production rollback target；当前生产恢复以经验证的 PostgreSQL base backup、目标 WAL、异机 recovery set 和旁路恢复 evidence 为准。
 
-## 当前 SQLite 时代唯一项目内长期备份
+## SQLite 时代项目内长期备份（历史兼容）
 
 - 固定位置：`D:\quant\industry_demo\backup\latest`
 - 归档文件：`industry_demo_latest.zip`
@@ -53,3 +53,16 @@
 3. S3/S4 中的旧 SQLite 只是迁移基线、审计档案和有限修复材料，不是无损回滚点；恢复优先使用 PostgreSQL 前向修复、schema 兼容的代码回滚、旁路恢复后选择性修复，或另行批准的显式反向迁移。
 4. 最终生产迁移验收必须通过整库灾难恢复、单域旁路恢复和空机恢复取得 measured RPO/RTO，记录实际恢复点、耗时、未恢复数据、补抓及选择性修复耗时，并与目标对账。
 5. 当前有效的 SQLite 恢复记录应原样保留为历史事实；未来 PostgreSQL 记录追加到本注册表时必须明确数据时代、验证范围和故障域，不能改写历史清单来伪装新能力已经存在。
+
+## Stage 4 PostgreSQL 已验证恢复事实
+
+> 本节记录脱敏后的恢复能力与 identity，不包含数据库、WAL、凭据、TLS 私钥、SMB credential 或原始 recovery evidence。
+
+- 九个 cutover unit 已进入 S3，PostgreSQL 是唯一 authority/writer；旧 SQLite 仅为 migration baseline/audit，不能作为 production rollback target。
+- 最终 post-S3 recovery set 位于批准的另一故障域，完整包含 base backup、目标 WAL、sentinel、manifest、逐文件 hash、source/storage identity 与恢复目标水位。
+- restore 只使用异机 recovery set，whole-database、authority-control、side-domain restore 和九个 authority snapshot 对账均必须通过。
+- 最终 recovery set identity：`5854c08a44b4b25d6a7ae6662f52ac89df263fd20d0110528d02482ee0072cc5`。
+- 最终 recovery evidence 内容 identity：`06bea500760b96d4856e3f7bdc886a167c07f396f1ce18f227c45c3568a22ac2`；文件 SHA256：`b5148947baaa870917b64db8f266e526a6c63641797544a2281d3c3c089b9089`。
+- measured RPO / RTO：0.007 秒 / 8.047 秒；whole-database、authority-control、side-domain restore 均为 PASS，九个 formal unit authority snapshot 全部一致。
+- retention 最终只保留 `stage4-20260815T231501Z-aedb9d2e` 和 `stage4-20260815T185455Z-6b56b3aa` 两份完整验证集；最旧有效集及唯一未验证失败目录已分别按 retention 与独立 cleanup evidence 删除。
+- 同 VM 的本机 backup/restore-test 目录只是构建和演练临时材料，不构成 off-VM 副本；最终验证完成后可按显式清单清理。
