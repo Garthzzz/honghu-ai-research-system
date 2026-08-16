@@ -27,6 +27,28 @@ def test_locked_pywin32_extension_paths_are_explicit_without_pth_execution(tmp_p
         sys.path[:] = original
 
 
+def test_locked_pywin32_dll_directory_is_registered_and_retained(monkeypatch, tmp_path):
+    (tmp_path / "win32" / "lib").mkdir(parents=True)
+    (tmp_path / "pywin32_system32").mkdir()
+    handles = []
+    handle = object()
+    monkeypatch.setattr(direct_candidate.os, "name", "nt")
+    monkeypatch.setattr(
+        direct_candidate.os,
+        "add_dll_directory",
+        lambda path: handles.append(path) or handle,
+    )
+    before = list(direct_candidate._DLL_DIRECTORY_HANDLES)
+    original_path = list(sys.path)
+    try:
+        prepare_import_path(tmp_path)
+        assert handles == [str(tmp_path / "pywin32_system32")]
+        assert direct_candidate._DLL_DIRECTORY_HANDLES[-1] is handle
+    finally:
+        sys.path[:] = original_path
+        direct_candidate._DLL_DIRECTORY_HANDLES[:] = before
+
+
 def test_outer_bootstrap_preserves_distinct_inner_site_packages_option(
     monkeypatch, tmp_path
 ):

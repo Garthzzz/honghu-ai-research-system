@@ -13,6 +13,7 @@ written into an immutable release.
 
 import argparse
 import importlib
+import os
 import sys
 from pathlib import Path
 
@@ -31,6 +32,9 @@ ALLOWED_MODULES = {
     "tools.operations.recovery_health": "main",
     "tools.migration.stage4_apply_postgresql_migrations": "main",
 }
+
+
+_DLL_DIRECTORY_HANDLES: list[object] = []
 
 
 def configure_utf8_stdio() -> None:
@@ -72,6 +76,14 @@ def prepare_import_path(site_packages: str | Path) -> tuple[Path, Path]:
         for candidate in (locked_site / "win32", locked_site / "win32" / "lib")
         if candidate.is_dir()
     ]
+    # pywin32 extension modules import ``pywintypes`` from a sibling DLL
+    # directory.  ``-I -S`` intentionally ignores the install-time .pth hook,
+    # so register only this reviewed directory and retain its handle for the
+    # process lifetime.  Merely adding ``win32`` to sys.path is insufficient
+    # on current Windows DLL search semantics.
+    dll_directory = locked_site / "pywin32_system32"
+    if os.name == "nt" and dll_directory.is_dir():
+        _DLL_DIRECTORY_HANDLES.append(os.add_dll_directory(str(dll_directory)))
     sys.path[:] = [
         str(release_root),
         str(locked_site),
