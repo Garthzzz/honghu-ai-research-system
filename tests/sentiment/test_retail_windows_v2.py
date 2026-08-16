@@ -728,6 +728,56 @@ class RetailDataLayerTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(order, [current.window_id, older.window_id])
 
+    def test_controlled_historical_trial_does_not_fan_out_to_auto_backfill(self):
+        selected = senti3.market_window(date(2026, 7, 16), "preopen")
+        order = []
+        clock = mock.Mock()
+        clock.now.return_value.weekday.return_value = 0
+
+        class DummyConnection:
+            def close(self):
+                return None
+
+        def fake_execute(window, **_kwargs):
+            order.append(window.window_id)
+            return 0, {
+                "ok": True,
+                "window_id": window.window_id,
+                "status": "complete",
+                "kline_ok": True,
+            }
+
+        with mock.patch.dict(
+            retail_window_tick.os.environ,
+            {
+                "HONGHU_TASK_CONTROLLED_TRIAL": "1",
+                "HONGHU_CONTROLLED_SESSION_DATE": "2026-07-16",
+            },
+        ), mock.patch.object(
+            retail_window_tick, "datetime", clock
+        ), mock.patch.object(
+            retail_window_tick, "exclusive_tick_lock", return_value=nullcontext()
+        ), mock.patch.object(
+            retail_window_tick.common, "get_senti_db", return_value=DummyConnection()
+        ), mock.patch.object(
+            retail_window_tick.common, "assert_senti_only"
+        ), mock.patch.object(
+            retail_window_tick, "wait_for_fresh_orphaned_xinghan", return_value=None
+        ), mock.patch.object(
+            retail_window_tick, "recover_stale_windows", return_value=[]
+        ), mock.patch.object(
+            retail_window_tick, "resolve_window", return_value=selected
+        ), mock.patch.object(
+            retail_window_tick, "due_auto_backfill_windows"
+        ) as due, mock.patch.object(
+            retail_window_tick, "execute_window", side_effect=fake_execute
+        ), mock.patch("builtins.print"):
+            code = retail_window_tick.main(["--slot", "preopen"])
+
+        self.assertEqual(code, 0)
+        self.assertEqual(order, [selected.window_id])
+        due.assert_not_called()
+
     def test_main_yields_history_backfill_when_newer_slot_became_due(self):
         current = senti3.market_window(date(2026, 7, 20), "morning")
         newer = senti3.market_window(date(2026, 7, 20), "afternoon")

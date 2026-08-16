@@ -1075,6 +1075,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.session_date is not None and args.session_date != parsed_controlled_session:
             raise RuntimeError("controlled session date conflicts with command arguments")
         args.session_date = parsed_controlled_session
+        # A reviewed historical trial proves one exact business window.  It
+        # must not silently fan out into unrelated backlog work after that
+        # window succeeds.  Normal scheduled runs never receive this fenced
+        # environment marker and retain the production auto-backfill policy.
+        args.no_auto_backfill = True
     try:
         with exclusive_tick_lock():
             from tools.data_platform.run_domain_operation import derived_operation_id
