@@ -60,9 +60,9 @@ $migrationEvidence = Join-Path $RuntimeDir 'evidence\stage5_migration_applicatio
 
 # Expand the control-plane schema and bind disabled definitions before any
 # service-account task can be registered.  This does not run a business task.
-& $python -I -B (Join-Path $ReleaseDir 'tools\migration\stage4_isolated_entry.py') `
-    --repo-root $ReleaseDir --module tools.migration.stage4_apply_postgresql_migrations `
-    -- --repo-root $ReleaseDir --runtime $RuntimeCatalog `
+& $python -I -B -S $bootstrap --site-packages $SitePackages `
+    --module tools.migration.stage4_apply_postgresql_migrations `
+    --repo-root $ReleaseDir --runtime $RuntimeCatalog `
     --migration '0013_stage5_task_operations.sql' --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
 & $python -I -B -S $bootstrap --site-packages $SitePackages `
