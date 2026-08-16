@@ -62,8 +62,8 @@ $migrationEvidence = Join-Path $RuntimeDir 'evidence\stage5_migration_applicatio
 # service-account task can be registered.  This does not run a business task.
 & $python -I -B (Join-Path $ReleaseDir 'tools\migration\stage4_isolated_entry.py') `
     --repo-root $ReleaseDir --module tools.migration.stage4_apply_postgresql_migrations `
-    -- --runtime $RuntimeCatalog --migrations-dir (Join-Path $ReleaseDir 'migrations\postgresql') `
-    --evidence $migrationEvidence | Out-Null
+    -- --repo-root $ReleaseDir --runtime $RuntimeCatalog `
+    --migration '0013_stage5_task_operations.sql' --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
 & $python -I -B -S $bootstrap --site-packages $SitePackages `
     --module tools.operations.task_runner register `

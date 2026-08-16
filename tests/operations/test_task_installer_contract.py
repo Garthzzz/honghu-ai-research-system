@@ -43,6 +43,17 @@ def test_service_account_description_respects_windows_48_character_limit():
     assert all(len(value) <= 48 for value in descriptions)
 
 
+def test_provisioner_uses_real_isolated_migration_cli_contract():
+    text = (ROOT / "tools/operations/Provision-ProductionTaskRunner.ps1").read_text(
+        encoding="utf-8"
+    )
+    assert "--module tools.migration.stage4_apply_postgresql_migrations" in text
+    assert "-- --repo-root $ReleaseDir --runtime $RuntimeCatalog" in text
+    assert "--migration '0013_stage5_task_operations.sql' --output $migrationEvidence" in text
+    assert "--migrations-dir" not in text
+    assert "--evidence $migrationEvidence" not in text
+
+
 def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():
     text = (ROOT / "tools/operations/task_credential_transfer.py").read_text(encoding="utf-8")
     assert "TASK_ROLES" in text
