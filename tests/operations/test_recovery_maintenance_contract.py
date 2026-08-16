@@ -39,8 +39,10 @@ def test_recovery_service_account_description_respects_windows_limit():
 def test_recovery_wrapper_requires_encrypted_smb_and_never_carries_password_argument():
     source = (ROOT / "tools" / "operations" / "Invoke-Stage5-ContinuousRecovery.ps1").read_text(encoding="utf-8")
     assert "ProtectedData]::Unprotect" in source
-    assert "Get-SmbConnection" in source
-    assert "[bool]$smb.Encrypted" in source
+    assert "New-SmbMapping" in source
+    assert "-RequirePrivacy $true" in source
+    assert "-Persistent $false" in source
+    assert "Get-SmbConnection" not in source
     assert "stage5_recovery_cycle" in source
     assert "--at-rest-encryption-evidence" in source
     assert "--initial-recovery-boundary" in source

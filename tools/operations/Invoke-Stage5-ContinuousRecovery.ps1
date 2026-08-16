@@ -37,33 +37,37 @@ try {
     $credential = [Management.Automation.PSCredential]::new(
         $SmbUser, (ConvertTo-SecureString $password -AsPlainText -Force)
     )
-    Remove-PSDrive H5Recovery -Force -ErrorAction SilentlyContinue
-    New-PSDrive -Name H5Recovery -PSProvider FileSystem -Root $OffVmRoot `
-        -Credential $credential -Scope Global | Out-Null
+    Remove-SmbMapping -RemotePath $OffVmRoot -Force -UpdateProfile:$false `
+        -ErrorAction SilentlyContinue | Out-Null
+    New-SmbMapping -RemotePath $OffVmRoot -Credential $credential `
+        -RequirePrivacy $true -Persistent $false | Out-Null
     $mapped = $true
     if (-not (Test-Path -LiteralPath $OffVmRoot -PathType Container)) {
         throw 'Approved off-VM recovery share is unreachable.'
     }
-    $shareName = ([Uri]($OffVmRoot -replace '^\\\\', 'file://')).Segments[1].TrimEnd('/')
-    $smb = Get-SmbConnection -ErrorAction Stop |
-        Where-Object { $_.ShareName -eq $shareName } | Select-Object -First 1
-    if ($null -eq $smb -or -not [bool]$smb.Encrypted) {
-        throw 'Off-VM SMB transport encryption is not verified.'
-    }
     $destination = Join-Path $OffVmRoot 'honghu-postgresql\stage5-continuous-wal'
     New-Item -ItemType Directory -Force $destination | Out-Null
-    $json = & $BootstrapPythonExe -I -B -S $bootstrap `
-        --site-packages $SitePackages `
-        --module tools.operations.stage5_recovery_cycle `
-        --runtime-catalog $RuntimeCatalog `
-        --source-archive $SourceArchive `
-        --destination $destination `
-        --expected-storage-identity $ExpectedStorageIdentity `
-        --at-rest-encryption-evidence $AtRestEncryptionEvidence `
-        --initial-recovery-boundary $InitialRecoveryBoundary `
-        --archive-only `
-        --max-archive-age-seconds 900 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw 'Stage5 continuous WAL recovery cycle failed.' }
+    $savedErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $json = & $BootstrapPythonExe -I -B -S $bootstrap `
+            --site-packages $SitePackages `
+            --module tools.operations.stage5_recovery_cycle `
+            --runtime-catalog $RuntimeCatalog `
+            --source-archive $SourceArchive `
+            --destination $destination `
+            --expected-storage-identity $ExpectedStorageIdentity `
+            --at-rest-encryption-evidence $AtRestEncryptionEvidence `
+            --initial-recovery-boundary $InitialRecoveryBoundary `
+            --archive-only `
+            --max-archive-age-seconds 900 2>&1 | Out-String
+        $pythonExitCode = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $savedErrorActionPreference
+    }
+    if ($pythonExitCode -ne 0) {
+        throw "Stage5 continuous WAL recovery cycle failed: $($json.Trim())"
+    }
     $result = $json | ConvertFrom-Json
     if ($result.status -ne 'pass' -or $result.storage_identity -ne $ExpectedStorageIdentity) {
         throw 'Stage5 recovery cycle returned mismatched evidence.'
@@ -77,7 +81,10 @@ try {
     )
     $result | ConvertTo-Json -Depth 10
 } finally {
-    if ($mapped) { Remove-PSDrive H5Recovery -Force -ErrorAction SilentlyContinue }
+    if ($mapped) {
+        Remove-SmbMapping -RemotePath $OffVmRoot -Force -UpdateProfile:$false `
+            -ErrorAction SilentlyContinue | Out-Null
+    }
     if ($null -ne $plainBytes) { [Array]::Clear($plainBytes,0,$plainBytes.Length) }
     $password = $null
 }
