@@ -60,7 +60,9 @@ try {
         --destination $destination `
         --expected-storage-identity $ExpectedStorageIdentity `
         --at-rest-encryption-evidence $AtRestEncryptionEvidence `
-        --initial-recovery-boundary $InitialRecoveryBoundary | Out-String
+        --initial-recovery-boundary $InitialRecoveryBoundary `
+        --archive-only `
+        --max-archive-age-seconds 900 | Out-String
     if ($LASTEXITCODE -ne 0) { throw 'Stage5 continuous WAL recovery cycle failed.' }
     $result = $json | ConvertFrom-Json
     if ($result.status -ne 'pass' -or $result.storage_identity -ne $ExpectedStorageIdentity) {

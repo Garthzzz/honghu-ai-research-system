@@ -13,14 +13,15 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "<Enabled>false</Enabled>" in source
     assert "Enable-ScheduledTask" in source
     assert "LastTaskResult -ne 0" in source
-    assert source.count("LastRunTime -gt $before.LastRunTime") == 2
-    assert source.count("-not $ran") >= 4
+    assert source.count("LastRunTime -gt $before.LastRunTime") == 1
+    assert source.count("-not $ran") >= 2
     assert "-PasswordNeverExpires $true" in source
     assert "-UserMayChangePassword $false" in source
     assert "ExpectedStorageIdentity" in source
     assert "AtRestEncryptionEvidence" in source
     assert "InitialRecoveryBoundary" in source
     assert "Password $plain" in source
+    assert "database_credential_required=$false" in source
     assert "secret_recorded=$false" in source
 
 
@@ -41,6 +42,8 @@ def test_recovery_wrapper_requires_encrypted_smb_and_never_carries_password_argu
     assert "stage5_recovery_cycle" in source
     assert "--at-rest-encryption-evidence" in source
     assert "--initial-recovery-boundary" in source
+    assert "--archive-only" in source
+    assert "--max-archive-age-seconds 900" in source
     assert "-Password" not in source
 
 

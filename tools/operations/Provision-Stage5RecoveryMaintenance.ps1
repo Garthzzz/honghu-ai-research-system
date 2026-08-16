@@ -55,48 +55,9 @@ $principalName = "$env:COMPUTERNAME\$LocalUser"
 if ((Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue).Name -contains $principalName) {
     throw 'Dedicated recovery runner must not be a local administrator.'
 }
-$credential = [Management.Automation.PSCredential]::new($principalName,$secure)
-
-$transfer = Join-Path $RuntimeDir 'credential-transfer\backup-role.dpapi'
-New-Item -ItemType Directory -Force (Split-Path -Parent $transfer) | Out-Null
-& $python -I -B -S $bootstrap --site-packages $SitePackages `
-    --module tools.operations.backup_credential_transfer export `
-    --catalog $RuntimeCatalog --output $transfer | Out-Null
-if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $transfer -PathType Leaf)) {
-    throw 'Backup-role credential export failed.'
-}
-& icacls.exe $transfer '/inheritance:r' "/grant:r" "$principalName`:(R)" 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
-if ($LASTEXITCODE -ne 0) { throw 'Backup credential transfer ACL failed.' }
 & icacls.exe $CredentialBlobPath "/grant:r" "$principalName`:(R)" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'SMB credential blob ACL failed.' }
-
-$credentialTask = 'HonghuStage5_BackupCredentialBootstrap'
-$credentialArgs = @(
-    '-I','-B','-S',$bootstrap,'--site-packages',$SitePackages,
-    '--module','tools.operations.backup_credential_transfer','import',
-    '--source',$transfer,'--catalog',$RuntimeCatalog
-) | ForEach-Object { Quote-Arg ([string]$_) }
-$bootstrapAction = New-ScheduledTaskAction -Execute $python -Argument ($credentialArgs -join ' ') -WorkingDirectory $ReleaseDir
 $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew
-try {
-    Register-ScheduledTask -TaskName $credentialTask -Action $bootstrapAction -Settings $settings `
-        -User $principalName -Password $plain -RunLevel Limited -Force | Out-Null
-    $before = Get-ScheduledTaskInfo $credentialTask
-    Start-ScheduledTask -TaskName $credentialTask
-    $deadline = (Get-Date).AddMinutes(3)
-    do {
-        Start-Sleep -Seconds 2
-        $state=(Get-ScheduledTask $credentialTask).State
-        $info=Get-ScheduledTaskInfo $credentialTask
-        $ran=($info.LastRunTime -gt $before.LastRunTime)
-    } while(((-not $ran) -or $state -eq 'Running') -and (Get-Date) -lt $deadline)
-    if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or (Test-Path $transfer)) {
-        throw "Backup credential bootstrap failed: state=$state result=$($info.LastTaskResult)"
-    }
-} finally {
-    Unregister-ScheduledTask $credentialTask -Confirm:$false -ErrorAction SilentlyContinue
-    Remove-Item $transfer -Force -ErrorAction SilentlyContinue
-}
 
 $taskName = 'HonghuStage5_ContinuousWalOffVm'
 $output = Join-Path $RuntimeDir 'recovery\continuous_wal_latest.json'
@@ -142,6 +103,8 @@ if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (
     task_name=$taskName
     principal=$principalName
     local_administrator=$false
+    database_credential_required=$false
+    database_business_write_possible=$false
     enabled=$true
     interval_minutes=5
     output_path=$output
