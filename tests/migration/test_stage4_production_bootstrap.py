@@ -9,6 +9,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -30,6 +31,8 @@ from tools.migration.stage4_production_recovery import (
     _system_identifier,
     _verify_base_backup,
     _wait_for_recovery_target,
+    read_task_checkpoint_snapshot,
+    verify_task_checkpoint_restore,
     ProductionRecoveryError,
 )
 from tools.migration.stage4_authority_control import (
@@ -47,6 +50,127 @@ from tools.migration import stage4_isolated_entry as isolated_entry_module
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+TASK_IDS = (
+    "IndustryDemo_DynamicTick",
+    "IndustryDemo_EventIngest",
+    "IndustryDemo_RecruitWeekly",
+    "IndustryDemo_Retail_Afternoon",
+    "IndustryDemo_Retail_Morning",
+    "IndustryDemo_Retail_Preopen",
+    "IndustryDemo_SentimentRetention",
+)
+
+
+class _TaskCheckpointCursor:
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
+        self.rows = rows
+
+    def fetchall(self) -> list[tuple[object, ...]]:
+        return self.rows
+
+
+class _TaskCheckpointConnection:
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
+        self.rows = rows
+
+    def execute(self, sql: str) -> _TaskCheckpointCursor:
+        assert "operations.production_task_definition" in sql
+        assert "operations.production_task_run" in sql
+        assert "ORDER BY d.task_id" in sql
+        return _TaskCheckpointCursor(self.rows)
+
+
+def _task_checkpoint_rows() -> list[tuple[object, ...]]:
+    observed_at = datetime(2026, 8, 17, 1, 2, 3, tzinfo=timezone.utc)
+    rows: list[tuple[object, ...]] = []
+    for index, task_id in enumerate(TASK_IDS):
+        definition = (
+            task_id,
+            "a" * 64,
+            "b" * 40,
+            "operations_governance" if index == 0 else "sentiment_analytics",
+            ["operations_governance"] if index == 0 else ["sentiment_analytics"],
+            "DESKTOP-VGD07J4",
+            900,
+            True,
+            2,
+            observed_at,
+            observed_at,
+        )
+        if index == 0:
+            latest = (
+                "2026-08-17T09:00+08:00",
+                1,
+                "c" * 64,
+                "a" * 64,
+                "b" * 40,
+                "DESKTOP-VGD07J4",
+                "desktop-vgd07j4\\HonghuTaskRunner",
+                "succeeded",
+                None,
+                0,
+                observed_at,
+                observed_at,
+                observed_at,
+                "d" * 64,
+                {"identity_sha256": "e" * 64, "rows": [[1, None]]},
+                {"rows": [[2, None]], "identity_sha256": "f" * 64},
+            )
+        else:
+            latest = (None,) * 16
+        rows.append((*definition, *latest))
+    return rows
+
+
+def test_task_checkpoint_restore_canonical_snapshot_and_hash() -> None:
+    source = read_task_checkpoint_snapshot(
+        _TaskCheckpointConnection(_task_checkpoint_rows()),
+        expected_task_ids=TASK_IDS,
+    )
+    restored_rows = _task_checkpoint_rows()
+    # JSONB key order must not change the recovery identity.
+    restored_rows[0] = (
+        *restored_rows[0][:-1],
+        {"identity_sha256": "f" * 64, "rows": [[2, None]]},
+    )
+    restored = read_task_checkpoint_snapshot(
+        _TaskCheckpointConnection(restored_rows),
+        expected_task_ids=TASK_IDS,
+    )
+
+    result = verify_task_checkpoint_restore(source, restored)
+
+    assert result["verified"] is True
+    assert result["task_count"] == 7
+    assert result["latest_run_count"] == 1
+    assert result["source_snapshot_identity_sha256"] == source["identity_sha256"]
+    assert result["restored_snapshot_identity_sha256"] == source["identity_sha256"]
+    assert source["tasks"][0]["latest_run"]["finished_at_utc"].endswith("+00:00")
+
+
+def test_task_checkpoint_restore_fails_closed_on_checkpoint_or_task_set_drift() -> None:
+    source = read_task_checkpoint_snapshot(
+        _TaskCheckpointConnection(_task_checkpoint_rows()),
+        expected_task_ids=TASK_IDS,
+    )
+    changed_rows = _task_checkpoint_rows()
+    latest = list(changed_rows[0])
+    latest[-1] = {"identity_sha256": "0" * 64}
+    changed_rows[0] = tuple(latest)
+    restored = read_task_checkpoint_snapshot(
+        _TaskCheckpointConnection(changed_rows),
+        expected_task_ids=TASK_IDS,
+    )
+    with pytest.raises(ProductionRecoveryError, match="do not match source"):
+        verify_task_checkpoint_restore(source, restored)
+
+    with pytest.raises(ProductionRecoveryError, match="definition set mismatch"):
+        read_task_checkpoint_snapshot(
+            _TaskCheckpointConnection(_task_checkpoint_rows()[:-1]),
+            expected_task_ids=TASK_IDS,
+        )
 
 
 def test_recovery_authority_snapshot_accepts_complete_s3() -> None:
