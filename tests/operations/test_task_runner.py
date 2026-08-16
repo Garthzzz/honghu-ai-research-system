@@ -114,7 +114,8 @@ def test_runtime_roots_are_bound_before_authority_and_checkpoint_probes():
 def test_idempotent_skip_returns_full_exact_release_evidence_contract():
     source = inspect.getsource(__import__("tools.operations.task_runner", fromlist=["run_task"]).run_task)
     assert '"status": "skipped"' in source
-    assert '"application_commit_sha": str(prior[4])' in source
+    assert '"application_commit_sha": commit' in source
+    assert '"prior_success_application_commit_sha": str(prior[4])' in source
     assert '"business_checkpoint_after_sha256"' in source
 
 

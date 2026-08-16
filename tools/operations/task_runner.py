@@ -333,7 +333,11 @@ def run_task(
                 "returncode": 0,
                 "operation_id_sha256": str(prior[2]),
                 "manifest_sha256": str(prior[3]),
-                "application_commit_sha": str(prior[4]),
+                # The envelope describes the exact release that performed
+                # this idempotent verification.  Preserve the commit that
+                # originally completed the window as separate audit data.
+                "application_commit_sha": commit,
+                "prior_success_application_commit_sha": str(prior[4]),
                 "business_checkpoint_before_sha256": before.get("identity_sha256"),
                 "business_checkpoint_after_sha256": after.get("identity_sha256"),
             }
