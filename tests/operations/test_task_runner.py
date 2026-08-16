@@ -142,6 +142,15 @@ def test_child_command_is_import_isolated_and_bytecode_free(tmp_path, monkeypatc
     assert command[9:12] == ["--task-module", "tools.dynamic.scheduler", "--"]
 
 
+def test_outer_runner_owns_job_before_authority_or_child_work():
+    source = inspect.getsource(
+        __import__("tools.operations.task_runner", fromlist=["run_task"]).run_task
+    )
+    assert source.index("ensure_self_killing_job()") < source.index(
+        "_validate_authority(task)"
+    )
+
+
 def test_runtime_roots_are_bound_before_authority_and_checkpoint_probes():
     source = inspect.getsource(__import__("tools.operations.task_runner", fromlist=["run_task"]).run_task)
     state_assignment = source.index('"HONGHU_STATE_ROOT"')

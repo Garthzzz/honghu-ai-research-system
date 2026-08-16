@@ -2,20 +2,29 @@ from __future__ import annotations
 
 """Bind a production task process tree to one kill-on-close Windows Job.
 
-The task child enrolls itself before importing any producer module.  Every
-subprocess subsequently created by that producer inherits Job membership.  If
-Task Scheduler or the Stage 5 runner terminates the task child, Windows closes
-the last Job handle and terminates all surviving descendants as one unit.
+The outer task runner enrolls itself before authority checks or producer work.
+Every subprocess subsequently created by the runner inherits Job membership.
+If Task Scheduler terminates the runner, Windows closes the owning handle and
+terminates all surviving descendants as one unit.
 """
 
 import os
 
 
 _SELF_JOB_HANDLE: int | None = None
+_PARENT_JOB_MARKER = "HONGHU_TASK_KILL_ON_CLOSE_JOB"
 
 
 def ensure_self_killing_job() -> bool:
-    """Enroll the current process in a kill-on-close Job, or fail closed."""
+    """Own or inherit the reviewed kill-on-close task Job.
+
+    The outer task runner creates the Job and deliberately keeps its only
+    handle.  Descendants inherit membership, but not that handle.  They also
+    inherit the private marker and verify their membership with
+    ``IsProcessInJob`` instead of attempting to create a nested Job.  Thus a
+    Task Scheduler stop of the outer runner closes the owning handle and
+    reaps the complete process tree immediately.
+    """
 
     global _SELF_JOB_HANDLE
     if os.name != "nt":
@@ -70,10 +79,28 @@ def ensure_self_killing_job() -> bool:
     )
     kernel32.SetInformationJobObject.restype = wintypes.BOOL
     kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+    kernel32.IsProcessInJob.argtypes = (
+        wintypes.HANDLE,
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.BOOL),
+    )
+    kernel32.IsProcessInJob.restype = wintypes.BOOL
     kernel32.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
     kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
     kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
     kernel32.CloseHandle.restype = wintypes.BOOL
+
+    if os.environ.get(_PARENT_JOB_MARKER) == "1":
+        in_job = wintypes.BOOL()
+        if not kernel32.IsProcessInJob(
+            kernel32.GetCurrentProcess(), None, ctypes.byref(in_job)
+        ):
+            raise OSError(ctypes.get_last_error(), "IsProcessInJob failed")
+        if not in_job.value:
+            raise RuntimeError(
+                "task Job marker is present but the process is outside the parent Job"
+            )
+        return True
 
     handle = kernel32.CreateJobObjectW(None, None)
     if not handle:
@@ -93,4 +120,5 @@ def ensure_self_killing_job() -> bool:
     # Deliberately retain the only non-inheritable handle for the lifetime of
     # this root process.  Normal exit or forced termination then closes it.
     _SELF_JOB_HANDLE = int(handle)
+    os.environ[_PARENT_JOB_MARKER] = "1"
     return True

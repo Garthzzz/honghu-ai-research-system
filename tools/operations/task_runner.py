@@ -23,6 +23,7 @@ from tools.data_platform.routing import Backend, load_environment_authority_matr
 from tools.data_platform.run_domain_operation import trusted_os_principal
 from tools.operations.task_business_probe import probe as probe_business_checkpoint
 from tools.operations.task_manifest import TaskDefinition, TaskManifest, load_task_manifest
+from tools.operations.windows_job import ensure_self_killing_job
 
 
 BEIJING = ZoneInfo("Asia/Shanghai")
@@ -309,6 +310,10 @@ def run_task(
     allow_disabled: bool = False,
     controlled_session_date: str | None = None,
 ) -> dict[str, Any]:
+    # This process is the Scheduled Task / controlled-trial root.  It must own
+    # the kill-on-close Job before any producer child is launched so stopping
+    # the Scheduled Task cannot leave a writer alive for several seconds.
+    ensure_self_killing_job()
     host = socket.gethostname().upper()
     if host != manifest.runner_host:
         raise TaskRunnerError(f"task manifest is bound to {manifest.runner_host}, not {host}")
