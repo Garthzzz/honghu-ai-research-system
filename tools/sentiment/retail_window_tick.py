@@ -854,6 +854,30 @@ def resolve_window(
     return window
 
 
+def _open_window_connection(window_id: str, phase: str):
+    """Open one bounded parent mutation phase for a retail window.
+
+    The PostgreSQL-authoritative projection holds its interprocess writer lock
+    for the lifetime of a connection.  Source children need that same lock, so
+    the parent closes each phase before spawning a child.  Stable phase names
+    also keep the adapter's per-connection transaction counter from reusing an
+    idempotency key after reconnecting.
+    """
+    from tools.data_platform.run_domain_operation import derived_operation_id
+
+    operation_id = (
+        derived_operation_id(f"window:{window_id}:parent:{phase}")
+        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+        else None
+    )
+    con = common.get_senti_db(
+        operation_scope="retail_window",
+        operation_id=operation_id,
+    )
+    common.assert_senti_only(con)
+    return con
+
+
 def execute_window(
     window: senti3.MarketWindow,
     *,
@@ -861,17 +885,7 @@ def execute_window(
     score_max: int,
     force: bool = False,
 ) -> tuple[int, dict]:
-    from tools.data_platform.run_domain_operation import derived_operation_id
-
-    con = common.get_senti_db(
-        operation_scope="retail_window",
-        operation_id=(
-            derived_operation_id(f"window:{window.window_id}")
-            if os.environ.get("HONGHU_OPERATION_ID", "").strip()
-            else None
-        ),
-    )
-    common.assert_senti_only(con)
+    con = _open_window_connection(window.window_id, "initialize")
     retail_windows_v2.ensure_schema(con)
     retail_windows_v2.ensure_window(con, window)
     commands = build_commands(
@@ -916,44 +930,86 @@ def execute_window(
 
     retail_windows_v2.mark_window_status(con, window.window_id, "running")
     con.commit()
+    con.close()
     executed_sources: list[str] = []
     skipped_sources: list[str] = []
     for command in commands:
-        # 修复窗口只补失败/缺失来源；score 每次动态核对候选集，因此 guba
-        # 重试新增的帖子会在同一轮随后被评分，不会被旧 complete 状态遮住。
-        if not force and _source_is_satisfied(con, window.window_id, command.source):
-            skipped_sources.append(command.source)
+        con = _open_window_connection(
+            window.window_id, f"source:{command.source}:start"
+        )
+        skip_source = False
+        try:
+            # 修复窗口只补失败/缺失来源；score 每次动态核对候选集，因此 guba
+            # 重试新增的帖子会在同一轮随后被评分，不会被旧 complete 状态遮住。
+            if not force and _source_is_satisfied(
+                con, window.window_id, command.source
+            ):
+                skipped_sources.append(command.source)
+                skip_source = True
+            else:
+                before_count = _source_row_count(
+                    con, window.window_id, command.source
+                )
+                current_source = _source_rows(con, window.window_id).get(
+                    command.source
+                )
+                if not current_source or str(current_source["status"]) != "running":
+                    _source_status(
+                        con, window.window_id, command.source, "running"
+                    )
+                    con.commit()
+        finally:
+            # Release the PostgreSQL projection writer lock before the child
+            # opens its own bounded connection.  The outer tick lock remains
+            # held, so another Retail runner still cannot enter.
+            con.close()
+        if skip_source:
             continue
-        before_count = _source_row_count(con, window.window_id, command.source)
-        _source_status(con, window.window_id, command.source, "running")
-        con.commit()
         child = run_child(command)
         executed_sources.append(command.source)
 
-        # 两个抓取源完成后立即按真实 publish_time 映射；preopen 宽边界中的周末
-        # 会被 market_window_for_timestamp 再次排除。
+        # Mapping and source-status publication are separate stable mutation
+        # phases.  Otherwise an uncertain map commit followed by a retry with
+        # no remaining map delta could shift the per-connection transaction
+        # index and collide with the prior source-status operation identity.
         if command.source in {"guba", "xinghan"}:
-            retail_windows_v2.map_retail_raw_rows(
+            con = _open_window_connection(
+                window.window_id, f"source:{command.source}:map"
+            )
+            try:
+                retail_windows_v2.map_retail_raw_rows(
+                    con,
+                    since=window.window_start.isoformat(timespec="minutes"),
+                    until=window.window_end.isoformat(timespec="minutes"),
+                )
+                con.commit()
+            finally:
+                con.close()
+
+        con = _open_window_connection(
+            window.window_id, f"source:{command.source}:finish"
+        )
+        try:
+            after_count = _source_row_count(con, window.window_id, command.source)
+            source_state = "failed" if not child.ok else (
+                "empty"
+                if command.source in {"guba", "xinghan"} and after_count == 0
+                else "complete"
+            )
+            _source_status(
                 con,
-                since=window.window_start.isoformat(timespec="minutes"),
-                until=window.window_end.isoformat(timespec="minutes"),
+                window.window_id,
+                command.source,
+                source_state,
+                child,
+                records_seen=after_count,
+                inserted=max(after_count - before_count, 0),
             )
             con.commit()
-        after_count = _source_row_count(con, window.window_id, command.source)
-        source_state = "failed" if not child.ok else (
-            "empty" if command.source in {"guba", "xinghan"} and after_count == 0 else "complete"
-        )
-        _source_status(
-            con,
-            window.window_id,
-            command.source,
-            source_state,
-            child,
-            records_seen=after_count,
-            inserted=max(after_count - before_count, 0),
-        )
-        con.commit()
+        finally:
+            con.close()
 
+    con = _open_window_connection(window.window_id, "reconcile")
     try:
         reconciled = reconcile_window(con, window.window_id)
         con.commit()

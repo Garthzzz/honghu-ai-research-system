@@ -555,6 +555,144 @@ class RetailDataLayerTests(unittest.TestCase):
             self.assertEqual(result["skipped_sources"], ["guba", "score", "kline"])
             self.assertEqual(result["status"], "complete")
 
+    def test_execute_window_releases_parent_writer_before_child_and_uses_stable_phases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "sentiment.db"
+            seed = sqlite3.connect(db_path)
+            seed.executescript(RAW_DDL)
+            seed.close()
+            connections = []
+            connection_calls = []
+
+            class TrackingConnection:
+                def __init__(self):
+                    self.connection = sqlite3.connect(db_path)
+                    self.connection.row_factory = sqlite3.Row
+                    self.connection.execute("PRAGMA foreign_keys=ON")
+                    self.closed = False
+
+                def close(self):
+                    self.connection.close()
+                    self.closed = True
+
+                def __getattr__(self, name):
+                    return getattr(self.connection, name)
+
+            def connect(**kwargs):
+                connection_calls.append(kwargs)
+                con = TrackingConnection()
+                connections.append(con)
+                return con
+
+            child_observations = []
+
+            def fake_child(command):
+                child_observations.append(
+                    {
+                        "source": command.source,
+                        "all_parent_connections_closed": all(
+                            con.closed for con in connections
+                        ),
+                    }
+                )
+                return retail_window_tick.ChildResult(command.source, 0, "ok", "")
+
+            window = senti3.market_window(date(2026, 7, 20), "morning")
+            command = retail_window_tick.ChildCommand("xinghan", "unused.py", (), 10)
+            with mock.patch.dict(
+                retail_window_tick.os.environ,
+                {"HONGHU_OPERATION_ID": "sentiment:retail:2026-07-20-morning"},
+            ), mock.patch.object(
+                retail_window_tick.common, "get_senti_db", side_effect=connect
+            ), mock.patch.object(
+                retail_window_tick.common, "assert_senti_only"
+            ), mock.patch.object(
+                retail_window_tick, "build_commands", return_value=(command,)
+            ), mock.patch.object(
+                retail_window_tick, "run_child", side_effect=fake_child
+            ):
+                code, result = retail_window_tick.execute_window(
+                    window, guba_pages=1, score_max=0
+                )
+
+            self.assertEqual(code, 2)
+            self.assertFalse(result["ok"])
+            self.assertEqual(
+                child_observations,
+                [{"source": "xinghan", "all_parent_connections_closed": True}],
+            )
+            self.assertTrue(all(con.closed for con in connections))
+            self.assertEqual(
+                [call["operation_id"] for call in connection_calls],
+                [
+                    "sentiment:retail:2026-07-20-morning:step:"
+                    f"window:{window.window_id}:parent:initialize",
+                    "sentiment:retail:2026-07-20-morning:step:"
+                    f"window:{window.window_id}:parent:source:xinghan:start",
+                    "sentiment:retail:2026-07-20-morning:step:"
+                    f"window:{window.window_id}:parent:source:xinghan:map",
+                    "sentiment:retail:2026-07-20-morning:step:"
+                    f"window:{window.window_id}:parent:source:xinghan:finish",
+                    "sentiment:retail:2026-07-20-morning:step:"
+                    f"window:{window.window_id}:parent:reconcile",
+                ],
+            )
+            self.assertEqual(
+                {call["operation_scope"] for call in connection_calls},
+                {"retail_window"},
+            )
+
+    def test_execute_window_closes_parent_connection_when_map_phase_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            db_path = Path(tmp) / "sentiment.db"
+            seed = sqlite3.connect(db_path)
+            seed.executescript(RAW_DDL)
+            seed.close()
+            connections = []
+
+            class TrackingConnection:
+                def __init__(self):
+                    self.connection = sqlite3.connect(db_path)
+                    self.connection.row_factory = sqlite3.Row
+                    self.closed = False
+
+                def close(self):
+                    self.connection.close()
+                    self.closed = True
+
+                def __getattr__(self, name):
+                    return getattr(self.connection, name)
+
+            def connect(**_kwargs):
+                con = TrackingConnection()
+                connections.append(con)
+                return con
+
+            window = senti3.market_window(date(2026, 7, 20), "morning")
+            command = retail_window_tick.ChildCommand("xinghan", "unused.py", (), 10)
+            with mock.patch.object(
+                retail_window_tick.common, "get_senti_db", side_effect=connect
+            ), mock.patch.object(
+                retail_window_tick.common, "assert_senti_only"
+            ), mock.patch.object(
+                retail_window_tick, "build_commands", return_value=(command,)
+            ), mock.patch.object(
+                retail_window_tick,
+                "run_child",
+                return_value=retail_window_tick.ChildResult("xinghan", 0, "ok", ""),
+            ), mock.patch.object(
+                retail_window_tick.retail_windows_v2,
+                "map_retail_raw_rows",
+                side_effect=RuntimeError("synthetic mapping failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "synthetic mapping failure"):
+                    retail_window_tick.execute_window(
+                        window, guba_pages=1, score_max=0
+                    )
+
+            self.assertTrue(connections)
+            self.assertTrue(all(con.closed for con in connections))
+
     def test_main_executes_current_window_before_backfill(self):
         current = senti3.market_window(date(2026, 7, 20), "morning")
         older = senti3.market_window(date(2026, 7, 17), "afternoon")
