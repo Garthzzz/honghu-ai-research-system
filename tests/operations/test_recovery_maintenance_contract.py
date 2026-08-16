@@ -10,6 +10,9 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "HonghuBackupRunner" in source
     assert "RunLevel>LeastPrivilege" in source
     assert "PT5M" in source
+    assert "<ExecutionTimeLimit>PT15M</ExecutionTimeLimit>" in source
+    assert "$deadline=(Get-Date).AddMinutes(15)" in source
+    assert "<ExecutionTimeLimit>PT4M</ExecutionTimeLimit>" not in source
     assert "<Enabled>false</Enabled>" in source
     assert "Enable-ScheduledTask" in source
     assert "LastTaskResult -ne 0" in source
@@ -24,6 +27,7 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "database_credential_required=$false" in source
     assert "archive_timeout_required=$true" in source
     assert "maximum_archive_age_seconds=900" in source
+    assert "execution_time_limit_minutes=15" in source
     assert "secret_recorded=$false" in source
 
 

@@ -57,8 +57,6 @@ if ((Get-LocalGroupMember -Group 'Administrators' -ErrorAction SilentlyContinue)
 }
 & icacls.exe $CredentialBlobPath "/grant:r" "$principalName`:(R)" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'SMB credential blob ACL failed.' }
-$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 5) -MultipleInstances IgnoreNew
-
 $taskName = 'HonghuStage5_ContinuousWalOffVm'
 $output = Join-Path $RuntimeDir 'recovery\continuous_wal_latest.json'
 $wrapper = Join-Path $ReleaseDir 'tools\operations\Invoke-Stage5-ContinuousRecovery.ps1'
@@ -79,7 +77,7 @@ $xml = @"
   <RegistrationInfo><Description>Honghu exact-release five-minute off-VM WAL recovery cycle.</Description></RegistrationInfo>
   <Triggers><TimeTrigger><StartBoundary>$start</StartBoundary><Enabled>true</Enabled><Repetition><Interval>PT5M</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition></TimeTrigger></Triggers>
   <Principals><Principal id="Author"><UserId>$principalName</UserId><LogonType>Password</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
-  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><StartWhenAvailable>true</StartWhenAvailable><RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable><Enabled>false</Enabled><ExecutionTimeLimit>PT4M</ExecutionTimeLimit></Settings>
+  <Settings><MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy><StartWhenAvailable>true</StartWhenAvailable><RunOnlyIfNetworkAvailable>true</RunOnlyIfNetworkAvailable><Enabled>false</Enabled><ExecutionTimeLimit>PT15M</ExecutionTimeLimit></Settings>
   <Actions Context="Author"><Exec><Command>$powershell</Command><Arguments>$([Security.SecurityElement]::Escape($argumentString))</Arguments><WorkingDirectory>$ReleaseDir</WorkingDirectory></Exec></Actions>
 </Task>
 "@
@@ -87,7 +85,7 @@ Register-ScheduledTask -TaskName $taskName -Xml $xml -User $principalName -Passw
 Enable-ScheduledTask $taskName | Out-Null
 $before=Get-ScheduledTaskInfo $taskName
 Start-ScheduledTask $taskName
-$deadline=(Get-Date).AddMinutes(4)
+$deadline=(Get-Date).AddMinutes(15)
 do {
     Start-Sleep -Seconds 3
     $state=(Get-ScheduledTask $taskName).State
@@ -107,6 +105,7 @@ if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (
     database_business_write_possible=$false
     archive_timeout_required=$true
     maximum_archive_age_seconds=900
+    execution_time_limit_minutes=15
     enabled=$true
     interval_minutes=5
     output_path=$output

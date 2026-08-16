@@ -906,11 +906,21 @@ def execute_window(
             "retention_state": state,
             "error": "retention_finalized_window_cannot_resume",
         }
+    controlled_session_date = str(
+        os.environ.get("HONGHU_CONTROLLED_SESSION_DATE") or ""
+    ).strip()
+    is_exact_controlled_historical_window = (
+        os.environ.get("HONGHU_TASK_CONTROLLED_TRIAL") == "1"
+        and controlled_session_date == window.session_date.isoformat()
+    )
     if (
         existing
         and existing["status"] == "complete"
         and not force
-        and not _window_needs_empty_recheck(con, window.window_id)
+        and (
+            is_exact_controlled_historical_window
+            or not _window_needs_empty_recheck(con, window.window_id)
+        )
         and all(_source_is_satisfied(con, window.window_id, item.source) for item in commands)
     ):
         states = {
