@@ -10,7 +10,7 @@ import socket
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -30,6 +30,41 @@ BEIJING = ZoneInfo("Asia/Shanghai")
 
 class TaskRunnerError(RuntimeError):
     pass
+
+
+def _controlled_retail_session_date(
+    task: TaskDefinition,
+    *,
+    logical_window_value: str,
+    value: str | None,
+    allow_disabled: bool,
+    now: datetime | None = None,
+) -> str | None:
+    if value is None:
+        return None
+    if not allow_disabled or not task.task_id.startswith("IndustryDemo_Retail_"):
+        raise TaskRunnerError(
+            "controlled session date is restricted to disabled retail trials"
+        )
+    try:
+        session = date.fromisoformat(value)
+    except ValueError as exc:
+        raise TaskRunnerError("controlled session date is not ISO format") from exc
+    current = (now or datetime.now(BEIJING)).astimezone(BEIJING).date()
+    if session >= current or session.weekday() >= 5:
+        raise TaskRunnerError(
+            "controlled retail session must be a completed prior weekday"
+        )
+    try:
+        slot_index = task.command.index("--slot") + 1
+        slot = task.command[slot_index]
+    except (ValueError, IndexError) as exc:
+        raise TaskRunnerError("retail task has no reviewed slot") from exc
+    if logical_window_value != f"{session.isoformat()}:{slot}":
+        raise TaskRunnerError(
+            "controlled retail session and logical window do not match"
+        )
+    return session.isoformat()
 
 
 def _canonical_sha(payload: Any) -> str:
@@ -272,6 +307,7 @@ def run_task(
     site_packages: Path,
     logical_window_value: str | None = None,
     allow_disabled: bool = False,
+    controlled_session_date: str | None = None,
 ) -> dict[str, Any]:
     host = socket.gethostname().upper()
     if host != manifest.runner_host:
@@ -286,6 +322,12 @@ def run_task(
     })
     _validate_authority(task)
     window = logical_window_value or logical_window(task)
+    controlled_session = _controlled_retail_session_date(
+        task,
+        logical_window_value=window,
+        value=controlled_session_date,
+        allow_disabled=allow_disabled,
+    )
     operation_id = f"stage5:{task.task_id}:{window}"
     operation_hash = hashlib.sha256(operation_id.encode("utf-8")).hexdigest()
     principal = trusted_os_principal()
@@ -393,6 +435,11 @@ def run_task(
             ),
             "HONGHU_LOCKED_SITE_PACKAGES": str(site_packages.resolve()),
         })
+        if controlled_session is not None:
+            environment.update({
+                "HONGHU_TASK_CONTROLLED_TRIAL": "1",
+                "HONGHU_CONTROLLED_SESSION_DATE": controlled_session,
+            })
         timed_out = False
         with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
             process = subprocess.Popen(
@@ -575,6 +622,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--logical-window")
     parser.add_argument("--enabled", action="store_true")
     parser.add_argument("--allow-disabled", action="store_true")
+    parser.add_argument("--controlled-session-date")
     args = parser.parse_args(argv)
     manifest = load_task_manifest(args.manifest)
     if args.command == "health":
@@ -609,6 +657,7 @@ def main(argv: list[str] | None = None) -> int:
             runtime_dir=args.runtime_dir, data_root=args.data_root, content_root=args.content_root,
             site_packages=args.site_packages,
             logical_window_value=args.logical_window, allow_disabled=args.allow_disabled,
+            controlled_session_date=args.controlled_session_date,
         )
     print(json.dumps(result, ensure_ascii=False, default=str, sort_keys=True))
     return int(result.get("returncode") or 0)

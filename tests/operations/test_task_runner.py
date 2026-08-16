@@ -7,12 +7,14 @@ from zoneinfo import ZoneInfo
 from tools.operations.task_manifest import load_task_manifest
 from tools.operations.task_runner import (
     _classify,
+    _controlled_retail_session_date,
     _isolated_child_command,
     _most_recent_scheduled_at,
     logical_window,
     set_definition_enabled,
 )
 import inspect
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -26,6 +28,43 @@ def test_logical_windows_are_retry_stable():
     assert logical_window(MANIFEST.tasks["IndustryDemo_EventIngest"], current) == "2026-08-17"
     assert logical_window(MANIFEST.tasks["IndustryDemo_RecruitWeekly"], current) == "2026-W34"
     assert logical_window(MANIFEST.tasks["IndustryDemo_Retail_Morning"], current) == "2026-08-17:morning"
+
+
+def test_controlled_retail_session_is_prior_exact_and_disabled_only():
+    task = MANIFEST.tasks["IndustryDemo_Retail_Preopen"]
+    now = datetime(2026, 8, 17, 5, 0, tzinfo=BEIJING)
+    assert _controlled_retail_session_date(
+        task,
+        logical_window_value="2026-08-14:preopen",
+        value="2026-08-14",
+        allow_disabled=True,
+        now=now,
+    ) == "2026-08-14"
+    for window, value, allowed in (
+        ("2026-08-14:morning", "2026-08-14", True),
+        ("2026-08-17:preopen", "2026-08-17", True),
+        ("2026-08-15:preopen", "2026-08-15", True),
+        ("2026-08-14:preopen", "2026-08-14", False),
+    ):
+        with pytest.raises(Exception):
+            _controlled_retail_session_date(
+                task,
+                logical_window_value=window,
+                value=value,
+                allow_disabled=allowed,
+                now=now,
+            )
+
+
+def test_non_retail_task_cannot_receive_controlled_session_date():
+    with pytest.raises(Exception):
+        _controlled_retail_session_date(
+            MANIFEST.tasks["IndustryDemo_EventIngest"],
+            logical_window_value="2026-08-14",
+            value="2026-08-14",
+            allow_disabled=True,
+            now=datetime(2026, 8, 17, 5, 0, tzinfo=BEIJING),
+        )
 
 
 def test_exit_classification_does_not_treat_partial_or_timeout_as_success():

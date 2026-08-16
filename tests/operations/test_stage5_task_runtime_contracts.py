@@ -261,6 +261,14 @@ def test_manual_retention_without_governed_runner_keeps_explicit_attempt_identit
     )
 
 
+def test_retail_historical_trial_requires_runner_authorization() -> None:
+    source = (ROOT / "tools/sentiment/retail_window_tick.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'HONGHU_TASK_CONTROLLED_TRIAL") != "1"' in source
+    assert "controlled session date is not authorized" in source
+
+
 def test_active_task_mutable_paths_resolve_outside_immutable_release(tmp_path) -> None:
     state_root = tmp_path / "state"
     data_root = tmp_path / "data"

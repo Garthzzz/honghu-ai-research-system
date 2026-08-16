@@ -1011,6 +1011,14 @@ def main(argv: list[str] | None = None) -> int:
         help="覆盖配置的本 tick 自动补跑上限；0=本次不补跑",
     )
     args = parser.parse_args(argv)
+    controlled_session = os.environ.get("HONGHU_CONTROLLED_SESSION_DATE", "").strip()
+    if controlled_session:
+        if os.environ.get("HONGHU_TASK_CONTROLLED_TRIAL") != "1":
+            raise RuntimeError("controlled session date is not authorized")
+        parsed_controlled_session = date.fromisoformat(controlled_session)
+        if args.session_date is not None and args.session_date != parsed_controlled_session:
+            raise RuntimeError("controlled session date conflicts with command arguments")
+        args.session_date = parsed_controlled_session
     try:
         with exclusive_tick_lock():
             from tools.data_platform.run_domain_operation import derived_operation_id
