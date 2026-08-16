@@ -105,6 +105,8 @@ if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (
     local_administrator=$false
     database_credential_required=$false
     database_business_write_possible=$false
+    archive_timeout_required=$true
+    maximum_archive_age_seconds=900
     enabled=$true
     interval_minutes=5
     output_path=$output

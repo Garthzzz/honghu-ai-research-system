@@ -22,6 +22,8 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "InitialRecoveryBoundary" in source
     assert "Password $plain" in source
     assert "database_credential_required=$false" in source
+    assert "archive_timeout_required=$true" in source
+    assert "maximum_archive_age_seconds=900" in source
     assert "secret_recorded=$false" in source
 
 
