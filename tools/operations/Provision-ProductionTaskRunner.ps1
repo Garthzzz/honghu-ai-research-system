@@ -74,6 +74,25 @@ foreach ($directory in @(
     & icacls.exe $directory "/grant:r" "$computer\$LocalUser`:(OI)(CI)(M)" 'SYSTEM:(F)' 'Administrators:(F)' | Out-Null
     if ($LASTEXITCODE -ne 0) { throw "Task runtime ACL failed: $directory" }
 }
+$readOnlyRoots = @(
+    $ReleaseDir,
+    $SitePackages,
+    $DataRoot,
+    $ContentRoot,
+    (Split-Path -Parent $RuntimeCatalog)
+)
+foreach ($readOnlyRoot in $readOnlyRoots) {
+    if (-not (Test-Path -LiteralPath $readOnlyRoot -PathType Container)) {
+        throw "Read-only task root absent: $readOnlyRoot"
+    }
+    # Authenticated Users has Modify on several inherited project roots.  A
+    # generic (W) deny also blocks Python script reads on Windows, so fence
+    # only create/write-data and append/add-subdirectory for this principal.
+    & icacls.exe $readOnlyRoot '/remove:d' "$computer\$LocalUser" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Old task deny ACL removal failed: $readOnlyRoot" }
+    & icacls.exe $readOnlyRoot '/deny' "$computer\$LocalUser`:(OI)(CI)(WD,AD)" | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Read-only task ACL failed: $readOnlyRoot" }
+}
 
 # Expand the control-plane schema and bind disabled definitions before any
 # service-account task can be registered.  This does not run a business task.

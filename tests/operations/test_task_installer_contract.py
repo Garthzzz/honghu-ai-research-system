@@ -43,6 +43,10 @@ def test_service_account_provisioning_keeps_secrets_out_of_arguments_and_evidenc
     assert "service_account_preflight_verified=$true" in text
     assert "postgresql_roles_verified" in text
     assert "Password =" not in text
+    assert "'/remove:d'" in text
+    assert "'/deny'" in text
+    assert "(OI)(CI)(WD,AD)" in text
+    assert "Read-only task ACL failed" in text
 
 
 def test_service_account_description_respects_windows_48_character_limit():
