@@ -50,7 +50,7 @@ Add-Type -AssemblyName System.Security
 $protected = [IO.File]::ReadAllBytes($CredentialBlobPath)
 $plainBytes = $null
 $password = $null
-$mapped = $false
+$mappedDrive = $null
 try {
     $plainBytes = [Security.Cryptography.ProtectedData]::Unprotect(
         $protected, $null, [Security.Cryptography.DataProtectionScope]::LocalMachine
@@ -60,12 +60,19 @@ try {
     $credential = [Management.Automation.PSCredential]::new(
         $SmbUser, (ConvertTo-SecureString $password -AsPlainText -Force)
     )
-    Remove-SmbMapping -RemotePath $OffVmRoot -Force -UpdateProfile:$false `
-        -ErrorAction SilentlyContinue | Out-Null
-    New-SmbMapping -RemotePath $OffVmRoot -Credential $credential `
-        -RequirePrivacy $true -Persistent $false | Out-Null
-    $mapped = $true
-    if (-not (Test-Path -LiteralPath $OffVmRoot -PathType Container)) {
+    # New-SmbMapping fails with ERROR_NO_SUCH_LOGON_SESSION (1312) in a
+    # Password-logon Scheduled Task even though the same explicit credential
+    # works through the FileSystem provider.  A scoped PSDrive establishes the
+    # connection inside this exact task logon session without persisting the
+    # credential or exposing it on a child-process command line.  The approved
+    # share has EncryptData=true, so the server refuses an unencrypted client.
+    $driveName = 'HonghuRecovery'
+    $mappedDrive = New-PSDrive -Name $driveName -PSProvider FileSystem `
+        -Root $OffVmRoot -Credential $credential -Scope Script -ErrorAction Stop
+    if (
+        -not (Test-Path -LiteralPath "$driveName`:\" -PathType Container) -or
+        -not (Test-Path -LiteralPath $OffVmRoot -PathType Container)
+    ) {
         throw 'Approved off-VM recovery share is unreachable.'
     }
     $destination = Join-Path $OffVmRoot 'honghu-postgresql\stage5-continuous-wal'
@@ -119,9 +126,8 @@ try {
     )
     $result | ConvertTo-Json -Depth 10
 } finally {
-    if ($mapped) {
-        Remove-SmbMapping -RemotePath $OffVmRoot -Force -UpdateProfile:$false `
-            -ErrorAction SilentlyContinue | Out-Null
+    if ($null -ne $mappedDrive) {
+        Remove-PSDrive -Name $mappedDrive.Name -Force -ErrorAction SilentlyContinue
     }
     if ($transitionSnapshot) {
         Remove-Item -LiteralPath $transitionSnapshot -Force -ErrorAction SilentlyContinue
