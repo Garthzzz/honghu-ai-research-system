@@ -123,6 +123,28 @@ def test_new_post_cutover_objects_start_at_revision_one():
     assert "0015_stage5_initial_overlay_revision" in migration_sql
 
 
+def test_large_mutation_batch_result_is_bounded_without_weakening_row_fences():
+    sql = (
+        ROOT
+        / "migrations/postgresql/0016_stage5_bounded_mutation_batch_result.sql"
+    ).read_text(encoding="utf-8")
+    function = sql.split(
+        "CREATE OR REPLACE FUNCTION domain_data.apply_mutation_batch_v1", 1
+    )[1].split("$$;", 1)[0]
+    assert "PERFORM domain_data.mutate_record_v1" in function
+    assert "pg_has_role(session_user,p_writer_identity,'MEMBER')" in function
+    assert "p_writer_identity<>('honghu_writer_'||p_cutover_unit)" in function
+    assert "SECURITY DEFINER" in function
+    assert "SET search_path=pg_catalog,domain_data" in function
+    assert "v_results" not in function
+    assert "jsonb_build_array" not in function
+    assert "'mutation_count',v_index" in function
+    assert "'idempotency_key',p_idempotency_key" in function
+    assert "'request_sha256',p_request_sha256" in function
+    assert "'result_detail','summary_only'" in function
+    assert "'mutations_omitted',true" in function
+
+
 def test_child_command_is_import_isolated_and_bytecode_free(tmp_path, monkeypatch):
     release = tmp_path / "release"
     bootstrap = release / "tools" / "release" / "direct_candidate.py"

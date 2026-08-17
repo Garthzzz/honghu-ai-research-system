@@ -33,6 +33,7 @@ REVIEWED_MIGRATIONS = (
     "0013_stage5_task_operations.sql",
     "0014_stage5_delegated_unit_writers.sql",
     "0015_stage5_initial_overlay_revision.sql",
+    "0016_stage5_bounded_mutation_batch_result.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
