@@ -63,6 +63,12 @@ class ScheduledFetchDeferred(ScheduledFetchError):
 # dependencies inside the scheduler process.
 VOICE_INGEST_EXIT_DEFERRED = 22
 
+# A Stage 5 compatibility defect used ``sqlite3.Row.get`` before dispatching
+# any producer.  The exact error is safe to recognize once so a controlled
+# trial can repair the schedule rows immediately instead of waiting for their
+# exponential backoff.  Ordinary production ticks never bypass ``next_run_at``.
+COMPAT_ROW_ACCESS_FAILURE = "'sqlite3.Row' object has no attribute 'get'"
+
 
 def now():
     # fetch_schedule 历史字段是无时区 ISO；统一以北京时间写入，避免部署主机
@@ -163,7 +169,12 @@ def _run_script(path: Path, label: str, *, step: str):
 def run_fetch(con, row) -> int:
     """调用对应来源；微博 voice_ingest 只使用舆情 API。"""
     tt, label = row["target_type"], row["target_label"]
-    schedule_id = row.get("id", f"{tt}:{row.get('target_id', 'unknown')}")
+    # ``sqlite3.Row`` and the PostgreSQL compatibility row both support keyed
+    # indexing, but ``sqlite3.Row`` intentionally has no ``dict.get`` method.
+    try:
+        schedule_id = row["id"]
+    except (KeyError, IndexError):
+        schedule_id = f"{tt}:{row['target_id']}"
     if tt == "event_calendar":
         # B7:真跑 大会 loader(快/幂等)+ 财报 fetcher(yfinance)
         _run_script(EVDIR / "conference_loader.py", "conference_loader", step=f"schedule:{schedule_id}:conference")
@@ -200,15 +211,32 @@ def run_fetch(con, row) -> int:
     return 0
 
 
-def try_lock(con, sid) -> bool:
+def _controlled_compatibility_retry(row) -> bool:
+    return (
+        os.environ.get("HONGHU_TASK_CONTROLLED_TRIAL", "").strip() == "1"
+        and row["last_error"] == COMPAT_ROW_ACCESS_FAILURE
+    )
+
+
+def try_lock(con, sid, *, allow_compatibility_retry: bool = False) -> bool:
     lock_time = now()
     lock_iso = lock_time.isoformat(timespec="seconds")
     cur = con.execute(
         """UPDATE fetch_schedule
            SET is_running=1,running_started_at=?,updated_at=?
-           WHERE id=? AND is_running=0 AND is_active=1 AND status<>'paused'
-             AND (next_run_at IS NULL OR next_run_at<=?)""",
-        (lock_iso, lock_iso, sid, lock_iso),
+           WHERE id=? AND is_running=0 AND is_active=1
+             AND (
+               (status<>'paused' AND (next_run_at IS NULL OR next_run_at<=?))
+               OR (?=1 AND last_error=?)
+             )""",
+        (
+            lock_iso,
+            lock_iso,
+            sid,
+            lock_iso,
+            int(allow_compatibility_retry),
+            COMPAT_ROW_ACCESS_FAILURE,
+        ),
     )
     return cur.rowcount == 1
 
@@ -283,16 +311,25 @@ def tick():
                 log(f"  stale lock reset: {row['target_label']}")
             else:
                 skipped += 1; continue
-        if row["status"] == "paused":
+        compatibility_retry = _controlled_compatibility_retry(row)
+        if row["status"] == "paused" and not compatibility_retry:
             skipped += 1; continue
         # 到点判断
-        if row["next_run_at"] and datetime.fromisoformat(row["next_run_at"]) > now():
+        if (
+            row["next_run_at"]
+            and datetime.fromisoformat(row["next_run_at"]) > now()
+            and not compatibility_retry
+        ):
             skipped += 1; continue
         # 原子加锁(防并发 tick 抢同一 target)
         due_key = str(row["next_run_at"] or "initial")
         acquire_con = _operation_connection(f"schedule:{sid}:acquire:{due_key}")
         try:
-            acquired = try_lock(acquire_con, sid)
+            acquired = try_lock(
+                acquire_con,
+                sid,
+                allow_compatibility_retry=compatibility_retry,
+            )
             acquire_con.commit()
         finally:
             acquire_con.close()

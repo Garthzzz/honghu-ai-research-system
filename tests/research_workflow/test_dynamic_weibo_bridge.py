@@ -270,6 +270,64 @@ class SchedulerContractTest(unittest.TestCase):
         self.assertEqual(row[4], "2026-07-21T12:15:00")
         con.close()
 
+    def test_sqlite_row_dispatch_uses_mapping_protocol_not_dict_get(self) -> None:
+        con = sqlite3.connect(self.db)
+        con.row_factory = sqlite3.Row
+        con.execute(
+            "UPDATE fetch_schedule SET target_type='event_calendar',target_label='events' WHERE id=1"
+        )
+        row = con.execute("SELECT * FROM fetch_schedule WHERE id=1").fetchone()
+        with mock.patch.object(scheduler, "_run_script") as run_script:
+            self.assertEqual(scheduler.run_fetch(con, row), 0)
+        self.assertEqual(run_script.call_count, 2)
+        self.assertIn("schedule:1:conference", run_script.call_args_list[0].kwargs["step"])
+        con.close()
+
+    def test_controlled_trial_retries_only_the_known_row_compatibility_failure(self) -> None:
+        fixed = datetime.fromisoformat("2026-07-21T12:00:00")
+        con = sqlite3.connect(self.db)
+        con.execute(
+            """UPDATE fetch_schedule
+                  SET status='error', error_count=1, last_error=?,
+                      next_run_at='2026-07-21T14:00:00'
+                WHERE id=1""",
+            (scheduler.COMPAT_ROW_ACCESS_FAILURE,),
+        )
+        con.commit()
+        con.close()
+
+        common = (
+            mock.patch.object(scheduler, "DB", self.db),
+            mock.patch.object(scheduler.quiet_hours, "is_weekend", return_value=False),
+            mock.patch.object(scheduler.quiet_hours, "in_quiet_hours", return_value=False),
+            mock.patch.object(scheduler, "now", return_value=fixed),
+            mock.patch.object(scheduler, "log"),
+        )
+        run_fetch = mock.Mock(return_value=0)
+        with common[0], common[1], common[2], common[3], common[4], mock.patch.object(
+            scheduler, "run_fetch", run_fetch
+        ):
+            scheduler.tick()
+        run_fetch.assert_not_called()
+
+        with (
+            mock.patch.object(scheduler, "DB", self.db),
+            mock.patch.object(scheduler.quiet_hours, "is_weekend", return_value=False),
+            mock.patch.object(scheduler.quiet_hours, "in_quiet_hours", return_value=False),
+            mock.patch.object(scheduler, "now", return_value=fixed),
+            mock.patch.object(scheduler, "log"),
+            mock.patch.object(scheduler, "run_fetch", return_value=0) as controlled_fetch,
+            mock.patch.dict(scheduler.os.environ, {"HONGHU_TASK_CONTROLLED_TRIAL": "1"}),
+        ):
+            self.assertEqual(scheduler.tick(), 0)
+        controlled_fetch.assert_called_once()
+        con = sqlite3.connect(self.db)
+        row = con.execute(
+            "SELECT status,error_count,last_error,is_running FROM fetch_schedule WHERE id=1"
+        ).fetchone()
+        self.assertEqual(row, ("active", 0, None, 0))
+        con.close()
+
     def test_voice_exit_22_is_scheduler_deferred(self) -> None:
         row = {"target_type": "voice_leader", "target_id": 1, "target_label": "大才子"}
         completed = subprocess.CompletedProcess(
