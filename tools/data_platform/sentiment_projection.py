@@ -37,8 +37,11 @@ class SentimentProjectionError(DomainDataError):
 
 # PostgreSQL rejects a single jsonb array once the aggregate payload crosses
 # its 256 MiB implementation limit.  Retention can legitimately produce
-# hundreds of thousands of row mutations, so keep each server call bounded
-# while retaining one surrounding PostgreSQL transaction.
+# hundreds of thousands of row mutations, so keep each server call and
+# transaction bounded.  Every chunk has a content-derived idempotency key:
+# committed prefixes therefore survive an uncertain response or process
+# restart and the next attempt can safely replay/continue without retaining a
+# multi-gigabyte PostgreSQL transaction.
 MAX_MUTATIONS_PER_SERVER_BATCH = 5_000
 MAX_SERVER_BATCH_JSON_BYTES = 8 * 1024 * 1024
 
@@ -773,20 +776,21 @@ class PersistentSentimentConnection:
             )
         batch_key = self._pending[0]
         try:
-            with self._writer() as connection:
-                chunks = iter(_serialized_mutation_chunks(mutations))
-                first = next(chunks)
-                second = next(chunks, None)
-                if second is None:
-                    indexed_chunks = ((batch_key, first),)
-                else:
-                    indexed_chunks = (
-                        (f"{batch_key}:chunk:{index:08d}", chunk)
-                        for index, chunk in enumerate(
-                            chain((first, second), chunks), start=1
-                        )
-                    )
-                for chunk_key, (chunk_json, chunk_hash) in indexed_chunks:
+            chunks = iter(_serialized_mutation_chunks(mutations))
+            first = next(chunks)
+            second = next(chunks, None)
+            if second is None:
+                content_chunks = (first,)
+            else:
+                content_chunks = chain((first, second), chunks)
+            for chunk_json, chunk_hash in content_chunks:
+                chunk_key = f"{batch_key}:chunk:{chunk_hash}"
+                # A writer context is one PostgreSQL transaction.  Keeping it
+                # scoped to one bounded chunk prevents the server transaction
+                # context from retaining hundreds of thousands of row-level
+                # audit/idempotency records.  If a later chunk fails, earlier
+                # chunks are durable and replay as exact idempotent results.
+                with self._writer() as connection:
                     row = connection.execute(
                         "SELECT domain_data.apply_mutation_batch_v1(%s,%s,%s,%s,%s::jsonb,%s,%s)",
                         (

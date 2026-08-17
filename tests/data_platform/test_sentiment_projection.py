@@ -169,7 +169,7 @@ def test_persistent_sentiment_projection_reuses_uncertain_batch(tmp_path) -> Non
     connection.close()
 
 
-def test_persistent_sentiment_projection_chunks_one_large_atomic_commit(
+def test_persistent_sentiment_projection_commits_each_large_chunk_durably(
     tmp_path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(
@@ -190,15 +190,11 @@ def test_persistent_sentiment_projection_chunks_one_large_atomic_commit(
         )
     connection.commit()
 
-    assert len(writers) == 1
+    assert len(writers) == 3
     assert len(attempts) == 3
-    assert [params[2].rsplit(":", 1)[-1] for params in attempts] == [
-        "00000001",
-        "00000002",
-        "00000003",
-    ]
     assert [len(json.loads(params[4])) for params in attempts] == [2, 2, 1]
     assert all(params[3] == _sha256_json(json.loads(params[4])) for params in attempts)
+    assert all(params[2].endswith(params[3]) for params in attempts)
     connection.close()
 
 
@@ -209,7 +205,7 @@ def test_persistent_sentiment_projection_retries_every_chunk_with_same_identity(
         sentiment_projection, "MAX_MUTATIONS_PER_SERVER_BATCH", 2
     )
     attempts = []
-    factories = [2, None]
+    factories = [None, 1, None, None, None]
 
     def factory():
         return _FailOnCallWriter(attempts, fail_on=factories.pop(0))
@@ -227,9 +223,8 @@ def test_persistent_sentiment_projection_retries_every_chunk_with_same_identity(
     connection.commit()
     retry_attempt = attempts[2:]
     assert len(retry_attempt) == 2
-    assert [item[2:5] for item in first_attempt] == [
-        item[2:5] for item in retry_attempt
-    ]
+    assert first_attempt[0][2:5] == retry_attempt[0][2:5]
+    assert first_attempt[1][2:5] == retry_attempt[1][2:5]
     connection.close()
 
 
