@@ -69,6 +69,12 @@ def test_complete_fresh_local_disabled_evidence_passes(tmp_path: Path) -> None:
     assert result["legacy_runner_process_count"] == 0
 
 
+def test_powershell_seven_digit_checked_at_passes(tmp_path: Path) -> None:
+    payload = _payload()
+    payload["checked_at"] = "2026-08-17T00:59:30.1234567+00:00"
+    assert _verify(tmp_path, payload)["verified"] is True
+
+
 def test_collector_identity_is_stable_across_lf_and_crlf(tmp_path: Path) -> None:
     lf = tmp_path / "lf.ps1"
     crlf = tmp_path / "crlf.ps1"

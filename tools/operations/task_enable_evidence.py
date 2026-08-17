@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from tools.operations.task_manifest import TaskManifest, load_task_manifest
+from tools.operations.recovery_metrics import RecoveryMetricError, parse_utc
 
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -42,12 +43,10 @@ def _normalized_text_sha256(path: Path) -> str:
 
 def _checked_at(value: Any) -> datetime:
     try:
-        observed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError as exc:
+        observed = parse_utc(str(value), field="local-disabled checked_at")
+    except RecoveryMetricError as exc:
         raise TaskEnableEvidenceError("local-disabled checked_at is invalid") from exc
-    if observed.tzinfo is None:
-        raise TaskEnableEvidenceError("local-disabled checked_at has no timezone")
-    return observed.astimezone(timezone.utc)
+    return observed
 
 
 def verify_local_disabled_evidence(
