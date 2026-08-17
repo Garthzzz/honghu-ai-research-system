@@ -352,8 +352,8 @@ def verify_storage_identity_transition(
         raise StorageIdentityTransitionError("collector share path differs from the approved backup_package root")
     if str(collector.get("approved_backup_root") or "").rstrip("\\").casefold() != APPROVED_BACKUP_ROOT.casefold():
         raise StorageIdentityTransitionError("collector approved backup root differs")
-    if collector.get("unc_live_probe_verified") is not True:
-        raise StorageIdentityTransitionError("collector did not verify the live UNC endpoint")
+    if collector.get("smb_endpoint_tcp_445_verified") is not True:
+        raise StorageIdentityTransitionError("collector did not verify the live SMB endpoint")
     if collector.get("artifact_hashes_verified") is not True:
         raise StorageIdentityTransitionError("collector did not verify all prior artifacts")
     bitlocker = collector.get("bitlocker")

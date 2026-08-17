@@ -271,7 +271,7 @@ def test_one_time_endpoint_transition_reuses_verified_wal_and_only_copies_delta(
         "approved_backup_root": r"D:\quant\industry_demo_backup_package\postgresql_recovery",
         "share_local_path_verified": True,
         "unc_live_probe_path": r"\\new-endpoint\honghupgrecovery",
-        "unc_live_probe_verified": True,
+        "smb_endpoint_tcp_445_verified": True,
         "smb_transport_encryption_required": True,
         "machine_guid_sha256": remote_machine,
         "volume_serial": "1234abcd",

@@ -76,8 +76,11 @@ if ($share.EncryptData -ne $true) {
     throw 'HonghuPgRecovery does not require SMB encryption.'
 }
 $uncRoot = "\\$NewEndpointAddress\$ApprovedShareName"
-if (-not (Test-Path -LiteralPath $uncRoot -PathType Container)) {
-    throw 'The new UNC endpoint is not live from the backup host.'
+if (-not (Test-NetConnection `
+    -ComputerName $NewEndpointAddress `
+    -Port 445 `
+    -InformationLevel Quiet)) {
+    throw 'The new SMB endpoint is not reachable from the backup host.'
 }
 
 $drive = [IO.Path]::GetPathRoot($approvedPath).TrimEnd('\')
@@ -188,7 +191,7 @@ $facts = [ordered]@{
         approved_backup_root = $approvedPath
         share_local_path_verified = $true
         unc_live_probe_path = $uncRoot
-        unc_live_probe_verified = $true
+        smb_endpoint_tcp_445_verified = $true
         smb_transport_encryption_required = $true
         machine_guid_sha256 = $machineGuidSha
         volume_serial = $volumeSerial
