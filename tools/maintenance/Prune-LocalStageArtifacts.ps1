@@ -29,6 +29,11 @@ $targets = @(
         Path = 'D:\quant\industry_demo_stage5_runtime'
         Parent = 'D:\quant'
         Role = 'completed_git_external_stage5_working_area'
+    },
+    [pscustomobject]@{
+        Path = 'D:\quant\industry_demo\cache\stage4_remaining'
+        Parent = 'D:\quant\industry_demo\cache'
+        Role = 'retired_empty_stage4_cache_tree'
     }
 )
 
