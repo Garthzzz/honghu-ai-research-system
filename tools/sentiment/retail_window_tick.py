@@ -154,6 +154,10 @@ def build_commands(
         kline_args = ("--mode", "intraday", "--days", "10", "--m60", "40")
     else:
         kline_args = ("--mode", "close", "--days", "10", "--m60", "40")
+    kline_args += (
+        "--session-date", window.session_date.isoformat(),
+        "--slot", window.slot,
+    )
     return (
         ChildCommand(
             "guba",

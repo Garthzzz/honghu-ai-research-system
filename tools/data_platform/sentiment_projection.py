@@ -10,11 +10,13 @@ writes.  Formal mutations are committed to PostgreSQL first and the cache is
 committed only after an idempotent authoritative response.
 """
 
+import hashlib
 import json
 import os
 import sqlite3
 import time
 import uuid
+from itertools import chain
 from pathlib import Path
 from typing import Any, Callable
 
@@ -31,6 +33,62 @@ from tools.data_platform.domain_data import (
 
 class SentimentProjectionError(DomainDataError):
     pass
+
+
+# PostgreSQL rejects a single jsonb array once the aggregate payload crosses
+# its 256 MiB implementation limit.  Retention can legitimately produce
+# hundreds of thousands of row mutations, so keep each server call bounded
+# while retaining one surrounding PostgreSQL transaction.
+MAX_MUTATIONS_PER_SERVER_BATCH = 5_000
+MAX_SERVER_BATCH_JSON_BYTES = 8 * 1024 * 1024
+
+
+def _canonical_mutation_bytes(mutation: dict[str, Any]) -> bytes:
+    return json.dumps(
+        mutation,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _mutation_sequence_sha256(mutations: list[dict[str, Any]]) -> str:
+    digest = hashlib.sha256()
+    digest.update(b"[")
+    for index, mutation in enumerate(mutations):
+        if index:
+            digest.update(b",")
+        digest.update(_canonical_mutation_bytes(mutation))
+    digest.update(b"]")
+    return digest.hexdigest()
+
+
+def _serialized_mutation_chunks(
+    mutations: list[dict[str, Any]],
+):
+    encoded: list[bytes] = []
+    encoded_size = 2
+    for mutation in mutations:
+        item = _canonical_mutation_bytes(mutation)
+        if len(item) + 2 > MAX_SERVER_BATCH_JSON_BYTES:
+            raise SentimentProjectionError(
+                "one sentiment mutation exceeds the bounded server batch size"
+            )
+        added = len(item) + (1 if encoded else 0)
+        if encoded and (
+            len(encoded) >= MAX_MUTATIONS_PER_SERVER_BATCH
+            or encoded_size + added > MAX_SERVER_BATCH_JSON_BYTES
+        ):
+            payload = b"[" + b",".join(encoded) + b"]"
+            yield payload.decode("utf-8"), hashlib.sha256(payload).hexdigest()
+            encoded = []
+            encoded_size = 2
+            added = len(item)
+        encoded.append(item)
+        encoded_size += added
+    if encoded:
+        payload = b"[" + b",".join(encoded) + b"]"
+        yield payload.decode("utf-8"), hashlib.sha256(payload).hexdigest()
 
 
 class _InterprocessLock:
@@ -701,7 +759,7 @@ class PersistentSentimentConnection:
             self._connection.execute("DELETE FROM __honghu_changes")
             self._connection.commit()
             return
-        request_hash = _sha256_json(mutations)
+        request_hash = _mutation_sequence_sha256(mutations)
         if self._pending is None:
             self._transaction_index += 1
             self._pending = (
@@ -716,20 +774,35 @@ class PersistentSentimentConnection:
         batch_key = self._pending[0]
         try:
             with self._writer() as connection:
-                row = connection.execute(
-                    "SELECT domain_data.apply_mutation_batch_v1(%s,%s,%s,%s,%s::jsonb,%s,%s)",
-                    (
-                        "sentiment_analytics",
-                        self._operation_scope,
-                        batch_key,
-                        request_hash,
-                        json.dumps(mutations, ensure_ascii=False, sort_keys=True),
-                        self._writer_identity,
-                        self._actor,
-                    ),
-                ).fetchone()
-                if row is None:
-                    raise SentimentProjectionError("PostgreSQL sentiment mutation returned no result")
+                chunks = iter(_serialized_mutation_chunks(mutations))
+                first = next(chunks)
+                second = next(chunks, None)
+                if second is None:
+                    indexed_chunks = ((batch_key, first),)
+                else:
+                    indexed_chunks = (
+                        (f"{batch_key}:chunk:{index:08d}", chunk)
+                        for index, chunk in enumerate(
+                            chain((first, second), chunks), start=1
+                        )
+                    )
+                for chunk_key, (chunk_json, chunk_hash) in indexed_chunks:
+                    row = connection.execute(
+                        "SELECT domain_data.apply_mutation_batch_v1(%s,%s,%s,%s,%s::jsonb,%s,%s)",
+                        (
+                            "sentiment_analytics",
+                            self._operation_scope,
+                            chunk_key,
+                            chunk_hash,
+                            chunk_json,
+                            self._writer_identity,
+                            self._actor,
+                        ),
+                    ).fetchone()
+                    if row is None:
+                        raise SentimentProjectionError(
+                            "PostgreSQL sentiment mutation returned no result"
+                        )
         except Exception as exc:
             raise SentimentProjectionError(
                 "PostgreSQL sentiment mutation result is uncertain; exact retry is required"

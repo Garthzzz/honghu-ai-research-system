@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 import sys
 import tempfile
 import threading
 import unittest
-from datetime import datetime
+from contextlib import redirect_stdout
+from datetime import date, datetime
+from io import StringIO
 from pathlib import Path
 from unittest import mock
 from zoneinfo import ZoneInfo
@@ -188,6 +191,247 @@ class KlineUniverseTests(unittest.TestCase):
         self.assertFalse(
             any(str(item).startswith("yfinance_60m:") for item in result["warnings"])
         )
+
+    def test_retail_watermark_contract_is_market_aware_and_bounded(self):
+        preopen = stock_kline_fetch.coverage_requirement(
+            "000001.SZ", date(2026, 7, 20), "preopen"
+        )
+        self.assertEqual(preopen.target_date, date(2026, 7, 17))
+        self.assertEqual(preopen.cutoff_date, date(2026, 7, 17))
+
+        a_share_close = stock_kline_fetch.coverage_requirement(
+            "000001.SZ", date(2026, 7, 20), "afternoon"
+        )
+        overseas_close = stock_kline_fetch.coverage_requirement(
+            "NVDA", date(2026, 7, 20), "afternoon"
+        )
+        self.assertEqual(a_share_close.target_date, date(2026, 7, 20))
+        self.assertEqual(a_share_close.cutoff_date, date(2026, 7, 20))
+        self.assertEqual(overseas_close.target_date, date(2026, 7, 17))
+        self.assertTrue(stock_kline_fetch.existing_watermark_reuse_enabled("full", "preopen"))
+        self.assertFalse(stock_kline_fetch.existing_watermark_reuse_enabled("intraday", "morning"))
+        self.assertFalse(stock_kline_fetch.existing_watermark_reuse_enabled("close", "afternoon"))
+
+    def test_existing_fresh_watermarks_skip_all_provider_requests(self):
+        con = sqlite3.connect(":memory:")
+        con.row_factory = sqlite3.Row
+        con.execute(
+            """CREATE TABLE stock_kline(
+                 id INTEGER PRIMARY KEY,company_id INTEGER,ticker TEXT,freq TEXT,ts TEXT,
+                 o REAL,h REAL,l REAL,c REAL,vol REAL,amount REAL,source TEXT,
+                 source_url TEXT,as_of TEXT,fetched_at TEXT,
+                 UNIQUE(company_id,freq,ts))"""
+        )
+        con.executemany(
+            """INSERT INTO stock_kline(
+                 company_id,ticker,freq,ts,o,h,l,c,vol,source,fetched_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                (1, "000001.SZ", "d", "2026-07-17", 1, 2, 1, 2, 10, "test", "now"),
+                (1, "000001.SZ", "60m", "2026-07-17 15:00", 1, 2, 1, 2, 10, "test", "now"),
+            ),
+        )
+        research = mock.Mock()
+        output = StringIO()
+        with mock.patch.object(stock_kline_fetch.common, "get_senti_db", return_value=con), \
+             mock.patch.object(stock_kline_fetch.common, "assert_senti_only"), \
+             mock.patch.object(stock_kline_fetch.common, "research_ro_conn", return_value=research), \
+             mock.patch.object(
+                 stock_kline_fetch,
+                 "load_universe",
+                 return_value=[stock_kline_fetch.UniverseCompany(1, "A", "000001.SZ", "test")],
+             ), \
+             mock.patch.object(stock_kline_fetch, "fetch_yfinance") as yahoo, \
+             mock.patch.object(stock_kline_fetch, "fetch_daily_tushare") as tushare, \
+             redirect_stdout(output):
+            returncode = stock_kline_fetch.main(
+                [
+                    "--mode", "full", "--session-date", "2026-07-20",
+                    "--slot", "preopen", "--sleep", "0",
+                ]
+            )
+        self.assertEqual(returncode, 0)
+        yahoo.assert_not_called()
+        tushare.assert_not_called()
+        result = json.loads(output.getvalue().strip().splitlines()[-1])
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["complete"], 1)
+        self.assertEqual(result["daily_rows"], 0)
+        self.assertEqual(result["m60_rows"], 0)
+        self.assertEqual(
+            result["freshness_policy"],
+            {
+                "scope": "full_preopen_only",
+                "closed_session_max_lag_days": 0,
+            },
+        )
+
+    def test_shared_ticker_fetches_one_missing_frequency_for_all_company_identities(self):
+        con = sqlite3.connect(":memory:")
+        con.row_factory = sqlite3.Row
+        con.execute(
+            """CREATE TABLE stock_kline(
+                 id INTEGER PRIMARY KEY,company_id INTEGER,ticker TEXT,freq TEXT,ts TEXT,
+                 o REAL,h REAL,l REAL,c REAL,vol REAL,amount REAL,source TEXT,
+                 source_url TEXT,as_of TEXT,fetched_at TEXT,
+                 UNIQUE(company_id,freq,ts))"""
+        )
+        con.executemany(
+            """INSERT INTO stock_kline(
+                 company_id,ticker,freq,ts,o,h,l,c,vol,source,fetched_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                (1, "NVDA", "d", "2026-07-17", 1, 2, 1, 2, 10, "test", "now"),
+                (1, "NVDA", "60m", "2026-07-17 15:00", 1, 2, 1, 2, 10, "test", "now"),
+                (2, "NVDA", "d", "2026-07-17", 1, 2, 1, 2, 10, "test", "now"),
+            ),
+        )
+        fetched_hourly = {
+            "ts": "2026-07-17 15:00", "o": 1, "h": 2, "l": 1, "c": 2,
+            "vol": 10, "amount": None, "source": "test", "source_url": "test",
+        }
+        fetched = {
+            "daily": [],
+            "hourly": [fetched_hourly],
+            "warnings": [],
+            "errors": [],
+            "request_daily": False,
+            "request_hourly": True,
+            "mode": "full",
+        }
+        research = mock.Mock()
+        output = StringIO()
+        with mock.patch.object(stock_kline_fetch.common, "get_senti_db", return_value=con), \
+             mock.patch.object(stock_kline_fetch.common, "assert_senti_only"), \
+             mock.patch.object(stock_kline_fetch.common, "research_ro_conn", return_value=research), \
+             mock.patch.object(
+                 stock_kline_fetch,
+                 "load_universe",
+                 return_value=[
+                     stock_kline_fetch.UniverseCompany(1, "A", "NVDA", "test"),
+                     stock_kline_fetch.UniverseCompany(2, "B", "NVDA", "test"),
+                 ],
+             ), \
+             mock.patch.object(stock_kline_fetch, "fetch_ticker", return_value=fetched) as fetch, \
+             mock.patch.object(
+                 stock_kline_fetch,
+                 "apply_realtime_hourly_fallback",
+                 return_value={"requested": 0, "filled": 0, "error": None},
+             ), \
+             redirect_stdout(output):
+            returncode = stock_kline_fetch.main(
+                [
+                    "--mode", "full", "--session-date", "2026-07-20",
+                    "--slot", "preopen", "--sleep", "0",
+                ]
+            )
+        self.assertEqual(returncode, 0)
+        fetch.assert_called_once_with(
+            "NVDA", days=60, m60=80, mode="full",
+            request_daily=False, request_hourly=True,
+        )
+        result = json.loads(output.getvalue().strip().splitlines()[-1])
+        self.assertEqual(result["unique_tickers"], 1)
+        self.assertEqual(result["complete"], 2)
+        self.assertEqual(result["provider_requested_tickers"], 1)
+
+    def test_stale_or_missing_frequency_remains_partial_and_fail_closed(self):
+        requirement = stock_kline_fetch.CoverageRequirement(
+            target_date=date(2026, 7, 17), cutoff_date=date(2026, 7, 17), max_lag_days=0
+        )
+        daily_ok, daily_latest, daily_origin = stock_kline_fetch.coverage_satisfied(
+            date(2026, 7, 17), [], requirement
+        )
+        hourly_ok, hourly_latest, hourly_origin = stock_kline_fetch.coverage_satisfied(
+            date(2026, 7, 1), [], requirement
+        )
+        missing_ok, missing_latest, missing_origin = stock_kline_fetch.coverage_satisfied(
+            None, [], requirement
+        )
+        self.assertEqual((daily_ok, daily_latest, daily_origin), (True, date(2026, 7, 17), "existing"))
+        self.assertEqual((hourly_ok, hourly_latest, hourly_origin), (False, date(2026, 7, 1), "stale"))
+        self.assertEqual((missing_ok, missing_latest, missing_origin), (False, None, "missing"))
+
+    def test_main_keeps_true_stale_frequency_partial_and_returns_two(self):
+        con = sqlite3.connect(":memory:")
+        con.row_factory = sqlite3.Row
+        con.execute(
+            """CREATE TABLE stock_kline(
+                 id INTEGER PRIMARY KEY,company_id INTEGER,ticker TEXT,freq TEXT,ts TEXT,
+                 o REAL,h REAL,l REAL,c REAL,vol REAL,amount REAL,source TEXT,
+                 source_url TEXT,as_of TEXT,fetched_at TEXT,
+                 UNIQUE(company_id,freq,ts))"""
+        )
+        con.executemany(
+            """INSERT INTO stock_kline(
+                 company_id,ticker,freq,ts,o,h,l,c,vol,source,fetched_at)
+               VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (
+                (1, "000001.SZ", "d", "2026-07-01", 1, 2, 1, 2, 10, "test", "now"),
+                (1, "000001.SZ", "60m", "2026-07-01 15:00", 1, 2, 1, 2, 10, "test", "now"),
+            ),
+        )
+        research = mock.Mock()
+        fresh_daily = {
+            "ts": "2026-07-17", "o": 1, "h": 2, "l": 1, "c": 2,
+            "vol": 10, "amount": None, "source": "test", "source_url": "test",
+        }
+        fetched = {
+            "daily": [fresh_daily],
+            "hourly": [],
+            "warnings": ["provider_hourly_unavailable"],
+            "errors": ["60m_missing"],
+            "request_daily": True,
+            "request_hourly": True,
+            "mode": "full",
+        }
+        output = StringIO()
+        with mock.patch.object(stock_kline_fetch.common, "get_senti_db", return_value=con), \
+             mock.patch.object(stock_kline_fetch.common, "assert_senti_only"), \
+             mock.patch.object(stock_kline_fetch.common, "research_ro_conn", return_value=research), \
+             mock.patch.object(
+                 stock_kline_fetch,
+                 "load_universe",
+                 return_value=[stock_kline_fetch.UniverseCompany(1, "A", "000001.SZ", "test")],
+             ), \
+             mock.patch.object(stock_kline_fetch, "fetch_ticker", return_value=fetched), \
+             mock.patch.object(
+                 stock_kline_fetch,
+                 "apply_realtime_hourly_fallback",
+                 return_value={"requested": 1, "filled": 0, "error": "unavailable"},
+             ), \
+             redirect_stdout(output):
+            returncode = stock_kline_fetch.main(
+                [
+                    "--mode", "full", "--session-date", "2026-07-20",
+                    "--slot", "preopen", "--sleep", "0",
+                ]
+            )
+        self.assertEqual(returncode, 2)
+        result = json.loads(output.getvalue().strip().splitlines()[-1])
+        self.assertFalse(result["ok"])
+        self.assertEqual((result["complete"], result["partial"], result["failed"]), (0, 1, 0))
+        self.assertIn("60m_coverage_stale", result["failures"][0]["errors"])
+
+    def test_freshness_skip_can_disable_one_frequency_without_weakening_other(self):
+        with mock.patch.object(stock_kline_fetch, "is_a_share_ticker", return_value=False), \
+             mock.patch.object(
+                 stock_kline_fetch,
+                 "fetch_yfinance",
+                 return_value=([{"ts": "2026-07-17 15:00"}], None),
+             ) as fetch:
+            result = stock_kline_fetch.fetch_ticker(
+                "NVDA",
+                days=90,
+                m60=160,
+                mode="full",
+                request_daily=False,
+                request_hourly=True,
+            )
+        fetch.assert_called_once_with("NVDA", period="90d", interval="60m")
+        self.assertFalse(result["request_daily"])
+        self.assertTrue(result["request_hourly"])
+        self.assertEqual(result["errors"], [])
 
 
 class InstallerSafetyTests(unittest.TestCase):

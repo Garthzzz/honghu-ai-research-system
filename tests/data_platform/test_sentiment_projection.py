@@ -5,12 +5,14 @@ import sqlite3
 
 import pytest
 
+import tools.data_platform.sentiment_projection as sentiment_projection
 from tools.data_platform.domain_data import _sha256_json
 from tools.data_platform.sentiment_projection import (
     PersistentSentimentConnection,
     PersistentSentimentProjection,
     SentimentProjectionError,
     _InterprocessLock,
+    _mutation_sequence_sha256,
     _create_projection_schema,
 )
 
@@ -72,6 +74,28 @@ class _Writer:
         if self.fail:
             raise OSError("response lost")
         return _Cursor(({"ok": True},))
+
+
+class _FailOnCallWriter(_Writer):
+    def __init__(self, attempts, *, fail_on: int | None) -> None:
+        super().__init__(attempts)
+        self.fail_on = fail_on
+        self.calls = 0
+
+    def execute(self, _sql, params):
+        self.calls += 1
+        self.attempts.append(params)
+        if self.fail_on == self.calls:
+            raise OSError("response lost during chunked transaction")
+        return _Cursor(({"ok": True},))
+
+
+def test_incremental_mutation_hash_preserves_legacy_canonical_identity() -> None:
+    mutations = [
+        {"source_table": "sample", "payload": {"name": "中文", "id": 1}},
+        {"source_table": "sample", "payload": {"name": "two", "id": 2}},
+    ]
+    assert _mutation_sequence_sha256(mutations) == _sha256_json(mutations)
 
 
 def _connection(tmp_path, factory):
@@ -142,6 +166,70 @@ def test_persistent_sentiment_projection_reuses_uncertain_batch(tmp_path) -> Non
     connection.commit()
     assert len(attempts) == 2
     assert attempts[0][2:5] == attempts[1][2:5]
+    connection.close()
+
+
+def test_persistent_sentiment_projection_chunks_one_large_atomic_commit(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sentiment_projection, "MAX_MUTATIONS_PER_SERVER_BATCH", 2
+    )
+    attempts = []
+    writers = []
+
+    def factory():
+        writer = _Writer(attempts)
+        writers.append(writer)
+        return writer
+
+    connection, _lock = _connection(tmp_path, factory)
+    for identifier in range(2, 7):
+        connection.execute(
+            "INSERT INTO sample VALUES(?,?)", (identifier, f"value-{identifier}")
+        )
+    connection.commit()
+
+    assert len(writers) == 1
+    assert len(attempts) == 3
+    assert [params[2].rsplit(":", 1)[-1] for params in attempts] == [
+        "00000001",
+        "00000002",
+        "00000003",
+    ]
+    assert [len(json.loads(params[4])) for params in attempts] == [2, 2, 1]
+    assert all(params[3] == _sha256_json(json.loads(params[4])) for params in attempts)
+    connection.close()
+
+
+def test_persistent_sentiment_projection_retries_every_chunk_with_same_identity(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sentiment_projection, "MAX_MUTATIONS_PER_SERVER_BATCH", 2
+    )
+    attempts = []
+    factories = [2, None]
+
+    def factory():
+        return _FailOnCallWriter(attempts, fail_on=factories.pop(0))
+
+    connection, _lock = _connection(tmp_path, factory)
+    for identifier in range(2, 6):
+        connection.execute(
+            "INSERT INTO sample VALUES(?,?)", (identifier, f"value-{identifier}")
+        )
+    with pytest.raises(SentimentProjectionError, match="uncertain"):
+        connection.commit()
+    first_attempt = list(attempts)
+    assert len(first_attempt) == 2
+
+    connection.commit()
+    retry_attempt = attempts[2:]
+    assert len(retry_attempt) == 2
+    assert [item[2:5] for item in first_attempt] == [
+        item[2:5] for item in retry_attempt
+    ]
     connection.close()
 
 

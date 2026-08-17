@@ -89,6 +89,14 @@ class MarketWindowTests(unittest.TestCase):
         )
         self.assertEqual(preopen[3].args[:2], ("--mode", "full"))
         self.assertEqual(afternoon[3].args[:2], ("--mode", "close"))
+        self.assertEqual(
+            preopen[3].args[-4:],
+            ("--session-date", "2026-07-20", "--slot", "preopen"),
+        )
+        self.assertEqual(
+            afternoon[3].args[-4:],
+            ("--session-date", "2026-07-20", "--slot", "afternoon"),
+        )
         self.assertIsNone(
             retail_window_tick.resolve_window(
                 now=self.dt("2026-07-18T14:00"), slot="morning"
