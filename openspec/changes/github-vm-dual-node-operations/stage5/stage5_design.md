@@ -2,6 +2,8 @@
 
 > 状态：2026-08-16 已获实施授权，工程和现场验收进行中；本文不构成 Stage 5 PASS。
 
+> 规划前必读：任何 Stage 4/5 后续设计、发布、任务、恢复或清理工作，必须先读取并逐项对照 [`stage45_execution_pitfalls_and_evidence_contract.md`](stage45_execution_pitfalls_and_evidence_contract.md)；未说明适用条目的验证方式，不得进入 production 执行。
+
 ## 1. 不变量与范围
 
 - 九个 cutover unit 已是 durable S3，PostgreSQL 是唯一 production authority/writer。Stage 5 只迁移 runner host、checkpoint、恢复和监控，不重新切换数据后端。
