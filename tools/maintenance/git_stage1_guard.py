@@ -73,6 +73,10 @@ class Policy:
         return set(self.raw["tracked_exact"])
 
     @property
+    def tracked_binary_exact(self) -> set[str]:
+        return set(self.raw.get("tracked_binary_exact", []))
+
+    @property
     def tracked_prefixes(self) -> tuple[str, ...]:
         return tuple(self.raw["tracked_prefixes"])
 
@@ -95,7 +99,12 @@ def load_policy(path: Path) -> Policy:
     raw = json.loads(path.read_text(encoding="utf-8"))
     if raw.get("schema_version") != "honghu.git_boundary.v1":
         raise ValueError("unsupported Git boundary policy")
-    for key in ("tracked_exact", "tracked_prefixes", "excluded_prefixes"):
+    for key in (
+        "tracked_exact",
+        "tracked_binary_exact",
+        "tracked_prefixes",
+        "excluded_prefixes",
+    ):
         normalized: list[str] = []
         for value in raw[key]:
             canonical = _canonical(value)
@@ -137,7 +146,9 @@ def classify(rel: str, policy: Policy) -> tuple[str, str]:
     if _under(rel, policy.excluded_prefixes) or any(lower.endswith(sfx.lower()) for sfx in policy.raw["excluded_suffixes"]):
         return "runtime", "explicit policy exclusion"
     selected = rel in policy.tracked_exact or _under(rel, policy.tracked_prefixes)
-    if selected and suffix in set(policy.raw["tracked_extensions"]):
+    extension_allowed = suffix in set(policy.raw["tracked_extensions"])
+    exact_binary_allowed = rel in policy.tracked_binary_exact
+    if selected and (extension_allowed or exact_binary_allowed):
         if rel.startswith(("tests/",)):
             return "tracked_test", "test source"
         if rel.startswith(("openspec/", ".codex/", "skills/", "docs/", "codex_context/", "opportunity_lens/", "templates/", "审核代理/")) or rel == "AGENTS.md":

@@ -41,6 +41,9 @@
     "templates/数据呈现与重写标准.md",
     "审核代理/verifier-domain-research.md"
   ],
+  "tracked_binary_exact": [
+    "config/migration/stage5_storage_attestation_public.cer"
+  ],
   "tracked_prefixes": [
     ".codex/skills/openspec-apply-change/",
     ".codex/skills/openspec-archive-change/",
