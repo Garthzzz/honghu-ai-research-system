@@ -39,17 +39,23 @@ class PruneExternalProjectBackupsTests(unittest.TestCase):
         return root
 
     def test_dry_run_and_apply_only_match_project_backup_rollback_or_cleanup_safety_siblings(self) -> None:
+        TEST_TEMP_ROOT.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(dir=TEST_TEMP_ROOT) as temp:
             parent = Path(temp)
             root = self._project(parent)
             old_backup = parent / "industry_demo_fixture_backup_older"
             rollback = parent / "industry_demo_fixture_rollback_safety"
             cleanup_safety = parent / "industry_demo_fixture_cleanup_safety_20260729"
+            approved_recovery = parent / "industry_demo_fixture_backup_package"
             unrelated = parent / "quant_platform_backup"
             similar = parent / "industry_demo_fixture_notes"
             for path in (old_backup, rollback, cleanup_safety, unrelated, similar):
                 path.mkdir()
                 (path / "marker.txt").write_text(path.name, encoding="utf-8")
+            (approved_recovery / "postgresql_recovery").mkdir(parents=True)
+            (approved_recovery / "postgresql_recovery" / "manifest.json").write_text(
+                "{}", encoding="utf-8"
+            )
 
             dry_run = prune_external_backups(root)
             self.assertEqual(dry_run["planned_count"], 3)
@@ -61,6 +67,7 @@ class PruneExternalProjectBackupsTests(unittest.TestCase):
             self.assertFalse(cleanup_safety.exists())
             self.assertTrue(unrelated.exists())
             self.assertTrue(similar.exists())
+            self.assertTrue(approved_recovery.exists())
             self.assertTrue((root / "backup" / "latest").is_dir())
 
 
