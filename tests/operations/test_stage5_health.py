@@ -37,7 +37,11 @@ def healthy_components() -> dict[str, dict]:
             "task_count": 7,
             "exact_definition_identity_ok": True,
         },
-        "backup_recovery": {"ok": True},
+        "backup_recovery": {
+            "ok": True,
+            "application_commit_sha": SHA,
+            "verified_evidence_identity_sha256": "e" * 64,
+        },
         "immutable_release": {
             "ok": True,
             "observed_commit_sha": SHA,
@@ -56,6 +60,7 @@ def test_aggregate_pass_keeps_process_and_freshness_separate() -> None:
     assert result["identity_binding"]["viewer_matches_verified_release"] is True
     assert result["identity_binding"]["postgres_runtime_matches_verified_release"] is True
     assert result["identity_binding"]["task_definitions_match_verified_release"] is True
+    assert result["identity_binding"]["recovery_evidence_matches_verified_release"] is True
     assert len(result["identity_sha256"]) == 64
     assert result["alert"] == {
         "triggered": False,
@@ -91,7 +96,7 @@ def test_viewer_and_verified_release_manifest_must_match() -> None:
     components["viewer"]["manifest_sha256"] = "d" * 64
     result = stage5_health.aggregate_stage5_health(components, checked_at=NOW)
     assert result["status"] == "blocked"
-    assert "viewer_release_identity_binding" in result["blocked_components"]
+    assert "runtime_release_identity_binding" in result["blocked_components"]
 
 
 def test_probe_failure_does_not_copy_sensitive_exception_text() -> None:
@@ -139,6 +144,9 @@ def test_viewer_probe_rejects_non_loopback_or_non_health_endpoint() -> None:
     for url in (
         "https://example.com/api/health",
         "http://127.0.0.1:8080/admin",
+        "http://127.0.0.1:8443/api/health",
+        "https://127.0.0.1:8080/api/health",
+        "http://127.0.0.1:18080/api/health",
         "http://user@example.com/api/health",
         "http://127.0.0.1:8080/api/health?token=value",
     ):
@@ -156,8 +164,162 @@ def test_runtime_component_commit_drift_blocks_identity_binding() -> None:
     components["postgresql_authority"]["runtime_catalog_commit_sha"] = "b" * 40
     result = stage5_health.aggregate_stage5_health(components, checked_at=NOW)
     assert result["status"] == "blocked"
-    assert "viewer_release_identity_binding" in result["blocked_components"]
+    assert "runtime_release_identity_binding" in result["blocked_components"]
     assert result["identity_binding"]["postgres_runtime_matches_verified_release"] is False
+
+
+def test_postgres_probe_requires_runtime_catalog_commit_binding(
+    monkeypatch, tmp_path
+) -> None:
+    class Catalog:
+        application_commit_sha = "b" * 40
+
+    class Result:
+        def fetchone(self):
+            return ("honghu", "reader", True, False)
+
+    class Connection:
+        def execute(self, _sql):
+            return Result()
+
+        def close(self):
+            return None
+
+    class State:
+        value = "S3"
+
+    class Route:
+        backend = stage5_health.Backend.POSTGRESQL_PRODUCTION
+        authority_state = State()
+        sqlite_writer_enabled = False
+        writer_identity = "unit-writer"
+
+    routes = {
+        unit: Route() for unit in stage5_health.PRODUCTION_CUTOVER_UNITS
+    }
+    matrix = type(
+        "Matrix",
+        (),
+        {
+            "routes": routes,
+            "health_payload": lambda self: {
+                unit: {"state": "S3"} for unit in routes
+            },
+        },
+    )()
+    registry = type("Registry", (), {"registry_sha256": "c" * 64})()
+    monkeypatch.setattr(stage5_health, "load_postgres_runtime_catalog", lambda _: Catalog())
+    monkeypatch.setattr(
+        stage5_health,
+        "build_catalog_connection_factory",
+        lambda *_a, **_k: Connection,
+    )
+    monkeypatch.setattr(
+        stage5_health,
+        "load_authority_matrix",
+        lambda *_a, **_k: (registry, matrix),
+    )
+
+    result = stage5_health.probe_postgres_authority(
+        tmp_path / "catalog.json",
+        tmp_path / "registry.json",
+        expected_commit_sha=SHA,
+    )
+
+    assert result["safe_postgresql_authority_unit_count"] == 9
+    assert result["runtime_catalog_commit_matches_release"] is False
+    assert result["ok"] is False
+
+
+def test_recovery_probe_binds_canonical_identity_and_release(
+    monkeypatch, tmp_path
+) -> None:
+    evidence = {
+        "schema_version": "honghu.stage5_recovery_evidence.v1",
+        "application_commit_sha": SHA,
+        "wal_sync": {"verified": True},
+    }
+    evidence["identity_sha256"] = stage5_health.hashlib.sha256(
+        json.dumps(
+            evidence,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    path = tmp_path / "recovery.json"
+    path.write_text(json.dumps(evidence), encoding="utf-8")
+    monkeypatch.setattr(
+        stage5_health,
+        "evaluate_recovery_health",
+        lambda *_a, **_k: {"status": "pass", "checks": [], "blockers": []},
+    )
+
+    result = stage5_health.probe_recovery(
+        path,
+        expected_commit_sha=SHA,
+        max_wal_age_seconds=60,
+        max_restore_age_seconds=60,
+        max_full_scrub_age_seconds=60,
+    )
+
+    assert result["ok"] is True
+    assert result["application_commit_sha"] == SHA
+    assert result["verified_evidence_identity_sha256"] == evidence["identity_sha256"]
+
+
+def test_recovery_probe_rejects_tamper_or_other_release(monkeypatch, tmp_path) -> None:
+    monkeypatch.setattr(
+        stage5_health,
+        "evaluate_recovery_health",
+        lambda *_a, **_k: {"status": "pass"},
+    )
+    for application_commit_sha, tamper in ((SHA, True), ("b" * 40, False)):
+        evidence = {
+            "application_commit_sha": application_commit_sha,
+            "wal_sync": {"verified": True},
+        }
+        evidence["identity_sha256"] = stage5_health.hashlib.sha256(
+            json.dumps(
+                evidence,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
+        if tamper:
+            evidence["wal_sync"]["verified"] = False
+        path = tmp_path / f"recovery-{application_commit_sha[0]}-{tamper}.json"
+        path.write_text(json.dumps(evidence), encoding="utf-8")
+        try:
+            stage5_health.probe_recovery(
+                path,
+                expected_commit_sha=SHA,
+                max_wal_age_seconds=60,
+                max_restore_age_seconds=60,
+                max_full_scrub_age_seconds=60,
+            )
+        except stage5_health.Stage5HealthError:
+            continue
+        raise AssertionError("tampered or cross-release recovery evidence was accepted")
+
+
+def test_aggregate_canonicalizes_real_task_health_datetimes() -> None:
+    components = healthy_components()
+    components["production_tasks"]["tasks"] = [
+        {
+            "task_id": "IndustryDemo_DynamicTick",
+            "finished_at": NOW,
+            "last_success_at": NOW,
+        }
+    ]
+
+    result = stage5_health.aggregate_stage5_health(components, checked_at=NOW)
+
+    observed = result["components"]["production_tasks"]["tasks"][0]
+    assert observed["finished_at"] == NOW.isoformat()
+    assert observed["last_success_at"] == NOW.isoformat()
+    json.dumps(result)
 
 
 def test_task_health_requires_exact_release_definition_identity(monkeypatch, tmp_path) -> None:
@@ -290,3 +452,52 @@ def test_cli_blocked_result_returns_two_and_writes_machine_readable_json(
     assert stage5_health.main(argv) == 2
     assert json.loads(output.read_text(encoding="utf-8"))["status"] == "blocked"
     assert json.loads(capsys.readouterr().out)["alert"]["triggered"] is True
+
+
+def test_cli_rejects_runtime_evidence_or_output_inside_release(
+    monkeypatch, tmp_path
+) -> None:
+    release = tmp_path / "release"
+    release.mkdir()
+    monkeypatch.setattr(
+        stage5_health,
+        "collect_stage5_health",
+        lambda _: stage5_health.aggregate_stage5_health(
+            healthy_components(), checked_at=NOW
+        ),
+    )
+    common = [
+        "--viewer-health-url", "http://127.0.0.1:8080/api/health",
+        "--postgres-runtime-catalog", str(tmp_path / "catalog.json"),
+        "--cutover-unit-registry", str(tmp_path / "registry.json"),
+        "--task-manifest", str(tmp_path / "tasks.json"),
+        "--release-dir", str(release),
+        "--expected-commit-sha", SHA,
+        "--disk-path", str(tmp_path),
+        "--max-wal-age-seconds", "60",
+        "--max-restore-age-seconds", "60",
+    ]
+    try:
+        stage5_health.main(
+            common
+            + [
+                "--recovery-evidence", str(release / "fake.json"),
+                "--output", str(tmp_path / "health.json"),
+            ]
+        )
+    except stage5_health.Stage5HealthError:
+        pass
+    else:
+        raise AssertionError("recovery evidence inside immutable release was accepted")
+    try:
+        stage5_health.main(
+            common
+            + [
+                "--recovery-evidence", str(tmp_path / "recovery.json"),
+                "--output", str(release / "health.json"),
+            ]
+        )
+    except stage5_health.Stage5HealthError:
+        pass
+    else:
+        raise AssertionError("health output inside immutable release was accepted")

@@ -39,6 +39,27 @@ class Stage5HealthError(ValueError):
     pass
 
 
+def _canonical_evidence_value(value: Any) -> Any:
+    """Normalize probe values without falling back to secret-prone ``str``."""
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise Stage5HealthError("health evidence timestamp has no timezone")
+        return value.astimezone(timezone.utc).isoformat()
+    if isinstance(value, Mapping):
+        return {
+            str(key): _canonical_evidence_value(child)
+            for key, child in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_evidence_value(child) for child in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise Stage5HealthError(
+        f"unsupported health evidence value: {type(value).__name__}"
+    )
+
+
 def _probe_failure(name: str, exc: BaseException) -> dict[str, Any]:
     # Exception text can contain host, account or filesystem details. The
     # machine-local operator can inspect subsystem logs without copying those
@@ -56,6 +77,7 @@ def probe_viewer(url: str, *, expected_commit_sha: str, timeout_seconds: float) 
     if (
         parsed.scheme not in {"http", "https"}
         or parsed.hostname not in {"127.0.0.1", "localhost", "::1"}
+        or (parsed.scheme, parsed.port) not in {("http", 8080), ("https", 8443)}
         or parsed.username is not None
         or parsed.password is not None
         or parsed.query
@@ -191,6 +213,7 @@ def probe_task_freshness(
 def probe_recovery(
     evidence_path: Path,
     *,
+    expected_commit_sha: str,
     max_wal_age_seconds: float,
     max_restore_age_seconds: float,
     max_full_scrub_age_seconds: float,
@@ -199,6 +222,23 @@ def probe_recovery(
     if not isinstance(evidence, Mapping):
         raise Stage5HealthError("recovery evidence root is not an object")
     evidence_sha256 = hashlib.sha256(evidence_path.read_bytes()).hexdigest()
+    declared_identity = str(evidence.get("identity_sha256") or "").lower()
+    identity_core = {
+        str(key): value for key, value in evidence.items() if key != "identity_sha256"
+    }
+    calculated_identity = hashlib.sha256(
+        json.dumps(
+            identity_core,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()
+    if declared_identity != calculated_identity:
+        raise Stage5HealthError("recovery evidence identity is invalid")
+    recovery_commit = str(evidence.get("application_commit_sha") or "").lower()
+    if recovery_commit != expected_commit_sha:
+        raise Stage5HealthError("recovery evidence belongs to another release")
     payload = evaluate_recovery_health(
         evidence,
         max_wal_age_seconds=max_wal_age_seconds,
@@ -209,6 +249,8 @@ def probe_recovery(
         "component": "backup_recovery",
         "ok": payload["status"] == "pass",
         "input_evidence_sha256": evidence_sha256,
+        "verified_evidence_identity_sha256": calculated_identity,
+        "application_commit_sha": recovery_commit,
         **payload,
     }
 
@@ -263,6 +305,10 @@ def aggregate_stage5_health(
     *,
     checked_at: datetime | None = None,
 ) -> dict[str, Any]:
+    normalized = {
+        str(name): _canonical_evidence_value(value)
+        for name, value in components.items()
+    }
     required = (
         "viewer",
         "postgresql_authority",
@@ -271,19 +317,19 @@ def aggregate_stage5_health(
         "immutable_release",
         "disk_capacity",
     )
-    missing = [name for name in required if name not in components]
+    missing = [name for name in required if name not in normalized]
     blocked = missing + [
         name
         for name in required
-        if name in components and components[name].get("ok") is not True
+        if name in normalized and normalized[name].get("ok") is not True
     ]
     now = checked_at or datetime.now(timezone.utc)
     if now.tzinfo is None or now.utcoffset() is None:
         raise Stage5HealthError("checked_at must include a timezone")
-    viewer = components.get("viewer", {})
-    postgres = components.get("postgresql_authority", {})
-    tasks = components.get("production_tasks", {})
-    release = components.get("immutable_release", {})
+    viewer = normalized.get("viewer", {})
+    postgres = normalized.get("postgresql_authority", {})
+    tasks = normalized.get("production_tasks", {})
+    release = normalized.get("immutable_release", {})
     viewer_release_binding_ok = bool(
         viewer.get("observed_commit_sha")
         and viewer.get("observed_commit_sha") == release.get("observed_commit_sha")
@@ -296,13 +342,21 @@ def aggregate_stage5_health(
         == release.get("observed_commit_sha")
     )
     task_release_binding_ok = bool(tasks.get("exact_definition_identity_ok"))
+    recovery = normalized.get("backup_recovery", {})
+    recovery_release_binding_ok = bool(
+        recovery.get("application_commit_sha")
+        and recovery.get("application_commit_sha")
+        == release.get("observed_commit_sha")
+        and recovery.get("verified_evidence_identity_sha256")
+    )
     identity_binding_ok = bool(
         viewer_release_binding_ok
         and postgres_release_binding_ok
         and task_release_binding_ok
+        and recovery_release_binding_ok
     )
     if not identity_binding_ok:
-        blocked.append("viewer_release_identity_binding")
+        blocked.append("runtime_release_identity_binding")
     result = {
         "schema_version": "honghu.stage5_system_health.v1",
         "checked_at_utc": now.astimezone(timezone.utc).isoformat(),
@@ -324,12 +378,13 @@ def aggregate_stage5_health(
             "viewer_matches_verified_release": viewer_release_binding_ok,
             "postgres_runtime_matches_verified_release": postgres_release_binding_ok,
             "task_definitions_match_verified_release": task_release_binding_ok,
+            "recovery_evidence_matches_verified_release": recovery_release_binding_ok,
             "viewer_commit_sha": viewer.get("observed_commit_sha"),
             "release_commit_sha": release.get("observed_commit_sha"),
             "viewer_manifest_sha256": viewer.get("manifest_sha256"),
             "release_manifest_sha256": release.get("manifest_sha256"),
         },
-        "components": {name: dict(value) for name, value in components.items()},
+        "components": normalized,
         "alert": {
             "triggered": bool(blocked),
             "delivery_mode": "local_machine_json_and_exit_status_only",
@@ -364,6 +419,7 @@ def collect_stage5_health(args: argparse.Namespace) -> dict[str, Any]:
         ),
         "backup_recovery": lambda: probe_recovery(
             args.recovery_evidence,
+            expected_commit_sha=args.expected_commit_sha,
             max_wal_age_seconds=args.max_wal_age_seconds,
             max_restore_age_seconds=args.max_restore_age_seconds,
             max_full_scrub_age_seconds=args.max_full_scrub_age_seconds,
