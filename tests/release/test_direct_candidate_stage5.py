@@ -12,6 +12,10 @@ def test_direct_candidate_allows_reviewed_stage5_migration_entrypoint():
     )
 
 
+def test_direct_candidate_allows_task_enable_evidence_entrypoint():
+    assert ALLOWED_MODULES["tools.operations.task_enable_evidence"] == "main"
+
+
 def test_locked_pywin32_extension_paths_are_explicit_without_pth_execution(tmp_path):
     (tmp_path / "win32" / "lib").mkdir(parents=True)
     original = list(sys.path)

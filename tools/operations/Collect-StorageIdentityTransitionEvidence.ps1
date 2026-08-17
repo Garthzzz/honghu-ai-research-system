@@ -4,7 +4,9 @@ param(
     [Parameter(Mandatory=$true)][string]$BootstrapPythonExe,
     [Parameter(Mandatory=$true)][string]$SitePackages,
     [Parameter(Mandatory=$true)][string]$SourceHostIdentityEvidence,
-    [Parameter(Mandatory=$true)][string]$OutputDirectory
+    [Parameter(Mandatory=$true)][string]$OutputDirectory,
+    [Parameter(Mandatory=$true)][string]$OldEndpointAddress,
+    [Parameter(Mandatory=$true)][string]$NewEndpointAddress
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,8 +19,6 @@ Set-StrictMode -Version Latest
 $ApprovedCollectorHost = 'WIN-G7VO0DD37CE'
 $ApprovedShareName = 'HonghuPgRecovery'
 $ApprovedLocalRoot = 'D:\quant\industry_demo_backup_package\postgresql_recovery'
-$OldEndpointAddress = '10.212.134.201'
-$NewEndpointAddress = '10.5.10.74'
 $AuthorizationReference = 'user-stage5-full-execution-authorization-2026-08-16'
 $PinnedCertificateSha256 = 'f4dac3e071441e68e860bb05aabec95b39594ca1186171eeb4147a1b265c1dc7'
 
@@ -36,6 +36,21 @@ function Resolve-ExactPath([string]$Path) {
 
 if ($env:COMPUTERNAME.ToUpperInvariant() -ne $ApprovedCollectorHost) {
     throw 'Storage transition evidence must be collected locally on WIN-G7VO0DD37CE.'
+}
+$oldAddress = $null
+$newAddress = $null
+if (-not [Net.IPAddress]::TryParse($OldEndpointAddress, [ref]$oldAddress) -or
+    $oldAddress.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork) {
+    throw 'Old storage endpoint must be one explicit IPv4 address.'
+}
+if (-not [Net.IPAddress]::TryParse($NewEndpointAddress, [ref]$newAddress) -or
+    $newAddress.AddressFamily -ne [Net.Sockets.AddressFamily]::InterNetwork) {
+    throw 'New storage endpoint must be one explicit IPv4 address.'
+}
+$OldEndpointAddress = $oldAddress.ToString()
+$NewEndpointAddress = $newAddress.ToString()
+if ($OldEndpointAddress -eq $NewEndpointAddress) {
+    throw 'Storage transition must change the explicit endpoint address.'
 }
 foreach ($path in @($ReleaseDir,$BootstrapPythonExe,$SitePackages,$SourceHostIdentityEvidence)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required collector input is absent: $path" }

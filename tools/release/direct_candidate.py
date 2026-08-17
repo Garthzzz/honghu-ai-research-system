@@ -26,6 +26,7 @@ ALLOWED_MODULES = {
     "tools.operations.task_child": "main",
     "tools.operations.task_credential_transfer": "main",
     "tools.operations.task_service_preflight": "main",
+    "tools.operations.task_enable_evidence": "main",
     "tools.operations.backup_credential_transfer": "main",
     "tools.operations.wal_offvm_sync": "main",
     "tools.operations.stage5_recovery_cycle": "main",

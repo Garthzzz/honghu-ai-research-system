@@ -29,3 +29,19 @@ def test_stage5_evidence_output_stays_in_ignored_cache():
     assert build_stage5_evidence.OUTPUT.is_relative_to(
         build_stage5_evidence.ROOT / "cache" / "git_bootstrap"
     )
+
+
+def test_storage_transition_collector_requires_one_explicit_old_to_new_ipv4_move():
+    collector = (
+        build_stage5_evidence.ROOT
+        / "tools/operations/Collect-StorageIdentityTransitionEvidence.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "[Parameter(Mandatory=$true)][string]$OldEndpointAddress" in collector
+    assert "[Parameter(Mandatory=$true)][string]$NewEndpointAddress" in collector
+    assert "[Net.IPAddress]::TryParse($OldEndpointAddress" in collector
+    assert "[Net.IPAddress]::TryParse($NewEndpointAddress" in collector
+    assert "AddressFamily]::InterNetwork" in collector
+    assert "if ($OldEndpointAddress -eq $NewEndpointAddress)" in collector
+    assert "$OldEndpointAddress = '" not in collector
+    assert "$NewEndpointAddress = '" not in collector
