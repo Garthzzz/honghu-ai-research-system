@@ -8,6 +8,7 @@ from tools.operations.task_manifest import load_task_manifest
 from tools.operations.task_runner import (
     _classify,
     _controlled_retail_session_date,
+    _dynamic_compatibility_retry_environment,
     _isolated_child_command,
     _most_recent_scheduled_at,
     logical_window,
@@ -64,6 +65,26 @@ def test_non_retail_task_cannot_receive_controlled_session_date():
             value="2026-08-14",
             allow_disabled=True,
             now=datetime(2026, 8, 17, 5, 0, tzinfo=BEIJING),
+        )
+
+
+def test_dynamic_compatibility_retry_is_explicit_and_disabled_only():
+    dynamic = MANIFEST.tasks["IndustryDemo_DynamicTick"]
+    assert _dynamic_compatibility_retry_environment(
+        dynamic, allow_disabled=True, requested=False
+    ) == {}
+    assert _dynamic_compatibility_retry_environment(
+        dynamic, allow_disabled=True, requested=True
+    ) == {"HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1"}
+    with pytest.raises(Exception):
+        _dynamic_compatibility_retry_environment(
+            dynamic, allow_disabled=False, requested=True
+        )
+    with pytest.raises(Exception):
+        _dynamic_compatibility_retry_environment(
+            MANIFEST.tasks["IndustryDemo_EventIngest"],
+            allow_disabled=True,
+            requested=True,
         )
 
 

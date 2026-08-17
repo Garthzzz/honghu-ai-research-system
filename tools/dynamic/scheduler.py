@@ -213,7 +213,7 @@ def run_fetch(con, row) -> int:
 
 def _controlled_compatibility_retry(row) -> bool:
     return (
-        os.environ.get("HONGHU_TASK_CONTROLLED_TRIAL", "").strip() == "1"
+        os.environ.get("HONGHU_DYNAMIC_COMPATIBILITY_RETRY", "").strip() == "1"
         and row["last_error"] == COMPAT_ROW_ACCESS_FAILURE
     )
 

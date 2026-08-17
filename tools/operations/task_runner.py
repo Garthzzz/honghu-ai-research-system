@@ -68,6 +68,23 @@ def _controlled_retail_session_date(
     return session.isoformat()
 
 
+def _dynamic_compatibility_retry_environment(
+    task: TaskDefinition,
+    *,
+    allow_disabled: bool,
+    requested: bool,
+) -> dict[str, str]:
+    """Authorize the one narrow Dynamic compatibility repair trial."""
+
+    if not requested:
+        return {}
+    if not allow_disabled or task.task_id != "IndustryDemo_DynamicTick":
+        raise TaskRunnerError(
+            "dynamic compatibility retry is restricted to disabled DynamicTick trials"
+        )
+    return {"HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1"}
+
+
 def _canonical_sha(payload: Any) -> str:
     return hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -309,6 +326,7 @@ def run_task(
     logical_window_value: str | None = None,
     allow_disabled: bool = False,
     controlled_session_date: str | None = None,
+    retry_dynamic_compatibility_failure: bool = False,
 ) -> dict[str, Any]:
     # This process is the Scheduled Task / controlled-trial root.  It must own
     # the kill-on-close Job before any producer child is launched so stopping
@@ -332,6 +350,11 @@ def run_task(
         logical_window_value=window,
         value=controlled_session_date,
         allow_disabled=allow_disabled,
+    )
+    dynamic_retry_environment = _dynamic_compatibility_retry_environment(
+        task,
+        allow_disabled=allow_disabled,
+        requested=retry_dynamic_compatibility_failure,
     )
     operation_id = f"stage5:{task.task_id}:{window}"
     operation_hash = hashlib.sha256(operation_id.encode("utf-8")).hexdigest()
@@ -445,6 +468,7 @@ def run_task(
                 "HONGHU_TASK_CONTROLLED_TRIAL": "1",
                 "HONGHU_CONTROLLED_SESSION_DATE": controlled_session,
             })
+        environment.update(dynamic_retry_environment)
         timed_out = False
         with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
             process = subprocess.Popen(
@@ -628,6 +652,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--enabled", action="store_true")
     parser.add_argument("--allow-disabled", action="store_true")
     parser.add_argument("--controlled-session-date")
+    parser.add_argument("--retry-dynamic-compatibility-failure", action="store_true")
     args = parser.parse_args(argv)
     manifest = load_task_manifest(args.manifest)
     if args.command == "health":
@@ -663,6 +688,7 @@ def main(argv: list[str] | None = None) -> int:
             site_packages=args.site_packages,
             logical_window_value=args.logical_window, allow_disabled=args.allow_disabled,
             controlled_session_date=args.controlled_session_date,
+            retry_dynamic_compatibility_failure=args.retry_dynamic_compatibility_failure,
         )
     print(json.dumps(result, ensure_ascii=False, default=str, sort_keys=True))
     return int(result.get("returncode") or 0)

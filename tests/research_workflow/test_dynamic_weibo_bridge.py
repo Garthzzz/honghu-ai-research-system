@@ -317,7 +317,10 @@ class SchedulerContractTest(unittest.TestCase):
             mock.patch.object(scheduler, "now", return_value=fixed),
             mock.patch.object(scheduler, "log"),
             mock.patch.object(scheduler, "run_fetch", return_value=0) as controlled_fetch,
-            mock.patch.dict(scheduler.os.environ, {"HONGHU_TASK_CONTROLLED_TRIAL": "1"}),
+            mock.patch.dict(
+                scheduler.os.environ,
+                {"HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1"},
+            ),
         ):
             self.assertEqual(scheduler.tick(), 0)
         controlled_fetch.assert_called_once()
