@@ -12,6 +12,10 @@ def test_stage5_identity_file_set_exists_and_excludes_runtime_evidence():
     assert "tools/operations/Collect-LocalDisabledTaskEvidence.ps1" in build_stage5_evidence.FILES
     assert "tools/operations/backup_credential_transfer.py" in build_stage5_evidence.FILES
     assert "tools/operations/stage5_recovery_cycle.py" in build_stage5_evidence.FILES
+    assert "tools/operations/storage_identity_transition.py" in build_stage5_evidence.FILES
+    assert "config/migration/stage5_storage_attestation_public.cer" in build_stage5_evidence.FILES
+    assert "tools/operations/Collect-StorageIdentityTransitionEvidence.ps1" in build_stage5_evidence.FILES
+    assert "tools/migration/stage4_recovery_set.py" in build_stage5_evidence.FILES
     assert "tools/operations/Provision-Stage5RecoveryMaintenance.ps1" in build_stage5_evidence.FILES
     assert "migrations/postgresql/0015_stage5_initial_overlay_revision.sql" in build_stage5_evidence.FILES
     assert "tools/operations/stage5_health.py" in build_stage5_evidence.FILES

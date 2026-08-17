@@ -8,6 +8,8 @@ param(
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedStorageIdentity,
     [Parameter(Mandatory=$true)][string]$AtRestEncryptionEvidence,
     [Parameter(Mandatory=$true)][string]$InitialRecoveryBoundary,
+    [string]$StorageIdentityTransition,
+    [ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedStorageIdentityTransitionSha256,
     [string]$RuntimeCatalog = 'D:\honghu-postgresql\runtime\postgresql_runtime.json',
     [string]$SourceArchive = 'D:\honghu-postgresql\wal-archive',
     [string]$RuntimeDir = 'D:\honghu-stage5-runtime',
@@ -40,6 +42,16 @@ if ($env:COMPUTERNAME -ne 'DESKTOP-VGD07J4') { throw 'Recovery runner is bound t
 foreach ($path in @($ReleaseDir,$SitePackages,$RuntimeCatalog,$SourceArchive,$CredentialBlobPath,$AtRestEncryptionEvidence,$InitialRecoveryBoundary)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required recovery path is absent: $path" }
 }
+if ([bool]$StorageIdentityTransition -ne [bool]$ExpectedStorageIdentityTransitionSha256) {
+    throw 'Storage transition path and expected SHA-256 must be supplied together.'
+}
+if ($StorageIdentityTransition -and -not (Test-Path -LiteralPath $StorageIdentityTransition -PathType Leaf)) {
+    throw "Storage identity transition evidence is absent: $StorageIdentityTransition"
+}
+if ($StorageIdentityTransition -and
+    (Get-FileHash -LiteralPath $StorageIdentityTransition -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedStorageIdentityTransitionSha256) {
+    throw 'Storage identity transition file differs from the approved SHA-256.'
+}
 $python = 'C:\ProgramData\miniconda3\envs\quant\python.exe'
 $bootstrap = Join-Path $ReleaseDir 'tools\release\direct_candidate.py'
 $plain = New-Secret
@@ -71,6 +83,12 @@ $values = @(
     '-SmbUser',$SmbUser,'-CredentialBlobPath',$CredentialBlobPath,'-OutputPath',$output,
     '-MaxFullScrubAgeSeconds',[string]$MaxFullScrubAgeSeconds
 )
+if ($StorageIdentityTransition) {
+    $values += @(
+        '-StorageIdentityTransition',$StorageIdentityTransition,
+        '-ExpectedStorageIdentityTransitionSha256',$ExpectedStorageIdentityTransitionSha256
+    )
+}
 $argumentString = ($values | ForEach-Object { Quote-Arg ([string]$_) }) -join ' '
 $start = (Get-Date).ToString('yyyy-MM-ddTHH:mm:ss')
 $xml = @"
@@ -113,6 +131,9 @@ if (-not $ran -or $state -eq 'Running' -or $info.LastTaskResult -ne 0 -or -not (
     interval_minutes=5
     output_path=$output
     expected_storage_identity=$ExpectedStorageIdentity
+    storage_identity_transition_sha256=if ($StorageIdentityTransition) {
+        $ExpectedStorageIdentityTransitionSha256
+    } else { $null }
     secret_recorded=$false
 } | ConvertTo-Json -Depth 8
 $plain=$null

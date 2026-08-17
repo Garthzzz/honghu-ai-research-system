@@ -1,18 +1,74 @@
 from __future__ import annotations
 
 import json
+import base64
+import hashlib
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
+from cryptography import x509
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+from cryptography.x509.oid import NameOID
 
-from tools.migration.stage4_recovery_set import sha256_json
+from tools.migration.stage4_recovery_set import sha256_file, sha256_json
 from tools.operations import wal_offvm_sync
+from tools.operations.storage_identity_transition import (
+    COLLECTOR_SCHEMA,
+    COLLECTOR_SIGNATURE_SCHEMA,
+    COLLECTOR_SIGNED_FACTS_SCHEMA,
+    REMOTE_ATTESTATION_SCHEMA,
+    STAGE5_EXECUTION_AUTHORIZATION_REFERENCE,
+    TRANSITION_REASON,
+    TRANSITION_SCHEMA,
+    artifact_anchor_identity,
+    collector_script_sha256,
+    endpoint_identity,
+    verify_storage_identity_transition as verify_signed_storage_transition,
+)
 from tools.operations.wal_offvm_sync import WalSyncError, sync_archived_wal, verify_wal_sync
 
 
 IDENTITY = "a" * 64
 NOW = datetime(2026, 8, 16, 1, 0, 0, tzinfo=timezone.utc)
+
+_TEST_KEY = rsa.generate_private_key(public_exponent=65537, key_size=3072)
+_TEST_CERT = (
+    x509.CertificateBuilder()
+    .subject_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "HonghuStage5StorageAttestation")]))
+    .issuer_name(x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "HonghuStage5StorageAttestation")]))
+    .public_key(_TEST_KEY.public_key())
+    .serial_number(x509.random_serial_number())
+    .not_valid_before(datetime(2025, 1, 1, tzinfo=timezone.utc))
+    .not_valid_after(datetime(2030, 1, 1, tzinfo=timezone.utc))
+    .sign(_TEST_KEY, hashes.SHA256())
+)
+_TEST_CERT_DIR = tempfile.TemporaryDirectory()
+TEST_CERT_PATH = Path(_TEST_CERT_DIR.name) / "collector.cer"
+TEST_CERT_PATH.write_bytes(_TEST_CERT.public_bytes(serialization.Encoding.DER))
+TEST_CERT_SHA256 = hashlib.sha256(TEST_CERT_PATH.read_bytes()).hexdigest()
+
+
+def _collector_signature(signed_facts: dict[str, object]) -> dict[str, object]:
+    payload = json.dumps(
+        signed_facts, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    signature = _TEST_KEY.sign(
+        payload,
+        padding.PSS(mgf=padding.MGF1(hashes.SHA256()), salt_length=32),
+        hashes.SHA256(),
+    )
+    return {
+        "schema_version": COLLECTOR_SIGNATURE_SCHEMA,
+        "algorithm": "rsa-pss-sha256",
+        "certificate_sha256": TEST_CERT_SHA256,
+        "certificate_thumbprint": _TEST_CERT.fingerprint(hashes.SHA1()).hex(),
+        "signed_payload_sha256": hashlib.sha256(payload).hexdigest(),
+        "signed_payload_base64": base64.b64encode(payload).decode("ascii"),
+        "signature_base64": base64.b64encode(signature).decode("ascii"),
+    }
 
 
 def _boundary(first: str = "000000010000000000000001") -> dict[str, object]:
@@ -30,7 +86,7 @@ def _remote_storage(_: Path) -> dict[str, object]:
     return {
         "kind": "windows_unc",
         "server": "backup-host",
-        "share": "recovery",
+        "share": "honghupgrecovery",
         "resolved_addresses": ["10.0.0.8"],
         "volume_serial": "1234abcd",
         "filesystem": "NTFS",
@@ -126,6 +182,270 @@ def test_sync_accepts_powershell_seven_digit_boundary_timestamp(
         now=NOW,
     )
     assert result["verified"] is True
+
+
+def test_one_time_endpoint_transition_reuses_verified_wal_and_only_copies_delta(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    old_core = {
+        "kind": "windows_unc",
+        "server": "old-endpoint",
+        "share": "honghupgrecovery",
+        "resolved_addresses": ["10.0.0.8"],
+        "volume_serial": "1234abcd",
+        "filesystem": "NTFS",
+    }
+    new_core = {**old_core, "server": "new-endpoint", "resolved_addresses": ["10.0.0.9"]}
+    old_identity = endpoint_identity(old_core)
+    new_identity = endpoint_identity(new_core)
+    old_storage = {
+        **old_core,
+        "failure_domain": "remote_host_storage",
+        "independent_from_source_host": True,
+        "derived_storage_identity": old_identity,
+    }
+    new_storage = {
+        **new_core,
+        "failure_domain": "remote_host_storage",
+        "independent_from_source_host": True,
+        "derived_storage_identity": new_identity,
+    }
+    source = tmp_path / "archive"
+    destination = tmp_path / "offvm"
+    first = "000000010000000000000001"
+    second = "000000010000000000000002"
+    third = "000000010000000000000003"
+    fourth = "000000010000000000000004"
+    fifth = "000000010000000000000005"
+    for index, name in enumerate((first, second, third, fourth, fifth), start=1):
+        _wal(source, name, f"wal-{index}".encode())
+    boundary = {
+        "schema_version": wal_offvm_sync.INITIAL_BOUNDARY_SCHEMA,
+        "verified": True,
+        "base_recovery_set_identity_sha256": "d" * 64,
+        "first_required_wal_segment": first,
+        "storage_identity": old_identity,
+        "verified_at_utc": (NOW - timedelta(minutes=5)).isoformat(),
+    }
+    old_at_rest = {
+        "schema_version": "honghu.storage_at_rest_encryption.v1",
+        "status": "verified",
+        "verification_method": "windows_bitlocker_volume_probe",
+        "storage_identity": old_identity,
+        "checked_at_utc": (NOW - timedelta(minutes=2)).isoformat(),
+        "volume_encryption_enabled": True,
+    }
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", lambda _: old_storage)
+    sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW - timedelta(seconds=2),
+        target_wal_segment=second,
+        expected_storage_identity=old_identity,
+        at_rest_encryption_evidence=old_at_rest,
+        initial_recovery_boundary=boundary,
+        now=NOW,
+    )
+    pointer_path = destination / "latest_verified_wal_manifest.json"
+    pointer = json.loads(pointer_path.read_text())
+    manifest_path = destination / pointer["manifest_path"]
+    manifest = json.loads(manifest_path.read_text())
+    artifacts_identity = sha256_json(manifest["artifacts"])
+    anchor = artifact_anchor_identity(
+        pointer_sha256=sha256_file(pointer_path),
+        manifest_identity_sha256=manifest["manifest_identity_sha256"],
+        manifest_file_sha256=sha256_file(manifest_path),
+        artifacts_identity_sha256=artifacts_identity,
+        artifact_count=manifest["artifact_count"],
+    )
+    remote_machine = "2" * 64
+    source_machine = "1" * 64
+    collector_core = {
+        "schema_version": COLLECTOR_SCHEMA,
+        "collector_script_sha256": collector_script_sha256(),
+        "host_name": "win-g7vo0dd37ce",
+        "checked_at_utc": (NOW + timedelta(seconds=10)).isoformat(),
+        "share_name": "honghupgrecovery",
+        "share_local_path": r"D:\quant\industry_demo_backup_package\postgresql_recovery",
+        "approved_backup_root": r"D:\quant\industry_demo_backup_package\postgresql_recovery",
+        "share_local_path_verified": True,
+        "unc_live_probe_path": r"\\new-endpoint\honghupgrecovery",
+        "unc_live_probe_verified": True,
+        "smb_transport_encryption_required": True,
+        "machine_guid_sha256": remote_machine,
+        "volume_serial": "1234abcd",
+        "filesystem": "NTFS",
+        "bitlocker": {
+            "protection_status": "On",
+            "volume_status": "FullyEncrypted",
+            "encryption_percentage": 100.0,
+            "verified": True,
+        },
+        "artifact_hashes_verified": True,
+    }
+    collector = {
+        **collector_core,
+        "collector_identity_sha256": sha256_json(collector_core),
+    }
+    attestation_core = {
+        "schema_version": REMOTE_ATTESTATION_SCHEMA,
+        "machine_guid_sha256": remote_machine,
+        "share": "honghupgrecovery",
+        "volume_serial": "1234abcd",
+        "filesystem": "NTFS",
+        "current_addresses": ["10.0.0.9"],
+        "checked_at_utc": (NOW + timedelta(seconds=10)).isoformat(),
+        "artifact_anchor_identity_sha256": anchor,
+        "collector_identity_sha256": collector["collector_identity_sha256"],
+    }
+    attestation = {
+        **attestation_core,
+        "attestation_identity_sha256": sha256_json(attestation_core),
+    }
+    new_at_rest = {
+        "schema_version": "honghu.storage_at_rest_encryption.v1",
+        "status": "verified",
+        "verification_method": "windows_bitlocker_volume_probe",
+        "storage_identity": new_identity,
+        "checked_at_utc": (NOW + timedelta(seconds=10)).isoformat(),
+        "volume_encryption_enabled": True,
+    }
+    new_at_rest_identity = sha256_json(
+        {key: new_at_rest[key] for key in sorted(new_at_rest)}
+    )
+    signed_facts = {
+        "schema_version": COLLECTOR_SIGNED_FACTS_SCHEMA,
+        "authorization_reference": STAGE5_EXECUTION_AUTHORIZATION_REFERENCE,
+        "collector": collector_core,
+        "source_host_identity_evidence": None,
+        "source_machine_guid_sha256": source_machine,
+        "old_endpoint_core": old_core,
+        "new_endpoint_core": new_core,
+        "old_storage_identity": old_identity,
+        "new_storage_identity": new_identity,
+        "prior_pointer_sha256": sha256_file(pointer_path),
+        "prior_manifest_identity_sha256": manifest["manifest_identity_sha256"],
+        "prior_manifest_file_sha256": sha256_file(manifest_path),
+        "prior_artifacts": manifest["artifacts"],
+        "prior_artifacts_identity_sha256": artifacts_identity,
+        "prior_artifact_count": manifest["artifact_count"],
+        "initial_boundary_evidence_identity_sha256": manifest[
+            "initial_recovery_boundary"
+        ]["evidence_identity_sha256"],
+        "old_at_rest_evidence_identity_sha256": manifest["at_rest_encryption"][
+            "evidence_identity_sha256"
+        ],
+        "artifact_anchor_identity_sha256": anchor,
+    }
+    transition_core = {
+        "schema_version": TRANSITION_SCHEMA,
+        "approved": True,
+        "approved_at_utc": (NOW + timedelta(seconds=20)).isoformat(),
+        "authorization_reference": STAGE5_EXECUTION_AUTHORIZATION_REFERENCE,
+        "reason": TRANSITION_REASON,
+        "collector_signed_facts": signed_facts,
+        "collector_signature": _collector_signature(signed_facts),
+        "collector": collector,
+        "old_endpoint_core": old_core,
+        "new_endpoint_core": new_core,
+        "source_machine_guid_sha256": source_machine,
+        "remote_host_attestation": attestation,
+        "old_storage_identity": old_identity,
+        "new_storage_identity": new_identity,
+        "prior_pointer_sha256": sha256_file(pointer_path),
+        "prior_manifest_identity_sha256": manifest["manifest_identity_sha256"],
+        "prior_manifest_file_sha256": sha256_file(manifest_path),
+        "prior_artifacts_identity_sha256": artifacts_identity,
+        "prior_artifact_count": manifest["artifact_count"],
+        "initial_boundary_evidence_identity_sha256": manifest[
+            "initial_recovery_boundary"
+        ]["evidence_identity_sha256"],
+        "old_at_rest_evidence_identity_sha256": manifest["at_rest_encryption"][
+            "evidence_identity_sha256"
+        ],
+        "new_at_rest_evidence_identity_sha256": new_at_rest_identity,
+        "artifact_anchor_identity_sha256": anchor,
+    }
+    transition = {
+        **transition_core,
+        "transition_identity_sha256": sha256_json(transition_core),
+    }
+    old_mtime = (destination / "wal" / first).stat().st_mtime_ns
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", lambda _: new_storage)
+    monkeypatch.setattr(
+        wal_offvm_sync,
+        "local_machine_guid_sha256",
+        lambda: source_machine,
+    )
+    monkeypatch.setattr(
+        wal_offvm_sync,
+        "verify_storage_identity_transition",
+        lambda evidence, **kwargs: verify_signed_storage_transition(
+            evidence,
+            **kwargs,
+            public_certificate_path=TEST_CERT_PATH,
+            expected_certificate_sha256=TEST_CERT_SHA256,
+        ),
+    )
+    result = sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW + timedelta(seconds=30),
+        target_wal_segment=third,
+        expected_storage_identity=new_identity,
+        at_rest_encryption_evidence=new_at_rest,
+        initial_recovery_boundary=boundary,
+        storage_identity_transition=transition,
+        now=NOW + timedelta(minutes=1),
+    )
+    assert result["verified"] is True
+    assert result["storage_identity_transition"]["transition_identity_sha256"] == transition[
+        "transition_identity_sha256"
+    ]
+    assert (destination / "wal" / first).stat().st_mtime_ns == old_mtime
+    # The same transition document remains required, but cannot create a
+    # second identity hop.  A later cycle only appends the next delta.
+    second_result = sync_archived_wal(
+        source_archive=source,
+        destination=destination,
+        recoverable_target_at=NOW + timedelta(minutes=1, seconds=30),
+        target_wal_segment=fourth,
+        expected_storage_identity=new_identity,
+        at_rest_encryption_evidence=new_at_rest,
+        initial_recovery_boundary=boundary,
+        storage_identity_transition=transition,
+        now=NOW + timedelta(minutes=2),
+    )
+    assert second_result["verified"] is True
+    assert len(list((destination / "manifests").glob("*.json"))) == 2
+    third_core = {
+        **new_core,
+        "server": "third-endpoint",
+        "resolved_addresses": ["10.0.0.10"],
+    }
+    third_storage = {
+        **third_core,
+        "failure_domain": "remote_host_storage",
+        "independent_from_source_host": True,
+        "derived_storage_identity": endpoint_identity(third_core),
+    }
+    monkeypatch.setattr(wal_offvm_sync, "probe_storage_endpoint", lambda _: third_storage)
+    with pytest.raises(WalSyncError, match="second storage identity transition"):
+        sync_archived_wal(
+            source_archive=source,
+            destination=destination,
+            recoverable_target_at=NOW + timedelta(minutes=2, seconds=30),
+            target_wal_segment=fifth,
+            expected_storage_identity=third_storage["derived_storage_identity"],
+            at_rest_encryption_evidence={
+                **new_at_rest,
+                "storage_identity": third_storage["derived_storage_identity"],
+            },
+            initial_recovery_boundary=boundary,
+            storage_identity_transition=transition,
+            now=NOW + timedelta(minutes=3),
+        )
 
 
 def test_local_path_never_counts_as_offvm(

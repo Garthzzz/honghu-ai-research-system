@@ -84,6 +84,7 @@ def run_cycle(
     expected_storage_identity: str,
     at_rest_encryption_evidence: Mapping[str, Any],
     initial_recovery_boundary: Mapping[str, Any],
+    storage_identity_transition: Mapping[str, Any] | None = None,
     wal_segment_size_bytes: int = 16 * 1024 * 1024,
     timeout_seconds: float = 90.0,
     connection_factory: Callable[[], Any] | None = None,
@@ -160,6 +161,7 @@ def run_cycle(
         wal_segment_size_bytes=wal_segment_size_bytes,
         at_rest_encryption_evidence=at_rest_encryption_evidence,
         initial_recovery_boundary=initial_recovery_boundary,
+        storage_identity_transition=storage_identity_transition,
         max_full_scrub_age_seconds=max_full_scrub_age_seconds,
     )
     return {
@@ -183,6 +185,7 @@ def run_cycle(
         "first_required_wal_segment": verification[
             "initial_recovery_boundary"
         ]["first_required_wal_segment"],
+        "storage_identity_transition": verification.get("storage_identity_transition"),
         "retention": verification["retention"],
         "wal_verification_mode": verification["verification_mode"],
         "integrity_verification": verification["integrity_verification"],
@@ -199,6 +202,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--expected-storage-identity", required=True)
     parser.add_argument("--at-rest-encryption-evidence", type=Path, required=True)
     parser.add_argument("--initial-recovery-boundary", type=Path, required=True)
+    parser.add_argument("--storage-identity-transition", type=Path)
     parser.add_argument("--wal-segment-size-bytes", type=int, default=16 * 1024 * 1024)
     parser.add_argument("--timeout-seconds", type=float, default=90.0)
     parser.add_argument(
@@ -219,6 +223,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     initial_boundary = read_json(args.initial_recovery_boundary)
     if not isinstance(initial_boundary, Mapping):
         raise RecoveryCycleError("initial recovery boundary evidence must be an object")
+    storage_transition = (
+        read_json(args.storage_identity_transition)
+        if args.storage_identity_transition
+        else None
+    )
+    if storage_transition is not None and not isinstance(storage_transition, Mapping):
+        raise RecoveryCycleError("storage identity transition evidence must be an object")
     result = run_cycle(
         runtime_catalog=args.runtime_catalog,
         source_archive=args.source_archive,
@@ -226,6 +237,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         expected_storage_identity=args.expected_storage_identity,
         at_rest_encryption_evidence=evidence,
         initial_recovery_boundary=initial_boundary,
+        storage_identity_transition=storage_transition,
         wal_segment_size_bytes=args.wal_segment_size_bytes,
         timeout_seconds=args.timeout_seconds,
         archive_only=args.archive_only,

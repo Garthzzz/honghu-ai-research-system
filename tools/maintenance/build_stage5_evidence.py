@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "cache" / "git_bootstrap" / "stage5_evidence" / "stage5_code_identity.json"
 FILES = (
+    "config/migration/stage5_storage_attestation_public.cer",
     "config/operations/production_tasks.json",
     "migrations/postgresql/0013_stage5_task_operations.sql",
     "migrations/postgresql/0014_stage5_delegated_unit_writers.sql",
@@ -29,9 +30,12 @@ FILES = (
     "tools/operations/Provision-ProductionTaskRunner.ps1",
     "tools/operations/Collect-LocalDisabledTaskEvidence.ps1",
     "tools/operations/Collect-StorageEncryptionEvidence.ps1",
+    "tools/operations/Collect-StorageIdentityTransitionEvidence.ps1",
     "tools/operations/Invoke-Stage5-ContinuousRecovery.ps1",
     "tools/operations/Provision-Stage5RecoveryMaintenance.ps1",
     "tools/operations/wal_offvm_sync.py",
+    "tools/operations/storage_identity_transition.py",
+    "tools/migration/stage4_recovery_set.py",
     "tools/operations/stage5_recovery_cycle.py",
     "tools/operations/recovery_metrics.py",
     "tools/operations/recovery_health.py",

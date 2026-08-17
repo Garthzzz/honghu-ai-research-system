@@ -21,6 +21,7 @@ def test_recovery_maintenance_is_exact_release_least_privilege_and_five_minute()
     assert "-PasswordNeverExpires $true" in source
     assert "-UserMayChangePassword $false" in source
     assert "ExpectedStorageIdentity" in source
+    assert "ExpectedStorageIdentityTransitionSha256" in source
     assert "AtRestEncryptionEvidence" in source
     assert "InitialRecoveryBoundary" in source
     assert "Password $plain" in source
@@ -52,6 +53,9 @@ def test_recovery_wrapper_requires_encrypted_smb_and_never_carries_password_argu
     assert "--initial-recovery-boundary" in source
     assert "--archive-only" in source
     assert "--max-archive-age-seconds 900" in source
+    assert "ExpectedStorageIdentityTransitionSha256" in source
+    assert "transitionSnapshot" in source
+    assert source.count("Get-FileHash -LiteralPath $StorageIdentityTransition") >= 3
     assert "-Password" not in source
 
 

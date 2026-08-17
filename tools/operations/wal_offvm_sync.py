@@ -18,6 +18,11 @@ from tools.migration.stage4_recovery_set import (
     sha256_json,
 )
 from tools.operations.recovery_metrics import RecoveryMetricError, parse_utc
+from tools.operations.storage_identity_transition import (
+    StorageIdentityTransitionError,
+    local_machine_guid_sha256,
+    verify_storage_identity_transition,
+)
 
 
 WAL_NAME = re.compile(r"^[0-9A-F]{24}$")
@@ -196,6 +201,8 @@ def _encryption_state(
 def _initial_boundary_state(
     storage: Mapping[str, Any],
     evidence: Mapping[str, Any] | None,
+    *,
+    storage_transition: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     if evidence is None:
         raise WalSyncError(
@@ -220,7 +227,13 @@ def _initial_boundary_state(
     if not WAL_NAME.fullmatch(str(core.get("first_required_wal_segment") or "")):
         raise WalSyncError("initial WAL boundary has an invalid first-required segment")
     if core.get("storage_identity") != storage.get("derived_storage_identity"):
-        raise WalSyncError("initial WAL boundary belongs to another off-VM storage endpoint")
+        if not (
+            isinstance(storage_transition, Mapping)
+            and core.get("storage_identity") == storage_transition.get("old_storage_identity")
+            and storage.get("derived_storage_identity")
+            == storage_transition.get("new_storage_identity")
+        ):
+            raise WalSyncError("initial WAL boundary belongs to another off-VM storage endpoint")
     _parse_time(core.get("verified_at_utc"), field="initial WAL boundary verified_at_utc")
     return {**core, "evidence_identity_sha256": sha256_json(core)}
 
@@ -307,6 +320,7 @@ def _verify_manifest_structure(
     manifest: Mapping[str, Any],
     storage: Mapping[str, Any],
     segment_size_bytes: int | None = None,
+    storage_transition: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     if manifest.get("schema_version") != MANIFEST_SCHEMA:
         raise WalSyncError("off-VM WAL manifest schema is not supported")
@@ -314,16 +328,52 @@ def _verify_manifest_structure(
     identity = core.pop("manifest_identity_sha256", None)
     if not isinstance(identity, str) or sha256_json(core) != identity:
         raise WalSyncError("off-VM WAL manifest identity is invalid")
-    if manifest.get("storage_identity") != storage.get("derived_storage_identity"):
-        raise WalSyncError("off-VM WAL manifest belongs to another storage endpoint")
+    manifest_storage = manifest.get("storage_identity")
+    observed_storage = storage.get("derived_storage_identity")
+    manifest_transition = manifest.get("storage_identity_transition")
+    if manifest_storage != observed_storage:
+        if not (
+            isinstance(storage_transition, Mapping)
+            and manifest_storage == storage_transition.get("old_storage_identity")
+            and observed_storage == storage_transition.get("new_storage_identity")
+            and manifest_transition is None
+        ):
+            raise WalSyncError("off-VM WAL manifest belongs to another storage endpoint")
+    elif manifest_transition is not None:
+        if not isinstance(storage_transition, Mapping) or dict(manifest_transition) != dict(
+            storage_transition
+        ):
+            raise WalSyncError("off-VM WAL manifest storage transition identity is unavailable")
     boundary = manifest.get("initial_recovery_boundary")
     if not isinstance(boundary, Mapping):
         raise WalSyncError("off-VM WAL manifest lacks its initial base-recovery boundary")
-    normalized_boundary = _initial_boundary_state(storage, boundary)
+    normalized_boundary = _initial_boundary_state(
+        storage,
+        boundary,
+        storage_transition=storage_transition,
+    )
     if normalized_boundary.get("evidence_identity_sha256") != boundary.get(
         "evidence_identity_sha256"
     ):
         raise WalSyncError("off-VM WAL initial base-recovery boundary identity is invalid")
+    if isinstance(storage_transition, Mapping):
+        if boundary.get("evidence_identity_sha256") != storage_transition.get(
+            "initial_boundary_evidence_identity_sha256"
+        ):
+            raise WalSyncError("off-VM WAL boundary is not bound to the storage transition")
+        encryption = manifest.get("at_rest_encryption")
+        encryption_identity = (
+            encryption.get("evidence_identity_sha256")
+            if isinstance(encryption, Mapping)
+            else None
+        )
+        expected_encryption_identity = storage_transition.get(
+            "old_at_rest_evidence_identity_sha256"
+            if manifest_storage == storage_transition.get("old_storage_identity")
+            else "new_at_rest_evidence_identity_sha256"
+        )
+        if encryption_identity != expected_encryption_identity:
+            raise WalSyncError("off-VM WAL at-rest evidence is not bound to the storage transition")
     try:
         configured_size = int(manifest.get("wal_segment_size_bytes") or 0)
     except (TypeError, ValueError) as exc:
@@ -381,12 +431,14 @@ def _verify_manifest_content(
     manifest: Mapping[str, Any],
     storage: Mapping[str, Any],
     segment_size_bytes: int | None = None,
+    storage_transition: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     declared = _verify_manifest_structure(
         destination=destination,
         manifest=manifest,
         storage=storage,
         segment_size_bytes=segment_size_bytes,
+        storage_transition=storage_transition,
     )
     verified: list[dict[str, Any]] = []
     for item in declared:
@@ -437,6 +489,112 @@ def _integrity_state(
     return {**dict(value), "last_full_scrub_age_seconds": age}
 
 
+def _storage_transition_state(
+    *,
+    destination: Path,
+    pointer: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    storage: Mapping[str, Any],
+    evidence: Mapping[str, Any] | None,
+    at_rest_encryption_evidence: Mapping[str, Any] | None,
+    initial_recovery_boundary: Mapping[str, Any] | None,
+    observed_now: datetime,
+    segment_size_bytes: int | None = None,
+) -> dict[str, Any] | None:
+    manifest_storage = manifest.get("storage_identity")
+    observed_storage = storage.get("derived_storage_identity")
+    embedded = manifest.get("storage_identity_transition")
+    if manifest_storage == observed_storage and embedded is None:
+        if evidence is not None:
+            raise WalSyncError("storage transition evidence was supplied without an endpoint change")
+        return None
+    if evidence is None:
+        raise WalSyncError("an explicit storage identity transition is required")
+    if manifest_storage != observed_storage and embedded is not None:
+        raise WalSyncError("a second storage identity transition is not permitted")
+
+    encryption = _encryption_state(
+        storage,
+        at_rest_encryption_evidence,
+        observed_at=observed_now,
+    )
+    if encryption.get("verified") is not True:
+        raise WalSyncError("storage transition requires newly bound at-rest evidence")
+
+    if manifest_storage != observed_storage:
+        old_storage = {"derived_storage_identity": manifest_storage}
+        verified_artifacts = _verify_manifest_content(
+            destination=destination,
+            manifest=manifest,
+            storage=old_storage,
+            segment_size_bytes=segment_size_bytes,
+        )
+        boundary = manifest.get("initial_recovery_boundary")
+        if not isinstance(boundary, Mapping):
+            raise WalSyncError("prior manifest lacks its initial recovery boundary")
+        requested_boundary = _initial_boundary_state(old_storage, initial_recovery_boundary)
+        if requested_boundary.get("evidence_identity_sha256") != boundary.get(
+            "evidence_identity_sha256"
+        ):
+            raise WalSyncError("storage transition boundary does not match the prior manifest")
+        pointer_sha = sha256_file(destination / "latest_verified_wal_manifest.json")
+        manifest_path = destination / str(pointer.get("manifest_path"))
+        manifest_file_sha = sha256_file(manifest_path)
+        artifacts_identity = sha256_json(verified_artifacts)
+        artifact_count = len(verified_artifacts)
+        boundary_identity = str(boundary.get("evidence_identity_sha256") or "")
+        old_encryption = manifest.get("at_rest_encryption")
+        old_encryption_identity = (
+            old_encryption.get("evidence_identity_sha256")
+            if isinstance(old_encryption, Mapping)
+            else None
+        )
+    else:
+        # The first transitioned manifest is self-contained and binds the full
+        # old-chain verification.  Later cycles revalidate the exact evidence
+        # document, source host, new endpoint and new at-rest identity without
+        # rereading artifacts that were already scrubbed at transition time.
+        pointer_sha = evidence.get("prior_pointer_sha256")
+        manifest_file_sha = evidence.get("prior_manifest_file_sha256")
+        artifacts_identity = evidence.get("prior_artifacts_identity_sha256")
+        artifact_count = evidence.get("prior_artifact_count")
+        boundary_identity = evidence.get("initial_boundary_evidence_identity_sha256")
+        old_encryption_identity = evidence.get("old_at_rest_evidence_identity_sha256")
+
+    try:
+        result = verify_storage_identity_transition(
+            evidence,
+            observed_new_storage=storage,
+            observed_source_machine_guid_sha256=local_machine_guid_sha256(),
+            prior_storage_identity=str(
+                evidence.get("old_storage_identity")
+                if manifest_storage == observed_storage
+                else manifest_storage
+            ),
+            prior_pointer_sha256=str(pointer_sha or ""),
+            prior_manifest_identity_sha256=str(
+                evidence.get("prior_manifest_identity_sha256")
+                if manifest_storage == observed_storage
+                else manifest.get("manifest_identity_sha256")
+            ),
+            prior_manifest_file_sha256=str(manifest_file_sha or ""),
+            prior_artifacts_identity_sha256=str(artifacts_identity or ""),
+            prior_artifact_count=int(artifact_count or 0),
+            initial_boundary_evidence_identity_sha256=str(boundary_identity or ""),
+            old_at_rest_evidence_identity_sha256=str(old_encryption_identity or ""),
+            new_at_rest_evidence_identity_sha256=str(
+                encryption.get("evidence_identity_sha256") or ""
+            ),
+            now=observed_now,
+            enforce_collector_freshness=(manifest_storage != observed_storage),
+        )
+    except StorageIdentityTransitionError as exc:
+        raise WalSyncError(str(exc)) from exc
+    if embedded is not None and dict(embedded) != result:
+        raise WalSyncError("embedded storage transition does not match the approved evidence")
+    return result
+
+
 def verify_wal_sync(
     *,
     destination: Path,
@@ -445,6 +603,9 @@ def verify_wal_sync(
     now: datetime | None = None,
     verification_mode: str = "full_content",
     max_full_scrub_age_seconds: float = DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
+    storage_identity_transition: Mapping[str, Any] | None = None,
+    at_rest_encryption_evidence: Mapping[str, Any] | None = None,
+    initial_recovery_boundary: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     storage = _storage_evidence(destination, expected_storage_identity)
     loaded = _load_latest(destination)
@@ -452,8 +613,23 @@ def verify_wal_sync(
         raise WalSyncError("off-VM WAL manifest pointer is absent")
     pointer, manifest = loaded
     observed_now = _utc(now)
+    transition_state = _storage_transition_state(
+        destination=destination,
+        pointer=pointer,
+        manifest=manifest,
+        storage=storage,
+        evidence=storage_identity_transition,
+        at_rest_encryption_evidence=at_rest_encryption_evidence,
+        initial_recovery_boundary=initial_recovery_boundary,
+        observed_now=observed_now,
+    )
     if verification_mode == "full_content":
-        _verify_manifest_content(destination=destination, manifest=manifest, storage=storage)
+        _verify_manifest_content(
+            destination=destination,
+            manifest=manifest,
+            storage=storage,
+            storage_transition=transition_state,
+        )
         integrity = manifest.get("integrity_verification")
         if isinstance(integrity, Mapping) and integrity.get("schema_version") == INTEGRITY_SCHEMA:
             integrity_result = _integrity_state(
@@ -473,7 +649,12 @@ def verify_wal_sync(
                 "legacy_manifest": True,
             }
     elif verification_mode == "incremental_chain":
-        _verify_manifest_structure(destination=destination, manifest=manifest, storage=storage)
+        _verify_manifest_structure(
+            destination=destination,
+            manifest=manifest,
+            storage=storage,
+            storage_transition=transition_state,
+        )
         integrity_result = _integrity_state(
             manifest,
             observed_now=observed_now,
@@ -517,6 +698,7 @@ def verify_wal_sync(
         "full_content_verified_this_call": verification_mode == "full_content",
         "integrity_verification": integrity_result,
         "initial_recovery_boundary": manifest["initial_recovery_boundary"],
+        "storage_identity_transition": transition_state,
         "continuous_rpo_measured": False,
         "continuous_rpo_note": "measure against a later failure cutoff using this pre-existing recovery point",
         "pointer": pointer,
@@ -540,6 +722,7 @@ def sync_archived_wal(
     wal_segment_size_bytes: int = 16 * 1024 * 1024,
     at_rest_encryption_evidence: Mapping[str, Any] | None = None,
     initial_recovery_boundary: Mapping[str, Any] | None = None,
+    storage_identity_transition: Mapping[str, Any] | None = None,
     now: datetime | None = None,
     max_full_scrub_age_seconds: float = DEFAULT_MAX_FULL_SCRUB_AGE_SECONDS,
 ) -> dict[str, Any]:
@@ -561,18 +744,33 @@ def sync_archived_wal(
         raise WalSyncError("maximum full WAL scrub age must be positive")
     with _exclusive_lock(destination):
         prior = _load_latest(destination)
+        if prior is None and storage_identity_transition is not None:
+            raise WalSyncError("storage transition cannot initialize an empty WAL destination")
         source = _source_segments(source_archive)
         if target_wal_segment not in source:
             raise WalSyncError("target WAL segment is not durably present in the source archive")
         prior_artifacts: list[dict[str, Any]] = []
         full_scrub_performed = prior is None
         last_full_scrub_at = observed_now
+        transition_state: dict[str, Any] | None = None
         if prior is not None:
+            transition_state = _storage_transition_state(
+                destination=destination,
+                pointer=prior[0],
+                manifest=prior[1],
+                storage=storage,
+                evidence=storage_identity_transition,
+                at_rest_encryption_evidence=at_rest_encryption_evidence,
+                initial_recovery_boundary=initial_recovery_boundary,
+                observed_now=observed_now,
+                segment_size_bytes=wal_segment_size_bytes,
+            )
             prior_artifacts = _verify_manifest_structure(
                 destination=destination,
                 manifest=prior[1],
                 storage=storage,
                 segment_size_bytes=wal_segment_size_bytes,
+                storage_transition=transition_state,
             )
             prior_integrity = prior[1].get("integrity_verification")
             if isinstance(prior_integrity, Mapping) and prior_integrity.get(
@@ -595,6 +793,7 @@ def sync_archived_wal(
                         manifest=prior[1],
                         storage=storage,
                         segment_size_bytes=wal_segment_size_bytes,
+                        storage_transition=transition_state,
                     )
                     full_scrub_performed = True
                     last_full_scrub_at = observed_now
@@ -617,6 +816,7 @@ def sync_archived_wal(
                         manifest=prior[1],
                         storage=storage,
                         segment_size_bytes=wal_segment_size_bytes,
+                        storage_transition=transition_state,
                     )
                     full_scrub_performed = True
                     last_full_scrub_at = observed_now
@@ -624,7 +824,11 @@ def sync_archived_wal(
             if not isinstance(boundary, Mapping):
                 raise WalSyncError("prior WAL manifest lacks its initial base-recovery boundary")
             if initial_recovery_boundary is not None:
-                requested_boundary = _initial_boundary_state(storage, initial_recovery_boundary)
+                requested_boundary = _initial_boundary_state(
+                    storage,
+                    initial_recovery_boundary,
+                    storage_transition=transition_state,
+                )
                 if requested_boundary["evidence_identity_sha256"] != boundary.get(
                     "evidence_identity_sha256"
                 ):
@@ -755,6 +959,7 @@ def sync_archived_wal(
             ),
             "initial_recovery_boundary": dict(boundary),
             "at_rest_encryption": encryption,
+            "storage_identity_transition": transition_state,
             "integrity_verification": {
                 "schema_version": INTEGRITY_SCHEMA,
                 "verification_mode": (
@@ -806,6 +1011,9 @@ def sync_archived_wal(
         now=observed_now,
         verification_mode="incremental_chain",
         max_full_scrub_age_seconds=max_full_scrub_age_seconds,
+        storage_identity_transition=storage_identity_transition,
+        at_rest_encryption_evidence=at_rest_encryption_evidence,
+        initial_recovery_boundary=initial_recovery_boundary,
     )
 
 
@@ -818,6 +1026,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--expected-storage-identity")
     parser.add_argument("--at-rest-encryption-evidence", type=Path)
     parser.add_argument("--initial-recovery-boundary", type=Path)
+    parser.add_argument("--storage-identity-transition", type=Path)
     parser.add_argument("--wal-segment-size-bytes", type=int, default=16 * 1024 * 1024)
     parser.add_argument(
         "--max-full-scrub-age-seconds",
@@ -835,6 +1044,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.initial_recovery_boundary
         else None
     )
+    storage_transition = (
+        _read_json(args.storage_identity_transition)
+        if args.storage_identity_transition
+        else None
+    )
     result = sync_archived_wal(
         source_archive=args.source_archive,
         destination=args.destination,
@@ -844,6 +1058,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         wal_segment_size_bytes=args.wal_segment_size_bytes,
         at_rest_encryption_evidence=encryption_evidence,
         initial_recovery_boundary=initial_boundary,
+        storage_identity_transition=storage_transition,
         max_full_scrub_age_seconds=args.max_full_scrub_age_seconds,
     )
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))

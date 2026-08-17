@@ -9,6 +9,8 @@ param(
     [Parameter(Mandatory=$true)][ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedStorageIdentity,
     [Parameter(Mandatory=$true)][string]$AtRestEncryptionEvidence,
     [Parameter(Mandatory=$true)][string]$InitialRecoveryBoundary,
+    [string]$StorageIdentityTransition,
+    [ValidatePattern('^[0-9a-f]{64}$')][string]$ExpectedStorageIdentityTransitionSha256,
     [Parameter(Mandatory=$true)][string]$SmbUser,
     [Parameter(Mandatory=$true)][string]$CredentialBlobPath,
     [Parameter(Mandatory=$true)][string]$OutputPath,
@@ -20,6 +22,26 @@ Set-StrictMode -Version Latest
 
 foreach ($path in @($ReleaseDir,$BootstrapPythonExe,$SitePackages,$RuntimeCatalog,$SourceArchive,$AtRestEncryptionEvidence,$InitialRecoveryBoundary,$CredentialBlobPath)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "Required recovery input is absent: $path" }
+}
+if ([bool]$StorageIdentityTransition -ne [bool]$ExpectedStorageIdentityTransitionSha256) {
+    throw 'Storage transition path and expected SHA-256 must be supplied together.'
+}
+if ($StorageIdentityTransition -and -not (Test-Path -LiteralPath $StorageIdentityTransition -PathType Leaf)) {
+    throw "Storage identity transition evidence is absent: $StorageIdentityTransition"
+}
+$transitionSnapshot = $null
+if ($StorageIdentityTransition) {
+    $observedTransitionSha = (Get-FileHash -LiteralPath $StorageIdentityTransition -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($observedTransitionSha -ne $ExpectedStorageIdentityTransitionSha256) {
+        throw 'Storage identity transition file differs from the approved SHA-256.'
+    }
+    $transitionSnapshot = Join-Path ([IO.Path]::GetTempPath()) (
+        'honghu-storage-transition-' + [guid]::NewGuid().ToString('N') + '.json'
+    )
+    Copy-Item -LiteralPath $StorageIdentityTransition -Destination $transitionSnapshot -ErrorAction Stop
+    if ((Get-FileHash -LiteralPath $transitionSnapshot -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedStorageIdentityTransitionSha256) {
+        throw 'Storage identity transition snapshot differs after copy.'
+    }
 }
 $bootstrap = Join-Path $ReleaseDir 'tools\release\direct_candidate.py'
 if (-not (Test-Path -LiteralPath $bootstrap -PathType Leaf)) { throw 'Exact-release bootstrap is absent.' }
@@ -48,6 +70,13 @@ try {
     }
     $destination = Join-Path $OffVmRoot 'honghu-postgresql\stage5-continuous-wal'
     New-Item -ItemType Directory -Force $destination | Out-Null
+    $transitionArgs = @()
+    if ($StorageIdentityTransition) {
+        if ((Get-FileHash -LiteralPath $StorageIdentityTransition -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedStorageIdentityTransitionSha256) {
+            throw 'Storage identity transition changed before recovery execution.'
+        }
+        $transitionArgs = @('--storage-identity-transition',$transitionSnapshot)
+    }
     $savedErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
@@ -60,6 +89,7 @@ try {
             --expected-storage-identity $ExpectedStorageIdentity `
             --at-rest-encryption-evidence $AtRestEncryptionEvidence `
             --initial-recovery-boundary $InitialRecoveryBoundary `
+            @transitionArgs `
             --archive-only `
             --max-archive-age-seconds 900 `
             --max-full-scrub-age-seconds $MaxFullScrubAgeSeconds 2>&1 | Out-String
@@ -70,6 +100,12 @@ try {
     if ($pythonExitCode -ne 0) {
         throw "Stage5 continuous WAL recovery cycle failed: $($json.Trim())"
     }
+    if (
+        $StorageIdentityTransition -and (
+            (Get-FileHash -LiteralPath $StorageIdentityTransition -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedStorageIdentityTransitionSha256 -or
+            (Get-FileHash -LiteralPath $transitionSnapshot -Algorithm SHA256).Hash.ToLowerInvariant() -ne $ExpectedStorageIdentityTransitionSha256
+        )
+    ) { throw 'Storage identity transition changed during recovery execution.' }
     $result = $json | ConvertFrom-Json
     if ($result.status -ne 'pass' -or $result.storage_identity -ne $ExpectedStorageIdentity) {
         throw 'Stage5 recovery cycle returned mismatched evidence.'
@@ -86,6 +122,9 @@ try {
     if ($mapped) {
         Remove-SmbMapping -RemotePath $OffVmRoot -Force -UpdateProfile:$false `
             -ErrorAction SilentlyContinue | Out-Null
+    }
+    if ($transitionSnapshot) {
+        Remove-Item -LiteralPath $transitionSnapshot -Force -ErrorAction SilentlyContinue
     }
     if ($null -ne $plainBytes) { [Array]::Clear($plainBytes,0,$plainBytes.Length) }
     $password = $null
