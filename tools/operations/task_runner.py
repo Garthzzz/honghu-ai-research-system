@@ -51,16 +51,27 @@ def _controlled_retail_session_date(
         session = date.fromisoformat(value)
     except ValueError as exc:
         raise TaskRunnerError("controlled session date is not ISO format") from exc
-    current = (now or datetime.now(BEIJING)).astimezone(BEIJING).date()
-    if session >= current or session.weekday() >= 5:
-        raise TaskRunnerError(
-            "controlled retail session must be a completed prior weekday"
-        )
     try:
         slot_index = task.command.index("--slot") + 1
         slot = task.command[slot_index]
     except (ValueError, IndexError) as exc:
         raise TaskRunnerError("retail task has no reviewed slot") from exc
+    current_time = (now or datetime.now(BEIJING)).astimezone(BEIJING)
+    current = current_time.date()
+    if session > current or session.weekday() >= 5:
+        raise TaskRunnerError(
+            "controlled retail session must be a completed weekday"
+        )
+    if session == current:
+        try:
+            hour, minute = (int(part) for part in str(task.schedule["at"]).split(":"))
+        except (KeyError, TypeError, ValueError) as exc:
+            raise TaskRunnerError("retail task has no reviewed trigger time") from exc
+        trigger = current_time.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if current_time <= trigger:
+            raise TaskRunnerError(
+                "controlled retail session has not reached its reviewed trigger"
+            )
     if logical_window_value != f"{session.isoformat()}:{slot}":
         raise TaskRunnerError(
             "controlled retail session and logical window do not match"

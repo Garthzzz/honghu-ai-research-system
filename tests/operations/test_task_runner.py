@@ -32,7 +32,7 @@ def test_logical_windows_are_retry_stable():
     assert logical_window(MANIFEST.tasks["IndustryDemo_Retail_Morning"], current) == "2026-08-17:morning"
 
 
-def test_controlled_retail_session_is_prior_exact_and_disabled_only():
+def test_controlled_retail_session_is_completed_exact_and_disabled_only():
     task = MANIFEST.tasks["IndustryDemo_Retail_Preopen"]
     now = datetime(2026, 8, 17, 5, 0, tzinfo=BEIJING)
     assert _controlled_retail_session_date(
@@ -44,7 +44,7 @@ def test_controlled_retail_session_is_prior_exact_and_disabled_only():
     ) == "2026-08-14"
     for window, value, allowed in (
         ("2026-08-14:morning", "2026-08-14", True),
-        ("2026-08-17:preopen", "2026-08-17", True),
+        ("2026-08-18:preopen", "2026-08-18", True),
         ("2026-08-15:preopen", "2026-08-15", True),
         ("2026-08-14:preopen", "2026-08-14", False),
     ):
@@ -56,6 +56,25 @@ def test_controlled_retail_session_is_prior_exact_and_disabled_only():
                 allow_disabled=allowed,
                 now=now,
             )
+
+
+def test_controlled_retail_session_allows_current_weekday_only_after_trigger():
+    task = MANIFEST.tasks["IndustryDemo_Retail_Preopen"]
+    assert _controlled_retail_session_date(
+        task,
+        logical_window_value="2026-08-17:preopen",
+        value="2026-08-17",
+        allow_disabled=True,
+        now=datetime(2026, 8, 17, 10, 1, tzinfo=BEIJING),
+    ) == "2026-08-17"
+    with pytest.raises(Exception):
+        _controlled_retail_session_date(
+            task,
+            logical_window_value="2026-08-17:preopen",
+            value="2026-08-17",
+            allow_disabled=True,
+            now=datetime(2026, 8, 17, 10, 0, tzinfo=BEIJING),
+        )
 
 
 def test_non_retail_task_cannot_receive_controlled_session_date():
