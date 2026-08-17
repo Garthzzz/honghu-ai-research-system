@@ -48,7 +48,7 @@
     "dynamic_intelligence": {
       "owner": "dynamic-intelligence-governance",
       "risk": "medium",
-      "dependencies": ["shared_identity"],
+      "dependencies": ["shared_identity", "research_publication"],
       "objects": {
         "research.db": [
           "dynamic_seen",

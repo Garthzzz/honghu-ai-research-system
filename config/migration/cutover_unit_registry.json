@@ -8,7 +8,8 @@
       "owner": "dynamic-intelligence-governance",
       "risk": "medium",
       "dependencies": [
-        "shared_identity"
+        "shared_identity",
+        "research_publication"
       ],
       "state": "S0",
       "authoritative_backend": "sqlite_transition",
@@ -26715,5 +26716,5 @@
     "transaction_boundary_count": 388,
     "passed": true
   },
-  "registry_sha256": "1196432f4c4a589f0037fe59c278ebaf53c003900ca9e713745c4c63d01ffe47"
+  "registry_sha256": "6893fb7b6eb8143a4c9a4ab86d91478f3181a4a8a7077994e8b05f4de28dd20e"
 }

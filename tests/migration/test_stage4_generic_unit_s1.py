@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from tools.migration.stage4_generic_unit_s1 import (
@@ -20,6 +23,25 @@ def test_all_remaining_generic_units_have_reviewed_dependencies() -> None:
         "sentiment_analytics",
     }
     assert all("shared_identity" in dependencies for dependencies in DEPENDENCIES.values())
+    assert DEPENDENCIES["dynamic_intelligence"] == (
+        "shared_identity",
+        "research_publication",
+    )
+
+
+def test_dynamic_source_reads_are_owned_by_research_publication_dependency() -> None:
+    root = Path(__file__).resolve().parents[2]
+    ownership = json.loads(
+        (root / "config/migration/table_ownership.json").read_text(encoding="utf-8")
+    )
+    registry = json.loads(
+        (root / "config/migration/cutover_unit_registry.json").read_text(encoding="utf-8")
+    )
+    expected = ["shared_identity", "research_publication"]
+    assert ownership["units"]["dynamic_intelligence"]["dependencies"] == expected
+    assert registry["units"]["dynamic_intelligence"]["dependencies"] == expected
+    assert "source" in ownership["units"]["research_publication"]["objects"]["research.db"]
+    assert "source" not in ownership["units"]["dynamic_intelligence"]["objects"]["research.db"]
 
 
 def test_financial_release_binding_uses_generic_immutable_snapshot_contract() -> None:
