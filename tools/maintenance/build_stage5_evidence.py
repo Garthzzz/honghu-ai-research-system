@@ -20,6 +20,7 @@ FILES = (
     "migrations/postgresql/0015_stage5_initial_overlay_revision.sql",
     "migrations/postgresql/0016_stage5_bounded_mutation_batch_result.sql",
     "migrations/postgresql/0017_stage5_set_based_sentiment_delete_batch.sql",
+    "migrations/postgresql/0018_stage5_recovery_checkpoint_read_grant.sql",
     "tools/operations/task_manifest.py",
     "tools/operations/task_runner.py",
     "tools/operations/task_child.py",

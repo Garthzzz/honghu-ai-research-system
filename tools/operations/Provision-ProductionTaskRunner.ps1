@@ -104,6 +104,7 @@ foreach ($readOnlyRoot in $readOnlyRoots) {
     --migration '0015_stage5_initial_overlay_revision.sql' `
     --migration '0016_stage5_bounded_mutation_batch_result.sql' `
     --migration '0017_stage5_set_based_sentiment_delete_batch.sql' `
+    --migration '0018_stage5_recovery_checkpoint_read_grant.sql' `
     --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
 & $python -I -B -S $bootstrap --site-packages $SitePackages `

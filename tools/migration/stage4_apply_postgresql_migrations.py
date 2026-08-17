@@ -35,6 +35,7 @@ REVIEWED_MIGRATIONS = (
     "0015_stage5_initial_overlay_revision.sql",
     "0016_stage5_bounded_mutation_batch_result.sql",
     "0017_stage5_set_based_sentiment_delete_batch.sql",
+    "0018_stage5_recovery_checkpoint_read_grant.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -71,6 +72,9 @@ MIGRATION_IDENTIFIERS = {
         "writer_operations_governance": "honghu_writer_operations_governance",
         "reader_role": "honghu_viewer_reader",
         "audit_reader_role": "honghu_audit_reader",
+    },
+    "0018_stage5_recovery_checkpoint_read_grant.sql": {
+        "migration_role": "honghu_migration",
     },
 }
 

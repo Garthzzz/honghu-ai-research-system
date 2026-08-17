@@ -71,6 +71,7 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--migration '0015_stage5_initial_overlay_revision.sql'" in text
     assert "--migration '0016_stage5_bounded_mutation_batch_result.sql'" in text
     assert "--migration '0017_stage5_set_based_sentiment_delete_batch.sql'" in text
+    assert "--migration '0018_stage5_recovery_checkpoint_read_grant.sql'" in text
     assert "--output $migrationEvidence" in text
     assert "--migrations-dir" not in text
     assert "--evidence $migrationEvidence" not in text

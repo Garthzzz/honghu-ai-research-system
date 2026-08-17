@@ -121,6 +121,28 @@ def test_cutover_reconciliation_role_gets_only_formal_snapshot_read_access() -> 
     assert "0012_remaining_unit_reconciliation_read_grant" in rendered
 
 
+def test_recovery_checkpoint_grant_is_strictly_read_only() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0018_stage5_recovery_checkpoint_read_grant.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_schema_migration(
+        source,
+        "a" * 64,
+        identifiers={"migration_role": "honghu_migration"},
+    )
+    upper = rendered.upper()
+    assert "GRANT SELECT ON OPERATIONS.PRODUCTION_TASK_DEFINITION" in upper
+    assert 'OPERATIONS.PRODUCTION_TASK_RUN TO "HONGHU_MIGRATION"' in upper
+    assert "GRANT INSERT" not in upper
+    assert "GRANT UPDATE" not in upper
+    assert "GRANT DELETE" not in upper
+    assert "GRANT EXECUTE" not in upper
+    assert "CUTOVER_UNIT_AUTHORITY" not in upper
+
+
 def test_shared_identity_reader_can_bind_cache_to_authority_revision() -> None:
     source = (
         ROOT
