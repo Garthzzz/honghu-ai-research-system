@@ -24,6 +24,16 @@ def test_schema_renderer_removes_psql_meta_and_binds_exact_sha() -> None:
     assert "'" + "a" * 64 + "'" in rendered
 
 
+def test_schema_renderer_repairs_legacy_transaction_local_identity_binding() -> None:
+    rendered = render_schema_migration(
+        "\\set ON_ERROR_STOP on\nBEGIN;\n"
+        "SELECT current_setting('honghu.migration_sha256');\nCOMMIT;",
+        "b" * 64,
+    )
+    assert rendered.count("set_config('honghu.migration_sha256'") == 1
+    assert "'" + "b" * 64 + "', true" in rendered
+
+
 def test_schema_renderer_binds_reviewed_role_identifiers() -> None:
     rendered = render_schema_migration(
         "\\set ON_ERROR_STOP on\nSELECT :'migration_sha256';\nGRANT SELECT ON x TO :\"reader_role\";",

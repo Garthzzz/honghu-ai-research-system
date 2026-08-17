@@ -19,7 +19,9 @@ def test_stage5_identity_file_set_exists_and_excludes_runtime_evidence():
     assert "tools/operations/Provision-Stage5RecoveryMaintenance.ps1" in build_stage5_evidence.FILES
     assert "migrations/postgresql/0015_stage5_initial_overlay_revision.sql" in build_stage5_evidence.FILES
     assert "migrations/postgresql/0016_stage5_bounded_mutation_batch_result.sql" in build_stage5_evidence.FILES
+    assert "migrations/postgresql/0017_stage5_set_based_sentiment_delete_batch.sql" in build_stage5_evidence.FILES
     assert "tools/operations/stage5_health.py" in build_stage5_evidence.FILES
+    assert "tools/operations/stage5_sentiment_batch_rehearsal.py" in build_stage5_evidence.FILES
     assert not any(item.endswith((".json", ".dpapi")) and "credential" in item.casefold() for item in build_stage5_evidence.FILES)
 
 

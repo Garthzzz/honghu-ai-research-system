@@ -783,14 +783,14 @@ class PersistentSentimentConnection:
                 content_chunks = (first,)
             else:
                 content_chunks = chain((first, second), chunks)
-            for chunk_json, chunk_hash in content_chunks:
-                chunk_key = f"{batch_key}:chunk:{chunk_hash}"
-                # A writer context is one PostgreSQL transaction.  Keeping it
-                # scoped to one bounded chunk prevents the server transaction
-                # context from retaining hundreds of thousands of row-level
-                # audit/idempotency records.  If a later chunk fails, earlier
-                # chunks are durable and replay as exact idempotent results.
-                with self._writer() as connection:
+            # Every bounded server call belongs to the same logical commit.
+            # The set-based retention migration keeps each call fast without
+            # allowing a later failure to leave a purged ledger beside
+            # partially retained raw rows.  An uncertain commit is replayed
+            # with the same content-derived per-chunk identities.
+            with self._writer() as connection:
+                for chunk_json, chunk_hash in content_chunks:
+                    chunk_key = f"{batch_key}:chunk:{chunk_hash}"
                     row = connection.execute(
                         "SELECT domain_data.apply_mutation_batch_v1(%s,%s,%s,%s,%s::jsonb,%s,%s)",
                         (

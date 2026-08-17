@@ -34,6 +34,7 @@ REVIEWED_MIGRATIONS = (
     "0014_stage5_delegated_unit_writers.sql",
     "0015_stage5_initial_overlay_revision.sql",
     "0016_stage5_bounded_mutation_batch_result.sql",
+    "0017_stage5_set_based_sentiment_delete_batch.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -90,6 +91,21 @@ def render_schema_migration(
     rendered = "\n".join(lines).replace(
         ":'migration_sha256'", "'" + migration_sha256 + "'"
     )
+    if (
+        "current_setting('honghu.migration_sha256')" in rendered
+        and "set_config('honghu.migration_sha256'" not in rendered
+    ):
+        rendered, replacements = re.subn(
+            r"(?m)^BEGIN;\s*$",
+            "BEGIN;\nSELECT set_config('honghu.migration_sha256', "
+            f"'{migration_sha256}', true);",
+            rendered,
+            count=1,
+        )
+        if replacements != 1:
+            raise MigrationApplyError(
+                "migration identity validation lacks a transaction BEGIN"
+            )
     if identifiers:
         rendered = render_role_grant(rendered, identifiers)
     if ":'migration_sha256'" in rendered or "\\set" in rendered:

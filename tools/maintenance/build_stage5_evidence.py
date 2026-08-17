@@ -19,6 +19,7 @@ FILES = (
     "migrations/postgresql/0014_stage5_delegated_unit_writers.sql",
     "migrations/postgresql/0015_stage5_initial_overlay_revision.sql",
     "migrations/postgresql/0016_stage5_bounded_mutation_batch_result.sql",
+    "migrations/postgresql/0017_stage5_set_based_sentiment_delete_batch.sql",
     "tools/operations/task_manifest.py",
     "tools/operations/task_runner.py",
     "tools/operations/task_child.py",
@@ -41,6 +42,7 @@ FILES = (
     "tools/operations/recovery_metrics.py",
     "tools/operations/recovery_health.py",
     "tools/operations/stage5_health.py",
+    "tools/operations/stage5_sentiment_batch_rehearsal.py",
 )
 
 

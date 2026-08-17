@@ -178,6 +178,29 @@ def test_large_mutation_batch_result_is_bounded_without_weakening_row_fences():
     assert "'mutations_omitted',true" in function
 
 
+def test_sentiment_delete_batch_is_set_based_without_weakening_fences():
+    sql = (
+        ROOT
+        / "migrations/postgresql/0017_stage5_set_based_sentiment_delete_batch.sql"
+    ).read_text(encoding="utf-8")
+    function = sql.split(
+        "CREATE OR REPLACE FUNCTION domain_data.apply_mutation_batch_v1", 1
+    )[1].split("$$;", 1)[0]
+    assert "p_cutover_unit='sentiment_analytics'" in function
+    assert "v_authority.state NOT IN ('S3','S4')" in function
+    assert "v_authority.authoritative_backend<>'postgresql_production'" in function
+    assert "v_authority.writer_identity<>p_writer_identity" in function
+    assert "pg_has_role(session_user,p_writer_identity,'MEMBER')" in function
+    assert "v_formal.source_watermark->'tables'" in function
+    assert "current_revision<>expected_revision" in function
+    assert "INSERT INTO domain_data.record_overlay" in function
+    assert "INSERT INTO audit.domain_record_revision" in function
+    assert "INSERT INTO domain_data.mutation_result" in function
+    assert "PERFORM domain_data.mutate_record_v1" in function
+    assert "'execution_mode',CASE WHEN v_all_sentiment_deletes" in function
+    assert "SECURITY DEFINER" in function
+
+
 def test_child_command_is_import_isolated_and_bytecode_free(tmp_path, monkeypatch):
     release = tmp_path / "release"
     bootstrap = release / "tools" / "release" / "direct_candidate.py"
