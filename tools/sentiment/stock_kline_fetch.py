@@ -31,6 +31,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(ROOT / "tools" / "pipeline"))
 
 import common
+import senti3
 import yfinance as yf
 from tushare_provider import call_tushare, fetch_daily_rows, is_a_share_ticker, ts_code_from_ticker
 
@@ -50,6 +51,13 @@ EXCLUDED_LISTING_STATUSES = {
     "ceased",
 }
 
+# The company universe spans several exchanges but the project has no complete,
+# authoritative exchange-holiday calendar.  Existing rows therefore qualify
+# only at the exact closed-session watermark.  A real exchange holiday may
+# conservatively remain partial; arbitrary age tolerance would silently weaken
+# source completeness.
+MAX_EXISTING_COVERAGE_LAG_DAYS = 0
+
 
 @dataclass(frozen=True)
 class UniverseCompany:
@@ -57,6 +65,104 @@ class UniverseCompany:
     name: str
     ticker: str
     origin: str
+
+
+@dataclass(frozen=True)
+class CoverageRequirement:
+    target_date: date
+    cutoff_date: date
+    max_lag_days: int
+
+
+def coverage_requirement(ticker: str, session_date: date, slot: str) -> CoverageRequirement:
+    """Return the oldest acceptable K-line date for one market window.
+
+    Before the China-market open, and for non-A-share tickers throughout the
+    China session, the latest *closed* session is the preceding weekday.  A
+    shares in the morning/afternoon require same-session coverage.  With no
+    authoritative exchange calendar, the current contract accepts no implicit
+    lag; an exchange-holiday ambiguity remains partial instead of silently
+    treating stale rows as fresh.
+    """
+    if slot not in senti3.MARKET_WINDOW_SLOTS:
+        raise ValueError(f"unknown market window slot: {slot}")
+    same_session_a_share = slot != "preopen" and is_a_share_ticker(ticker)
+    target = session_date if same_session_a_share else senti3.previous_market_session(session_date)
+    max_lag_days = MAX_EXISTING_COVERAGE_LAG_DAYS
+    return CoverageRequirement(
+        target_date=target,
+        cutoff_date=target - timedelta(days=max_lag_days),
+        max_lag_days=max_lag_days,
+    )
+
+
+def existing_watermark_reuse_enabled(mode: str, slot: str | None) -> bool:
+    """Reuse is safe only for the full pre-open closed-session refresh.
+
+    Intraday and close windows require a finer hourly watermark than the legacy
+    table currently records, so they continue to perform their normal provider
+    request rather than treating a same-date morning bar as afternoon-fresh.
+    """
+    return mode == "full" and slot == "preopen"
+
+
+def load_existing_watermarks(con) -> dict[tuple[int, str, str], date]:
+    """Load valid existing OHLC watermarks from the authoritative backend.
+
+    This uses the already-routed sentiment connection.  Under S3 that is the
+    PostgreSQL compatibility projection; it never opens or falls back to the
+    retired SQLite writer.
+    """
+    rows = con.execute(
+        """SELECT company_id,UPPER(TRIM(ticker)) AS ticker,freq,
+                  MAX(SUBSTR(ts,1,10)) AS latest_date
+             FROM stock_kline
+            WHERE freq IN ('d','60m')
+              AND ticker IS NOT NULL AND TRIM(ticker)<>''
+              AND o IS NOT NULL AND h IS NOT NULL
+              AND l IS NOT NULL AND c IS NOT NULL
+            GROUP BY company_id,UPPER(TRIM(ticker)),freq"""
+    ).fetchall()
+    out: dict[tuple[int, str, str], date] = {}
+    for row in rows:
+        company_id, ticker, freq, raw_date = row[0], row[1], row[2], row[3]
+        try:
+            parsed = date.fromisoformat(str(raw_date))
+        except (TypeError, ValueError):
+            continue
+        out[(int(company_id), str(ticker), str(freq))] = parsed
+    return out
+
+
+def latest_row_date(rows: list[dict]) -> date | None:
+    parsed: list[date] = []
+    for row in rows:
+        try:
+            parsed.append(date.fromisoformat(str(row.get("ts") or "")[:10]))
+        except ValueError:
+            continue
+    return max(parsed) if parsed else None
+
+
+def coverage_satisfied(
+    existing: date | None,
+    fetched_rows: list[dict],
+    requirement: CoverageRequirement,
+) -> tuple[bool, date | None, str]:
+    fetched = latest_row_date(fetched_rows)
+    latest = (
+        max(value for value in (existing, fetched) if value is not None)
+        if existing is not None or fetched is not None
+        else None
+    )
+    if latest is None or latest < requirement.cutoff_date:
+        return False, latest, "missing" if latest is None else "stale"
+    origin = (
+        "fetched"
+        if fetched is not None and fetched >= (existing or date.min)
+        else "existing"
+    )
+    return True, latest, origin
 
 
 def normalize_ticker(value: str | None) -> str | None:
@@ -357,11 +463,24 @@ def fetch_yfinance(
     return valid, warning
 
 
-def fetch_ticker(ticker: str, *, days: int, m60: int, mode: str = "full") -> dict:
+def fetch_ticker(
+    ticker: str,
+    *,
+    days: int,
+    m60: int,
+    mode: str = "full",
+    request_daily: bool | None = None,
+    request_hourly: bool | None = None,
+) -> dict:
     if mode not in {"full", "intraday", "close"}:
         raise ValueError(f"unknown Kline mode: {mode}")
-    request_daily = mode != "intraday"
-    request_hourly = True
+    default_daily = mode != "intraday"
+    request_daily = (
+        default_daily
+        if request_daily is None
+        else bool(request_daily and default_daily)
+    )
+    request_hourly = True if request_hourly is None else bool(request_hourly)
     a_share = is_a_share_ticker(ticker)
     warnings = []
     daily_rows = []
@@ -381,7 +500,9 @@ def fetch_ticker(ticker: str, *, days: int, m60: int, mode: str = "full") -> dic
             warnings.append(f"yfinance_daily:{daily_error}")
     # 盘中定时任务随后会用一次 Tushare ``rt_min`` 批量请求补齐全部 A 股。
     # 这里不能先逐票调用 Yahoo：这会浪费数百次请求并把海外 ticker 的额度耗尽。
-    if mode == "intraday" and a_share:
+    if not request_hourly:
+        hourly_rows, hourly_error = [], None
+    elif mode == "intraday" and a_share:
         hourly_rows, hourly_error = [], None
     else:
         hourly_period = "90d" if mode == "full" else "5d"
@@ -453,6 +574,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--company-id", type=int, action="append", default=[])
     parser.add_argument("--ticker", action="append", default=[])
+    parser.add_argument(
+        "--session-date",
+        help="Retail window session date; must be supplied together with --slot for watermark reuse",
+    )
+    parser.add_argument(
+        "--slot",
+        choices=senti3.MARKET_WINDOW_SLOTS,
+        help="Retail window slot; must be supplied together with --session-date",
+    )
     parser.add_argument("--sleep", type=float, default=0.25)
     parser.add_argument(
         "--allow-partial",
@@ -460,6 +590,12 @@ def main(argv: list[str] | None = None) -> int:
         help="部分公司/频率失败仍返回 0；默认返回 2 让调度器感知陈旧风险",
     )
     args = parser.parse_args(argv)
+    if bool(args.session_date) != bool(args.slot):
+        parser.error("--session-date and --slot must be supplied together")
+    try:
+        session_date = date.fromisoformat(args.session_date) if args.session_date else None
+    except ValueError:
+        parser.error("--session-date must use YYYY-MM-DD")
 
     con = common.get_senti_db()
     common.assert_senti_only(con)
@@ -486,23 +622,56 @@ def main(argv: list[str] | None = None) -> int:
         cache = {}
         per_company = []
         now = common.now_iso()
-        for ticker in sorted({item.ticker for item in universe}):
+        reuse_existing = bool(
+            session_date is not None
+            and existing_watermark_reuse_enabled(args.mode, args.slot)
+        )
+        existing_watermarks = load_existing_watermarks(con) if reuse_existing else {}
+        companies_by_ticker: dict[str, list[UniverseCompany]] = {}
+        for company in universe:
+            companies_by_ticker.setdefault(company.ticker, []).append(company)
+        requirements = {
+            ticker: coverage_requirement(ticker, session_date, args.slot)
+            for ticker in companies_by_ticker
+        } if reuse_existing else {}
+
+        for ticker in sorted(companies_by_ticker):
+            requirement = requirements.get(ticker)
+            request_daily = args.mode != "intraday"
+            request_hourly = True
+            if requirement is not None:
+                if request_daily:
+                    request_daily = not all(
+                        existing_watermarks.get((company.company_id, ticker, "d"), date.min)
+                        >= requirement.cutoff_date
+                        for company in companies_by_ticker[ticker]
+                    )
+                request_hourly = not all(
+                    existing_watermarks.get((company.company_id, ticker, "60m"), date.min)
+                    >= requirement.cutoff_date
+                    for company in companies_by_ticker[ticker]
+                )
             try:
                 cache[ticker] = fetch_ticker(
-                    ticker, days=args.days, m60=args.m60, mode=args.mode
+                    ticker,
+                    days=args.days,
+                    m60=args.m60,
+                    mode=args.mode,
+                    request_daily=request_daily,
+                    request_hourly=request_hourly,
                 )
             except Exception as exc:
                 cache[ticker] = {
                     "daily": [],
                     "hourly": [],
                     "warnings": [f"unexpected:{type(exc).__name__}:{str(exc)[:160]}"],
-                    "errors": (["daily_missing"] if args.mode != "intraday" else [])
-                              + ["60m_missing"],
-                    "request_daily": args.mode != "intraday",
-                    "request_hourly": True,
+                    "errors": (["daily_missing"] if request_daily else [])
+                              + (["60m_missing"] if request_hourly else []),
+                    "request_daily": request_daily,
+                    "request_hourly": request_hourly,
                     "mode": args.mode,
                 }
-            if args.sleep > 0:
+            if args.sleep > 0 and (request_daily or request_hourly):
                 time.sleep(args.sleep)
 
         realtime_fallback = apply_realtime_hourly_fallback(cache)
@@ -515,11 +684,36 @@ def main(argv: list[str] | None = None) -> int:
             hourly_count = upsert_rows(
                 con, company.company_id, company.ticker, "60m", fetched["hourly"], now
             )
-            daily_ok = bool(daily_count) or not fetched["request_daily"]
-            hourly_ok = bool(hourly_count) or not fetched["request_hourly"]
+            requirement = requirements.get(company.ticker)
+            if requirement is None:
+                daily_ok = bool(daily_count) or not fetched["request_daily"]
+                hourly_ok = bool(hourly_count) or not fetched["request_hourly"]
+                daily_latest = latest_row_date(fetched["daily"])
+                hourly_latest = latest_row_date(fetched["hourly"])
+                daily_origin = "fetched" if daily_count else "not_required"
+                hourly_origin = "fetched" if hourly_count else "not_required"
+            else:
+                if args.mode == "intraday":
+                    daily_ok, daily_latest, daily_origin = True, None, "not_required"
+                else:
+                    daily_ok, daily_latest, daily_origin = coverage_satisfied(
+                        existing_watermarks.get((company.company_id, company.ticker, "d")),
+                        fetched["daily"],
+                        requirement,
+                    )
+                hourly_ok, hourly_latest, hourly_origin = coverage_satisfied(
+                    existing_watermarks.get((company.company_id, company.ticker, "60m")),
+                    fetched["hourly"],
+                    requirement,
+                )
             status = "complete" if daily_ok and hourly_ok else (
-                "partial" if daily_count or hourly_count else "failed"
+                "partial" if daily_ok or hourly_ok else "failed"
             )
+            coverage_errors = list(fetched["errors"])
+            if args.mode != "intraday" and not daily_ok:
+                coverage_errors.append(f"daily_coverage_{daily_origin}")
+            if not hourly_ok:
+                coverage_errors.append(f"60m_coverage_{hourly_origin}")
             per_company.append(
                 {
                     "company_id": company.company_id,
@@ -527,7 +721,20 @@ def main(argv: list[str] | None = None) -> int:
                     "status": status,
                     "daily_rows": daily_count,
                     "m60_rows": hourly_count,
-                    "errors": fetched["errors"],
+                    "daily_watermark": daily_latest.isoformat() if daily_latest else None,
+                    "m60_watermark": hourly_latest.isoformat() if hourly_latest else None,
+                    "daily_coverage": daily_origin,
+                    "m60_coverage": hourly_origin,
+                    "coverage_target": (
+                        requirement.target_date.isoformat() if requirement else None
+                    ),
+                    "coverage_cutoff": (
+                        requirement.cutoff_date.isoformat() if requirement else None
+                    ),
+                    "coverage_max_lag_days": (
+                        requirement.max_lag_days if requirement else None
+                    ),
+                    "errors": sorted(set(coverage_errors)),
                     "warnings": fetched["warnings"],
                 }
             )
@@ -542,7 +749,25 @@ def main(argv: list[str] | None = None) -> int:
         "ok": partial == 0 and failed == 0,
         "companies": len(per_company),
         "unique_tickers": len(cache),
+        "provider_requested_tickers": sum(
+            bool(item["request_daily"] or item["request_hourly"])
+            for item in cache.values()
+        ),
+        "fully_reused_tickers": sum(
+            not item["request_daily"] and not item["request_hourly"]
+            for item in cache.values()
+        ),
         "mode": args.mode,
+        "session_date": session_date.isoformat() if session_date else None,
+        "slot": args.slot,
+        "freshness_policy": (
+            {
+                "scope": "full_preopen_only",
+                "closed_session_max_lag_days": MAX_EXISTING_COVERAGE_LAG_DAYS,
+            }
+            if reuse_existing
+            else None
+        ),
         "complete": complete,
         "partial": partial,
         "failed": failed,

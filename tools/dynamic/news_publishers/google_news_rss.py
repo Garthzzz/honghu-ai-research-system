@@ -26,7 +26,8 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 sys.path.insert(0, str(ROOT))
-DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+DB = resolve_runtime_layout(ROOT).data_root / "research.db"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
 _ctx = ssl.create_default_context(); _ctx.check_hostname = False; _ctx.verify_mode = ssl.CERT_NONE
 NOW = datetime.now().isoformat(timespec="seconds")

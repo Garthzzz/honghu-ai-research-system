@@ -10,11 +10,13 @@ writes.  Formal mutations are committed to PostgreSQL first and the cache is
 committed only after an idempotent authoritative response.
 """
 
+import hashlib
 import json
 import os
 import sqlite3
 import time
 import uuid
+from itertools import chain
 from pathlib import Path
 from typing import Any, Callable
 
@@ -33,6 +35,65 @@ class SentimentProjectionError(DomainDataError):
     pass
 
 
+# PostgreSQL rejects a single jsonb array once the aggregate payload crosses
+# its 256 MiB implementation limit.  Retention can legitimately produce
+# hundreds of thousands of row mutations, so keep each server call and
+# transaction bounded.  Every chunk has a content-derived idempotency key:
+# committed prefixes therefore survive an uncertain response or process
+# restart and the next attempt can safely replay/continue without retaining a
+# multi-gigabyte PostgreSQL transaction.
+MAX_MUTATIONS_PER_SERVER_BATCH = 5_000
+MAX_SERVER_BATCH_JSON_BYTES = 8 * 1024 * 1024
+
+
+def _canonical_mutation_bytes(mutation: dict[str, Any]) -> bytes:
+    return json.dumps(
+        mutation,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def _mutation_sequence_sha256(mutations: list[dict[str, Any]]) -> str:
+    digest = hashlib.sha256()
+    digest.update(b"[")
+    for index, mutation in enumerate(mutations):
+        if index:
+            digest.update(b",")
+        digest.update(_canonical_mutation_bytes(mutation))
+    digest.update(b"]")
+    return digest.hexdigest()
+
+
+def _serialized_mutation_chunks(
+    mutations: list[dict[str, Any]],
+):
+    encoded: list[bytes] = []
+    encoded_size = 2
+    for mutation in mutations:
+        item = _canonical_mutation_bytes(mutation)
+        if len(item) + 2 > MAX_SERVER_BATCH_JSON_BYTES:
+            raise SentimentProjectionError(
+                "one sentiment mutation exceeds the bounded server batch size"
+            )
+        added = len(item) + (1 if encoded else 0)
+        if encoded and (
+            len(encoded) >= MAX_MUTATIONS_PER_SERVER_BATCH
+            or encoded_size + added > MAX_SERVER_BATCH_JSON_BYTES
+        ):
+            payload = b"[" + b",".join(encoded) + b"]"
+            yield payload.decode("utf-8"), hashlib.sha256(payload).hexdigest()
+            encoded = []
+            encoded_size = 2
+            added = len(item)
+        encoded.append(item)
+        encoded_size += added
+    if encoded:
+        payload = b"[" + b",".join(encoded) + b"]"
+        yield payload.decode("utf-8"), hashlib.sha256(payload).hexdigest()
+
+
 class _InterprocessLock:
     def __init__(self, path: Path, *, timeout_seconds: float = 30.0) -> None:
         self.path = path
@@ -41,10 +102,14 @@ class _InterprocessLock:
 
     def acquire(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        handle = self.path.open("a+b")
-        handle.seek(0)
-        if handle.read(1) == b"":
-            handle.seek(0)
+        try:
+            with self.path.open("xb") as created:
+                created.write(b"0")
+                created.flush()
+        except FileExistsError:
+            pass
+        handle = self.path.open("r+b")
+        if self.path.stat().st_size == 0:
             handle.write(b"0")
             handle.flush()
         deadline = time.monotonic() + self.timeout_seconds
@@ -463,7 +528,13 @@ class PersistentSentimentProjection:
                 raise DomainDataWriterFenced(
                     "sentiment projection writer does not own PostgreSQL authority"
                 )
-            connection = sqlite3.connect(self.database_path, timeout=30)
+            # URI parsing must remain enabled on the physical compatibility
+            # connection because PostgreSQL-authoritative read dependencies
+            # are attached through reviewed ``file:...mode=memory`` or
+            # ``file:...mode=ro`` URIs.  Without SQLITE_OPEN_URI, Windows
+            # treats the URI as a disk filename and a read-only release fails
+            # with an opaque "unable to open database" error.
+            connection = sqlite3.connect(self.database_path, timeout=30, uri=True)
             connection.row_factory = sqlite3.Row
             connection.execute("PRAGMA foreign_keys=ON")
             return PersistentSentimentConnection(
@@ -691,7 +762,7 @@ class PersistentSentimentConnection:
             self._connection.execute("DELETE FROM __honghu_changes")
             self._connection.commit()
             return
-        request_hash = _sha256_json(mutations)
+        request_hash = _mutation_sequence_sha256(mutations)
         if self._pending is None:
             self._transaction_index += 1
             self._pending = (
@@ -705,21 +776,37 @@ class PersistentSentimentConnection:
             )
         batch_key = self._pending[0]
         try:
+            chunks = iter(_serialized_mutation_chunks(mutations))
+            first = next(chunks)
+            second = next(chunks, None)
+            if second is None:
+                content_chunks = (first,)
+            else:
+                content_chunks = chain((first, second), chunks)
+            # Every bounded server call belongs to the same logical commit.
+            # The set-based retention migration keeps each call fast without
+            # allowing a later failure to leave a purged ledger beside
+            # partially retained raw rows.  An uncertain commit is replayed
+            # with the same content-derived per-chunk identities.
             with self._writer() as connection:
-                row = connection.execute(
-                    "SELECT domain_data.apply_mutation_batch_v1(%s,%s,%s,%s,%s::jsonb,%s,%s)",
-                    (
-                        "sentiment_analytics",
-                        self._operation_scope,
-                        batch_key,
-                        request_hash,
-                        json.dumps(mutations, ensure_ascii=False, sort_keys=True),
-                        self._writer_identity,
-                        self._actor,
-                    ),
-                ).fetchone()
-                if row is None:
-                    raise SentimentProjectionError("PostgreSQL sentiment mutation returned no result")
+                for chunk_json, chunk_hash in content_chunks:
+                    chunk_key = f"{batch_key}:chunk:{chunk_hash}"
+                    row = connection.execute(
+                        "SELECT domain_data.apply_mutation_batch_v1(%s,%s,%s,%s,%s::jsonb,%s,%s)",
+                        (
+                            "sentiment_analytics",
+                            self._operation_scope,
+                            chunk_key,
+                            chunk_hash,
+                            chunk_json,
+                            self._writer_identity,
+                            self._actor,
+                        ),
+                    ).fetchone()
+                    if row is None:
+                        raise SentimentProjectionError(
+                            "PostgreSQL sentiment mutation returned no result"
+                        )
         except Exception as exc:
             raise SentimentProjectionError(
                 "PostgreSQL sentiment mutation result is uncertain; exact retry is required"

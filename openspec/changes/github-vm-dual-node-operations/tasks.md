@@ -1,7 +1,7 @@
 # 泓湖 AI 研究系统迁移任务
 
 > 状态说明：本文件是人工批准后的实施路线，不是自动执行队列。每阶段完成后必须 HALT；未经用户明确批准不得进入下一阶段。  
-> 当前状态：阶段 0—3 已获用户批准退出。九个 cutover unit 均已进入 durable S3：PostgreSQL 是唯一 authority/writer，所有 SQLite writer flag 为 false；旧 SQLite 只作迁移基线、审计档案和有限修复材料，不是 production rollback target。最终 production Viewer 运行 exact commit `076dc982b343a851ae1dbbf30f99cb8e10104bdb`，以 `production_hybrid` 明确展示 9/9 per-unit PostgreSQL authority 且无 SQLite fallback。本机七个 `IndustryDemo_*` 计划任务保持 Disabled，VM 未安装同名生产任务；阶段 5 的任务/runner-host 迁移仍未授权。
+> 当前状态：阶段 0—4 已获用户批准退出。九个 cutover unit 均为 durable S3：PostgreSQL 是唯一 authority/writer，所有 SQLite writer flag 为 false；旧 SQLite 只作迁移基线、审计档案和有限修复材料，不是 production rollback target。用户已于 2026-08-16 授权连续实施阶段 5；七个 production task 仍须逐项满足 disabled install、真实试跑、唯一 runner、checkpoint/freshness 和恢复门禁，未通过前不得宣称迁移完成。
 > 阶段 1 远端状态（2026-08-04）：失败 CI 的 Windows 8.3/规范长路径根因已修复；`main` 已创建并配置两个 required checks、严格更新、PR review gate、管理员同样受约束、禁止 force push/删除；阶段修订均通过受保护 PR 与 main Actions 验证，精确 commit/run 由 required job 的 runtime evidence 记录。用户明确要求仓库在迁移、实施和人工审核期间保持 public；这是一项当前运营指令，不改变“成为 production authority 前仍需公司治理”的 gate。
 
 ## 0. 阶段 0 启动时已确认的历史事实
@@ -151,7 +151,7 @@
 - [x] [本阶段必须] 已覆盖 S1 放弃、S2 零正式新写回退、S2 uncertain response 按 S3、S3 前向修复、schema-compatible code rollback 和旁路选择性恢复；各动作不再混用同一个 rollback 标签。
 - [x] [本阶段必须] 最终异机 recovery set 已完成 whole-database、authority-control 和 side-domain restore；单域逻辑错误采用旁路提取/对账/审计修复，不允许原地回退整个 production database。
 - [x] [本阶段必须] 九个单元的旧 SQLite 已标记为 migration baseline/audit，应用 operation-level SQLite 写入口由 authority fence 禁用；文件继续保留，不推进 S4。
-- [ ] [HALT] 九个切换单元的独立对账、身份/并发、应用兼容、故障与恢复 evidence 已形成，当前统一 HALT 等待用户人工批准 Stage 4 退出。不得自行勾选本项；阶段 5 的七个任务、runner、空机恢复和整体 measured RPO/RTO 收口始终需要单独授权。
+- [x] [HALT] 用户已于 2026-08-16 正式批准 Stage 4 PASS/退出并授权 Stage 5。批准范围确认九个 cutover unit durable S3、PostgreSQL 9/9 唯一 authority/writer、SQLite 只作 migration baseline/audit；授权任务 runner、checkpoint/catch-up、恢复和监控实施，不授权 SQLite fallback、dual writer/runner、无人审核自动 production deploy 或 Stage 5 之后的 HA/replica/CDC 强化。
 
 **退出条件**：该切换单元 PostgreSQL 是唯一 writer；权威后端和唯一 runner 明确；旧 SQLite 角色与当前状态一致；备份可恢复；无未解释数据差异或并发覆盖。
 
@@ -162,14 +162,16 @@
 **前置条件**：相关切换单元的数据后端已切换且稳定；对应任务的生产数据库权限和 runner 状态获批。  
 **回滚点**：逐任务停 VM、恢复原 runner；保持唯一 writer、唯一 runner 和 checkpoint 连续，任务主机回滚不得改变数据后端权威。
 
+实施设计、计划、验收骨架和临时 repository governance exception 分别见 `stage5/stage5_design.md`、`stage5/stage5_execution_plan.md`、`stage5/stage5_completion_report.md` 与 `stage5/repository_production_governance_exception.md`。当前允许的 production 发布模式仅为 `CI green → 用户人工批准 exact SHA → immutable VM deploy`；在公司归属、第二管理员/恢复、2FA、reviewer 和公司 deploy credential 关闭前，禁止无人审核自动部署。
+
 - [ ] [本阶段必须] 统一七个任务 manifest、服务账户、固定环境、单实例锁、checkpoint/ledger、失败分类和数据新鲜度。
 - [ ] [本阶段必须] 为 VM 正常/异常关机定义自动启动顺序、漏窗识别、可补抓范围、不可补缺口记录和追平状态。
-- [ ] [本阶段必须] 按“VM disabled 安装→人工真实试跑→停本地→启 VM→观察→本地保持 disabled”逐任务切换。
+- [ ] [本阶段必须] 按“VM disabled 安装→受控真实试跑→再次证明本地同名任务 Disabled→启用唯一 VM runner→观察→本地保持 Disabled”逐任务切换；本地七任务在 Stage 5 启动时已经 Disabled，但该快照不能替代每次启用前的现场复核。
 - [ ] [本阶段必须] 对采用“本地 runner 先连接 production PostgreSQL”的中间状态复核阶段 4 登记项和退出条件；VM 启用前证明本地已停止，切换完成后撤销不再需要的本地 production 写角色、凭据和网络访问。长期不能退出时必须在人工 HALT 升级处置，不得默认为长期架构。
 - [ ] [本阶段必须] 修复当前失败/未正常完成任务，不能把迁移当成掩盖历史失败的方法。
 - [ ] [本阶段必须] 在开放人工写接口前完成身份、最小权限、CSRF、revision、soft delete 和 audit。
-- [ ] [本阶段必须] 复核生产控制是否符合阶段 3 已批准的 target RPO/RTO；若目标变化，返回对应设计 gate 重新批准，不在阶段 5 静默改写目标。
-- [ ] [本阶段必须] 建立 VM 外备份并完成整库灾难恢复、旁路单域逻辑恢复和空机真实 restore test；记录实际可恢复时间点、恢复耗时、未恢复数据、补抓耗时和选择性修复耗时，形成 measured RPO/RTO 并与目标逐类对账。
+- [ ] [本阶段必须] 复核生产控制是否符合阶段 3 已批准的 target RPO/RTO；若目标变化，返回对应设计 gate 重新批准，不在阶段 5 静默改写目标。Stage 4 的 0.007 秒/8.047 秒只分别是固定 recovery-set target gap 与该 target 的数据库 restore elapsed，不得当作全系统持续生产 RPO/RTO。
+- [ ] [本阶段必须] 建立 VM 外备份并完成整库灾难恢复、旁路单域逻辑恢复和空机真实 restore test；使用故障前已异机持久化的 base/WAL，记录实际可恢复 watermark、恢复耗时、未恢复数据、补抓耗时和选择性修复耗时，形成全系统 measured RPO/RTO 并与目标逐类对账。
 - [ ] [本阶段必须] 建立 Viewer、database、task、artifact 和 backup 健康/告警；区分进程存活和数据新鲜。
 - [ ] [后续强化] 基于实际恢复目标评估 PostgreSQL 物理分离、只读副本、连续归档和自动故障转移，另立 change 后实施。
 - [ ] [后续强化] 经合规批准后，评估客户端加密的低频 GitHub Release 灾备；不得替代内部备份。

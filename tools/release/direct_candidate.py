@@ -13,6 +13,7 @@ written into an immutable release.
 
 import argparse
 import importlib
+import os
 import sys
 from pathlib import Path
 
@@ -21,7 +22,22 @@ ALLOWED_MODULES = {
     "tools.release.cli": "main",
     "tools.release.readonly_smoke": "main",
     "tools.release.user_content_production": "main",
+    "tools.operations.task_runner": "main",
+    "tools.operations.task_child": "main",
+    "tools.operations.task_credential_transfer": "main",
+    "tools.operations.task_service_preflight": "main",
+    "tools.operations.task_enable_evidence": "main",
+    "tools.operations.backup_credential_transfer": "main",
+    "tools.operations.wal_offvm_sync": "main",
+    "tools.operations.stage5_recovery_cycle": "main",
+    "tools.operations.storage_identity_transition": "main",
+    "tools.operations.recovery_health": "main",
+    "tools.operations.stage5_health": "main",
+    "tools.migration.stage4_apply_postgresql_migrations": "main",
 }
+
+
+_DLL_DIRECTORY_HANDLES: list[object] = []
 
 
 def configure_utf8_stdio() -> None:
@@ -54,7 +70,29 @@ def prepare_import_path(site_packages: str | Path) -> tuple[Path, Path]:
             continue
         if resolved not in {release_root, locked_site}:
             retained.append(item)
-    sys.path[:] = [str(release_root), str(locked_site), *retained]
+    # pywin32 installs its extension modules below ``win32`` and helper
+    # modules below ``win32/lib`` through a .pth file.  Isolated mode rightly
+    # avoids processing arbitrary .pth code, so include only these reviewed
+    # directories from the already hash-locked environment when present.
+    locked_extensions = [
+        candidate
+        for candidate in (locked_site / "win32", locked_site / "win32" / "lib")
+        if candidate.is_dir()
+    ]
+    # pywin32 extension modules import ``pywintypes`` from a sibling DLL
+    # directory.  ``-I -S`` intentionally ignores the install-time .pth hook,
+    # so register only this reviewed directory and retain its handle for the
+    # process lifetime.  Merely adding ``win32`` to sys.path is insufficient
+    # on current Windows DLL search semantics.
+    dll_directory = locked_site / "pywin32_system32"
+    if os.name == "nt" and dll_directory.is_dir():
+        _DLL_DIRECTORY_HANDLES.append(os.add_dll_directory(str(dll_directory)))
+    sys.path[:] = [
+        str(release_root),
+        str(locked_site),
+        *(str(path) for path in locked_extensions),
+        *retained,
+    ]
     return release_root, locked_site
 
 
@@ -64,6 +102,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--site-packages", required=True)
     parser.add_argument("--module", choices=sorted(ALLOWED_MODULES), required=True)
     args, remainder = parser.parse_known_args(argv)
+    # Keep arguments for the allowlisted child module behind an explicit
+    # option boundary.  Without this, argparse also consumes child options
+    # that share a name with this bootstrap (notably --site-packages), and a
+    # Scheduled Task reaches the child parser with a required option missing.
+    if remainder[:1] == ["--"]:
+        remainder = remainder[1:]
     prepare_import_path(args.site_packages)
     if not remainder:
         raise RuntimeError("candidate CLI command is missing")

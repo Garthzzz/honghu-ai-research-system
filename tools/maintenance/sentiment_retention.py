@@ -20,7 +20,8 @@ from tools.sentiment import retail_windows_v2, retention_policy, senti3
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DB = ROOT / "data" / "sentiment.db"
+from tools.runtime_paths import resolve_runtime_layout
+DEFAULT_DB = resolve_runtime_layout(ROOT).data_root / "sentiment.db"
 BEIJING = ZoneInfo("Asia/Shanghai")
 # 逐帖原文是短生命周期计算材料；窗口终结后三个自然日为统一上限。
 DEFAULT_GRACE_DAYS = retention_policy.RAW_RETENTION_DAYS
@@ -176,9 +177,12 @@ def _terminal_checkpoint_evidence(
 ) -> dict[str, Any]:
     """Prove that every resumable cursor belongs to a terminal segment.
 
-    Callers hold the same exclusive tick lock used by the scheduler and a
-    ``BEGIN IMMEDIATE`` SQLite transaction.  Status evidence, rather than a
-    stale PID guess, decides whether a cursor can be retired.
+    Callers hold the same exclusive tick lock used by the scheduler.  The
+    transition SQLite backend additionally owns a ``BEGIN IMMEDIATE``
+    transaction; the PostgreSQL-authoritative compatibility projection already
+    owns its unique writer lock and one bounded mutation transaction.  Status
+    evidence, rather than a stale PID guess, decides whether a cursor can be
+    retired.
     """
     source_rows = connection.execute(
         """SELECT source,status,error_code,finished_at
@@ -1420,6 +1424,17 @@ def _delete_legacy_weekend_orphans(
     }
 
 
+def _retention_mutation_operation_id(as_of: datetime, run_id: str) -> str:
+    """Keep retry identity stable while retaining a unique audit attempt id."""
+
+    root_operation_id = os.environ.get("HONGHU_OPERATION_ID", "").strip()
+    if not root_operation_id:
+        return run_id
+    from tools.data_platform.run_domain_operation import derived_operation_id
+
+    return derived_operation_id(f"retention:{as_of.date().isoformat()}")
+
+
 def apply_retention(
     db_path: Path,
     *,
@@ -1431,9 +1446,20 @@ def apply_retention(
     legacy_cutover: str,
 ) -> dict[str, Any]:
     run_id = f"retention-{as_of.strftime('%Y%m%dT%H%M%S')}-{uuid.uuid4().hex[:8]}"
+    # ``run_id`` identifies this audit attempt and may be unique, but the
+    # PostgreSQL mutation identity must remain stable when Task Scheduler
+    # retries the same business window.  Reusing a random run id here would
+    # turn an uncertain response into a second logical mutation.
+    mutation_operation_id = _retention_mutation_operation_id(as_of, run_id)
     started_at = _now().isoformat(timespec="seconds")
-    with closing(_connect(db_path, operation_id=run_id)) as connection:
-        connection.execute("BEGIN IMMEDIATE")
+    with closing(_connect(db_path, operation_id=mutation_operation_id)) as connection:
+        # The PostgreSQL-authoritative compatibility connection is an in-memory
+        # projection whose lifetime already defines one atomic mutation batch.
+        # Starting a second SQLite transaction inside that projection fails and
+        # would prevent the unique VM retention runner from making progress.
+        # The retired S0/S1 SQLite path keeps its original early write lock.
+        if connection.__class__.__module__ == "sqlite3":
+            connection.execute("BEGIN IMMEDIATE")
         try:
             migration = migrate_and_seal(
                 connection,

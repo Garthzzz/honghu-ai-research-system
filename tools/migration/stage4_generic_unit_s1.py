@@ -29,7 +29,7 @@ DEPENDENCIES: dict[str, tuple[str, ...]] = {
     # application release must not re-copy the financial rows.
     "financial_data": ("shared_identity",),
     "research_publication": ("shared_identity",),
-    "dynamic_intelligence": ("shared_identity",),
+    "dynamic_intelligence": ("shared_identity", "research_publication"),
     "operations_governance": ("shared_identity", "dynamic_intelligence"),
     "investment_hypotheses": (
         "shared_identity",

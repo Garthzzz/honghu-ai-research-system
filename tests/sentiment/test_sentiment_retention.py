@@ -112,6 +112,57 @@ def test_dry_run_does_not_change_database(tmp_path: Path) -> None:
     assert before >= 0
 
 
+def test_postgresql_projection_uses_existing_bounded_transaction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "sentiment.db"
+    seed = _database(path)
+    seed.close()
+    statements: list[str] = []
+
+    class ProjectionLikeConnection:
+        def __init__(self, target: Path) -> None:
+            self._connection = sqlite3.connect(target)
+            self._connection.row_factory = sqlite3.Row
+            self._connection.execute("PRAGMA foreign_keys=ON")
+
+        def execute(self, statement, parameters=()):
+            statements.append(str(statement).strip())
+            return self._connection.execute(statement, parameters)
+
+        def commit(self):
+            return self._connection.commit()
+
+        def rollback(self):
+            return self._connection.rollback()
+
+        def close(self):
+            return self._connection.close()
+
+        def __getattr__(self, name):
+            return getattr(self._connection, name)
+
+    ProjectionLikeConnection.__module__ = "tools.data_platform.sentiment_projection"
+    monkeypatch.setattr(
+        sentiment_retention,
+        "_connect",
+        lambda _path, **_kwargs: ProjectionLikeConnection(path),
+    )
+
+    result = sentiment_retention.apply_retention(
+        path,
+        as_of=datetime.fromisoformat("2026-08-20T12:00:00+08:00"),
+        grace_days=3,
+        include_legacy=False,
+        include_incomplete=True,
+        incomplete_age_days=3,
+        legacy_cutover="2026-07-15",
+    )
+
+    assert result["result"]["purged_windows"] == 0
+    assert all(not statement.upper().startswith("BEGIN") for statement in statements)
+
+
 def test_complete_window_survives_raw_purge_as_permanent_fact(
     tmp_path: Path,
 ) -> None:

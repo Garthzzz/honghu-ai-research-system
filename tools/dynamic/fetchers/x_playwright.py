@@ -109,7 +109,9 @@ if __name__ == "__main__":
     import sys, io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     h = sys.argv[1] if len(sys.argv) > 1 else "dylan522p"
-    ssf = Path(__file__).resolve().parent.parent / "secrets" / "x_storage_state.json"
+    from tools.runtime_paths import resolve_runtime_layout
+    root = Path(__file__).resolve().parents[3]
+    ssf = resolve_runtime_layout(root).content_root / "tools" / "dynamic" / "secrets" / "x_storage_state.json"
     posts, st = fetch_timeline(h, str(ssf))
     print(f"@{h}: status={st} posts={len(posts)}")
     for p in posts[:3]:

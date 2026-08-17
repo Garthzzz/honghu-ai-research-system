@@ -26,9 +26,11 @@ except Exception:
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
-DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DB = RUNTIME_LAYOUT.data_root / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
-ALERTDIR = ROOT / "cache" / "dynamic_alerts"
+ALERTDIR = RUNTIME_LAYOUT.cache_root / "dynamic_alerts"
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
 sys.path.insert(0, str(ROOT / "tools" / "dynamic" / "fetchers"))
 sys.path.insert(0, str(ROOT / "tools" / "dynamic" / "news_publishers"))

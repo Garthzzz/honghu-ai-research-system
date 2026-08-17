@@ -19,18 +19,24 @@ voice 子进程的认证/系统错误会进入 ``error``，连续第三次失败
   python scheduler.py status    # 看 fetch_schedule 当前状态
 """
 from __future__ import annotations
-import sys, json, subprocess
+import os, sys, json, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(ROOT))
-DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
+DB = RUNTIME_LAYOUT.data_root / "research.db"
 CONFIG = ROOT / "tools" / "dynamic" / "config.yaml"
-LOGDIR = ROOT / "cache" / "dynamic_fetch_log"
+LOGDIR = RUNTIME_LAYOUT.cache_root / "dynamic_fetch_log"
 import yaml
 from tools.dynamic.database import connect_operations
-from tools.data_platform.run_domain_operation import install_operation_context
+from tools.data_platform.run_domain_operation import (
+    derived_operation_id,
+    derived_operation_environment,
+    install_operation_context,
+)
 CFG = yaml.safe_load(CONFIG.read_text(encoding="utf-8"))
 STALE_MIN = CFG["schedule"].get("stale_lock_minutes", 30)
 sys.path.insert(0, str(ROOT / "tools" / "dynamic"))
@@ -56,6 +62,12 @@ class ScheduledFetchDeferred(ScheduledFetchError):
 # numeric check local so importing voice_ingest cannot initialize its DB/config
 # dependencies inside the scheduler process.
 VOICE_INGEST_EXIT_DEFERRED = 22
+
+# A Stage 5 compatibility defect used ``sqlite3.Row.get`` before dispatching
+# any producer.  The exact error is safe to recognize once so a controlled
+# trial can repair the schedule rows immediately instead of waiting for their
+# exponential backoff.  Ordinary production ticks never bypass ``next_run_at``.
+COMPAT_ROW_ACCESS_FAILURE = "'sqlite3.Row' object has no attribute 'get'"
 
 
 def now():
@@ -127,9 +139,26 @@ def freq_for(con, row) -> int:
 EVDIR = ROOT / "tools" / "dynamic" / "event_sources"
 
 
-def _run_script(path: Path, label: str):
+def _isolated_child(module: str, *arguments: str) -> list[str]:
+    bootstrap = os.environ.get("HONGHU_RELEASE_BOOTSTRAP", "").strip()
+    site_packages = os.environ.get("HONGHU_LOCKED_SITE_PACKAGES", "").strip()
+    if not bootstrap or not site_packages:
+        raise RuntimeError("exact-release child bootstrap contract is unavailable")
+    return [
+        sys.executable, "-I", "-B", "-S", bootstrap,
+        "--site-packages", site_packages,
+        "--module", "tools.operations.task_child",
+        "--task-module", module,
+        "--", *arguments,
+    ]
+
+
+def _run_script(path: Path, label: str, *, step: str):
     """subprocess 跑重型 fetcher(隔离 stdout/yfinance);失败抛异常(交 tick 退避)。"""
-    p = subprocess.run([sys.executable, str(path)], cwd=str(ROOT), capture_output=True,
+    relative = path.resolve().relative_to(ROOT).with_suffix("")
+    module = ".".join(relative.parts)
+    p = subprocess.run(_isolated_child(module), cwd=str(ROOT), capture_output=True,
+                       env=derived_operation_environment(step),
                        text=True, encoding="utf-8", errors="replace", timeout=600)
     tail = (p.stdout or "").strip().splitlines()[-1:] or [""]
     log(f"    {label}: rc={p.returncode} | {tail[0][:120]}")
@@ -140,14 +169,21 @@ def _run_script(path: Path, label: str):
 def run_fetch(con, row) -> int:
     """调用对应来源；微博 voice_ingest 只使用舆情 API。"""
     tt, label = row["target_type"], row["target_label"]
+    # ``sqlite3.Row`` and the PostgreSQL compatibility row both support keyed
+    # indexing, but ``sqlite3.Row`` intentionally has no ``dict.get`` method.
+    try:
+        schedule_id = row["id"]
+    except (KeyError, IndexError):
+        schedule_id = f"{tt}:{row['target_id']}"
     if tt == "event_calendar":
         # B7:真跑 大会 loader(快/幂等)+ 财报 fetcher(yfinance)
-        _run_script(EVDIR / "conference_loader.py", "conference_loader")
-        _run_script(EVDIR / "earnings_fetcher.py", "earnings_fetcher")
+        _run_script(EVDIR / "conference_loader.py", "conference_loader", step=f"schedule:{schedule_id}:conference")
+        _run_script(EVDIR / "earnings_fetcher.py", "earnings_fetcher", step=f"schedule:{schedule_id}:earnings")
     elif tt == "voice_leader":
         # D3:真调 voice_ingest 抓该 leader(subprocess 隔离),失败抛异常 → 退避(P0-1)
-        vi = ROOT / "tools" / "dynamic" / "voice_ingest.py"
-        p = subprocess.run([sys.executable, str(vi), "--leader-id", str(row["target_id"])],
+        p = subprocess.run(_isolated_child(
+                               "tools.dynamic.voice_ingest", "--leader-id", str(row["target_id"])),
+                           env=derived_operation_environment(f"schedule:{schedule_id}:voice:{row['target_id']}"),
                            cwd=str(ROOT), capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=120)
         tail = (p.stdout or "").strip().splitlines()[-2:] or [""]
@@ -163,8 +199,9 @@ def run_fetch(con, row) -> int:
             )
     elif tt == "news_source":
         # C4:真调 news_ingest 抓该 source(subprocess 隔离),失败抛异常 → tick 退避(P0-1)
-        ni = ROOT / "tools" / "dynamic" / "news_ingest.py"
-        p = subprocess.run([sys.executable, str(ni), "--source-id", str(row["target_id"])],
+        p = subprocess.run(_isolated_child(
+                               "tools.dynamic.news_ingest", "--source-id", str(row["target_id"])),
+                           env=derived_operation_environment(f"schedule:{schedule_id}:news:{row['target_id']}"),
                            cwd=str(ROOT), capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=180)
         tail = (p.stdout or "").strip().splitlines()[-2:] or [""]
@@ -174,17 +211,56 @@ def run_fetch(con, row) -> int:
     return 0
 
 
-def try_lock(con, sid) -> bool:
+def _controlled_compatibility_retry(row) -> bool:
+    return (
+        os.environ.get("HONGHU_DYNAMIC_COMPATIBILITY_RETRY", "").strip() == "1"
+        and row["last_error"] == COMPAT_ROW_ACCESS_FAILURE
+    )
+
+
+def try_lock(con, sid, *, allow_compatibility_retry: bool = False) -> bool:
     lock_time = now()
     lock_iso = lock_time.isoformat(timespec="seconds")
     cur = con.execute(
         """UPDATE fetch_schedule
            SET is_running=1,running_started_at=?,updated_at=?
-           WHERE id=? AND is_running=0 AND is_active=1 AND status<>'paused'
-             AND (next_run_at IS NULL OR next_run_at<=?)""",
-        (lock_iso, lock_iso, sid, lock_iso),
+           WHERE id=? AND is_running=0 AND is_active=1
+             AND (
+               (status<>'paused' AND (next_run_at IS NULL OR next_run_at<=?))
+               OR (?=1 AND last_error=?)
+             )""",
+        (
+            lock_iso,
+            lock_iso,
+            sid,
+            lock_iso,
+            int(allow_compatibility_retry),
+            COMPAT_ROW_ACCESS_FAILURE,
+        ),
     )
     return cur.rowcount == 1
+
+
+def _operation_connection(step: str):
+    """Open one retry-stable schedule mutation stream.
+
+    The PostgreSQL compatibility adapter numbers commits per connection.  A
+    single connection spanning an order-dependent target loop would therefore
+    give a later target a different publication identity after a partial
+    retry.  Each schedule/phase gets its own stable root and exactly one
+    commit, while the read snapshot remains separate.
+    """
+
+    operation_id = (
+        derived_operation_id(step)
+        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+        else None
+    )
+    return connect_operations(
+        DB,
+        operation_scope="dynamic_scheduler_step",
+        operation_id=operation_id,
+    )
 
 
 def tick():
@@ -204,9 +280,9 @@ def tick():
         operation_scope="dynamic_scheduler_tick",
         logical_window=tick_time.isoformat(timespec="minutes"),
     )
-    con = connect_operations(DB, operation_scope="dynamic_scheduler_tick")
-    rows = con.execute("SELECT * FROM fetch_schedule WHERE is_active=1 ORDER BY next_run_at").fetchall()
-    ran = deferred_count = skipped = stale_reset = 0
+    read_con = connect_operations(DB, readonly=True)
+    rows = read_con.execute("SELECT * FROM fetch_schedule WHERE is_active=1 ORDER BY next_run_at").fetchall()
+    ran = deferred_count = failed_count = skipped = stale_reset = 0
     log(f"TICK start — {len(rows)} active targets")
     for row in rows:
         sid = row["id"]
@@ -218,37 +294,65 @@ def tick():
         if row["is_running"]:
             started = row["running_started_at"]
             if started and (now() - datetime.fromisoformat(started)) >= timedelta(minutes=STALE_MIN):
-                con.execute("UPDATE fetch_schedule SET is_running=0, last_error='stale_reset' WHERE id=?", (sid,))
-                con.commit(); stale_reset += 1
+                stale_con = _operation_connection(
+                    f"schedule:{sid}:stale-reset:{started}"
+                )
+                try:
+                    stale_con.execute(
+                        """UPDATE fetch_schedule
+                              SET is_running=0,last_error='stale_reset'
+                            WHERE id=? AND is_running=1 AND running_started_at=?""",
+                        (sid, started),
+                    )
+                    stale_con.commit()
+                finally:
+                    stale_con.close()
+                stale_reset += 1
                 log(f"  stale lock reset: {row['target_label']}")
             else:
                 skipped += 1; continue
-        if row["status"] == "paused":
+        compatibility_retry = _controlled_compatibility_retry(row)
+        if row["status"] == "paused" and not compatibility_retry:
             skipped += 1; continue
         # 到点判断
-        if row["next_run_at"] and datetime.fromisoformat(row["next_run_at"]) > now():
+        if (
+            row["next_run_at"]
+            and datetime.fromisoformat(row["next_run_at"]) > now()
+            and not compatibility_retry
+        ):
             skipped += 1; continue
         # 原子加锁(防并发 tick 抢同一 target)
-        if not try_lock(con, sid):
+        due_key = str(row["next_run_at"] or "initial")
+        acquire_con = _operation_connection(f"schedule:{sid}:acquire:{due_key}")
+        try:
+            acquired = try_lock(
+                acquire_con,
+                sid,
+                allow_compatibility_retry=compatibility_retry,
+            )
+            acquire_con.commit()
+        finally:
+            acquire_con.close()
+        if not acquired:
             skipped += 1; continue
-        con.commit()
         outcome = "success"; err = None
         try:
-            run_fetch(con, row)
+            run_fetch(read_con, row)
         except ScheduledFetchDeferred as e:
             outcome = "deferred"; err = str(e)[:200]
         except Exception as e:
             outcome = "error"; err = str(e)[:200]
         # R5:完成时用最新时刻算 next_run_at(不是 tick 开始时刻)
-        base_freq = freq_for(con, row)
+        base_freq = freq_for(read_con, row)
         completed_at = now()
         ts = completed_at.isoformat(timespec="seconds")
+        outcome_con = _operation_connection(f"schedule:{sid}:outcome:{due_key}")
         if outcome == "success":
             next_at = completed_at + timedelta(minutes=base_freq)
             if is_voice:
                 next_at = next_allowed_voice_time(next_at)
             nxt = next_at.isoformat(timespec="seconds")
-            con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
+            outcome_con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
                            error_count=0, last_error=NULL, running_started_at=NULL,
                            status='active', updated_at=? WHERE id=?""",
                         (ts, nxt, ts, sid))
@@ -264,7 +368,7 @@ def tick():
             if is_voice:
                 next_at = next_allowed_voice_time(next_at)
             nxt = next_at.isoformat(timespec="seconds")
-            con.execute("""UPDATE fetch_schedule SET is_running=0, next_run_at=?,
+            outcome_con.execute("""UPDATE fetch_schedule SET is_running=0, next_run_at=?,
                            running_started_at=NULL, updated_at=? WHERE id=?""",
                         (nxt, ts, sid))
             deferred_count += 1
@@ -282,16 +386,25 @@ def tick():
             # 任意异常都不能伪装成最近检查成功。ScheduledFetchError 可显式给出
             # ``error``；超时等未包装异常也必须 fail closed 为 ``error``。
             st = "paused" if ec >= 3 else "error"
-            con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
+            failed_count += 1
+            outcome_con.execute("""UPDATE fetch_schedule SET is_running=0, last_run_at=?, next_run_at=?,
                            error_count=?, last_error=?, running_started_at=NULL,
                            status=?, updated_at=? WHERE id=?""",
                         (ts, nxt, ec, err, st, ts, sid))
             log(f"  FAIL {row['target_label']}: {err} | ec={ec} base={base_freq}min "
                 f"backoff_freq={backoff_freq}min next={nxt}{' → PAUSED' if st=='paused' else ''}")
-        con.commit()
+        try:
+            outcome_con.commit()
+        finally:
+            outcome_con.close()
     log(f"TICK done — ran={ran} deferred={deferred_count} skipped={skipped} "
         f"stale_reset={stale_reset}")
-    con.close()
+    read_con.close()
+    if failed_count:
+        return 2
+    if deferred_count and not ran:
+        return 75
+    return 0
 
 
 def status():
@@ -310,4 +423,4 @@ if __name__ == "__main__":
     if cmd == "status":
         status()
     else:
-        tick()
+        raise SystemExit(tick() or 0)

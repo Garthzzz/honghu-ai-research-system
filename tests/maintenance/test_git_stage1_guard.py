@@ -5,11 +5,24 @@ from pathlib import Path
 from tools.maintenance.git_stage1_guard import (
     build_inventory,
     check_sqlite_ratchet,
+    classify,
     load_policy,
 )
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def test_only_the_pinned_public_certificate_is_an_allowed_binary() -> None:
+    policy = load_policy(ROOT / "config" / "git_tracked_policy.json")
+
+    approved, _ = classify(
+        "config/migration/stage5_storage_attestation_public.cer", policy
+    )
+    unreviewed, _ = classify("config/migration/unreviewed.cer", policy)
+
+    assert approved == "tracked_deployment_config_template"
+    assert unreviewed == "pending_review"
 
 
 def test_git_metadata_exclusion_does_not_hide_github_workflows(tmp_path: Path) -> None:

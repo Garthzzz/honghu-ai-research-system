@@ -24,6 +24,16 @@ def test_schema_renderer_removes_psql_meta_and_binds_exact_sha() -> None:
     assert "'" + "a" * 64 + "'" in rendered
 
 
+def test_schema_renderer_repairs_legacy_transaction_local_identity_binding() -> None:
+    rendered = render_schema_migration(
+        "\\set ON_ERROR_STOP on\nBEGIN;\n"
+        "SELECT current_setting('honghu.migration_sha256');\nCOMMIT;",
+        "b" * 64,
+    )
+    assert rendered.count("set_config('honghu.migration_sha256'") == 1
+    assert "'" + "b" * 64 + "', true" in rendered
+
+
 def test_schema_renderer_binds_reviewed_role_identifiers() -> None:
     rendered = render_schema_migration(
         "\\set ON_ERROR_STOP on\nSELECT :'migration_sha256';\nGRANT SELECT ON x TO :\"reader_role\";",
@@ -109,6 +119,28 @@ def test_cutover_reconciliation_role_gets_only_formal_snapshot_read_access() -> 
     assert "DELETE ON domain_data" not in rendered
     assert "transition_remaining_unit" not in rendered
     assert "0012_remaining_unit_reconciliation_read_grant" in rendered
+
+
+def test_recovery_checkpoint_grant_is_strictly_read_only() -> None:
+    source = (
+        ROOT
+        / "migrations"
+        / "postgresql"
+        / "0018_stage5_recovery_checkpoint_read_grant.sql"
+    ).read_text(encoding="utf-8")
+    rendered = render_schema_migration(
+        source,
+        "a" * 64,
+        identifiers={"migration_role": "honghu_migration"},
+    )
+    upper = rendered.upper()
+    assert "GRANT SELECT ON OPERATIONS.PRODUCTION_TASK_DEFINITION" in upper
+    assert 'OPERATIONS.PRODUCTION_TASK_RUN TO "HONGHU_MIGRATION"' in upper
+    assert "GRANT INSERT" not in upper
+    assert "GRANT UPDATE" not in upper
+    assert "GRANT DELETE" not in upper
+    assert "GRANT EXECUTE" not in upper
+    assert "CUTOVER_UNIT_AUTHORITY" not in upper
 
 
 def test_shared_identity_reader_can_bind_cache_to_authority_revision() -> None:

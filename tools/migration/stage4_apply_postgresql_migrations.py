@@ -30,6 +30,12 @@ REVIEWED_MIGRATIONS = (
     "0010_remaining_units_common_data_plane.sql",
     "0011_sentiment_persistent_projection.sql",
     "0012_remaining_unit_reconciliation_read_grant.sql",
+    "0013_stage5_task_operations.sql",
+    "0014_stage5_delegated_unit_writers.sql",
+    "0015_stage5_initial_overlay_revision.sql",
+    "0016_stage5_bounded_mutation_batch_result.sql",
+    "0017_stage5_set_based_sentiment_delete_batch.sql",
+    "0018_stage5_recovery_checkpoint_read_grant.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -62,6 +68,14 @@ MIGRATION_IDENTIFIERS = {
     "0012_remaining_unit_reconciliation_read_grant.sql": {
         "migration_role": "honghu_migration",
     },
+    "0013_stage5_task_operations.sql": {
+        "writer_operations_governance": "honghu_writer_operations_governance",
+        "reader_role": "honghu_viewer_reader",
+        "audit_reader_role": "honghu_audit_reader",
+    },
+    "0018_stage5_recovery_checkpoint_read_grant.sql": {
+        "migration_role": "honghu_migration",
+    },
 }
 
 
@@ -81,6 +95,21 @@ def render_schema_migration(
     rendered = "\n".join(lines).replace(
         ":'migration_sha256'", "'" + migration_sha256 + "'"
     )
+    if (
+        "current_setting('honghu.migration_sha256')" in rendered
+        and "set_config('honghu.migration_sha256'" not in rendered
+    ):
+        rendered, replacements = re.subn(
+            r"(?m)^BEGIN;\s*$",
+            "BEGIN;\nSELECT set_config('honghu.migration_sha256', "
+            f"'{migration_sha256}', true);",
+            rendered,
+            count=1,
+        )
+        if replacements != 1:
+            raise MigrationApplyError(
+                "migration identity validation lacks a transaction BEGIN"
+            )
     if identifiers:
         rendered = render_role_grant(rendered, identifiers)
     if ":'migration_sha256'" in rendered or "\\set" in rendered:

@@ -5,11 +5,14 @@ import sqlite3
 
 import pytest
 
+import tools.data_platform.sentiment_projection as sentiment_projection
 from tools.data_platform.domain_data import _sha256_json
 from tools.data_platform.sentiment_projection import (
     PersistentSentimentConnection,
     PersistentSentimentProjection,
     SentimentProjectionError,
+    _InterprocessLock,
+    _mutation_sequence_sha256,
     _create_projection_schema,
 )
 
@@ -25,6 +28,18 @@ SCHEMAS = {
         "indexes": [],
     }
 }
+
+
+def test_contending_projection_lock_waits_and_fails_with_domain_error(tmp_path) -> None:
+    path = tmp_path / "projection.lock"
+    first = _InterprocessLock(path, timeout_seconds=0.1)
+    second = _InterprocessLock(path, timeout_seconds=0.1)
+    first.acquire()
+    try:
+        with pytest.raises(SentimentProjectionError, match="timed out waiting"):
+            second.acquire()
+    finally:
+        first.release()
 
 
 class _Lock:
@@ -59,6 +74,28 @@ class _Writer:
         if self.fail:
             raise OSError("response lost")
         return _Cursor(({"ok": True},))
+
+
+class _FailOnCallWriter(_Writer):
+    def __init__(self, attempts, *, fail_on: int | None) -> None:
+        super().__init__(attempts)
+        self.fail_on = fail_on
+        self.calls = 0
+
+    def execute(self, _sql, params):
+        self.calls += 1
+        self.attempts.append(params)
+        if self.fail_on == self.calls:
+            raise OSError("response lost during chunked transaction")
+        return _Cursor(({"ok": True},))
+
+
+def test_incremental_mutation_hash_preserves_legacy_canonical_identity() -> None:
+    mutations = [
+        {"source_table": "sample", "payload": {"name": "中文", "id": 1}},
+        {"source_table": "sample", "payload": {"name": "two", "id": 2}},
+    ]
+    assert _mutation_sequence_sha256(mutations) == _sha256_json(mutations)
 
 
 def _connection(tmp_path, factory):
@@ -129,6 +166,65 @@ def test_persistent_sentiment_projection_reuses_uncertain_batch(tmp_path) -> Non
     connection.commit()
     assert len(attempts) == 2
     assert attempts[0][2:5] == attempts[1][2:5]
+    connection.close()
+
+
+def test_persistent_sentiment_projection_keeps_large_chunks_in_one_transaction(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sentiment_projection, "MAX_MUTATIONS_PER_SERVER_BATCH", 2
+    )
+    attempts = []
+    writers = []
+
+    def factory():
+        writer = _Writer(attempts)
+        writers.append(writer)
+        return writer
+
+    connection, _lock = _connection(tmp_path, factory)
+    for identifier in range(2, 7):
+        connection.execute(
+            "INSERT INTO sample VALUES(?,?)", (identifier, f"value-{identifier}")
+        )
+    connection.commit()
+
+    assert len(writers) == 1
+    assert len(attempts) == 3
+    assert [len(json.loads(params[4])) for params in attempts] == [2, 2, 1]
+    assert all(params[3] == _sha256_json(json.loads(params[4])) for params in attempts)
+    assert all(params[2].endswith(params[3]) for params in attempts)
+    connection.close()
+
+
+def test_persistent_sentiment_projection_retries_every_chunk_with_same_identity(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        sentiment_projection, "MAX_MUTATIONS_PER_SERVER_BATCH", 2
+    )
+    attempts = []
+    factories = [2, None]
+
+    def factory():
+        return _FailOnCallWriter(attempts, fail_on=factories.pop(0))
+
+    connection, _lock = _connection(tmp_path, factory)
+    for identifier in range(2, 6):
+        connection.execute(
+            "INSERT INTO sample VALUES(?,?)", (identifier, f"value-{identifier}")
+        )
+    with pytest.raises(SentimentProjectionError, match="uncertain"):
+        connection.commit()
+    first_attempt = list(attempts)
+    assert len(first_attempt) == 2
+
+    connection.commit()
+    retry_attempt = attempts[2:]
+    assert len(retry_attempt) == 2
+    assert first_attempt[0][2:5] == retry_attempt[0][2:5]
+    assert first_attempt[1][2:5] == retry_attempt[1][2:5]
     connection.close()
 
 
@@ -205,3 +301,45 @@ def test_persistent_sentiment_reader_is_file_readonly_before_router_fence(
             connection.execute("UPDATE sample SET name='forbidden' WHERE id=1")
     finally:
         connection.close()
+
+
+def test_persistent_sentiment_writer_accepts_reviewed_dependency_uri(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    projection = PersistentSentimentProjection(tmp_path, lambda: None)
+    source = sqlite3.connect(projection.database_path)
+    _create_projection_schema(source, SCHEMAS)
+    source.execute(
+        "INSERT INTO __honghu_projection_meta VALUES(1,?,?,?,?,?)",
+        ("formal", "overlay", "{}", 0, "2026-08-17T00:00:00Z"),
+    )
+    source.commit()
+    source.close()
+    monkeypatch.setattr(
+        projection,
+        "ensure_current_locked",
+        lambda: {
+            "formal": {"writer_identity": "honghu_writer_sentiment_analytics"},
+            "schemas": SCHEMAS,
+        },
+    )
+    dependency_uri = "file:sentiment_writer_dependency?mode=memory&cache=shared"
+    keeper = sqlite3.connect(dependency_uri, uri=True)
+    keeper.execute("CREATE TABLE dependency_probe(value TEXT NOT NULL)")
+    keeper.execute("INSERT INTO dependency_probe VALUES('available')")
+    keeper.commit()
+    connection = projection.connect_writer(
+        lambda: _Writer([]),
+        writer_identity="honghu_writer_sentiment_analytics",
+        operation_scope="uri-dependency",
+        operation_id="uri-dependency-1",
+        actor="principal:test",
+    )
+    try:
+        connection.execute("ATTACH DATABASE ? AS dependency", (dependency_uri,))
+        assert connection.execute(
+            "SELECT value FROM dependency.dependency_probe"
+        ).fetchone()[0] == "available"
+    finally:
+        connection.close()
+        keeper.close()

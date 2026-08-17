@@ -63,6 +63,6 @@
 - restore 只使用异机 recovery set，whole-database、authority-control、side-domain restore 和九个 authority snapshot 对账均必须通过。
 - 最终 recovery set identity：`5854c08a44b4b25d6a7ae6662f52ac89df263fd20d0110528d02482ee0072cc5`。
 - 最终 recovery evidence 内容 identity：`06bea500760b96d4856e3f7bdc886a167c07f396f1ce18f227c45c3568a22ac2`；文件 SHA256：`b5148947baaa870917b64db8f266e526a6c63641797544a2281d3c3c089b9089`。
-- measured RPO / RTO：0.007 秒 / 8.047 秒；whole-database、authority-control、side-domain restore 均为 PASS，九个 formal unit authority snapshot 全部一致。
+- Stage 4 单次恢复集结果：已验证 recovery-set target gap 为 0.007 秒、该目标的数据库 restore elapsed 为 8.047 秒；whole-database、authority-control、side-domain restore 均为 PASS，九个 formal unit authority snapshot 全部一致。0.007 秒不是任意生产故障时的持续 RPO，8.047 秒也不包含空机重建、凭据重新注入、应用/任务恢复和业务补抓。全系统 measured RPO/RTO 只能由 Stage 5 使用故障发生前已经异机持久化的 base/WAL 恢复链和空机演练测得。
 - retention 最终只保留 `stage4-20260815T231501Z-aedb9d2e` 和 `stage4-20260815T185455Z-6b56b3aa` 两份完整验证集；最旧有效集及唯一未验证失败目录已分别按 retention 与独立 cleanup evidence 删除。
 - 同 VM 的本机 backup/restore-test 目录只是构建和演练临时材料，不构成 off-VM 副本；最终验证完成后可按显式清单清理。

@@ -12,6 +12,7 @@ from tools.data_platform.domain_data import (
     MAX_IN_MEMORY_COMPATIBILITY_ROWS,
     PostgresDomainCompatibilityConnection,
     PostgresDomainReadCache,
+    _authority_writer_factory,
     connect_domain_database,
 )
 from tools.data_platform.local_authority_fence import write_authority_fence
@@ -98,6 +99,55 @@ class _Connection:
     def close(self):
         self.closed = True
 
+
+def test_dedicated_task_login_must_prove_and_assume_authority_writer_role(monkeypatch) -> None:
+    class AuthorityConnection:
+        def __init__(self, *, allowed: bool):
+            self.allowed = allowed
+            self.current = "honghu_task_sentiment"
+            self.closed = False
+
+        def execute(self, statement, params=None):
+            text = str(statement)
+            if text == "SELECT current_user":
+                return _Cursor(one=(self.current,))
+            if text.startswith("SELECT pg_has_role"):
+                assert params == ("honghu_writer_sentiment_analytics",)
+                return _Cursor(one=(self.allowed,))
+            if "SET ROLE" in text:
+                self.current = "honghu_writer_sentiment_analytics"
+                return _Cursor(one=None)
+            raise AssertionError(text)
+
+        def close(self):
+            self.closed = True
+
+    accepted = AuthorityConnection(allowed=True)
+    monkeypatch.setattr(
+        "tools.data_platform.postgres_runtime.build_catalog_connection_factory",
+        lambda *_args, **_kwargs: lambda: accepted,
+    )
+    factory = _authority_writer_factory(
+        object(),
+        role_key="writer_sentiment_analytics",
+        expected_writer_identity="honghu_writer_sentiment_analytics",
+    )
+    assert factory() is accepted
+    assert accepted.current == "honghu_writer_sentiment_analytics"
+
+    rejected = AuthorityConnection(allowed=False)
+    monkeypatch.setattr(
+        "tools.data_platform.postgres_runtime.build_catalog_connection_factory",
+        lambda *_args, **_kwargs: lambda: rejected,
+    )
+    factory = _authority_writer_factory(
+        object(),
+        role_key="writer_sentiment_analytics",
+        expected_writer_identity="honghu_writer_sentiment_analytics",
+    )
+    with pytest.raises(DomainDataWriterFenced, match="reviewed member"):
+        factory()
+    assert rejected.closed
 
 def test_domain_cache_projects_formal_baseline_and_overlay_without_deleted_rows() -> None:
     connection = _Connection()

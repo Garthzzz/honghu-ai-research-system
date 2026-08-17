@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from tools.data_platform.run_domain_operation import (
+    derived_operation_environment,
+    derived_operation_id,
     install_operation_context,
     trusted_os_principal,
 )
@@ -26,6 +28,14 @@ def test_business_window_operation_identity_is_retry_stable(monkeypatch) -> None
     )
     assert first == second
     assert first == "dynamic_intelligence:scheduled_tick:2026-08-17T08:00"
+
+
+def test_child_and_connection_identity_is_retry_stable(monkeypatch) -> None:
+    monkeypatch.setenv("HONGHU_OPERATION_ID", "task:window")
+    assert derived_operation_id("source:guba") == "task:window:step:source:guba"
+    assert derived_operation_environment("source:guba")["HONGHU_OPERATION_ID"] == (
+        "task:window:step:source:guba"
+    )
 
 
 def test_explicit_controlled_runner_identity_is_never_replaced(monkeypatch) -> None:

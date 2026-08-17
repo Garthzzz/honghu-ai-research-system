@@ -1,0 +1,225 @@
+from __future__ import annotations
+
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+import pytest
+
+from tools.operations import stage5_recovery_cycle as cycle
+
+
+NOW = datetime(2026, 8, 16, 10, 0, tzinfo=timezone.utc)
+SEGMENT = "00000001000000000000000A"
+
+
+class _Cursor:
+    def __init__(self, row):
+        self._row = row
+
+    def fetchone(self):
+        return self._row
+
+
+class _Connection:
+    def __init__(self, row):
+        self.row = row
+        self.closed = False
+        self.autocommit = False
+        self.queries: list[str] = []
+
+    def execute(self, sql):
+        self.queries.append(" ".join(sql.split()))
+        return _Cursor(self.row if "clock_timestamp" in sql else ("0/1",))
+
+    def close(self):
+        self.closed = True
+
+
+def test_cycle_rotates_wal_and_publishes_verified_target(tmp_path, monkeypatch):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / SEGMENT).write_bytes(b"wal")
+    connection = _Connection((NOW, "0/A000100", SEGMENT))
+    monkeypatch.setattr(cycle, "load_postgres_runtime_catalog", lambda _: object())
+    observed = {}
+
+    def fake_sync(**kwargs):
+        observed.update(kwargs)
+        return {
+            "latest_recoverable_at_utc": NOW.isoformat(),
+            "manifest_identity_sha256": "a" * 64,
+            "storage": {"derived_storage_identity": "b" * 64},
+            "at_rest_encryption": {"status": "verified", "verified": True},
+            "initial_recovery_boundary": {
+                "base_recovery_set_identity_sha256": "d" * 64,
+                "first_required_wal_segment": SEGMENT,
+            },
+            "retention": {
+                "max_retained_manifests": 2,
+                "retained_manifest_count": 1,
+            },
+            "verification_mode": "incremental_chain",
+            "integrity_verification": {"last_full_scrub_age_seconds": 1.0},
+        }
+
+    monkeypatch.setattr(cycle, "sync_archived_wal", fake_sync)
+    result = cycle.run_cycle(
+        runtime_catalog=tmp_path / "runtime.json",
+        source_archive=archive,
+        destination=tmp_path / "offvm",
+        expected_storage_identity="b" * 64,
+        at_rest_encryption_evidence={"status": "verified"},
+        initial_recovery_boundary={"verified": True},
+        wal_segment_size_bytes=3,
+        connection_factory=lambda: connection,
+    )
+    assert result["status"] == "pass"
+    assert result["formal_business_data_written"] is False
+    assert observed["target_wal_segment"] == SEGMENT
+    assert observed["recoverable_target_at"] == NOW
+    assert observed["initial_recovery_boundary"] == {"verified": True}
+    assert observed["max_full_scrub_age_seconds"] == 86400
+    assert any("pg_switch_wal" in query for query in connection.queries)
+    assert connection.closed is True
+
+
+def test_cycle_fails_when_archived_segment_is_incomplete(tmp_path, monkeypatch):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / SEGMENT).write_bytes(b"short")
+    connection = _Connection((NOW, "0/A000100", SEGMENT))
+    monkeypatch.setattr(cycle, "load_postgres_runtime_catalog", lambda _: object())
+    with pytest.raises(cycle.RecoveryCycleError, match="not completely archived"):
+        cycle.run_cycle(
+            runtime_catalog=tmp_path / "runtime.json",
+            source_archive=archive,
+            destination=tmp_path / "offvm",
+            expected_storage_identity="b" * 64,
+            at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
+            wal_segment_size_bytes=16,
+            timeout_seconds=0,
+            connection_factory=lambda: connection,
+        )
+
+
+def test_invalid_postgresql_wal_identity_fails_closed(tmp_path, monkeypatch):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    connection = _Connection((NOW, "0/A000100", "not-a-wal"))
+    monkeypatch.setattr(cycle, "load_postgres_runtime_catalog", lambda _: object())
+    with pytest.raises(cycle.RecoveryCycleError, match="invalid WAL"):
+        cycle.run_cycle(
+            runtime_catalog=tmp_path / "runtime.json",
+            source_archive=archive,
+            destination=tmp_path / "offvm",
+            expected_storage_identity="b" * 64,
+            at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
+            timeout_seconds=0,
+            connection_factory=lambda: connection,
+        )
+
+
+def test_archive_only_cycle_uses_latest_complete_segment_without_database(tmp_path, monkeypatch):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    first = archive / "00000001000000000000000A"
+    latest = archive / "00000001000000000000000B"
+    first.write_bytes(b"wal")
+    latest.write_bytes(b"wal")
+    observed = {}
+
+    def fake_sync(**kwargs):
+        observed.update(kwargs)
+        return {
+            "latest_recoverable_at_utc": kwargs["recoverable_target_at"].isoformat(),
+            "manifest_identity_sha256": "a" * 64,
+            "storage": {"derived_storage_identity": "b" * 64},
+            "at_rest_encryption": {"status": "verified", "verified": True},
+            "initial_recovery_boundary": {
+                "base_recovery_set_identity_sha256": "d" * 64,
+                "first_required_wal_segment": first.name,
+            },
+            "retention": {"max_retained_manifests": 2, "retained_manifest_count": 1},
+            "verification_mode": "incremental_chain",
+            "integrity_verification": {"last_full_scrub_age_seconds": 1.0},
+        }
+
+    monkeypatch.setattr(cycle, "sync_archived_wal", fake_sync)
+    result = cycle.run_cycle(
+        runtime_catalog=tmp_path / "absent-runtime.json",
+        source_archive=archive,
+        destination=tmp_path / "offvm",
+        expected_storage_identity="b" * 64,
+        at_rest_encryption_evidence={"status": "verified"},
+        initial_recovery_boundary={"verified": True},
+        wal_segment_size_bytes=3,
+        connection_factory=lambda: (_ for _ in ()).throw(AssertionError("DB used")),
+        archive_only=True,
+        max_archive_age_seconds=900,
+        now_factory=lambda: datetime.fromtimestamp(latest.stat().st_mtime, tz=timezone.utc),
+    )
+    assert observed["target_wal_segment"] == latest.name
+    assert result["target_source"] == "latest_complete_archive_segment"
+    assert result["database_credential_used"] is False
+    assert result["wal_rotation_requested"] is False
+    assert result["formal_business_data_written"] is False
+    assert result["wal_verification_mode"] == "incremental_chain"
+
+
+def test_archive_only_cycle_rejects_incomplete_only_archive(tmp_path):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / SEGMENT).write_bytes(b"short")
+    with pytest.raises(cycle.RecoveryCycleError, match="no complete archived"):
+        cycle.run_cycle(
+            runtime_catalog=tmp_path / "absent-runtime.json",
+            source_archive=archive,
+            destination=tmp_path / "offvm",
+            expected_storage_identity="b" * 64,
+            at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
+            wal_segment_size_bytes=16,
+            archive_only=True,
+            max_archive_age_seconds=900,
+        )
+
+
+def test_archive_only_cycle_rejects_stale_complete_archive(tmp_path):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    segment = archive / SEGMENT
+    segment.write_bytes(b"wal")
+    segment.touch()
+    target_at = datetime.fromtimestamp(segment.stat().st_mtime, tz=timezone.utc)
+    with pytest.raises(cycle.RecoveryCycleError, match="maximum allowed age"):
+        cycle.run_cycle(
+            runtime_catalog=tmp_path / "absent-runtime.json",
+            source_archive=archive,
+            destination=tmp_path / "offvm",
+            expected_storage_identity="b" * 64,
+            at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
+            wal_segment_size_bytes=3,
+            archive_only=True,
+            max_archive_age_seconds=900,
+            now_factory=lambda: target_at + timedelta(seconds=901),
+        )
+
+
+def test_archive_only_cycle_requires_explicit_age_contract(tmp_path):
+    archive = tmp_path / "archive"
+    archive.mkdir()
+    (archive / SEGMENT).write_bytes(b"wal")
+    with pytest.raises(cycle.RecoveryCycleError, match="maximum archive age"):
+        cycle.run_cycle(
+            runtime_catalog=tmp_path / "absent-runtime.json",
+            source_archive=archive,
+            destination=tmp_path / "offvm",
+            expected_storage_identity="b" * 64,
+            at_rest_encryption_evidence={"status": "verified"},
+            initial_recovery_boundary={"verified": True},
+            wal_segment_size_bytes=3,
+            archive_only=True,
+        )

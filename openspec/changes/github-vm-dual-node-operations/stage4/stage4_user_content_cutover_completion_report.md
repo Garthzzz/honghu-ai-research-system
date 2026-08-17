@@ -65,4 +65,4 @@ DeepSeek 在本轮 S3 实现复核中已有一轮有效脱敏 review，未提出
 
 `user_content_notes` 已完成首个生产 cutover并处于 durable S3。生产 Viewer 继续运行已经完成功能验收的应用提交 `fb4301c2c8b22bfb95b6b50e394dc0b6fab71659`；恢复工具修复及 S3 后真实 restore 绑定提交 `0971b9cc03466b7ffdaea7b98616d6f8b4423e47`。PR #14 已合并为 main commit `7633921b25eb6302a137de534d8bd090c50cf706`，main required CI run `31815633323` 全绿。该治理身份只记录验收收口，不重新定义已验收 release 或恢复 evidence。
 
-该结论不等于整个 Stage 4 完成。`user_content_notes` 当前进入 S3 observation，不推进 S4；其余单元虽已获得带条件的批量执行授权，仍必须逐单元通过全部 production gate。计划任务和 runner 迁移仍未授权。
+该结论在首单元验收时不等于整个 Stage 4 完成；当时 `user_content_notes` 进入 S3 observation、不推进 S4，其余单元仍须逐项通过 production gate，计划任务和 runner 当时也未获授权。该历史边界已被后续事实取代：九个单元现均为 durable S3，用户于 2026-08-16 批准 Stage 4 退出并另行授权 Stage 5；本报告不据此追认任何尚未完成的 Stage 5 现场 gate。

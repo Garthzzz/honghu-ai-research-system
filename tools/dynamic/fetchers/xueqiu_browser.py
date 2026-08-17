@@ -67,7 +67,9 @@ if __name__ == "__main__":   # 手测:python xueqiu_browser.py <uid>
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     from pathlib import Path
     uid = sys.argv[1] if len(sys.argv) > 1 else "5519392453"
-    ck_f = Path(__file__).resolve().parent.parent / "secrets" / "xueqiu_cookies.txt"
+    from tools.runtime_paths import resolve_runtime_layout
+    root = Path(__file__).resolve().parents[3]
+    ck_f = resolve_runtime_layout(root).content_root / "tools" / "dynamic" / "secrets" / "xueqiu_cookies.txt"
     ck = ck_f.read_text(encoding="utf-8").strip() if ck_f.exists() else None
     ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
     st = fetch_statuses(uid, ck, ua)

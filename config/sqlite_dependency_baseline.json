@@ -97,6 +97,16 @@
       "sunset_condition": "Remove when the SQLite-specific ratchet can distinguish PostgreSQL dialect context or the transition loader is retired."
     },
     {
+      "path": "tools/operations/task_runner.py",
+      "domain": "Stage 5 PostgreSQL production task control plane",
+      "rule": "sqlite_conflict_dml",
+      "max_count": 1,
+      "reason": "The static SQLite ratchet also recognizes PostgreSQL ON CONFLICT. This upsert executes only through psycopg against operations.production_task_definition and never opens or mutates a SQLite database.",
+      "owner": "VM production task operations governance",
+      "future_cutover_unit_candidate": "operations_governance",
+      "sunset_condition": "Remove when the ratchet distinguishes PostgreSQL dialect context or the task definition registration contract is replaced."
+    },
+    {
       "path": "tools/migration/stage4_shared_identity_s1.py",
       "domain": "Stage 4 shared-identity PostgreSQL S1 preparation",
       "rule": "sqlite_conflict_dml",
@@ -110,8 +120,8 @@
       "path": "tools/data_platform/shared_identity.py",
       "domain": "Stage 4 shared-identity legacy read compatibility",
       "rule": "sqlite3_connect",
-      "max_count": 2,
-      "reason": "During the bounded mixed-migration compatibility window, PostgreSQL-authoritative identity rows are materialized into one process-memory SQLite database so existing legacy SELECTs can use unchanged table names. The explicit environment reader opens the legacy identity file only while the authority matrix still declares SQLite and otherwise returns that PostgreSQL-derived cache. S3/S4 failures never read or mutate the frozen SQLite identity baseline.",
+      "max_count": 3,
+      "reason": "During the bounded migration compatibility window, PostgreSQL-authoritative identity rows are materialized into a process-memory SQLite cache and a separate read-only consumer connection so existing legacy SELECTs can use unchanged table names even when their main projection is opened mode=ro. The explicit environment reader opens the legacy identity file only while the authority matrix still declares SQLite. S3/S4 failures never read or mutate the frozen SQLite identity baseline.",
       "owner": "shared-identity cutover governance",
       "future_cutover_unit_candidate": "shared_identity",
       "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."
@@ -130,8 +140,8 @@
       "path": "tools/data_platform/shared_identity.py",
       "domain": "Stage 4 shared-identity legacy read compatibility",
       "rule": "pragma",
-      "max_count": 2,
-      "reason": "The PRAGMAs make the PostgreSQL-derived process-memory cache or pre-cutover legacy read connection query-only. They do not mutate a live SQLite database, and PostgreSQL authority never falls back to the legacy path.",
+      "max_count": 3,
+      "reason": "The PRAGMAs make the PostgreSQL-derived process-memory cache, its returned consumer, or the pre-cutover legacy read connection query-only. They do not mutate a live SQLite database, and PostgreSQL authority never falls back to the legacy path.",
       "owner": "shared-identity cutover governance",
       "future_cutover_unit_candidate": "shared_identity",
       "sunset_condition": "Remove when all shared-identity readers use the native PostgreSQL repository and the in-memory legacy read adapter is retired."

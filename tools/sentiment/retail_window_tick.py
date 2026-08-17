@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -21,6 +22,8 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
+from tools.runtime_paths import resolve_runtime_layout
+RUNTIME_LAYOUT = resolve_runtime_layout(ROOT)
 sys.path.insert(0, str(HERE))
 
 import common
@@ -31,7 +34,7 @@ import senti3
 DEFAULT_GUBA_PAGES = int(
     (senti3.load_layer_config().get("guba", {}) or {}).get("pages_per_stock", 128)
 )
-TICK_LOCK_PATH = ROOT / "cache" / "retail_window_tick.lock"
+TICK_LOCK_PATH = RUNTIME_LAYOUT.cache_root / "retail_window_tick.lock"
 TICK_LOCK_TIMEOUT_SECONDS = 8 * 60 * 60
 XINGHAN_CHILD_TIMEOUT_SECONDS = 6 * 60 * 60
 XINGHAN_ORPHAN_STALE_SECONDS = 10 * 60
@@ -151,6 +154,10 @@ def build_commands(
         kline_args = ("--mode", "intraday", "--days", "10", "--m60", "40")
     else:
         kline_args = ("--mode", "close", "--days", "10", "--m60", "40")
+    kline_args += (
+        "--session-date", window.session_date.isoformat(),
+        "--slot", window.slot,
+    )
     return (
         ChildCommand(
             "guba",
@@ -186,10 +193,26 @@ def build_commands(
 
 
 def run_child(command: ChildCommand) -> ChildResult:
+    from tools.data_platform.run_domain_operation import derived_operation_environment
+    window_id = "unknown-window"
+    if "--window-id" in command.args:
+        window_id = command.args[command.args.index("--window-id") + 1]
     try:
+        bootstrap = os.environ.get("HONGHU_RELEASE_BOOTSTRAP", "").strip()
+        site_packages = os.environ.get("HONGHU_LOCKED_SITE_PACKAGES", "").strip()
+        if not bootstrap or not site_packages:
+            raise RuntimeError("exact-release child bootstrap contract is unavailable")
+        module = f"tools.sentiment.{Path(command.script).stem}"
         proc = subprocess.run(
-            [sys.executable, str(HERE / command.script), *command.args],
+            [
+                sys.executable, "-I", "-B", "-S", bootstrap,
+                "--site-packages", site_packages,
+                "--module", "tools.operations.task_child",
+                "--task-module", module,
+                "--", *command.args,
+            ],
             cwd=str(ROOT),
+            env=derived_operation_environment(f"retail:{window_id}:{command.source}"),
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -835,6 +858,30 @@ def resolve_window(
     return window
 
 
+def _open_window_connection(window_id: str, phase: str):
+    """Open one bounded parent mutation phase for a retail window.
+
+    The PostgreSQL-authoritative projection holds its interprocess writer lock
+    for the lifetime of a connection.  Source children need that same lock, so
+    the parent closes each phase before spawning a child.  Stable phase names
+    also keep the adapter's per-connection transaction counter from reusing an
+    idempotency key after reconnecting.
+    """
+    from tools.data_platform.run_domain_operation import derived_operation_id
+
+    operation_id = (
+        derived_operation_id(f"window:{window_id}:parent:{phase}")
+        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+        else None
+    )
+    con = common.get_senti_db(
+        operation_scope="retail_window",
+        operation_id=operation_id,
+    )
+    common.assert_senti_only(con)
+    return con
+
+
 def execute_window(
     window: senti3.MarketWindow,
     *,
@@ -842,8 +889,7 @@ def execute_window(
     score_max: int,
     force: bool = False,
 ) -> tuple[int, dict]:
-    con = common.get_senti_db()
-    common.assert_senti_only(con)
+    con = _open_window_connection(window.window_id, "initialize")
     retail_windows_v2.ensure_schema(con)
     retail_windows_v2.ensure_window(con, window)
     commands = build_commands(
@@ -888,44 +934,86 @@ def execute_window(
 
     retail_windows_v2.mark_window_status(con, window.window_id, "running")
     con.commit()
+    con.close()
     executed_sources: list[str] = []
     skipped_sources: list[str] = []
     for command in commands:
-        # 修复窗口只补失败/缺失来源；score 每次动态核对候选集，因此 guba
-        # 重试新增的帖子会在同一轮随后被评分，不会被旧 complete 状态遮住。
-        if not force and _source_is_satisfied(con, window.window_id, command.source):
-            skipped_sources.append(command.source)
+        con = _open_window_connection(
+            window.window_id, f"source:{command.source}:start"
+        )
+        skip_source = False
+        try:
+            # 修复窗口只补失败/缺失来源；score 每次动态核对候选集，因此 guba
+            # 重试新增的帖子会在同一轮随后被评分，不会被旧 complete 状态遮住。
+            if not force and _source_is_satisfied(
+                con, window.window_id, command.source
+            ):
+                skipped_sources.append(command.source)
+                skip_source = True
+            else:
+                before_count = _source_row_count(
+                    con, window.window_id, command.source
+                )
+                current_source = _source_rows(con, window.window_id).get(
+                    command.source
+                )
+                if not current_source or str(current_source["status"]) != "running":
+                    _source_status(
+                        con, window.window_id, command.source, "running"
+                    )
+                    con.commit()
+        finally:
+            # Release the PostgreSQL projection writer lock before the child
+            # opens its own bounded connection.  The outer tick lock remains
+            # held, so another Retail runner still cannot enter.
+            con.close()
+        if skip_source:
             continue
-        before_count = _source_row_count(con, window.window_id, command.source)
-        _source_status(con, window.window_id, command.source, "running")
-        con.commit()
         child = run_child(command)
         executed_sources.append(command.source)
 
-        # 两个抓取源完成后立即按真实 publish_time 映射；preopen 宽边界中的周末
-        # 会被 market_window_for_timestamp 再次排除。
+        # Mapping and source-status publication are separate stable mutation
+        # phases.  Otherwise an uncertain map commit followed by a retry with
+        # no remaining map delta could shift the per-connection transaction
+        # index and collide with the prior source-status operation identity.
         if command.source in {"guba", "xinghan"}:
-            retail_windows_v2.map_retail_raw_rows(
+            con = _open_window_connection(
+                window.window_id, f"source:{command.source}:map"
+            )
+            try:
+                retail_windows_v2.map_retail_raw_rows(
+                    con,
+                    since=window.window_start.isoformat(timespec="minutes"),
+                    until=window.window_end.isoformat(timespec="minutes"),
+                )
+                con.commit()
+            finally:
+                con.close()
+
+        con = _open_window_connection(
+            window.window_id, f"source:{command.source}:finish"
+        )
+        try:
+            after_count = _source_row_count(con, window.window_id, command.source)
+            source_state = "failed" if not child.ok else (
+                "empty"
+                if command.source in {"guba", "xinghan"} and after_count == 0
+                else "complete"
+            )
+            _source_status(
                 con,
-                since=window.window_start.isoformat(timespec="minutes"),
-                until=window.window_end.isoformat(timespec="minutes"),
+                window.window_id,
+                command.source,
+                source_state,
+                child,
+                records_seen=after_count,
+                inserted=max(after_count - before_count, 0),
             )
             con.commit()
-        after_count = _source_row_count(con, window.window_id, command.source)
-        source_state = "failed" if not child.ok else (
-            "empty" if command.source in {"guba", "xinghan"} and after_count == 0 else "complete"
-        )
-        _source_status(
-            con,
-            window.window_id,
-            command.source,
-            source_state,
-            child,
-            records_seen=after_count,
-            inserted=max(after_count - before_count, 0),
-        )
-        con.commit()
+        finally:
+            con.close()
 
+    con = _open_window_connection(window.window_id, "reconcile")
     try:
         reconciled = reconcile_window(con, window.window_id)
         con.commit()
@@ -983,9 +1071,31 @@ def main(argv: list[str] | None = None) -> int:
         help="覆盖配置的本 tick 自动补跑上限；0=本次不补跑",
     )
     args = parser.parse_args(argv)
+    controlled_session = os.environ.get("HONGHU_CONTROLLED_SESSION_DATE", "").strip()
+    if controlled_session:
+        if os.environ.get("HONGHU_TASK_CONTROLLED_TRIAL") != "1":
+            raise RuntimeError("controlled session date is not authorized")
+        parsed_controlled_session = date.fromisoformat(controlled_session)
+        if args.session_date is not None and args.session_date != parsed_controlled_session:
+            raise RuntimeError("controlled session date conflicts with command arguments")
+        args.session_date = parsed_controlled_session
+        # A reviewed historical trial proves one exact business window.  It
+        # must not silently fan out into unrelated backlog work after that
+        # window succeeds.  Normal scheduled runs never receive this fenced
+        # environment marker and retain the production auto-backfill policy.
+        args.no_auto_backfill = True
     try:
         with exclusive_tick_lock():
-            recovery_con = common.get_senti_db()
+            from tools.data_platform.run_domain_operation import derived_operation_id
+
+            recovery_con = common.get_senti_db(
+                operation_scope="retail_recovery",
+                operation_id=(
+                    derived_operation_id("controller:recovery")
+                    if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+                    else None
+                ),
+            )
             common.assert_senti_only(recovery_con)
             orphan_wait = wait_for_fresh_orphaned_xinghan(recovery_con)
             if orphan_wait:
@@ -1021,7 +1131,14 @@ def main(argv: list[str] | None = None) -> int:
                 newer_due.window_id if yield_to_newer_window else None
             )
             if not args.no_auto_backfill and not yield_to_newer_window:
-                scan_con = common.get_senti_db()
+                scan_con = common.get_senti_db(
+                    operation_scope="retail_backfill_scan",
+                    operation_id=(
+                        derived_operation_id("controller:backfill-scan")
+                        if os.environ.get("HONGHU_OPERATION_ID", "").strip()
+                        else None
+                    ),
+                )
                 common.assert_senti_only(scan_con)
                 backfill_windows = due_auto_backfill_windows(
                     scan_con,

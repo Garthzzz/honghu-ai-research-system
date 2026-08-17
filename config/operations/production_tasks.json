@@ -1,0 +1,94 @@
+{
+  "schema_version": "honghu.production_task_manifest.v1",
+  "timezone": "Asia/Shanghai",
+  "runner_host": "DESKTOP-VGD07J4",
+  "legacy_runner_host": "WIN-G7VO0DD37CE",
+  "legacy_runner_host_identity_sha256": "f5cd935fb4499ace31f3a316f7c3a5bd7afd41c65808cce42076d27c7ab9fabe",
+  "local_disabled_evidence_max_age_seconds": 900,
+  "tasks": [
+    {
+      "task_id": "IndustryDemo_DynamicTick",
+      "cutover_unit": "operations_governance",
+      "writer_units": ["operations_governance", "dynamic_intelligence"],
+      "schedule": {"kind": "weekday_interval", "start": "08:00", "end": "20:00", "minutes": 15},
+      "window": {"kind": "quarter_hour", "minutes": 15},
+      "freshness_seconds": 2700,
+      "execution_timeout_seconds": 1500,
+      "legacy_definition_sha256": "11f25f2f3a3e5c0b727ddeea5382b17749cb05e841f3eae59ab7808c08cece85",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.dynamic.scheduler", "tick"]
+    },
+    {
+      "task_id": "IndustryDemo_EventIngest",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "10:30"},
+      "window": {"kind": "business_date"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 28800,
+      "legacy_definition_sha256": "82a594f8e7c5de9ac8dad9cdc42d1372182511dcd6fb6e85f321c817bd776e09",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.sentiment.event_ingest", "--all", "--max-llm", "600", "--per-stock", "30"]
+    },
+    {
+      "task_id": "IndustryDemo_RecruitWeekly",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekly_at", "weekday": "Monday", "at": "11:00"},
+      "window": {"kind": "iso_week"},
+      "freshness_seconds": 691200,
+      "execution_timeout_seconds": 12000,
+      "legacy_definition_sha256": "fa994eda40e96ca0b11545606a2b96fc7c86356aac4b2193bc7ee42f5d5ee865",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.sentiment.recruit_weekly"]
+    },
+    {
+      "task_id": "IndustryDemo_Retail_Preopen",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "10:00"},
+      "window": {"kind": "business_date_slot", "slot": "preopen"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 230400,
+      "legacy_definition_sha256": "675a775f1581f7da8d654df4dc11d4cd0dde2a210d53d67e3246772ed03d5c0d",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.sentiment.retail_window_tick", "--slot", "preopen"]
+    },
+    {
+      "task_id": "IndustryDemo_Retail_Morning",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "14:00"},
+      "window": {"kind": "business_date_slot", "slot": "morning"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 230400,
+      "legacy_definition_sha256": "d0947e5266a821b757282e5390e924b35e99c9c968591dba19811080aa0f90f4",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.sentiment.retail_window_tick", "--slot", "morning"]
+    },
+    {
+      "task_id": "IndustryDemo_Retail_Afternoon",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "17:00"},
+      "window": {"kind": "business_date_slot", "slot": "afternoon"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 230400,
+      "legacy_definition_sha256": "b6b77d0a4b1e17b4c36f1644b67a8002a9251d237b763f69e489dce43b7ada88",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.sentiment.retail_window_tick", "--slot", "afternoon"]
+    },
+    {
+      "task_id": "IndustryDemo_SentimentRetention",
+      "cutover_unit": "sentiment_analytics",
+      "writer_units": ["sentiment_analytics"],
+      "schedule": {"kind": "weekdays_at", "at": "21:00"},
+      "window": {"kind": "business_date"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 43200,
+      "legacy_definition_sha256": "c2a3bb2bbf10e3defe3c4b03c49bea61411d93236fb0fb9c21714d442330755f",
+      "legacy_principal": "zhang",
+      "command": ["-m", "tools.maintenance.sentiment_retention", "--apply", "--grace-days", "3", "--include-expired-incomplete", "--incomplete-age-days", "3"]
+    }
+  ]
+}

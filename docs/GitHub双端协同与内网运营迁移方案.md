@@ -1,6 +1,6 @@
 # 泓湖 AI 研究系统 GitHub—PostgreSQL—VM 运营迁移方案
 
-> 状态：阶段 0—3 已获批准退出；Stage 4 九个数据切换单元已全部进入 durable S3，正在等待用户人工批准 Stage 4 退出。Stage 5 的七个任务与 runner 迁移尚未授权。
+> 状态：阶段 0—4 已获批准退出；Stage 4 九个数据切换单元均为 durable S3。用户已于 2026-08-16 授权 Stage 5 的七个任务、runner、checkpoint、恢复与监控迁移；实施进行中，尚未宣布 Stage 5 PASS。
 > OpenSpec 权威变更：`openspec/changes/github-vm-dual-node-operations/`。
 > 本文是便于团队阅读的总览；阶段、门槛和验收以该 change 的 `baseline.md`、`design.md`、`tasks.md` 和 capability specs 为准。
 
@@ -140,7 +140,7 @@ VM 停机期间生产可以暂停，但恢复后不能假定数据完整。每�
 - 重试和幂等边界；
 - 当前是“进程运行”还是“数据已追平”。
 
-任务逐个迁移：VM disabled 安装、人工真实试跑、暂停本地、启用 VM、观察、保持本地 disabled。不得本地和 VM 双跑。
+任务逐个迁移：VM disabled 安装、受控真实试跑、再次证明本地同名任务 Disabled、启用唯一 VM runner、观察并保持本地 Disabled。Stage 5 启动时本地七任务虽已 Disabled，但每次 VM 启用前仍须重新采集现场证据；不得本地和 VM 双跑。
 
 数据存储切换和任务主机切换是两条独立轴。允许任务暂由本地唯一 runner 连接 production PostgreSQL，但这必须是有退出条件的迁移状态，并登记任务、临时 owner、开始时间、唯一 runner、角色权限、网络/凭据、checkpoint、暂留原因、退出条件、下一 HALT、VM 前置和逾期升级。断线不触发 SQLite 回退；VM 启用前先证明本地已停止，完成后撤销不再需要的本地生产写权限。如果不批准本地连接，则 runner 与对应切换单元同窗切换。任务主机回退不得把已经有新数据的 PostgreSQL 权威改回旧 SQLite。
 
@@ -154,7 +154,7 @@ VM 停机期间生产可以暂停，但恢复后不能假定数据完整。每�
 - GitHub 可选存客户端加密的第三份低频灾备，但不是 live 或唯一备份；
 - 广播包继续作为过渡冷备，直到新恢复路径通过真实验收。
 
-备份设计先按数据类别批准 target RPO/RTO：人工内容、正式研究发布/ledger、共享身份和 checkpoint 几乎不可接受丢失；财务与研究数据需要保留 as-of/revision；动态、KOL 和情绪要区分可补抓与不可补抓窗口；papers/evidence 原件可能无法再次取得。目标决定是否需要 PITR、备份频率和物理拆分，且必须在 production 数据切换前批准。最终验收再通过整库、单域旁路和空机恢复记录 measured RPO/RTO，包括实际恢复点、耗时、缺失数据、补抓和选择性修复时间；未达到目标不得宣布迁移完成。
+备份设计先按数据类别批准 target RPO/RTO：人工内容、正式研究发布/ledger、共享身份和 checkpoint 几乎不可接受丢失；财务与研究数据需要保留 as-of/revision；动态、KOL 和情绪要区分可补抓与不可补抓窗口；papers/evidence 原件可能无法再次取得。目标决定是否需要 PITR、备份频率和物理拆分。Stage 4 已验证的 `0.007s` 是固定 recovery-set target gap，`8.047s` 是该数据库 target 的 restore elapsed，不代表任意连续生产故障的全系统 RPO/RTO。Stage 5 最终验收必须使用故障前已异机持久化的 base/WAL，通过整库、单域旁路和 clean/isolated 空机恢复记录实际 recoverable watermark、恢复耗时、缺失数据、补抓和选择性修复时间；未达到目标不得宣布迁移完成。
 
 整库灾难恢复与单域逻辑修复分开。单个域出错时，优先把备份恢复到旁路实例，按稳定身份选择性提取、对账并修复 production；不因一个域的问题原地回退整个主要 database，避免抹掉其他域的新写入。
 
@@ -169,15 +169,15 @@ VM 停机期间生产可以暂停，但恢复后不能假定数据完整。每�
 5. 按切换单元 production PostgreSQL 迁移；
 6. 逐任务切换、生产安全、监控和恢复强化。
 
-每阶段结束必须 HALT，提交证据和 diff 等待人工批准。不能在一次 change 中同时施工 Git、数据库、七个任务、用户权限、高可用和灾备全部路径。
+每阶段结束必须提交 evidence 并由用户人工验收。Stage 5 已获连续实施授权，不因普通任务里程碑逐项 HALT，但完成前不得自行宣布 PASS，也不得扩张到 HA、replica、CDC 或自动故障转移。
 
-## 11. 当前待用户决定
+## 11. 当前待用户/公司治理关闭
 
-1. 各数据类别可接受的 RPO/RTO 等级，以及是否要求连续归档/PITR；
-2. 基于 RPO/RTO、维护和隔离要求，production PostgreSQL 初期共置还是独立部署；
-3. papers/evidence 的内部存储与资料上云审批边界；
-4. 应用仓库转入公司 Organization，或暂时采用何种公司控制权例外。
+1. 公司资产归属，或个人账号继续托管的正式例外；
+2. 第二位公司管理员、2FA、账号恢复与交接；
+3. production reviewer gate 与公司控制、可轮换/撤销的 VM deploy credential；
+4. Stage 5 全系统 measured RPO/RTO、空机恢复和七任务现场 evidence 的最终人工验收。
 
-内容仓库状态已经确定为 `RESERVED-UNUSED`，不再是开放问题。在上述问题和 OpenSpec 未通过人工审查前，不开始任何实施。
+在上述 repository governance 完全关闭前，临时发布模式固定为 `CI green → 用户人工批准 exact SHA → VM immutable deploy`，禁止 main merge 后无人审核自动上线。内容仓库保持 `RESERVED-UNUSED`；Stage 5 工程可在已批准边界内继续，但不得把待决项伪装成已完成。
 
 第三轮合同一致性通过后，方案可以建议人工批准阶段 0 退出，但不会自行批准。阶段 1 只允许 tracked allowlist、secret/path gate、staged inventory、安全 Git bootstrap、测试基线修复、lockfile、CI 和受保护 main 的准备；不允许 PostgreSQL production、生产数据访问层改造、数据库或 runner 切换、VM production deploy、人工写接口开放，也不自动让个人账号仓库成为 production authority。

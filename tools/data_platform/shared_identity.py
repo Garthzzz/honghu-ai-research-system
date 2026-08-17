@@ -522,13 +522,41 @@ class SharedIdentityReadCache:
             return self._uri
 
     def attach(self, connection: sqlite3.Connection) -> None:
-        uri = self.ensure_current()
-        connection.execute("ATTACH DATABASE ? AS pg_shared_identity", (uri,))
-        for table in SHARED_IDENTITY_TABLES:
-            quoted = _quote(table)
-            connection.execute(
-                f"CREATE TEMP VIEW {quoted} AS SELECT * FROM pg_shared_identity.{quoted}"
-            )
+        self.ensure_current()
+        with self._lock:
+            if self._keeper is None:
+                raise SharedIdentityError("shared identity cache has no keeper")
+            for table in SHARED_IDENTITY_TABLES:
+                quoted = _quote(table)
+                internal = _quote(f"__pg_shared_identity_{table}")
+                source = self._keeper.execute(f"SELECT * FROM {quoted}")
+                names = [str(item[0]) for item in (source.description or ())]
+                rows = source.fetchall()
+                definitions = ",".join(
+                    f"{_quote(name)} {_sqlite_type([row[index] for row in rows])}"
+                    for index, name in enumerate(names)
+                )
+                connection.execute(f"CREATE TEMP TABLE {internal} ({definitions})")
+                if rows:
+                    marks = ",".join("?" for _ in names)
+                    connection.executemany(
+                        f"INSERT INTO {internal} VALUES ({marks})",
+                        rows,
+                    )
+                connection.execute(
+                    f"CREATE TEMP VIEW {quoted} AS SELECT * FROM {internal}"
+                )
+
+    def connect(self) -> sqlite3.Connection:
+        connection = sqlite3.connect(":memory:")
+        connection.row_factory = sqlite3.Row
+        try:
+            self.attach(connection)
+            connection.execute("PRAGMA query_only=ON")
+            return connection
+        except Exception:
+            connection.close()
+            raise
 
     def close(self) -> None:
         with self._lock:

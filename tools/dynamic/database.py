@@ -7,7 +7,8 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_DB = ROOT / "data" / "research.db"
+from tools.runtime_paths import resolve_runtime_layout
+DEFAULT_DB = resolve_runtime_layout(ROOT).data_root / "research.db"
 
 
 def connect_dynamic(

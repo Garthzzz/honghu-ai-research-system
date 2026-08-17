@@ -39,6 +39,194 @@ class ProductionRecoveryError(RuntimeError):
     pass
 
 
+def _canonical_checkpoint_value(value: Any) -> Any:
+    """Return a JSON-stable representation of PostgreSQL recovery evidence."""
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ProductionRecoveryError(
+                "task checkpoint timestamp has no timezone"
+            )
+        return value.astimezone(timezone.utc).isoformat()
+    if isinstance(value, dict):
+        return {
+            str(key): _canonical_checkpoint_value(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_checkpoint_value(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    raise ProductionRecoveryError(
+        f"unsupported task checkpoint value: {type(value).__name__}"
+    )
+
+
+def read_task_checkpoint_snapshot(
+    connection: Any, *, expected_task_ids: tuple[str, ...]
+) -> dict[str, Any]:
+    """Read the reviewed task definitions and latest durable checkpoint rows."""
+
+    expected = tuple(sorted(dict.fromkeys(expected_task_ids)))
+    if len(expected) != 7 or any(not task_id.strip() for task_id in expected):
+        raise ProductionRecoveryError(
+            "task checkpoint recovery requires the reviewed seven-task manifest"
+        )
+    rows = connection.execute(
+        """
+        SELECT d.task_id,d.manifest_sha256,d.application_commit_sha,
+               d.cutover_unit,d.writer_units,d.runner_host,
+               d.freshness_seconds,d.enabled,d.definition_revision,
+               d.registered_at,d.updated_at,
+               r.logical_window,r.run_attempt,r.operation_id_sha256,
+               r.manifest_sha256,r.application_commit_sha,r.runner_host,
+               r.runner_principal,r.status,r.failure_classification,
+               r.return_code,r.started_at,r.heartbeat_at,r.finished_at,
+               r.output_tail_sha256,r.business_checkpoint_before,
+               r.business_checkpoint_after
+          FROM operations.production_task_definition d
+          LEFT JOIN LATERAL (
+              SELECT x.*
+                FROM operations.production_task_run x
+               WHERE x.task_id=d.task_id
+               ORDER BY x.started_at DESC,x.run_attempt DESC,
+                        x.logical_window DESC
+               LIMIT 1
+          ) r ON true
+         ORDER BY d.task_id
+        """
+    ).fetchall()
+    observed = tuple(str(row[0]) for row in rows)
+    if observed != expected:
+        missing = sorted(set(expected) - set(observed))
+        extra = sorted(set(observed) - set(expected))
+        raise ProductionRecoveryError(
+            "task checkpoint definition set mismatch: "
+            f"missing={missing}, extra={extra}"
+        )
+
+    tasks: list[dict[str, Any]] = []
+    for row in rows:
+        values = list(row)
+        if len(values) != 27:
+            raise ProductionRecoveryError(
+                "task checkpoint query returned an unsupported row shape"
+            )
+        task_id = str(values[0])
+        definition = {
+            key: _canonical_checkpoint_value(value)
+            for key, value in zip(
+                (
+                    "task_id",
+                    "manifest_sha256",
+                    "application_commit_sha",
+                    "cutover_unit",
+                    "writer_units",
+                    "runner_host",
+                    "freshness_seconds",
+                    "enabled",
+                    "definition_revision",
+                    "registered_at_utc",
+                    "updated_at_utc",
+                ),
+                values[:11],
+            )
+        }
+        latest_values = values[11:]
+        latest_run = None
+        if latest_values[0] is not None:
+            latest_run = {
+                key: _canonical_checkpoint_value(value)
+                for key, value in zip(
+                    (
+                        "logical_window",
+                        "run_attempt",
+                        "operation_id_sha256",
+                        "manifest_sha256",
+                        "application_commit_sha",
+                        "runner_host",
+                        "runner_principal",
+                        "status",
+                        "failure_classification",
+                        "return_code",
+                        "started_at_utc",
+                        "heartbeat_at_utc",
+                        "finished_at_utc",
+                        "output_tail_sha256",
+                        "business_checkpoint_before",
+                        "business_checkpoint_after",
+                    ),
+                    latest_values,
+                )
+            }
+        task = {
+            "task_id": task_id,
+            "definition": definition,
+            "latest_run": latest_run,
+        }
+        task["identity_sha256"] = sha256_json(task)
+        tasks.append(task)
+    core = {
+        "schema_version": "honghu.stage5_task_checkpoint_snapshot.v1",
+        "task_count": len(tasks),
+        "latest_run_count": sum(item["latest_run"] is not None for item in tasks),
+        "tasks": tasks,
+    }
+    return {**core, "identity_sha256": sha256_json(core)}
+
+
+def verify_task_checkpoint_restore(
+    source: dict[str, Any], restored: dict[str, Any]
+) -> dict[str, Any]:
+    """Fail closed unless the restored task/checkpoint snapshot is identical."""
+
+    for label, snapshot in (("source", source), ("restored", restored)):
+        core = {
+            key: value
+            for key, value in snapshot.items()
+            if key != "identity_sha256"
+        }
+        if sha256_json(core) != snapshot.get("identity_sha256"):
+            raise ProductionRecoveryError(
+                f"{label} task checkpoint snapshot identity is invalid"
+            )
+        tasks = snapshot.get("tasks")
+        if not isinstance(tasks, list) or len(tasks) != 7:
+            raise ProductionRecoveryError(
+                f"{label} task checkpoint snapshot is incomplete"
+            )
+        for task in tasks:
+            if not isinstance(task, dict):
+                raise ProductionRecoveryError(
+                    f"{label} task checkpoint entry is invalid"
+                )
+            task_core = {
+                key: value for key, value in task.items() if key != "identity_sha256"
+            }
+            if sha256_json(task_core) != task.get("identity_sha256"):
+                raise ProductionRecoveryError(
+                    f"{label} task checkpoint entry identity is invalid"
+                )
+    source_identity = str(source.get("identity_sha256") or "")
+    restored_identity = str(restored.get("identity_sha256") or "")
+    if not source_identity or source_identity != restored_identity:
+        raise ProductionRecoveryError(
+            "restored production task definitions/checkpoints do not match source"
+        )
+    if source.get("task_count") != 7 or restored.get("task_count") != 7:
+        raise ProductionRecoveryError(
+            "restored production task checkpoint set is incomplete"
+        )
+    return {
+        "status": "pass",
+        "verified": True,
+        "task_count": 7,
+        "latest_run_count": int(source.get("latest_run_count") or 0),
+        "source_snapshot_identity_sha256": source_identity,
+        "restored_snapshot_identity_sha256": restored_identity,
+    }
+
+
 def _utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -407,6 +595,26 @@ def run_production_recovery(
         not str(unit).strip() for unit in required_authority_units
     ):
         raise ProductionRecoveryError("at least one authority unit is required")
+    task_manifest = _load_json(
+        repo_root / "config" / "operations" / "production_tasks.json"
+    )
+    expected_task_ids = tuple(
+        sorted(
+            str(item.get("task_id") or "")
+            for item in (task_manifest.get("tasks") or ())
+            if isinstance(item, dict)
+        )
+    )
+    if (
+        task_manifest.get("schema_version")
+        != "honghu.production_task_manifest.v1"
+        or len(expected_task_ids) != 7
+        or len(set(expected_task_ids)) != 7
+        or any(not value for value in expected_task_ids)
+    ):
+        raise ProductionRecoveryError(
+            "exact release has no reviewed seven-task manifest"
+        )
     output_dir.mkdir(parents=True, exist_ok=True)
     data_dir = install_root / "data"
     wal_archive = install_root / "wal-archive"
@@ -454,6 +662,9 @@ def run_production_recovery(
             )
         except AuthorityControlError as exc:
             raise ProductionRecoveryError(str(exc)) from exc
+        source_task_checkpoints = read_task_checkpoint_snapshot(
+            connection, expected_task_ids=expected_task_ids
+        )
         target_lsn, durable_at, required_wal, wal_segment_size = connection.execute(
             """
             SELECT pg_current_wal_flush_lsn()::text,
@@ -566,6 +777,9 @@ def run_production_recovery(
                 )
             except AuthorityControlError as exc:
                 raise ProductionRecoveryError(str(exc)) from exc
+            restored_task_checkpoints = read_task_checkpoint_snapshot(
+                restored, expected_task_ids=expected_task_ids
+            )
     finally:
         if restore_started:
             _pg_ctl(bin_dir, restore_data, "stop")
@@ -577,6 +791,9 @@ def run_production_recovery(
         raise ProductionRecoveryError(
             "restored authority control does not match the durable source snapshot"
         )
+    task_checkpoint_restore = verify_task_checkpoint_restore(
+        source_task_checkpoints, restored_task_checkpoints
+    )
     retention = (
         enforce_validated_recovery_retention(
             destination.parent,
@@ -609,6 +826,8 @@ def run_production_recovery(
         "whole_database_restore": "pass",
         "authority_control_restore": "pass",
         "authority_snapshots": source_authorities,
+        "task_checkpoint_restore": task_checkpoint_restore,
+        "task_checkpoint_snapshot": source_task_checkpoints,
         "tracked_static_default_route": static_default_route,
         "live_authoritative_backends": {
             unit: snapshot["authoritative_backend"]
