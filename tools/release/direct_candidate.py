@@ -30,6 +30,7 @@ ALLOWED_MODULES = {
     "tools.operations.wal_offvm_sync": "main",
     "tools.operations.stage5_recovery_cycle": "main",
     "tools.operations.recovery_health": "main",
+    "tools.operations.stage5_health": "main",
     "tools.migration.stage4_apply_postgresql_migrations": "main",
 }
 

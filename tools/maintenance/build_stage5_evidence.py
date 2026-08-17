@@ -35,6 +35,7 @@ FILES = (
     "tools/operations/stage5_recovery_cycle.py",
     "tools/operations/recovery_metrics.py",
     "tools/operations/recovery_health.py",
+    "tools/operations/stage5_health.py",
 )
 
 
