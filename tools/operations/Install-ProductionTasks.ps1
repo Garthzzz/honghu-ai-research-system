@@ -40,6 +40,7 @@ function Get-TaskArguments([string]$TaskId) {
         '-I','-B','-S',$bootstrap,
         '--site-packages',$SitePackages,
         '--module','tools.operations.task_runner',
+        '--',
         'run','--manifest',$Manifest,
         '--postgres-runtime-catalog',$RuntimeCatalog,
         '--cutover-unit-registry',$Registry,

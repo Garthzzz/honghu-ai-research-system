@@ -102,6 +102,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--site-packages", required=True)
     parser.add_argument("--module", choices=sorted(ALLOWED_MODULES), required=True)
     args, remainder = parser.parse_known_args(argv)
+    # Keep arguments for the allowlisted child module behind an explicit
+    # option boundary.  Without this, argparse also consumes child options
+    # that share a name with this bootstrap (notably --site-packages), and a
+    # Scheduled Task reaches the child parser with a required option missing.
+    if remainder[:1] == ["--"]:
+        remainder = remainder[1:]
     prepare_import_path(args.site_packages)
     if not remainder:
         raise RuntimeError("candidate CLI command is missing")

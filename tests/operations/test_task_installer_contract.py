@@ -13,6 +13,7 @@ def test_installer_is_exact_release_disabled_first_and_noninteractive():
     assert "direct_candidate.py" in text
     assert "--site-packages" in text
     assert "tools.operations.task_runner" in text
+    assert "'--'," in text
     assert "Disable-ScheduledTask" in text
     assert "LocalDisabledEvidence" in text
     assert "TrialEvidence" in text

@@ -76,3 +76,29 @@ def test_outer_bootstrap_preserves_distinct_inner_site_packages_option(
     assert captured["argv"] == [
         "--locked-site-packages", str(tmp_path / "inner")
     ]
+
+
+def test_outer_bootstrap_preserves_same_named_inner_option_after_boundary(
+    monkeypatch, tmp_path
+):
+    captured = {}
+
+    def entrypoint(argv):
+        captured["argv"] = argv
+        return 0
+
+    monkeypatch.setattr(direct_candidate, "prepare_import_path", lambda _path: None)
+    monkeypatch.setattr(
+        direct_candidate.importlib,
+        "import_module",
+        lambda _name: SimpleNamespace(main=entrypoint),
+    )
+    assert direct_candidate.main([
+        "--site-packages", str(tmp_path / "outer"),
+        "--module", "tools.operations.task_runner",
+        "--",
+        "run", "--site-packages", str(tmp_path / "inner"),
+    ]) == 0
+    assert captured["argv"] == [
+        "run", "--site-packages", str(tmp_path / "inner")
+    ]
