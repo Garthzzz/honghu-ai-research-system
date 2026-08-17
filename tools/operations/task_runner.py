@@ -85,6 +85,15 @@ def _dynamic_compatibility_retry_environment(
     return {"HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1"}
 
 
+def _install_dynamic_compatibility_retry_environment(
+    environment: dict[str, str], authorized: dict[str, str]
+) -> None:
+    """Clear inherited authority before installing the validated capability."""
+
+    environment.pop("HONGHU_DYNAMIC_COMPATIBILITY_RETRY", None)
+    environment.update(authorized)
+
+
 def _canonical_sha(payload: Any) -> str:
     return hashlib.sha256(
         json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -468,7 +477,9 @@ def run_task(
                 "HONGHU_TASK_CONTROLLED_TRIAL": "1",
                 "HONGHU_CONTROLLED_SESSION_DATE": controlled_session,
             })
-        environment.update(dynamic_retry_environment)
+        _install_dynamic_compatibility_retry_environment(
+            environment, dynamic_retry_environment
+        )
         timed_out = False
         with stdout_path.open("wb") as stdout, stderr_path.open("wb") as stderr:
             process = subprocess.Popen(

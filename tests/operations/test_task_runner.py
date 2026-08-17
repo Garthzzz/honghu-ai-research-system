@@ -9,6 +9,7 @@ from tools.operations.task_runner import (
     _classify,
     _controlled_retail_session_date,
     _dynamic_compatibility_retry_environment,
+    _install_dynamic_compatibility_retry_environment,
     _isolated_child_command,
     _most_recent_scheduled_at,
     logical_window,
@@ -86,6 +87,17 @@ def test_dynamic_compatibility_retry_is_explicit_and_disabled_only():
             allow_disabled=True,
             requested=True,
         )
+
+    inherited = {"HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1", "SAFE": "kept"}
+    _install_dynamic_compatibility_retry_environment(inherited, {})
+    assert inherited == {"SAFE": "kept"}
+    _install_dynamic_compatibility_retry_environment(
+        inherited, {"HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1"}
+    )
+    assert inherited == {
+        "SAFE": "kept",
+        "HONGHU_DYNAMIC_COMPATIBILITY_RETRY": "1",
+    }
 
 
 def test_exit_classification_does_not_treat_partial_or_timeout_as_success():
