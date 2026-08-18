@@ -1270,6 +1270,105 @@ def company_current_metrics_batch(
         conn.close()
 
 
+def company_page_summaries_batch(
+    research_company_ids: list[int] | tuple[int, ...] | set[int],
+    *,
+    db_path: str | Path = DB_PATH,
+) -> dict[int, dict[str, Any]]:
+    """Read every financial field used by industry company cards in one pass.
+
+    Loading a full ``company_bundle`` per row also loads model ledgers that
+    industry pages do not render and repeats projection setup after cutover.
+    Existing selection helpers preserve provider priority, period identity and
+    field-level provenance.
+    """
+    company_ids = sorted({int(value) for value in research_company_ids})
+    path = Path(db_path)
+    if not company_ids or not path.is_file():
+        return {}
+
+    conn = connect(path, readonly=True)
+    try:
+        company_placeholders = ",".join("?" for _ in company_ids)
+        security_rows = [
+            dict(row)
+            for row in conn.execute(
+                f"""
+                SELECT COALESCE(l.research_company_id, s.research_company_id)
+                           AS linked_company_id,
+                       s.*
+                  FROM financial_security s
+                  LEFT JOIN financial_security_company_link l
+                    ON l.security_id=s.id
+                 WHERE COALESCE(l.research_company_id, s.research_company_id)
+                       IN ({company_placeholders})
+                 ORDER BY linked_company_id,
+                          CASE
+                            WHEN s.research_company_id=
+                                 COALESCE(l.research_company_id,
+                                          s.research_company_id)
+                            THEN 0 ELSE 1
+                          END,
+                          s.id
+                """,
+                company_ids,
+            )
+        ]
+        security_by_company: dict[int, dict[str, Any]] = {}
+        for row in security_rows:
+            company_id = int(row["linked_company_id"])
+            security_by_company.setdefault(company_id, row)
+        if not security_by_company:
+            return {}
+
+        security_ids = [int(row["id"]) for row in security_by_company.values()]
+        security_placeholders = ",".join("?" for _ in security_ids)
+        metric_names = tuple(sorted({
+            "close", "pe_ttm", "pe_forward", "pb", "ps_ttm", "ev_ebitda",
+            "market_cap", "market_cap_cny", "market_cap_usd",
+            "roe", "roa", "eps", "eps_ttm", "bps_mrq",
+            "revenue", "net_income", "revenue_yoy", "net_income_yoy",
+            "gross_margin", "net_margin", "operating_cash_flow",
+        }))
+        metric_placeholders = ",".join("?" for _ in metric_names)
+        observations = [
+            dict(row)
+            for row in conn.execute(
+                f"""
+                SELECT o.*, ss.title AS source_title,
+                       ss.publisher AS source_publisher,
+                       ss.source_channel, ss.source_ref
+                  FROM financial_observation o
+                  LEFT JOIN financial_source_snapshot ss
+                    ON ss.id=o.source_snapshot_id
+                 WHERE o.security_id IN ({security_placeholders})
+                   AND o.metric_name IN ({metric_placeholders})
+                 ORDER BY o.security_id, o.metric_name,
+                          o.period_end, o.as_of_date, o.id
+                """,
+                (*security_ids, *metric_names),
+            )
+        ]
+        grouped: dict[int, dict[str, list[dict[str, Any]]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
+        for row in observations:
+            grouped[int(row["security_id"])][str(row["metric_name"])].append(row)
+
+        result: dict[int, dict[str, Any]] = {}
+        for company_id, security in security_by_company.items():
+            metrics = grouped.get(int(security["id"]), {})
+            result[company_id] = {
+                "security": security,
+                "current_metrics": _current_metrics_view(metrics),
+                "historical_table": _historical_table(metrics),
+                "forecast_table": _forecast_table(metrics),
+            }
+        return result
+    finally:
+        conn.close()
+
+
 def company_bundle(research_company_id: int, *, db_path: str | Path = DB_PATH) -> dict[str, Any] | None:
     path = Path(db_path)
     if not path.is_file():

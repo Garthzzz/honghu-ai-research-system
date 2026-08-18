@@ -57,6 +57,7 @@ if str(ROOT) not in sys.path:
 from tools.financial.read_models import (  # noqa: E402
     company_bundle as financial_company_bundle,
     company_current_metrics_batch as financial_company_current_metrics_batch,
+    company_page_summaries_batch as financial_company_page_summaries_batch,
     peer_asset_return_rows as financial_peer_asset_return_rows,
 )
 from tools.financial.valuation import historical_pb_roa, historical_pb_roe  # noqa: E402
@@ -871,6 +872,7 @@ def row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
 
 
 _REQUEST_READ_DB_KEY = "_honghu_viewer_read_db"
+_REQUEST_SENTI_DB_KEY = "_honghu_viewer_sentiment_read_db"
 
 
 def _request_read_connection() -> tuple[sqlite3.Connection, bool]:
@@ -887,10 +889,15 @@ def _request_read_connection() -> tuple[sqlite3.Connection, bool]:
 
 @app.teardown_request
 def _close_request_read_connection(_error: BaseException | None) -> None:
-    connection = getattr(g, _REQUEST_READ_DB_KEY, None)
-    if connection is not None:
-        connection.close()
-        delattr(g, _REQUEST_READ_DB_KEY)
+    for key in (_REQUEST_READ_DB_KEY, _REQUEST_SENTI_DB_KEY):
+        connection = getattr(g, key, None)
+        if connection is not None:
+            try:
+                connection.close()
+            except Exception:
+                log.exception("关闭 Viewer 请求级只读连接失败 key=%s", key)
+            finally:
+                delattr(g, key)
 
 
 def query_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
@@ -984,8 +991,21 @@ def senti_conn() -> Optional[sqlite3.Connection]:
     return conn
 
 
+def _request_senti_connection() -> tuple[Optional[sqlite3.Connection], bool]:
+    """Reuse the PostgreSQL-derived sentiment projection within one request."""
+
+    if not has_request_context():
+        return senti_conn(), True
+    connection = getattr(g, _REQUEST_SENTI_DB_KEY, None)
+    if connection is None:
+        connection = senti_conn()
+        if connection is not None:
+            setattr(g, _REQUEST_SENTI_DB_KEY, connection)
+    return connection, False
+
+
 def senti_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
-    conn = senti_conn()
+    conn, owned = _request_senti_connection()
     if conn is None:
         return []
     try:
@@ -993,11 +1013,12 @@ def senti_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
     except Exception:
         return []
     finally:
-        conn.close()
+        if owned:
+            conn.close()
 
 
 def senti_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
-    conn = senti_conn()
+    conn, owned = _request_senti_connection()
     if conn is None:
         return None
     try:
@@ -1006,7 +1027,8 @@ def senti_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
     except Exception:
         return None
     finally:
-        conn.close()
+        if owned:
+            conn.close()
 
 
 def _senti_table_exists(name: str) -> bool:
@@ -5419,21 +5441,23 @@ def _overlay_industry_financial_rows(
         "roe", "roa", "eps_ttm", "bps_mrq",
         "market_cap_cny", "market_cap_usd",
     )
-    bundles: dict[int, dict[str, Any]] = {}
     for row in rows:
         row["_provider_by_metric"] = {}
         row["_source_title_by_metric"] = {}
         row["_as_of_by_metric"] = {}
-        try:
-            bundle = financial_company_bundle(
-                int(row["company_id"]), db_path=FINANCIAL_DB_PATH,
-            )
-        except Exception:
-            log.exception(
-                "行业估值页读取 financial.db 失败 company_id=%s",
-                row.get("company_id"),
-            )
-            continue
+    try:
+        batch_bundles = financial_company_page_summaries_batch(
+            [int(row["company_id"]) for row in rows],
+            db_path=FINANCIAL_DB_PATH,
+        )
+    except Exception:
+        log.exception("行业公司页批量读取 financial.db 失败")
+        batch_bundles = {}
+
+    bundles: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        company_id = int(row["company_id"])
+        bundle = batch_bundles.get(company_id)
         if not bundle:
             continue
         # 跨库链接必须同时通过规范证券身份复核。company_id 在测试夹具、
@@ -5444,7 +5468,6 @@ def _overlay_industry_financial_rows(
         financial_ticker = str(security.get("ticker") or "").strip().upper()
         if row_ticker and financial_ticker and row_ticker != financial_ticker:
             continue
-        company_id = int(row["company_id"])
         bundles[company_id] = bundle
         current = bundle.get("current_metrics") or {}
         for key in current_keys:
