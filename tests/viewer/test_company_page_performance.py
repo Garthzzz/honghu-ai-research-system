@@ -289,6 +289,33 @@ def test_industry_overlay_rebuilds_canonical_iso_per_share_currencies() -> None:
         assert rows[0]["per_share_currency"] == expected
 
 
+def test_company_metric_cards_use_authoritative_iso_currency_and_multiple_suffix() -> None:
+    bundle = {
+        "current_metrics": {
+            "pe_ttm": {
+                "value_num": 20.42,
+                "unit": "倍",
+                "provider_label": "Yahoo Finance",
+                "as_of_date": "2026-08-18",
+            },
+            "eps_ttm": {
+                "value_num": 118.46,
+                "unit": "JPY/股",
+                "provider_label": "Yahoo Finance",
+                "as_of_date": "2026-08-18",
+            },
+        }
+    }
+    cards = viewer._company_metric_cards(
+        {"ticker": "5802.T", "listing_status": "listed", "per_share_currency": None},
+        financial_bundle=bundle,
+    )
+    by_key = {card["key"]: card for card in cards}
+    assert by_key["pe_ttm"]["display"] == "20.42×"
+    assert by_key["eps_ttm"]["display"] == "118.46 JPY/股"
+    assert viewer._fmt_metric("pb", 2.66) == "2.66×"
+
+
 def test_request_queries_reuse_and_teardown_domain_connections() -> None:
     research = sqlite3.connect(":memory:")
     research.row_factory = sqlite3.Row

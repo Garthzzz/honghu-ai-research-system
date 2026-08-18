@@ -2382,6 +2382,26 @@ def _metric_number(value, kind: str, currency: Optional[str] = None) -> Optional
     return f"{number:,.2f}"
 
 
+def _per_share_currency_from_unit(value: Any) -> Optional[str]:
+    unit = str(value or "").strip()
+    iso_per_share = re.fullmatch(
+        r"(CNY|HKD|USD|JPY|EUR)/(?:股|SHARE)", unit.upper(),
+    )
+    if iso_per_share:
+        return iso_per_share.group(1)
+    if "港元" in unit:
+        return "HKD"
+    if "美元" in unit:
+        return "USD"
+    if "日元" in unit:
+        return "JPY"
+    if "欧元" in unit:
+        return "EUR"
+    if "元/股" in unit:
+        return "CNY"
+    return None
+
+
 def _positive_pe(value: Any) -> bool:
     """PE 只有有限正数才可用于展示、排序和覆盖度统计。"""
     try:
@@ -2403,9 +2423,15 @@ def _company_metric_cards(
     unlisted = (co.get("listing_status") in UNLISTED_LISTING_STATUSES) or not co.get("ticker")
     # 每股指标只能使用明确的每股币种；market_cap_unit 可能是“亿元人民币”，
     # 不能把市值单位错误拼成“亿元人民币/股”。
-    currency = co.get("per_share_currency")
-    cards = []
     current_metrics = (financial_bundle or {}).get("current_metrics") or {}
+    if financial_bundle is not None:
+        currency = _per_share_currency_from_unit(
+            (current_metrics.get("eps_ttm") or {}).get("unit")
+            or (current_metrics.get("bps_mrq") or {}).get("unit")
+        )
+    else:
+        currency = co.get("per_share_currency")
+    cards = []
     missing_reason = (
         profile.get("_financial_absence_reason")
         or (
@@ -5657,26 +5683,10 @@ def _overlay_industry_financial_rows(
                 row["forecast_as_of_date"] = representative.get("as_of_date")
 
         if row.get("per_share_currency") is None:
-            unit = str(
+            row["per_share_currency"] = _per_share_currency_from_unit(
                 (current.get("eps_ttm") or {}).get("unit")
                 or (current.get("bps_mrq") or {}).get("unit")
-                or ""
-            ).strip()
-            iso_per_share = re.fullmatch(
-                r"(CNY|HKD|USD|JPY|EUR)/(?:股|SHARE)", unit.upper(),
             )
-            if iso_per_share:
-                row["per_share_currency"] = iso_per_share.group(1)
-            elif "港元" in unit:
-                row["per_share_currency"] = "HKD"
-            elif "美元" in unit:
-                row["per_share_currency"] = "USD"
-            elif "日元" in unit:
-                row["per_share_currency"] = "JPY"
-            elif "欧元" in unit:
-                row["per_share_currency"] = "EUR"
-            elif "元/股" in unit:
-                row["per_share_currency"] = "CNY"
         valuation_dates = [
             str(row["_as_of_by_metric"][key])
             for key in ("pe_ttm", "pe_forward", "pb", "ps_ttm", "ev_ebitda", "market_cap_cny", "market_cap_usd")
@@ -5703,6 +5713,8 @@ def _fmt_metric(key, val):
         return str(val)
     if key in ("roe", "roa", "gross_margin", "net_margin"):
         return f"{f:.2f}%"
+    if key in ("pe_ttm", "pe_forward", "pb", "ps_ttm", "ev_ebitda", "peg"):
+        return f"{f:.2f}×"
     if key in ("market_cap_cny", "market_cap_value"):
         return f"{f:,.2f}"
     return f"{f:.2f}"
@@ -6258,6 +6270,8 @@ def industry_valuation(industry_id: int):
                 else (p.get("_as_of_by_metric") or {}).get(key)
                 or p.get("valuation_as_of")
             )
+            if not has_value:
+                metric_as_of = None
             metrics.append({"key": key, "label": label, "display": display,
                             "formula": VALUATION_FORMULAS.get(key, ""),
                             "has": has_value,
