@@ -34,6 +34,7 @@ ALLOWED_MODULES = {
     "tools.operations.recovery_health": "main",
     "tools.operations.stage5_health": "main",
     "tools.migration.stage4_apply_postgresql_migrations": "main",
+    "tools.pipeline.apply_fiber_company_production_delta": "main",
 }
 
 

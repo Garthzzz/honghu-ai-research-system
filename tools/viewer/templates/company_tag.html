@@ -276,20 +276,22 @@
       </div>
       {% endif %}
       {% if vs.scenario_results %}
+      {% set scenario_unit = vs.currency_unit or '亿元人民币' %}
+      {% set scenario_price_unit = vs.price_unit or '元/股' %}
       <div class="cp-summary-block">
         <h3>2027年经营与估值三情景</h3>
         <div class="cp-table-scroll" tabindex="0" role="region" aria-label="2027年经营与估值三情景，可横向滚动">
           <table class="cp-tab cp-company-scenario-table"><thead><tr><th>情景</th><th>营业收入</th><th>归母净利润</th><th>经营现金流</th><th>资本开支</th><th>自由现金流近似值</th><th>目标PE</th><th>目标市值</th><th>对应股价</th><th>成立条件</th></tr></thead><tbody>
           {% for item in vs.scenario_results %}<tr>
             <td><b>{{ item.scenario_label }}</b></td>
-            <td>{{ '%.2f'|format(item.revenue) }}亿元</td>
-            <td>{{ '%.2f'|format(item.net_income) }}亿元</td>
-            <td>{% if item.operating_cash_flow is not none %}{{ '%.2f'|format(item.operating_cash_flow) }}亿元{% else %}—{% endif %}</td>
-            <td>{% if item.capex is not none %}{{ '%.2f'|format(item.capex) }}亿元{% else %}—{% endif %}</td>
-            <td>{{ '%.2f'|format(item.free_cash_flow) }}亿元</td>
+            <td>{{ '%.2f'|format(item.revenue) }} {{ scenario_unit }}</td>
+            <td>{{ '%.2f'|format(item.net_income) }} {{ scenario_unit }}</td>
+            <td>{% if item.operating_cash_flow is not none %}{{ '%.2f'|format(item.operating_cash_flow) }} {{ scenario_unit }}{% else %}—{% endif %}</td>
+            <td>{% if item.capex is not none %}{{ '%.2f'|format(item.capex) }} {{ scenario_unit }}{% else %}—{% endif %}</td>
+            <td>{{ '%.2f'|format(item.free_cash_flow) }} {{ scenario_unit }}</td>
             <td>{{ '%.2f'|format(item.target_pe) }}倍</td>
-            <td>{{ '%.2f'|format(item.target_market_cap) }}亿元</td>
-            <td>{{ '%.2f'|format(item.target_price) }}元/股</td>
+            <td>{{ '%.2f'|format(item.target_market_cap) }} {{ scenario_unit }}</td>
+            <td>{{ '%.2f'|format(item.target_price) }} {{ scenario_price_unit }}</td>
             <td>{{ item.condition }}</td>
           </tr>{% endfor %}
           </tbody></table>
@@ -513,6 +515,7 @@
   <h2>研究员情景实验台 <span class="fresh">· 本地保存，不覆盖 AI 原始结论</span>{% if lithium_calculator_ready %}<a class="cp-btn primary" style="margin-left:auto;text-decoration:none" href="{{ url_for('lithium_calculator',company_id=co.id) }}">进入碳酸锂项目计算器</a>{% endif %}</h2>
   {% if financial_bundle and financial_bundle.scenario_workbench.simple_ready %}
   {% set wb=financial_bundle.scenario_workbench %}
+  {% set wb_unit = wb.simple.unit_label or '亿元人民币' %}
   <div class="cp-workbench">
     <div class="cp-workbench-head">
       <div><b>默认使用简化模式</b><div class="cp-model-note">{{ wb.reason }}</div></div>
@@ -523,10 +526,10 @@
     </div>
     <div id="wbSimple">
       <div class="cp-workbench-grid">
-        <div class="cp-field"><label>期初归母净资产（亿元）</label><input id="wbOpeningBook" type="number" step="0.01"></div>
+        <div class="cp-field"><label>期初归母净资产（{{ wb_unit }}）</label><input id="wbOpeningBook" type="number" step="0.01"></div>
         <div class="cp-field"><label>目标 PB（倍）</label><input id="wbTargetPb" type="number" min="0.01" step="0.01"></div>
         {% for year in wb.simple.years %}
-        <div class="cp-field"><label>{{ year.fiscal_year }}年归母净利润（亿元）</label><input class="wb-profit" data-year="{{ year.fiscal_year }}" type="number" step="0.01"></div>
+        <div class="cp-field"><label>{{ year.fiscal_year }}年归母净利润（{{ wb_unit }}）</label><input class="wb-profit" data-year="{{ year.fiscal_year }}" type="number" step="0.01"></div>
         <div class="cp-field"><label>{{ year.fiscal_year }}年分红率（%）</label><input class="wb-payout" data-year="{{ year.fiscal_year }}" type="number" min="0" max="100" step="0.1"></div>
         {% endfor %}
       </div>
@@ -546,12 +549,12 @@
       {% endif %}
     </div>
     <div class="cp-scenario-results" aria-live="polite">
-      <div class="cp-scenario-result"><b id="wbEndingBook">—</b><span>FY3期末净资产（亿元）</span></div>
+      <div class="cp-scenario-result"><b id="wbEndingBook">—</b><span>FY3期末净资产（{{ wb_unit }}）</span></div>
       <div class="cp-scenario-result"><b id="wbEndingRoe">—</b><span>FY3推导 ROE</span></div>
-      <div class="cp-scenario-result"><b id="wbTargetValue">—</b><span>FY3情景市值（亿元）</span></div>
+      <div class="cp-scenario-result"><b id="wbTargetValue">—</b><span>FY3情景市值（{{ wb_unit }}）</span></div>
       <div class="cp-scenario-result"><b id="wbTotalChange">—</b><span>相对当前市值变化</span></div>
-      <div class="cp-scenario-result"><b id="wbBookContribution">—</b><span>净资产增长贡献（亿元）</span></div>
-      <div class="cp-scenario-result"><b id="wbPbContribution">—</b><span>PB重估贡献（亿元）</span></div>
+      <div class="cp-scenario-result"><b id="wbBookContribution">—</b><span>净资产增长贡献（{{ wb_unit }}）</span></div>
+      <div class="cp-scenario-result"><b id="wbPbContribution">—</b><span>PB重估贡献（{{ wb_unit }}）</span></div>
     </div>
     <div class="cp-workbench-actions">
       <input id="wbScenarioName" type="text" maxlength="30" placeholder="情景名称" style="border:1px solid #ccd8e7;border-radius:7px;padding:6px">
@@ -684,7 +687,7 @@
 </div>
 </div>
 
-<script src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
+<script async src="{{ url_for('static', filename='vendor/plotly.min.js') }}"></script>
 <script>
 const PANELS = {{ panels_json|safe }};
 const FINANCIAL_FIG = {{ financial_figure_json|safe }};
@@ -705,14 +708,16 @@ function drawPanel(divId, fig){
 function setFreq(target, f){
   drawPanel('p'+target, PANELS[f==='window'?'retail_window':'retail_d']);
 }
-setFreq('Retail','window');
-if(FINANCIAL_FIG && FINANCIAL_FIG.data){ Plotly.newPlot('companyFinancialChart', FINANCIAL_FIG.data, FINANCIAL_FIG.layout, CFG); }
-if(PB_BAND_FIG && PB_BAND_FIG.data){ Plotly.newPlot('pbBandChart', PB_BAND_FIG.data, PB_BAND_FIG.layout, CFG); }
-else { const e=document.getElementById('pbBandChart'); if(e){ const d=document.createElement('div'); d.className='cp-empty'; d.textContent=PB_BAND_NOTE; e.replaceChildren(d); } }
-if(PE_BAND_FIG && PE_BAND_FIG.data){ Plotly.newPlot('peBandChart', PE_BAND_FIG.data, PE_BAND_FIG.layout, CFG); }
-else { const e=document.getElementById('peBandChart'); if(e){ const d=document.createElement('div'); d.className='cp-empty'; d.textContent=PE_BAND_NOTE; e.replaceChildren(d); } }
-if(ROE_PATH_FIG && ROE_PATH_FIG.data){ Plotly.newPlot('roePathChart', ROE_PATH_FIG.data, ROE_PATH_FIG.layout, CFG); }
-else { const e=document.getElementById('roePathChart'); if(e) e.innerHTML='<div class="cp-empty">历史或预测ROE不足，暂不绘制路径</div>'; }
+window.addEventListener('load',()=>{
+  setFreq('Retail','window');
+  if(FINANCIAL_FIG && FINANCIAL_FIG.data){ Plotly.newPlot('companyFinancialChart', FINANCIAL_FIG.data, FINANCIAL_FIG.layout, CFG); }
+  if(PB_BAND_FIG && PB_BAND_FIG.data){ Plotly.newPlot('pbBandChart', PB_BAND_FIG.data, PB_BAND_FIG.layout, CFG); }
+  else { const e=document.getElementById('pbBandChart'); if(e){ const d=document.createElement('div'); d.className='cp-empty'; d.textContent=PB_BAND_NOTE; e.replaceChildren(d); } }
+  if(PE_BAND_FIG && PE_BAND_FIG.data){ Plotly.newPlot('peBandChart', PE_BAND_FIG.data, PE_BAND_FIG.layout, CFG); }
+  else { const e=document.getElementById('peBandChart'); if(e){ const d=document.createElement('div'); d.className='cp-empty'; d.textContent=PE_BAND_NOTE; e.replaceChildren(d); } }
+  if(ROE_PATH_FIG && ROE_PATH_FIG.data){ Plotly.newPlot('roePathChart', ROE_PATH_FIG.data, ROE_PATH_FIG.layout, CFG); }
+  else { const e=document.getElementById('roePathChart'); if(e) e.innerHTML='<div class="cp-empty">历史或预测ROE不足，暂不绘制路径</div>'; }
+});
 document.querySelectorAll('.cp-toggle').forEach(tg=>{
   const target=tg.getAttribute('data-target');
   tg.querySelectorAll('.tg').forEach(b=>b.addEventListener('click',()=>{
