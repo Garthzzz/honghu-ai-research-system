@@ -206,7 +206,8 @@
           {% else %}
             PE {{ p.pe_ttm_display }} ·
             PB {{ '%.2f'|format(p.pb) if p.pb is not none else '—' }} ·
-            市值 {% if p.market_cap_cny is not none %}{{ '{:,.2f}'.format(p.market_cap_cny) }} 亿元人民币{% if p.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(p.market_cap_usd) }} 亿美元）{% endif %}{% else %}—{% endif %}{{ src_sup(p.valuation_source_id) }}
+            市值 {% if p.market_cap_cny is not none %}{{ '{:,.2f}'.format(p.market_cap_cny) }} 亿元人民币{% if p.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(p.market_cap_usd) }} 亿美元）{% endif %}{% else %}—{% endif %}{% if not p._financial_authority_applied %}{{ src_sup(p.valuation_source_id) }}{% endif %}
+            {% if p._financial_authority_applied %}<small class="cp-koujing-hint">PE @{{ p._as_of_by_metric.pe_ttm or '—' }} {{ p._provider_by_metric.pe_ttm or '' }} · PB @{{ p._as_of_by_metric.pb or '—' }} {{ p._provider_by_metric.pb or '' }} · 市值 @{{ p._as_of_by_metric.market_cap_cny or '—' }} {{ p._provider_by_metric.market_cap_cny or '' }}</small>{% endif %}
           {% endif %}
         </td>
         <td class="cell-narrative cp-narrative-cell">
@@ -295,14 +296,14 @@
 
       <!-- 估值(详细 PE/PB/ROE/盈利预测见「估值对比」页)-->
       <div class="cp-block">
-        <div class="cp-block-title">估值 {{ fresh_dot(p.fresh_valuation) }} {% if not p.is_unlisted %}{{ src_sup(p.valuation_source_id) }}{% endif %} <a class="cp-val-link" href="{{ url_for('industry_valuation', industry_id=ind.id) }}#valco-{{ p.company_id }}">详细估值 →</a></div>
+        <div class="cp-block-title">估值 {{ fresh_dot(p.fresh_valuation) }} {% if not p.is_unlisted and not p._financial_authority_applied %}{{ src_sup(p.valuation_source_id) }}{% endif %} <a class="cp-val-link" href="{{ url_for('industry_valuation', industry_id=ind.id) }}#valco-{{ p.company_id }}">详细估值 →</a></div>
         {% if p.is_unlisted %}
           <div class="cp-kv">一级市场:{{ '%.2f'|format(p.private_valuation_value) ~ (p.private_valuation_unit or '') if p.private_valuation_value is not none else '—' }} · 轮次 {{ p.private_round or '—' }} · 时点 {{ p.private_valuation_as_of or '—' }}</div>
         {% else %}
           <div class="cp-six">
-            {% for m in p.core_metrics %}<div class="cp-six-item"><span>{{ m.label }}</span><b>{{ m.display or m.reason }}</b><small>{{ m.formula }}</small></div>{% endfor %}
+            {% for m in p.core_metrics %}<div class="cp-six-item"><span>{{ m.label }}</span><b>{{ m.display or m.reason }}</b><small>{{ m.formula }}</small><small>{% if m.as_of %}@{{ m.as_of }}{% endif %}{% if m.provider_label %} · {{ m.provider_label }}{% elif m.source_id %} {{ src_sup(m.source_id) }}{% endif %}</small></div>{% endfor %}
           </div>
-          <div class="cp-kv" style="margin-top:7px">市值 {% if p.market_cap_cny is not none %}{{ '{:,.2f}'.format(p.market_cap_cny) }} 亿元人民币{% if p.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(p.market_cap_usd) }} 亿美元）{% endif %}{% else %}—{% endif %} · 市场时点 {{ p.valuation_as_of or '—' }} · 估值及每股指标财务期 {{ p.financial_metrics_as_of or '—' }}</div>
+          <div class="cp-kv" style="margin-top:7px">市值 {% if p.market_cap_cny is not none %}{{ '{:,.2f}'.format(p.market_cap_cny) }} 亿元人民币{% if p.market_cap_usd is not none %}（约 {{ '{:,.2f}'.format(p.market_cap_usd) }} 亿美元）{% endif %}{% else %}—{% endif %} · 市场时点 {{ p.valuation_as_of or '—' }}{% if p._provider_by_metric.market_cap_cny %} · {{ p._provider_by_metric.market_cap_cny }}{% endif %} · 估值及每股指标财务期 {{ p.financial_metrics_as_of or '—' }}</div>
         {% endif %}
       </div>
 

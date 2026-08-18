@@ -98,8 +98,35 @@ def test_company_page_summary_batch_opens_financial_domain_once(tmp_path) -> Non
 
 def test_industry_overlay_uses_one_batch_and_preserves_ticker_guard() -> None:
     rows = [
-        {"company_id": 101, "ticker": "000001.SZ", "pe_ttm": None},
-        {"company_id": 102, "ticker": "000002.SZ", "pb": None},
+        {
+            "company_id": 101,
+            "ticker": "000001.SZ",
+            # research.db keeps legacy compatibility aggregates.  A stale but
+            # non-null value must not beat the financial_data authority.
+            "pe_ttm": 99.0,
+            "pb": 8.8,
+            "peg": 9.9,
+            "gross_margin": 88.0,
+            "net_margin": 77.0,
+            "valuation_as_of": "2020-01-01",
+            "financial_metrics_as_of": "2020-12-31",
+            "financials_as_of": "2020-12-31",
+            "ocf_unit": "旧单位",
+            "per_share_currency": "USD",
+            "revenue_series": '[{"period":"2020","value":999}]',
+            "net_income_series": '[{"period":"2020","value":888}]',
+            "forecast_revenue_year1": 999.0,
+            "forecast_eps_year1": 99.0,
+        },
+        {"company_id": 102, "ticker": "000002.SZ", "pb": 2.2},
+        {"company_id": 103, "ticker": "", "pe_ttm": 77.0},
+        {"company_id": 104, "ticker": "000004.SZ", "pe_ttm": 66.0},
+        {
+            "company_id": 204,
+            "ticker": "000836.SZ",
+            "pe_ttm": 5.0,
+            "pb": 1.0,
+        },
     ]
     summaries = {
         101: {
@@ -113,8 +140,37 @@ def test_industry_overlay_uses_one_batch_and_preserves_ticker_guard() -> None:
                     "unit": "倍",
                 }
             },
-            "historical_table": [],
-            "forecast_table": [],
+            "historical_table": [{
+                "period": "2025",
+                "period_end": "2025-12-31",
+                "metrics": {
+                    "gross_margin": {
+                        "value": 30.0,
+                        "provider": "wind",
+                        "source_title": "Wind年报快照",
+                        "as_of_date": "2026-04-30",
+                    }
+                },
+            }],
+            "forecast_table": [{
+                "horizon": "FY1",
+                "consensus": {
+                    "revenue": {
+                        "value": 120.0,
+                        "unit": "亿元人民币",
+                        "provider": "wind",
+                        "source_title": "Wind一致预期",
+                        "as_of_date": "2026-08-18",
+                    },
+                    "eps": {
+                        "value": 2.2,
+                        "unit": "CNY/股",
+                        "provider": "wind",
+                        "source_title": "Wind一致预期",
+                        "as_of_date": "2026-08-18",
+                    },
+                },
+            }],
         },
         102: {
             # A mismatched canonical security must never overlay this row.
@@ -122,6 +178,30 @@ def test_industry_overlay_uses_one_batch_and_preserves_ticker_guard() -> None:
             "current_metrics": {
                 "pb": {"value_num": 1.8, "provider_label": "Wind"}
             },
+            "historical_table": [],
+            "forecast_table": [],
+        },
+        103: {
+            "security": {"ticker": "000003.SZ"},
+            "current_metrics": {
+                "pe_ttm": {"value_num": 13.0, "provider_label": "Wind"}
+            },
+            "historical_table": [],
+            "forecast_table": [],
+        },
+        104: {
+            "security": {"ticker": ""},
+            "current_metrics": {
+                "pe_ttm": {"value_num": 14.0, "provider_label": "Wind"}
+            },
+            "historical_table": [],
+            "forecast_table": [],
+        },
+        204: {
+            "security": {"ticker": "000836.SZ"},
+            # Explicitly unavailable observations are omitted by the current view.
+            # Accepting the authority must still suppress legacy multiples.
+            "current_metrics": {},
             "historical_table": [],
             "forecast_table": [],
         },
@@ -135,13 +215,78 @@ def test_industry_overlay_uses_one_batch_and_preserves_ticker_guard() -> None:
         "financial_company_bundle",
         side_effect=AssertionError("industry pages must not load per-company bundles"),
     ):
-        result = viewer._overlay_industry_financial_rows(rows)
+        result = viewer._overlay_industry_financial_rows(
+            rows, include_profile_series=True,
+        )
 
     batch.assert_called_once()
     assert rows[0]["pe_ttm"] == 12.5
+    assert rows[0]["pb"] is None
+    assert rows[0]["peg"] is None
+    assert rows[0]["gross_margin"] == 30.0
+    assert rows[0]["net_margin"] is None
+    assert rows[0]["valuation_as_of"] == "2026-08-18"
+    assert rows[0]["financial_metrics_as_of"] is None
+    assert rows[0]["financials_as_of"] == "2026-04-30"
+    assert rows[0]["ocf_unit"] is None
+    assert rows[0]["per_share_currency"] is None
+    assert "2020" not in rows[0]["revenue_series"]
+    assert rows[0]["net_income_series"] == "[]"
+    assert rows[0]["forecast_revenue_year1"] == 120.0
+    assert rows[0]["forecast_eps_year1"] == 2.2
+    assert rows[0]["forecast_as_of_date"] == "2026-08-18"
     assert rows[0]["_provider_by_metric"]["pe_ttm"] == "Wind"
-    assert rows[1]["pb"] is None
-    assert set(result) == {101}
+    assert rows[1]["pb"] == 2.2
+    assert rows[2]["pe_ttm"] == 77.0
+    assert rows[3]["pe_ttm"] == 66.0
+    assert rows[4]["pe_ttm"] is None
+    assert rows[4]["pb"] is None
+    assert rows[4]["peg"] is None
+    assert rows[4]["financials_as_of"] is None
+    assert rows[4]["ocf_unit"] is None
+    assert rows[4]["per_share_currency"] is None
+    assert rows[4]["revenue_series"] == "[]"
+    assert rows[4]["net_income_series"] == "[]"
+    assert set(result) == {101, 204}
+
+
+def test_industry_overlay_rebuilds_canonical_iso_per_share_currencies() -> None:
+    expected_by_unit = {
+        "CNY/股": "CNY",
+        "JPY/股": "JPY",
+        "USD/股": "USD",
+        "EUR/股": "EUR",
+    }
+    for offset, (unit, expected) in enumerate(expected_by_unit.items(), start=1):
+        company_id = 700 + offset
+        ticker = f"TEST{offset}"
+        rows = [{
+            "company_id": company_id,
+            "ticker": ticker,
+            "per_share_currency": "LEGACY",
+        }]
+        summaries = {
+            company_id: {
+                "security": {"ticker": ticker},
+                "current_metrics": {
+                    "eps_ttm": {
+                        "value_num": 1.0,
+                        "unit": unit,
+                        "provider_label": "Wind",
+                        "as_of_date": "2026-08-18",
+                    }
+                },
+                "historical_table": [],
+                "forecast_table": [],
+            }
+        }
+        with mock.patch.object(
+            viewer,
+            "financial_company_page_summaries_batch",
+            return_value=summaries,
+        ):
+            viewer._overlay_industry_financial_rows(rows)
+        assert rows[0]["per_share_currency"] == expected
 
 
 def test_request_queries_reuse_and_teardown_domain_connections() -> None:

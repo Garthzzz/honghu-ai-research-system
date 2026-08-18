@@ -216,7 +216,7 @@
       <div class="val-card-section-title">估值 / 盈利能力{% if c.val_as_of %} <span class="val-asof">@{{ c.val_as_of }}</span>{% endif %} {{ src_sup(c.val_src) }}</div>
       <table class="cp-mini-table val-kv-table">
         {% for m in c.metrics %}
-        <tr class="{{ 'val-core-row' if m.key in core_keys else '' }}"><th>{{ m.label }}{% if m.key in core_keys %}<span class="val-formula">{{ m.formula }}</span>{% endif %}</th><td class="val-num">{{ m.display }}{% if m.source_text %} <span class="val-provider" title="{{ m.source_title or m.source_text }}">{{ m.source_text }}</span>{% endif %}</td></tr>
+        <tr class="{{ 'val-core-row' if m.key in core_keys else '' }}"><th>{{ m.label }}{% if m.key in core_keys %}<span class="val-formula">{{ m.formula }}</span>{% endif %}</th><td class="val-num">{{ m.display }}{% if m.as_of %}<span class="val-asof"> @{{ m.as_of }}</span>{% endif %}{% if m.source_text %} <span class="val-provider" title="{{ m.source_title or m.source_text }}">{{ m.source_text }}</span>{% endif %}</td></tr>
         {% endfor %}
       </table>
       {% endif %}

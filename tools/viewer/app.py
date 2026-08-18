@@ -5428,13 +5428,15 @@ def _overlay_industry_financial_rows(
     *,
     include_profile_series: bool = False,
 ) -> dict[int, dict[str, Any]]:
-    """Use financial.db as a read-only, field-level fallback for industry tables.
+    """Use financial.db as the read-only authority for industry financial tables.
 
     The industry valuation page predates the separate financial database and still
-    carries nullable compatibility columns in research.db.  New market/financial
-    observations must not be copied back into those columns.  This adapter fills
-    only missing display fields in memory and preserves the provider/date for every
-    field so the public page does not pretend the merged row has one source.
+    carries nullable legacy compatibility columns in research.db.  New market and
+    financial observations must not be copied back into those columns, but a
+    non-null legacy value must also never win over the authoritative financial
+    observation.  This adapter replaces display fields in memory and preserves the
+    provider/date for every field so all company and valuation pages resolve the
+    same observation identity.
     """
     current_keys = (
         "pe_ttm", "pe_forward", "pb", "ps_ttm", "ev_ebitda",
@@ -5466,16 +5468,29 @@ def _overlay_industry_financial_rows(
         security = bundle.get("security") or {}
         row_ticker = str(row.get("ticker") or "").strip().upper()
         financial_ticker = str(security.get("ticker") or "").strip().upper()
-        if row_ticker and financial_ticker and row_ticker != financial_ticker:
+        if not row_ticker or not financial_ticker or row_ticker != financial_ticker:
             continue
         bundles[company_id] = bundle
+        row["_financial_authority_applied"] = True
+        row["financials_as_of"] = None
+        row["ocf_unit"] = None
+        row["per_share_currency"] = None
+        # financial_data has no canonical PEG observation yet.  Suppress the
+        # legacy aggregate rather than presenting it beside authoritative rows.
+        row["peg"] = None
+        if include_profile_series:
+            row["revenue_series"] = "[]"
+            row["net_income_series"] = "[]"
         current = bundle.get("current_metrics") or {}
         for key in current_keys:
+            # A missing/not-applicable authoritative observation suppresses any
+            # stale compatibility aggregate; otherwise delisted or loss-making
+            # securities can silently resurrect old PE/PB values.
+            row[key] = None
             observation = current.get(key)
             if not observation or observation.get("value_num") is None:
                 continue
-            if row.get(key) is None:
-                row[key] = observation["value_num"]
+            row[key] = observation["value_num"]
             row["_provider_by_metric"][key] = observation.get("provider_label")
             row["_source_title_by_metric"][key] = observation.get("source_title")
             row["_as_of_by_metric"][key] = observation.get("as_of_date")
@@ -5483,6 +5498,8 @@ def _overlay_industry_financial_rows(
         # 毛利率和净利率是报表期指标，取最新完整历史期；不拿市场日快照
         # 冒充报表值。
         historical = bundle.get("historical_table") or []
+        for key in ("gross_margin", "net_margin", "operating_cash_flow"):
+            row[key] = None
         if historical:
             for key in ("gross_margin", "net_margin", "operating_cash_flow"):
                 selected_observation = next(
@@ -5501,10 +5518,9 @@ def _overlay_industry_financial_rows(
                 period_row, observation = selected_observation
                 if not observation or observation.get("value") is None:
                     continue
-                if row.get(key) is None:
-                    row[key] = observation["value"]
+                row[key] = observation["value"]
                 if key == "operating_cash_flow":
-                    row["ocf_unit"] = row.get("ocf_unit") or observation.get("unit")
+                    row["ocf_unit"] = observation.get("unit")
                 provider = str(observation.get("provider") or "")
                 row["_provider_by_metric"][key] = {
                     "wind": "Wind",
@@ -5529,9 +5545,7 @@ def _overlay_industry_financial_rows(
                 if obs and obs.get("as_of_date")
             ]
             if historical_dates:
-                row["financials_as_of"] = (
-                    row.get("financials_as_of") or max(historical_dates)
-                )
+                row["financials_as_of"] = max(historical_dates)
 
             if include_profile_series:
                 revenue_series: list[dict[str, Any]] = []
@@ -5599,11 +5613,11 @@ def _overlay_industry_financial_rows(
                         })
                         previous_net_income = float(net_income_value)
                         previous_net_income_unit = net_income_unit
-                if not row.get("revenue_series") and revenue_series:
+                if revenue_series:
                     row["revenue_series"] = json.dumps(
                         revenue_series, ensure_ascii=False,
                     )
-                if not row.get("net_income_series") and net_income_series:
+                if net_income_series:
                     row["net_income_series"] = json.dumps(
                         net_income_series, ensure_ascii=False,
                     )
@@ -5613,16 +5627,21 @@ def _overlay_industry_financial_rows(
             str(item.get("horizon")): item.get("consensus") or {}
             for item in (bundle.get("forecast_table") or [])
         }
+        for field in (
+            "forecast_revenue_year1", "forecast_revenue_year2",
+            "forecast_eps_year1", "forecast_eps_year2",
+        ):
+            row[field] = None
+        row["forecast_revenue_unit"] = None
+        row["forecast_as_of_date"] = None
         for horizon, suffix in (("FY1", "year1"), ("FY2", "year2")):
             forecast = forecasts.get(horizon) or {}
             revenue = forecast.get("revenue")
             eps = forecast.get("eps")
-            if revenue and row.get(f"forecast_revenue_{suffix}") is None:
+            if revenue:
                 row[f"forecast_revenue_{suffix}"] = revenue.get("value")
-                row["forecast_revenue_unit"] = (
-                    row.get("forecast_revenue_unit") or revenue.get("unit")
-                )
-            if eps and row.get(f"forecast_eps_{suffix}") is None:
+                row["forecast_revenue_unit"] = revenue.get("unit")
+            if eps:
                 row[f"forecast_eps_{suffix}"] = eps.get("value")
             representative = revenue or eps
             if representative:
@@ -5635,28 +5654,43 @@ def _overlay_industry_financial_rows(
                     str(representative.get("provider") or "一致预期"),
                 )
                 row["_forecast_source_title"] = representative.get("source_title")
-                row["forecast_as_of_date"] = (
-                    row.get("forecast_as_of_date")
-                    or representative.get("as_of_date")
-                )
+                row["forecast_as_of_date"] = representative.get("as_of_date")
 
         if row.get("per_share_currency") is None:
-            unit = str((current.get("eps_ttm") or {}).get("unit") or "")
-            if "港元" in unit:
+            unit = str(
+                (current.get("eps_ttm") or {}).get("unit")
+                or (current.get("bps_mrq") or {}).get("unit")
+                or ""
+            ).strip()
+            iso_per_share = re.fullmatch(
+                r"(CNY|HKD|USD|JPY|EUR)/(?:股|SHARE)", unit.upper(),
+            )
+            if iso_per_share:
+                row["per_share_currency"] = iso_per_share.group(1)
+            elif "港元" in unit:
                 row["per_share_currency"] = "HKD"
             elif "美元" in unit:
                 row["per_share_currency"] = "USD"
+            elif "日元" in unit:
+                row["per_share_currency"] = "JPY"
+            elif "欧元" in unit:
+                row["per_share_currency"] = "EUR"
             elif "元/股" in unit:
                 row["per_share_currency"] = "CNY"
-        dates = [
-            str(value) for value in row["_as_of_by_metric"].values() if value
+        valuation_dates = [
+            str(row["_as_of_by_metric"][key])
+            for key in ("pe_ttm", "pe_forward", "pb", "ps_ttm", "ev_ebitda", "market_cap_cny", "market_cap_usd")
+            if row["_as_of_by_metric"].get(key)
         ]
-        if dates:
-            latest_date = max(dates)
-            row["valuation_as_of"] = row.get("valuation_as_of") or latest_date
-            row["financial_metrics_as_of"] = (
-                row.get("financial_metrics_as_of") or latest_date
-            )
+        financial_dates = [
+            str(row["_as_of_by_metric"][key])
+            for key in ("roe", "roa", "eps_ttm", "bps_mrq")
+            if row["_as_of_by_metric"].get(key)
+        ]
+        row["valuation_as_of"] = max(valuation_dates) if valuation_dates else None
+        row["financial_metrics_as_of"] = (
+            max(financial_dates) if financial_dates else None
+        )
     return bundles
 
 
@@ -6244,8 +6278,22 @@ def industry_valuation(industry_id: int):
             "metrics": metrics,
             "valuation_metrics": valuation_metrics,
             "financial_metrics": financial_metrics,
-            "val_as_of": p.get("valuation_as_of"), "fin_as_of": p.get("financial_metrics_as_of") or p.get("financials_as_of"),
-            "val_src": p["_val_src"], "fin_src": p["_fin_src"],
+            "val_as_of": max(
+                (metric["as_of"] for metric in valuation_metrics if metric.get("as_of")),
+                default=None,
+            ),
+            "fin_as_of": max(
+                (metric["as_of"] for metric in financial_metrics if metric.get("as_of")),
+                default=None,
+            ),
+            "val_src": (
+                None if p.get("_financial_authority_applied")
+                else p["_val_src"]
+            ),
+            "fin_src": (
+                None if p.get("_financial_authority_applied")
+                else p["_fin_src"]
+            ),
             "fc": {
                 "rev1": p.get("forecast_revenue_year1"), "rev2": p.get("forecast_revenue_year2"),
                 "eps1": p.get("forecast_eps_year1"), "eps2": p.get("forecast_eps_year2"),
