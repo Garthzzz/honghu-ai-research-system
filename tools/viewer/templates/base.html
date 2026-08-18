@@ -16,9 +16,7 @@
   document.documentElement.dataset.theme = mode === 'auto' ? (dark ? 'dark' : 'light') : mode;
 })();
 </script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+{# 内网页面不得让首屏等待公网字体；CSS 字体栈会使用系统中文字体与 Consolas。 #}
 <link rel="stylesheet" href="{{ url_for('static', filename='vendor/katex-0.16.9/katex.min.css') }}">
 <script defer src="{{ url_for('static', filename='vendor/katex-0.16.9/katex.min.js') }}"></script>
 <script defer src="{{ url_for('static', filename='vendor/katex-0.16.9/contrib/auto-render.min.js') }}"

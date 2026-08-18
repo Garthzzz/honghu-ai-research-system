@@ -14,11 +14,14 @@ import hashlib
 import json
 import os
 import sqlite3
+import threading
 import time
 import uuid
 from itertools import chain
 from pathlib import Path
 from typing import Any, Callable
+
+from tools.data_platform.background_refresh import submit_background_refresh
 
 from tools.data_platform.domain_data import (
     DomainDataError,
@@ -337,11 +340,24 @@ def _apply_payload(
 
 
 class PersistentSentimentProjection:
-    def __init__(self, root: Path, reader: Callable[[], Any]) -> None:
+    def __init__(
+        self,
+        root: Path,
+        reader: Callable[[], Any],
+        *,
+        refresh_check_seconds: float = 30.0,
+    ) -> None:
         self.root = root.resolve()
         self.reader = reader
         self.database_path = self.root / "sentiment_analytics.pg_projection.db"
         self.lock_path = self.root / "sentiment_analytics.pg_projection.lock"
+        self._refresh_check_seconds = refresh_check_seconds
+        self._state_lock = threading.RLock()
+        self._ready = False
+        self._refreshing = False
+        self._next_check = 0.0
+        self._schemas: dict[str, dict[str, Any]] | None = None
+        self._last_refresh_error: Exception | None = None
 
     def _read_meta(self) -> dict[str, Any] | None:
         if not self.database_path.is_file():
@@ -471,15 +487,59 @@ class PersistentSentimentProjection:
             self._sync_overlay(authority)
         return authority
 
+    def _refresh_in_background(self) -> None:
+        try:
+            lock = _InterprocessLock(self.lock_path)
+            lock.acquire()
+            try:
+                authority = self.ensure_current_locked()
+            finally:
+                lock.release()
+            with self._state_lock:
+                self._schemas = authority["schemas"]
+                self._last_refresh_error = None
+        except Exception as exc:
+            # The existing file remains a PostgreSQL-derived projection.  A
+            # fresh process still performs a synchronous fail-closed check.
+            with self._state_lock:
+                self._last_refresh_error = exc
+        finally:
+            with self._state_lock:
+                self._refreshing = False
+
+    def _ensure_read_projection(self) -> dict[str, dict[str, Any]]:
+        now = time.monotonic()
+        with self._state_lock:
+            if not self._ready:
+                lock = _InterprocessLock(self.lock_path)
+                lock.acquire()
+                try:
+                    authority = self.ensure_current_locked()
+                finally:
+                    lock.release()
+                self._schemas = authority["schemas"]
+                self._ready = True
+                self._next_check = now + self._refresh_check_seconds
+            elif now >= self._next_check:
+                self._next_check = now + self._refresh_check_seconds
+                if self._refresh_check_seconds <= 0:
+                    lock = _InterprocessLock(self.lock_path)
+                    lock.acquire()
+                    try:
+                        authority = self.ensure_current_locked()
+                    finally:
+                        lock.release()
+                    self._schemas = authority["schemas"]
+                elif not self._refreshing:
+                    self._refreshing = True
+                    submit_background_refresh(self._refresh_in_background)
+            assert self._schemas is not None
+            return self._schemas
+
     def connect_readonly(
         self, *, finalize_readonly: bool = True
     ) -> sqlite3.Connection:
-        lock = _InterprocessLock(self.lock_path)
-        lock.acquire()
-        try:
-            self.ensure_current_locked()
-        finally:
-            lock.release()
+        self._ensure_read_projection()
         connection = sqlite3.connect(
             f"file:{self.database_path.as_posix()}?mode=ro", uri=True, timeout=30
         )
@@ -496,16 +556,11 @@ class PersistentSentimentProjection:
         accepted by this adapter.
         """
 
-        lock = _InterprocessLock(self.lock_path)
-        lock.acquire()
-        try:
-            authority = self.ensure_current_locked()
-        finally:
-            lock.release()
+        schemas = self._ensure_read_projection()
         alias = "pg_sentiment_analytics"
         uri = f"file:{self.database_path.as_posix()}?mode=ro"
         connection.execute(f"ATTACH DATABASE ? AS {_identifier(alias)}", (uri,))
-        for table in authority["schemas"]:
+        for table in schemas:
             quoted = _identifier(table)
             connection.execute(
                 f"CREATE TEMP VIEW {quoted} AS SELECT * FROM {_identifier(alias)}.{quoted}"

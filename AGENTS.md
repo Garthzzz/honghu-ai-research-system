@@ -26,8 +26,6 @@
 3. `config/research_workflow.yaml`
 4. 与当前任务直接相关的活动文档和代码
 
-涉及 GitHub exact-SHA 发布、PostgreSQL authority、Windows production task、VM 恢复/清理或 Stage 4/5 迁移时，必须加读 `openspec/changes/github-vm-dual-node-operations/stage5/stage45_execution_pitfalls_and_evidence_contract.md`，并在 design/plan 中逐项说明适用合同的验证方式。
-
 研究任务加读 `docs/research/RESEARCH_WORKFLOW_V2.md`。C 轨再读 `opportunity_lens/MODULE_CONTEXT.md` 和 `opportunity_lens/HUMAN_READABILITY_STANDARD.md`；涉及开放检索、评分/指标槽、独立 DB/状态或 Viewer/输出时，分别按职责读取顶层 `C轨研究启动与开放探索输出标准_V0.9.1.md`、`C轨供需失衡评分流程与可解释计算体系_V0.8.1.md`、`C轨独立DB与开放研究深度补充修订说明_V1.0.md`、`C轨输出模板与前端可视化标准_V1.1.md`，不从旧 run 产物反推协议。需要完整系统边界时再读 `codex_context/PROJECT_COMPLETE_UNDERSTANDING.md`；需要路径/表/路由时读 `codex_context/FILE_DB_INDEX.md`。
 
 不要默认读取 `PROGRESS_LOG.md`、`archive/project_history/`、全部旧 SOP、全部 skills、`opportunity_lens/design/**`、`plan/**`、补丁 prompt 或 run 历史。只有追溯具体设计原因时按需读取。活动/兼容/历史分层见 `docs/research/ACTIVE_FILE_AUTHORITY.md`；旧 `CLAUDE.md` 和清理前完整进度已集中保留在 `archive/project_history/retained_originals/root/`。

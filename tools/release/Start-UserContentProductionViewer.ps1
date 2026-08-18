@@ -176,7 +176,10 @@ try {
         Start-Sleep -Milliseconds 400
         $launcherProcess = $process
         $listenerProcess = $null
-        $listenerDeadline = (Get-Date).AddSeconds(20)
+        # Production performs all PostgreSQL projection warmups before binding
+        # the port.  Large sentiment/financial projections can legitimately
+        # take longer than 20 seconds after a process restart.
+        $listenerDeadline = (Get-Date).AddSeconds(120)
         do {
             $bound = @(Get-NetTCPConnection -LocalPort ([int]$listener.port) -State Listen -ErrorAction SilentlyContinue)
             $listenerPids = @($bound | Select-Object -ExpandProperty OwningProcess -Unique)

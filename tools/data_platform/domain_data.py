@@ -22,6 +22,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from tools.data_platform.background_refresh import submit_background_refresh
+
 
 class DomainDataError(RuntimeError):
     pass
@@ -102,7 +104,7 @@ class PostgresDomainReadCache:
         unit: str,
         connection_factory: Callable[[], Any],
         *,
-        refresh_check_seconds: float = 1.0,
+        refresh_check_seconds: float = 30.0,
     ) -> None:
         self.unit = unit
         self._connect = connection_factory
@@ -118,6 +120,8 @@ class PostgresDomainReadCache:
         self._token: str | None = None
         self._tables: tuple[str, ...] = ()
         self._next_check = 0.0
+        self._refreshing = False
+        self._last_refresh_error: Exception | None = None
 
     def _load(self) -> tuple[str, dict[str, list[dict[str, Any]]] | None, dict[str, list[dict[str, Any]]]]:
         connection = self._connect()
@@ -242,14 +246,43 @@ class PostgresDomainReadCache:
         if old is not None:
             old.close()
 
+    def _refresh_in_background(self) -> None:
+        try:
+            version, grouped, schemas = self._load()
+            with self._lock:
+                if grouped is not None:
+                    self._build(version, grouped, schemas)
+                self._last_refresh_error = None
+        except Exception as exc:
+            # Keep serving the last PostgreSQL-derived projection.  Initial
+            # load remains synchronous/fail-closed, so this is not a SQLite
+            # authority fallback.
+            with self._lock:
+                self._last_refresh_error = exc
+        finally:
+            with self._lock:
+                self._refreshing = False
+
     def ensure_current(self) -> str:
         now = time.monotonic()
         with self._lock:
-            if self._uri is None or now >= self._next_check:
+            if self._uri is None:
                 version, grouped, schemas = self._load()
                 if grouped is not None:
                     self._build(version, grouped, schemas)
                 self._next_check = now + self._refresh_check_seconds
+            elif now >= self._next_check:
+                # Refresh copy-on-write projections away from the request
+                # path.  A due authority check must not turn an otherwise
+                # cached page into a multi-second outlier.
+                self._next_check = now + self._refresh_check_seconds
+                if self._refresh_check_seconds <= 0:
+                    version, grouped, schemas = self._load()
+                    if grouped is not None:
+                        self._build(version, grouped, schemas)
+                elif not self._refreshing:
+                    self._refreshing = True
+                    submit_background_refresh(self._refresh_in_background)
             if self._uri is None:
                 raise DomainDataError(f"PostgreSQL domain cache is unavailable: {self.unit}")
             return self._uri

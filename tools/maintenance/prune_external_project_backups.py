@@ -80,12 +80,6 @@ def external_backup_candidates(root: Path) -> list[Path]:
         resolved = path.resolve()
         if resolved == root or resolved.parent != parent:
             continue
-        # PostgreSQL off-VM recovery storage is governed by its own manifest,
-        # retention boundary and restore evidence.  It must never be treated as
-        # an ordinary disposable project backup merely because its directory
-        # name contains ``backup``.
-        if (resolved / "postgresql_recovery").is_dir():
-            continue
         candidates.append(resolved)
     return sorted(candidates, key=lambda path: path.name.lower())
 

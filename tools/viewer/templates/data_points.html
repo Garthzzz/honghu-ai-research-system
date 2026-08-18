@@ -45,7 +45,7 @@
 {% if all_metrics %}
 <section class="panel" style="padding:6px 14px;">
   <details class="metrics-collapse">
-    <summary><strong>已用指标</strong> <span style="color:#94a3b8;font-weight:normal;">({{ all_metrics|length }} 个,点击展开)</span></summary>
+    <summary><strong>高频指标</strong> <span style="color:#94a3b8;font-weight:normal;">(最多 100 个,全量指标可用上方搜索)</span></summary>
     <div class="metrics-cloud">
       {% for m in all_metrics %}
         <a href="{{ url_for('data_points_index', metric=m, tier=filter_tier, forecast=filter_forecast, sentiment=filter_sentiment) }}"
@@ -143,6 +143,13 @@
     </table>
   </section>
   {% endfor %}
+  {% if total_pages > 1 %}
+  <nav class="panel" aria-label="数据点分页" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:12px;">
+    {% if page > 1 %}<a class="btn btn-secondary" href="{{ url_for('data_points_index', page=page-1, tier=filter_tier, metric=filter_metric, forecast=filter_forecast, sentiment=filter_sentiment, em=filter_em) }}">上一页</a>{% endif %}
+    <span>第 {{ page }} / {{ total_pages }} 页,每页 {{ page_size }} 条</span>
+    {% if page < total_pages %}<a class="btn btn-secondary" href="{{ url_for('data_points_index', page=page+1, tier=filter_tier, metric=filter_metric, forecast=filter_forecast, sentiment=filter_sentiment, em=filter_em) }}">下一页</a>{% endif %}
+  </nav>
+  {% endif %}
 {% else %}
   <div class="empty-state">
     {% if filter_tier or filter_metric or filter_forecast or filter_sentiment %}

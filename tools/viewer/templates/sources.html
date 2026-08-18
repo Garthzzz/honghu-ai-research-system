@@ -86,6 +86,14 @@
   {% endif %}
 {% endfor %}
 
+{% if total_pages > 1 %}
+<nav class="panel" aria-label="来源分页" style="display:flex;align-items:center;justify-content:center;gap:12px;padding:12px;">
+  {% if page > 1 %}<a class="btn btn-secondary" href="{{ url_for('sources_index', page=page-1) }}">上一页</a>{% endif %}
+  <span>第 {{ page }} / {{ total_pages }} 页,每页 {{ page_size }} 条</span>
+  {% if page < total_pages %}<a class="btn btn-secondary" href="{{ url_for('sources_index', page=page+1) }}">下一页</a>{% endif %}
+</nav>
+{% endif %}
+
 {% endif %}
 
 {% endblock %}

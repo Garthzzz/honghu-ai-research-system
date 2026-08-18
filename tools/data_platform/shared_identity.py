@@ -20,6 +20,8 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from tools.data_platform.background_refresh import submit_background_refresh
+
 from .routing import AuthorityState, Backend, CutoverRoute
 
 
@@ -377,7 +379,7 @@ class SharedIdentityReadCache:
         self,
         connection_factory: Callable[[], Any],
         *,
-        refresh_check_seconds: float = 1.0,
+        refresh_check_seconds: float = 30.0,
     ) -> None:
         self._connection_factory = connection_factory
         self._refresh_check_seconds = refresh_check_seconds
@@ -394,6 +396,8 @@ class SharedIdentityReadCache:
         self._version: str | None = None
         self._authority_token: str | None = None
         self._next_check = 0.0
+        self._refreshing = False
+        self._last_refresh_error: Exception | None = None
 
     @staticmethod
     def _authority_version(connection: Any) -> tuple[str, tuple[Any, ...]]:
@@ -507,44 +511,56 @@ class SharedIdentityReadCache:
         if previous is not None:
             previous.close()
 
+    def _refresh_in_background(self) -> None:
+        try:
+            authority_token, version, grouped = self._read_postgresql()
+            with self._lock:
+                if grouped is not None:
+                    assert version is not None
+                    self._build(version, grouped)
+                    self._authority_token = authority_token
+                self._last_refresh_error = None
+        except Exception as exc:
+            # Continue from the last PostgreSQL-derived copy.  The first load
+            # remains synchronous and fail-closed.
+            with self._lock:
+                self._last_refresh_error = exc
+        finally:
+            with self._lock:
+                self._refreshing = False
+
     def ensure_current(self) -> str:
         now = time.monotonic()
         with self._lock:
             if self._uri is not None and now < self._next_check:
                 return self._uri
-            authority_token, version, grouped = self._read_postgresql()
-            if grouped is not None:
-                assert version is not None
-                self._build(version, grouped)
-                self._authority_token = authority_token
-            self._next_check = now + self._refresh_check_seconds
+            if self._uri is None or self._refresh_check_seconds <= 0:
+                authority_token, version, grouped = self._read_postgresql()
+                if grouped is not None:
+                    assert version is not None
+                    self._build(version, grouped)
+                    self._authority_token = authority_token
+                self._next_check = now + self._refresh_check_seconds
+            else:
+                self._next_check = now + self._refresh_check_seconds
+                if not self._refreshing:
+                    self._refreshing = True
+                    submit_background_refresh(self._refresh_in_background)
             assert self._uri is not None
             return self._uri
 
     def attach(self, connection: sqlite3.Connection) -> None:
-        self.ensure_current()
+        uri = self.ensure_current()
         with self._lock:
             if self._keeper is None:
                 raise SharedIdentityError("shared identity cache has no keeper")
+            alias = "pg_shared_identity"
+            connection.execute(f"ATTACH DATABASE ? AS {_quote(alias)}", (uri,))
             for table in SHARED_IDENTITY_TABLES:
                 quoted = _quote(table)
-                internal = _quote(f"__pg_shared_identity_{table}")
-                source = self._keeper.execute(f"SELECT * FROM {quoted}")
-                names = [str(item[0]) for item in (source.description or ())]
-                rows = source.fetchall()
-                definitions = ",".join(
-                    f"{_quote(name)} {_sqlite_type([row[index] for row in rows])}"
-                    for index, name in enumerate(names)
-                )
-                connection.execute(f"CREATE TEMP TABLE {internal} ({definitions})")
-                if rows:
-                    marks = ",".join("?" for _ in names)
-                    connection.executemany(
-                        f"INSERT INTO {internal} VALUES ({marks})",
-                        rows,
-                    )
                 connection.execute(
-                    f"CREATE TEMP VIEW {quoted} AS SELECT * FROM {internal}"
+                    f"CREATE TEMP VIEW {quoted} AS "
+                    f"SELECT * FROM {_quote(alias)}.{quoted}"
                 )
 
     def connect(self) -> sqlite3.Connection:

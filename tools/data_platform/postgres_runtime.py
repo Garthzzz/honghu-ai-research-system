@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import queue
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
@@ -199,13 +201,28 @@ def build_catalog_connection_factory(
     *,
     role: str,
     password_loader: Callable[[str, str], str | None] | None = None,
+    pool_size: int = 0,
 ) -> Callable[[], Any]:
-    """Build a fail-closed factory for one named catalog role."""
+    """Build a fail-closed factory for one named catalog role.
+
+    ``pool_size`` is intentionally opt-in.  Viewer read projections repeatedly
+    check several PostgreSQL authority units during one HTTP request; opening a
+    new TLS connection (and querying Credential Manager) for every check made
+    page latency grow with the number of compatibility caches.  A bounded pool
+    keeps those read sessions reusable while writer factories retain their
+    existing one-connection-per-transaction behavior.
+    """
 
     catalog.validate()
     selected = catalog.role(role)
 
-    def connect() -> Any:
+    if pool_size < 0:
+        raise ValueError("PostgreSQL pool size cannot be negative")
+
+    cached_password: str | None = None
+    password_lock = threading.Lock()
+
+    def read_password() -> str:
         loader = password_loader
         if loader is None:
             import keyring
@@ -213,18 +230,102 @@ def build_catalog_connection_factory(
             loader = keyring.get_password
         password = loader(selected.credential_service, selected.credential_account)
         if not password:
-            raise RuntimeError(f"PostgreSQL credential is unavailable for role {role}")
+            raise RuntimeError(
+                f"PostgreSQL credential is unavailable for role {role}"
+            )
+        return password
+
+    def pooled_password() -> str:
+        nonlocal cached_password
+        with password_lock:
+            if cached_password is None:
+                cached_password = read_password()
+            return cached_password
+
+    def open_connection(*, password: str, autocommit: bool = False) -> Any:
         import psycopg
 
-        return psycopg.connect(
-            host=catalog.host,
-            port=catalog.port,
-            dbname=catalog.dbname,
-            user=selected.user,
-            password=password,
-            sslmode=catalog.sslmode,
-            sslrootcert=catalog.sslrootcert,
-            connect_timeout=catalog.connect_timeout_seconds,
-        )
+        kwargs = {
+            "host": catalog.host,
+            "port": catalog.port,
+            "dbname": catalog.dbname,
+            "user": selected.user,
+            "password": password,
+            "sslmode": catalog.sslmode,
+            "sslrootcert": catalog.sslrootcert,
+            "connect_timeout": catalog.connect_timeout_seconds,
+        }
+        if autocommit:
+            kwargs["autocommit"] = True
+        return psycopg.connect(**kwargs)
+
+    if pool_size:
+        available: queue.LifoQueue[Any] = queue.LifoQueue(maxsize=pool_size)
+        pool_lock = threading.Lock()
+        created = 0
+
+        class PooledReadLease:
+            def __init__(self, connection: Any) -> None:
+                self._connection = connection
+                self._released = False
+
+            def __getattr__(self, name: str) -> Any:
+                return getattr(self._connection, name)
+
+            def __enter__(self) -> "PooledReadLease":
+                return self
+
+            def __exit__(self, exc_type, exc, traceback) -> None:
+                self.close()
+
+            def close(self) -> None:
+                nonlocal created
+                if self._released:
+                    return
+                self._released = True
+                connection = self._connection
+                if bool(getattr(connection, "closed", False)) or bool(
+                    getattr(connection, "broken", False)
+                ):
+                    with pool_lock:
+                        created -= 1
+                    return
+                try:
+                    available.put_nowait(connection)
+                except queue.Full:
+                    connection.close()
+                    with pool_lock:
+                        created -= 1
+
+        def pooled_connect() -> Any:
+            nonlocal created
+            try:
+                connection = available.get_nowait()
+            except queue.Empty:
+                with pool_lock:
+                    if created < pool_size:
+                        created += 1
+                        create_new = True
+                    else:
+                        create_new = False
+                if create_new:
+                    try:
+                        connection = open_connection(
+                            password=pooled_password(), autocommit=True
+                        )
+                    except Exception:
+                        with pool_lock:
+                            created -= 1
+                        raise
+                else:
+                    connection = available.get(
+                        timeout=catalog.connect_timeout_seconds
+                    )
+            return PooledReadLease(connection)
+
+        return pooled_connect
+
+    def connect() -> Any:
+        return open_connection(password=read_password())
 
     return connect

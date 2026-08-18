@@ -22,6 +22,7 @@
     /api/source/<id>        — Source JSON metadata(trace modal 用)
 """
 import json
+import gzip
 import hashlib
 import logging
 import math
@@ -41,7 +42,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import frontmatter
 import markdown as md_lib
 from flask import (
-    Flask, abort, jsonify, redirect, render_template, request,
+    Flask, abort, g, has_request_context, jsonify, redirect, render_template, request,
     send_from_directory, url_for
 )
 
@@ -253,6 +254,37 @@ app = Flask(
     template_folder=str(Path(__file__).resolve().parent / "templates"),
     static_folder=str(Path(__file__).resolve().parent / "static"),
 )
+
+
+@app.after_request
+def _compress_large_public_pages(response):
+    """Compress the read-only navigation pages that dominate LAN transfer."""
+
+    public_endpoints = {
+        "index", "research_home", "industry_detail", "companies_index",
+        "sources_index", "data_points_index",
+    }
+    accepts_gzip = "gzip" in request.headers.get("Accept-Encoding", "").lower()
+    if (
+        request.method != "GET"
+        or request.endpoint not in public_endpoints
+        or response.status_code != 200
+        or not accepts_gzip
+        or response.headers.get("Content-Encoding")
+        or response.is_streamed
+    ):
+        return response
+    payload = response.get_data()
+    if len(payload) < 1024:
+        return response
+    compressed = gzip.compress(payload, compresslevel=1)
+    if len(compressed) >= len(payload):
+        return response
+    response.set_data(compressed)
+    response.headers["Content-Encoding"] = "gzip"
+    response.headers["Content-Length"] = str(len(compressed))
+    response.headers.add("Vary", "Accept-Encoding")
+    return response
 app.config["HONGHU_READ_ONLY_CANDIDATE"] = readonly_candidate_enabled()
 app.config["OPPORTUNITY_LENS_DB_PATH"] = OPPORTUNITY_DB_PATH
 
@@ -273,7 +305,7 @@ COMMON_POSTGRES_READ_FACTORY = None
 if COMMON_POSTGRES_RUNTIME_PATH:
     POSTGRES_RUNTIME_CATALOG = load_postgres_runtime_catalog(COMMON_POSTGRES_RUNTIME_PATH)
     COMMON_POSTGRES_READ_FACTORY = build_catalog_connection_factory(
-        POSTGRES_RUNTIME_CATALOG, role="reader"
+        POSTGRES_RUNTIME_CATALOG, role="reader", pool_size=8
     )
     _, AUTHORITY_MATRIX = load_authority_matrix(
         COMMON_CUTOVER_REGISTRY_PATH, COMMON_POSTGRES_READ_FACTORY
@@ -838,22 +870,47 @@ def row_to_dict(row: Optional[sqlite3.Row]) -> Optional[Dict[str, Any]]:
     return dict(row) if row is not None else None
 
 
+_REQUEST_READ_DB_KEY = "_honghu_viewer_read_db"
+
+
+def _request_read_connection() -> tuple[sqlite3.Connection, bool]:
+    """Reuse the expensive PostgreSQL compatibility projection per request."""
+
+    if not has_request_context():
+        return get_db(), True
+    connection = getattr(g, _REQUEST_READ_DB_KEY, None)
+    if connection is None:
+        connection = get_db()
+        setattr(g, _REQUEST_READ_DB_KEY, connection)
+    return connection, False
+
+
+@app.teardown_request
+def _close_request_read_connection(_error: BaseException | None) -> None:
+    connection = getattr(g, _REQUEST_READ_DB_KEY, None)
+    if connection is not None:
+        connection.close()
+        delattr(g, _REQUEST_READ_DB_KEY)
+
+
 def query_all(sql: str, params: tuple = ()) -> List[Dict[str, Any]]:
-    conn = get_db()
+    conn, owned = _request_read_connection()
     try:
         cur = conn.execute(sql, params)
         return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        if owned:
+            conn.close()
 
 
 def query_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
-    conn = get_db()
+    conn, owned = _request_read_connection()
     try:
         cur = conn.execute(sql, params)
         return row_to_dict(cur.fetchone())
     finally:
-        conn.close()
+        if owned:
+            conn.close()
 
 
 def analyst_note_repository():
@@ -4729,6 +4786,41 @@ def data_points_index():
     forecast  = (request.args.get("forecast") or "").strip()
     sentiment = (request.args.get("sentiment") or "").strip()
     em        = (request.args.get("em") or "").strip()
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+    page_size = 100
+
+    from_sql = """
+        FROM industry_data_point dp
+        LEFT JOIN source s ON s.id = dp.source_id
+        LEFT JOIN industry i ON i.id = dp.industry_id
+        WHERE 1=1
+    """
+    where_sql = ""
+    params: List[Any] = []
+    if tier in ("1", "2", "3"):
+        where_sql += " AND s.quality_tier = ?"
+        params.append(int(tier))
+    if metric_q:
+        where_sql += " AND dp.metric LIKE ?"
+        params.append(f"%{metric_q}%")
+    if forecast in ("0", "1"):
+        where_sql += " AND dp.is_forecast = ?"
+        params.append(int(forecast))
+    if sentiment in ("看涨", "看跌", "中性", "不适用"):
+        where_sql += " AND dp.sentiment = ?"
+        params.append(sentiment)
+    if em in ("pdf_direct", "web_fetch", "template_estimate", "inferred", "unknown"):
+        where_sql += " AND dp.extraction_method = ?"
+        params.append(em)
+
+    total = int((query_one(
+        "SELECT COUNT(*) AS n " + from_sql + where_sql, tuple(params)
+    ) or {}).get("n") or 0)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, total_pages)
 
     sql = """
         SELECT dp.*,
@@ -4739,39 +4831,22 @@ def data_points_index():
                s.publish_date AS source_publish_date,
                s.file_path AS source_file_path,
                i.name AS industry_name
-        FROM industry_data_point dp
-        LEFT JOIN source s ON s.id = dp.source_id
-        LEFT JOIN industry i ON i.id = dp.industry_id
-        WHERE 1=1
     """
-    params: List[Any] = []
-    if tier in ("1", "2", "3"):
-        sql += " AND s.quality_tier = ?"
-        params.append(int(tier))
-    if metric_q:
-        sql += " AND dp.metric LIKE ?"
-        params.append(f"%{metric_q}%")
-    if forecast in ("0", "1"):
-        sql += " AND dp.is_forecast = ?"
-        params.append(int(forecast))
-    if sentiment in ("看涨", "看跌", "中性", "不适用"):
-        sql += " AND dp.sentiment = ?"
-        params.append(sentiment)
-    if em in ("pdf_direct", "web_fetch", "template_estimate", "inferred", "unknown"):
-        sql += " AND dp.extraction_method = ?"
-        params.append(em)
-    sql += " ORDER BY i.name ASC, dp.metric ASC, dp.period DESC"
+    sql += from_sql + where_sql
+    sql += " ORDER BY i.name ASC, dp.metric ASC, dp.period DESC LIMIT ? OFFSET ?"
 
-    rows = query_all(sql, tuple(params))
+    rows = query_all(sql, tuple([*params, page_size, (page - 1) * page_size]))
 
     grouped: Dict[str, List[Dict[str, Any]]] = {}
     for r in rows:
         key = r.get("industry_name") or "(无关联行业)"
         grouped.setdefault(key, []).append(r)
 
-    all_metrics = [
+    # 全量指标通过搜索框查询；这里只显示高频入口，避免生成巨型 DOM。
+    popular_metrics = [
         r["metric"] for r in query_all(
-            "SELECT DISTINCT metric FROM industry_data_point ORDER BY metric"
+            "SELECT metric, COUNT(*) AS n FROM industry_data_point "
+            "GROUP BY metric ORDER BY n DESC, metric ASC LIMIT 100"
         )
     ]
 
@@ -4807,7 +4882,10 @@ def data_points_index():
     return render_template(
         "data_points.html",
         grouped=grouped,
-        total=len(rows),
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
         filter_tier=tier,
         filter_metric=metric_q,
         filter_forecast=forecast,
@@ -4815,7 +4893,7 @@ def data_points_index():
         filter_em=em,
         em_counts=em_counts,
         overview_charts=overview_charts,
-        all_metrics=all_metrics,
+        all_metrics=popular_metrics,
     )
 
 
@@ -4825,17 +4903,29 @@ def sources_index():
     """全库 source 浏览页。按 quality_tier 分组。
     点击进 source_detail。空 db 走 empty_state。
     """
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+    page_size = 100
+    total = int((query_one("SELECT COUNT(*) AS n FROM source") or {}).get("n") or 0)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page = min(page, total_pages)
     rows = query_all("""
         SELECT s.*,
                (SELECT COUNT(*) FROM source_entity se WHERE se.source_id = s.id) AS entity_count,
                (SELECT COUNT(*) FROM industry_data_point dp WHERE dp.source_id = s.id) AS data_point_count
         FROM source s
         ORDER BY s.quality_tier ASC, s.publish_date DESC
-    """)
+        LIMIT ? OFFSET ?
+    """, (page_size, (page - 1) * page_size))
     grouped: Dict[int, List[Dict[str, Any]]] = {1: [], 2: [], 3: []}
     for r in rows:
         grouped.setdefault(r["quality_tier"], []).append(r)
-    return render_template("sources.html", grouped=grouped, total=len(rows))
+    return render_template(
+        "sources.html", grouped=grouped, total=total, page=page,
+        page_size=page_size, total_pages=total_pages,
+    )
 
 
 # ── 路由:增量更新批次列表(任务 6c)──────────────────

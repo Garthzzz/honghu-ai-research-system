@@ -164,8 +164,30 @@ def serve(args: argparse.Namespace) -> int:
     os.chdir(release)
     if str(release) not in sys.path:
         sys.path.insert(0, str(release))
-    from tools.viewer.app import app
+    from tools.viewer.app import (
+        FINANCIAL_DB_PATH,
+        OPPORTUNITY_DB_PATH,
+        app,
+        get_db,
+        senti_conn,
+    )
+    from tools.data_platform.domain_data import connect_domain_database
     from werkzeug.serving import make_server
+
+    # Build every PostgreSQL-derived compatibility cache before opening the
+    # listener.  Cold TLS/cache materialization belongs to deployment
+    # readiness, not to the first user's page request.
+    warmup = get_db()
+    warmup.close()
+    sentiment_warmup = senti_conn()
+    if sentiment_warmup is not None:
+        sentiment_warmup.close()
+    for unit, database_path in (
+        ("financial_data", FINANCIAL_DB_PATH),
+        ("opportunity_lens", OPPORTUNITY_DB_PATH),
+    ):
+        domain_warmup = connect_domain_database(unit, database_path, readonly=True)
+        domain_warmup.close()
 
     ssl_context: ssl.SSLContext | None = None
     if args.tls:
