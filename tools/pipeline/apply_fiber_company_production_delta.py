@@ -58,12 +58,6 @@ def _canonical_listing_status(ticker: str, market: str, display_status: str) -> 
     return "other_listed"
 
 
-def _company_identity_requires_completion(
-    identity: Iterable[Any], desired: tuple[Any, ...]
-) -> bool:
-    return tuple(identity) != desired
-
-
 def _remap_source_references(value: Any, source_ids: dict[int, int]) -> Any:
     if isinstance(value, list):
         return [_remap_source_references(item, source_ids) for item in value]
@@ -299,6 +293,7 @@ def apply_shared_identity(delta: dict[str, Any], mapping_path: Path) -> dict[str
             identity_listing_status = _canonical_listing_status(
                 row["ticker"], row["market"], row["listing_status"]
             )
+            financial_identity = financial_security_by_company[int(row["id"])]
             identities = reader.execute(
                 """SELECT payload->>'name',payload->>'ticker',payload->>'market',
                           payload->>'listing_status',stable_key,legacy_id
@@ -327,7 +322,6 @@ def apply_shared_identity(delta: dict[str, Any], mapping_path: Path) -> dict[str
                         "only the reviewed Prysmian identity may be created by this delta: "
                         f"{row['id']}"
                     )
-                financial_identity = financial_security_by_company[int(row["id"])]
                 ensured = repository.ensure_listed_company_v2(
                     expected_company_id=int(row["id"]),
                     canonical_name=row["name"],
@@ -362,27 +356,27 @@ def apply_shared_identity(delta: dict[str, Any], mapping_path: Path) -> dict[str
                     raise RuntimeError(f"company name identity mismatch: {row['id']}")
                 if str(live_stable_key) != expected_stable_key:
                     raise RuntimeError(f"company stable identity mismatch: {row['id']}")
-                desired = (
-                    row["name"], str(row["ticker"]).upper(), row["market"],
-                    identity_listing_status, expected_stable_key, str(row["id"]),
+                repository.complete_company_identity_v3(
+                    expected_company_id=int(row["id"]),
+                    previous_name=str(live_name),
+                    canonical_name=row["name"],
+                    ticker=row["ticker"],
+                    market=row["market"],
+                    listing_status=identity_listing_status,
+                    financial_market=financial_identity["market"],
+                    financial_listing_status=financial_identity["listing_status"],
+                    reporting_currency=financial_identity["reporting_currency"],
+                    name_en=financial_identity.get("name_en"),
+                    fiscal_year_end=financial_identity.get("fiscal_year_end"),
+                    verification_source_ref=(
+                        f"research.db:source:{profile_source[int(row['id'])]}"
+                    ),
+                    stable_key=expected_stable_key,
+                    idempotency_key=(
+                        f"fiber-company-financial-identity-v3:{delta['_sha256']}:{row['id']}"
+                    ),
+                    actor=actor,
                 )
-                if _company_identity_requires_completion(identity, desired):
-                    repository.complete_company_identity_v2(
-                        expected_company_id=int(row["id"]),
-                        previous_name=str(live_name),
-                        canonical_name=row["name"],
-                        ticker=row["ticker"],
-                        market=row["market"],
-                        listing_status=identity_listing_status,
-                        verification_source_ref=(
-                            f"research.db:source:{profile_source[int(row['id'])]}"
-                        ),
-                        stable_key=expected_stable_key,
-                        idempotency_key=(
-                            f"fiber-company-identity-complete:{delta['_sha256']}:{row['id']}"
-                        ),
-                        actor=actor,
-                    )
             verification_reader = read_factory()
             try:
                 verified = verification_reader.execute(

@@ -347,6 +347,56 @@ def test_company_identity_completion_binds_precondition_and_authority_token() ->
     )
 
 
+def test_company_financial_identity_completion_binds_both_identity_layers() -> None:
+    route = CutoverRoute(
+        cutover_unit="shared_identity",
+        backend=Backend.POSTGRESQL_PRODUCTION,
+        writer_operation="apply_company_profile_batch",
+        transaction_boundary="one audited optical-fiber company profile batch",
+        authority_state=AuthorityState.S3,
+        sqlite_writer_enabled=False,
+        production_postgresql_enabled=True,
+        writer_identity="shared-writer",
+        cutover_epoch="epoch",
+        approval_reference="approval",
+        route_revision=7,
+    )
+    cursor = _RepositoryCursor()
+    repository = PostgresSharedIdentityRepository(
+        lambda: _RepositoryConnection(cursor),
+        lambda: _RepositoryConnection(cursor),
+        route,
+    )
+    repository.complete_company_identity_v3(
+        expected_company_id=59,
+        previous_name="住友电气",
+        canonical_name="住友电气",
+        ticker="5802.T",
+        market="其他",
+        listing_status="tse",
+        financial_market="TSE",
+        financial_listing_status="上市",
+        reporting_currency="JPY",
+        name_en=None,
+        fiscal_year_end=None,
+        verification_source_ref="research.db:source:1126",
+        stable_key="company:security:5802.T:venue:tokyo",
+        idempotency_key="fiber-company-financial-identity-v3:delta:59",
+        actor="principal:os:test",
+    )
+    sql, params = cursor.calls[-1]
+    assert "complete_company_identity_v3" in sql
+    payload = __import__("json").loads(params[0])
+    assert payload["market"] == "其他"
+    assert payload["listing_status"] == "tse"
+    assert payload["financial_market"] == "TSE"
+    assert payload["financial_listing_status"] == "上市"
+    assert payload["reporting_currency"] == "JPY"
+    assert params[3:8] == (
+        "shared-writer", "S3", "epoch", "approval", 7
+    )
+
+
 def test_environment_identity_reader_uses_read_only_sqlite_before_cutover(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

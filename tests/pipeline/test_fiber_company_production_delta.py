@@ -7,7 +7,6 @@ import pytest
 
 from tools.pipeline.apply_fiber_company_production_delta import (
     _canonical_listing_status,
-    _company_identity_requires_completion,
     _load_mapping,
     _remap_source_references,
     _repair_legacy_utf8,
@@ -21,19 +20,6 @@ def test_company_identity_listing_status_is_canonical_not_display_text() -> None
     assert _canonical_listing_status("5802.T", "其他", "上市") == "tse"
     assert _canonical_listing_status("PRY.MI", "其他", "上市") == "other_listed"
     assert _canonical_listing_status("000836.SZ", "其他", "已退市") == "delisted"
-
-
-def test_completed_identity_skips_same_delta_second_replay() -> None:
-    desired = (
-        "长飞光纤", "601869.SH", "A股", "a_share",
-        "company:security:601869.SH:venue:shanghai", "199",
-    )
-    legacy = (
-        "legacy-name", None, None, "a_share",
-        "company:security:601869.SH:venue:shanghai", "199",
-    )
-    assert _company_identity_requires_completion(legacy, desired)
-    assert not _company_identity_requires_completion(desired, desired)
 
 
 def test_financial_security_is_resolved_readonly_and_exactly() -> None:

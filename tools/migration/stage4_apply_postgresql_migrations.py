@@ -37,6 +37,7 @@ REVIEWED_MIGRATIONS = (
     "0017_stage5_set_based_sentiment_delete_batch.sql",
     "0018_stage5_recovery_checkpoint_read_grant.sql",
     "0019_shared_identity_company_profile_batch.sql",
+    "0020_shared_identity_financial_security_completion.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -80,6 +81,9 @@ MIGRATION_IDENTIFIERS = {
     "0019_shared_identity_company_profile_batch.sql": {
         "writer_role": "honghu_writer_shared_identity",
         "audit_reader_role": "honghu_audit_reader",
+    },
+    "0020_shared_identity_financial_security_completion.sql": {
+        "writer_role": "honghu_writer_shared_identity",
     },
 }
 

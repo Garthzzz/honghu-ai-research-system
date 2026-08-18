@@ -374,6 +374,63 @@ class PostgresSharedIdentityRepository:
         except Exception as exc:
             raise translate_shared_identity_error(exc) from exc
 
+    def complete_company_identity_v3(
+        self,
+        *,
+        expected_company_id: int,
+        previous_name: str,
+        canonical_name: str,
+        ticker: str,
+        market: str,
+        listing_status: str,
+        financial_market: str,
+        financial_listing_status: str,
+        reporting_currency: str,
+        name_en: str | None,
+        fiscal_year_end: str | None,
+        verification_source_ref: str,
+        stable_key: str,
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        company = {
+            "id": int(expected_company_id),
+            "previous_name": previous_name,
+            "name": canonical_name,
+            "ticker": ticker.strip().upper(),
+            "market": market,
+            "listing_status": listing_status,
+            "financial_market": financial_market,
+            "financial_listing_status": financial_listing_status,
+            "reporting_currency": reporting_currency,
+            "name_en": name_en,
+            "fiscal_year_end": fiscal_year_end,
+            "verification_source_ref": verification_source_ref,
+        }
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.complete_company_identity_v3(
+                            %s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            json.dumps(company, ensure_ascii=False),
+                            stable_key,
+                            idempotency_key,
+                            self.route.writer_identity,
+                            self.route.authority_state.value,
+                            self.route.cutover_epoch,
+                            self.route.approval_reference,
+                            self.route.route_revision,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
     def complete_company_identity_v2(
         self,
         *,
