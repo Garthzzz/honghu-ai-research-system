@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from tools.data_platform.shared_identity import (
+    PostgresSharedIdentityRepository,
     PostgresSharedIdentityResolver,
     SharedIdentityError,
     SharedIdentityReadCache,
@@ -175,6 +176,7 @@ def test_identity_cache_fails_closed_without_postgresql_authority(
         ("688041.SH", "A股", "listed", "company:security:688041.SH:venue:shanghai"),
         ("aapl", "美股", "us", "company:security:AAPL:venue:us"),
         ("0700.HK", "港股", "hk", "company:security:0700.HK:venue:hong-kong"),
+        ("PRY.MI", "其他", "上市", "company:security:PRY.MI:venue:milan"),
     ],
 )
 def test_company_stable_identity_is_ticker_and_venue_qualified(
@@ -222,6 +224,127 @@ def test_runtime_identity_resolution_never_falls_back_to_frozen_mapping(connecti
 def test_unqualified_company_identity_fails_closed() -> None:
     with pytest.raises(SharedIdentityError, match="supported venue"):
         company_security_stable_key("UNKNOWN", "其他", "listed")
+
+
+class _RepositoryCursor:
+    description = (("result",),)
+
+    def __init__(self):
+        self.calls = []
+        self._result = None
+
+    def execute(self, sql, params=None):
+        self.calls.append((sql, params))
+        if "shared_identity_authority_v1" in sql:
+            self.description = (
+                ("state",), ("authoritative_backend",), ("writer_identity",),
+                ("approval_reference",), ("cutover_epoch",),
+            )
+            self._result = (
+                "S3", "postgresql_production", "shared-writer", "approval", "epoch"
+            )
+        else:
+            self.description = (("result",),)
+            self._result = ({"industry_id": 50, "created": True},)
+
+    def fetchone(self):
+        return self._result
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+
+class _RepositoryConnection:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def cursor(self):
+        return self._cursor
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args):
+        return None
+
+
+def test_industry_mutation_binds_full_authority_token() -> None:
+    route = CutoverRoute(
+        cutover_unit="shared_identity",
+        backend=Backend.POSTGRESQL_PRODUCTION,
+        writer_operation="ensure_industry",
+        transaction_boundary="one industry identity mutation",
+        authority_state=AuthorityState.S3,
+        sqlite_writer_enabled=False,
+        production_postgresql_enabled=True,
+        writer_identity="shared-writer",
+        cutover_epoch="epoch",
+        approval_reference="approval",
+        route_revision=7,
+    )
+    cursor = _RepositoryCursor()
+    repository = PostgresSharedIdentityRepository(
+        lambda: _RepositoryConnection(cursor),
+        lambda: _RepositoryConnection(cursor),
+        route,
+    )
+    result = repository.ensure_industry(
+        industry={"id": 50, "name": "光纤", "parent_id": 6},
+        stable_key="industry:path:通信/光纤",
+        idempotency_key="fiber-industry:delta-sha",
+        actor="principal:os:test",
+    )
+    assert result == {"industry_id": 50, "created": True}
+    sql, params = cursor.calls[-1]
+    assert "ensure_industry_v1" in sql
+    assert params[3:8] == (
+        "shared-writer", "S3", "epoch", "approval", 7
+    )
+
+
+def test_company_identity_completion_binds_precondition_and_authority_token() -> None:
+    route = CutoverRoute(
+        cutover_unit="shared_identity",
+        backend=Backend.POSTGRESQL_PRODUCTION,
+        writer_operation="apply_company_profile_batch",
+        transaction_boundary="one audited optical-fiber company profile batch",
+        authority_state=AuthorityState.S3,
+        sqlite_writer_enabled=False,
+        production_postgresql_enabled=True,
+        writer_identity="shared-writer",
+        cutover_epoch="epoch",
+        approval_reference="approval",
+        route_revision=7,
+    )
+    cursor = _RepositoryCursor()
+    repository = PostgresSharedIdentityRepository(
+        lambda: _RepositoryConnection(cursor),
+        lambda: _RepositoryConnection(cursor),
+        route,
+    )
+    repository.complete_company_identity_v2(
+        expected_company_id=199,
+        previous_name="legacy-name",
+        canonical_name="长飞光纤",
+        ticker="601869.SH",
+        market="上海证券交易所",
+        listing_status="a_share",
+        verification_source_ref="research.db:source:1127",
+        stable_key="company:security:601869.SH:venue:shanghai",
+        idempotency_key="fiber-company-identity-complete:delta:199",
+        actor="principal:os:test",
+    )
+    sql, params = cursor.calls[-1]
+    assert "complete_company_identity_v2" in sql
+    payload = __import__("json").loads(params[0])
+    assert payload["previous_name"] == "legacy-name"
+    assert payload["ticker"] == "601869.SH"
+    assert params[3:8] == (
+        "shared-writer", "S3", "epoch", "approval", 7
+    )
 
 
 def test_environment_identity_reader_uses_read_only_sqlite_before_cutover(

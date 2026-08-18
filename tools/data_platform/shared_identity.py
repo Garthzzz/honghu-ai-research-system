@@ -63,7 +63,11 @@ DEFAULT_COLUMNS = {
     "theme": ("id", "name", "category", "summary", "status"),
     "theme_company": ("id", "theme_id", "company_id", "impact", "note"),
     "theme_industry": ("id", "theme_id", "industry_id", "impact", "note"),
-    "financial_security": ("id", "research_company_id", "canonical_name", "ticker", "market"),
+    "financial_security": (
+        "id", "research_company_id", "canonical_name", "ticker", "market",
+        "listing_status", "reporting_currency", "name_en", "fiscal_year_end",
+        "identity_status",
+    ),
     "financial_security_company_link": ("research_company_id", "security_id", "link_role"),
 }
 
@@ -93,6 +97,7 @@ _TICKER_SUFFIX_VENUES = {
     "VI": "vienna",
     "DE": "germany",
     "ST": "stockholm",
+    "MI": "milan",
 }
 _MARKET_VENUES = {
     "美股": "us",
@@ -103,12 +108,14 @@ _MARKET_VENUES = {
 }
 
 
+def _canonical_json(payload: Any) -> str:
+    return json.dumps(
+        payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+
+
 def _canonical_hash(payload: Any) -> str:
-    return hashlib.sha256(
-        json.dumps(
-            payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        ).encode("utf-8")
-    ).hexdigest()
+    return hashlib.sha256(_canonical_json(payload).encode("utf-8")).hexdigest()
 
 
 def company_security_stable_key(
@@ -273,6 +280,172 @@ class PostgresSharedIdentityRepository:
                             idempotency_key,
                             _canonical_hash(request),
                             self.route.writer_identity,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
+    def ensure_listed_company_v2(
+        self,
+        *,
+        expected_company_id: int,
+        canonical_name: str,
+        ticker: str,
+        market: str,
+        listing_status: str,
+        financial_market: str,
+        financial_listing_status: str,
+        reporting_currency: str,
+        name_en: str | None,
+        fiscal_year_end: str | None,
+        verification_source_ref: str,
+        aliases: list[str],
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        stable_key = company_security_stable_key(ticker, market, listing_status)
+        company = {
+            "id": int(expected_company_id),
+            "name": canonical_name,
+            "ticker": ticker.strip().upper(),
+            "market": market,
+            "listing_status": listing_status,
+            "financial_market": financial_market,
+            "financial_listing_status": financial_listing_status,
+            "reporting_currency": reporting_currency,
+            "name_en": name_en,
+            "fiscal_year_end": fiscal_year_end,
+            "verification_source_ref": verification_source_ref,
+            "aliases": aliases,
+        }
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.ensure_listed_company_v2(
+                            %s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            json.dumps(company, ensure_ascii=False),
+                            stable_key,
+                            idempotency_key,
+                            self.route.writer_identity,
+                            self.route.authority_state.value,
+                            self.route.cutover_epoch,
+                            self.route.approval_reference,
+                            self.route.route_revision,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
+    def apply_company_profile_batch(
+        self,
+        *,
+        batch: dict[str, Any],
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.apply_company_profile_batch_v1(
+                            %s::jsonb,%s,%s,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            json.dumps(batch, ensure_ascii=False),
+                            idempotency_key,
+                            self.route.writer_identity,
+                            self.route.authority_state.value,
+                            self.route.cutover_epoch,
+                            self.route.approval_reference,
+                            self.route.route_revision,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
+    def complete_company_identity_v2(
+        self,
+        *,
+        expected_company_id: int,
+        previous_name: str,
+        canonical_name: str,
+        ticker: str,
+        market: str,
+        listing_status: str,
+        verification_source_ref: str,
+        stable_key: str,
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        company = {
+            "id": int(expected_company_id),
+            "previous_name": previous_name,
+            "name": canonical_name,
+            "ticker": ticker.strip().upper(),
+            "market": market,
+            "listing_status": listing_status,
+            "verification_source_ref": verification_source_ref,
+        }
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.complete_company_identity_v2(
+                            %s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            json.dumps(company, ensure_ascii=False),
+                            stable_key,
+                            idempotency_key,
+                            self.route.writer_identity,
+                            self.route.authority_state.value,
+                            self.route.cutover_epoch,
+                            self.route.approval_reference,
+                            self.route.route_revision,
+                            actor,
+                        ),
+                    )
+                    return dict(_row_mapping(cursor, cursor.fetchone())["result"])
+        except Exception as exc:
+            raise translate_shared_identity_error(exc) from exc
+
+    def ensure_industry(
+        self,
+        *,
+        industry: dict[str, Any],
+        stable_key: str,
+        idempotency_key: str,
+        actor: str,
+    ) -> dict[str, Any]:
+        try:
+            with self._write_connect() as connection:
+                with connection.cursor() as cursor:
+                    self._assert_authority(cursor)
+                    cursor.execute(
+                        """SELECT shared_identity.ensure_industry_v1(
+                            %s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s
+                        ) AS result""",
+                        (
+                            json.dumps(industry, ensure_ascii=False),
+                            stable_key,
+                            idempotency_key,
+                            self.route.writer_identity,
+                            self.route.authority_state.value,
+                            self.route.cutover_epoch,
+                            self.route.approval_reference,
+                            self.route.route_revision,
                             actor,
                         ),
                     )
