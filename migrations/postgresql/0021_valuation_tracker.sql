@@ -345,7 +345,8 @@ BEGIN
     OR p_calendar_provider IS DISTINCT FROM 'Wind.tdays:SSE+SZSE'
     OR p_calendar_evidence->'is_trading_day' IS DISTINCT FROM 'true'::jsonb
     OR p_calendar_evidence->>'slot' IS DISTINCT FROM p_slot
-    OR p_calendar_evidence->>'trigger_time' IS DISTINCT FROM CASE WHEN p_slot='1140' THEN '11:40' ELSE '15:10' END
+    OR p_calendar_evidence->>'trigger_time' IS DISTINCT FROM
+       (CASE WHEN p_slot='1140' THEN '11:40' ELSE '15:10' END)
     OR coalesce((p_calendar_evidence->>'late_seconds')::bigint,-1)<0
     OR nullif(btrim(p_idempotency_key),'') IS NULL OR nullif(btrim(p_actor),'') IS NULL THEN RAISE EXCEPTION 'market batch contract is invalid' USING ERRCODE='22023'; END IF;
  SELECT count(DISTINCT (x->>'security_id')::bigint) INTO v_count FROM jsonb_array_elements(p_items) x; IF v_count<>6 THEN RAISE EXCEPTION 'market batch security set is not unique' USING ERRCODE='22023'; END IF;
@@ -369,7 +370,8 @@ BEGIN
     OR p_calendar_provider IS DISTINCT FROM 'Wind.tdays:SSE+SZSE'
     OR p_calendar_evidence->'is_trading_day' IS DISTINCT FROM 'false'::jsonb
     OR p_calendar_evidence->>'slot' IS DISTINCT FROM p_slot
-    OR p_calendar_evidence->>'trigger_time' IS DISTINCT FROM CASE WHEN p_slot='1140' THEN '11:40' ELSE '15:10' END
+    OR p_calendar_evidence->>'trigger_time' IS DISTINCT FROM
+       (CASE WHEN p_slot='1140' THEN '11:40' ELSE '15:10' END)
     OR nullif(btrim(p_idempotency_key),'') IS NULL OR nullif(btrim(p_actor),'') IS NULL THEN
    RAISE EXCEPTION 'market skip contract is invalid' USING ERRCODE='22023'; END IF;
  v_request:=encode(sha256(convert_to(jsonb_build_object('actor',p_actor,'date',p_trade_date,'slot',p_slot,'calendar',p_calendar_evidence)::text,'UTF8')),'hex');
