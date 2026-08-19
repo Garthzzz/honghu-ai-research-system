@@ -222,6 +222,10 @@ def test_price_reconciliation_is_fill_only_and_append_audited() -> None:
     assert "valuation_tracker.assert_writer_v1" in source
     assert "pg_advisory_xact_lock" in source
     assert "REVOKE ALL ON FUNCTION valuation_tracker.backfill_market_price_v1" in source
+    repository_source = (ROOT / "tools/financial/valuation_tracker.py").read_text(
+        encoding="utf-8"
+    )
+    assert '"backfill_market_price_v1"' in repository_source
 
 
 def test_postgres_migration_has_separate_slots_versions_and_narrow_grants() -> None:

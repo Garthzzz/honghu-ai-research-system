@@ -91,6 +91,7 @@ class ValuationTrackerRepository:
             "record_market_batch_v2",
             "record_market_skip_v2",
             "record_ai_candidates_v2",
+            "backfill_market_price_v1",
         }:
             raise ValuationTrackerError("operation is not a scheduled task scope")
         connection = self._write_factory()
