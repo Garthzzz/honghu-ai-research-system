@@ -26,6 +26,7 @@ ALLOWED_TASK_MODULES = {
     "tools.dynamic.voice_ingest",
     "tools.dynamic.news_ingest",
     "tools.financial.valuation_market_refresh",
+    "tools.financial.valuation_market_price_reconcile",
     "tools.financial.valuation_ai_refresh",
 }
 

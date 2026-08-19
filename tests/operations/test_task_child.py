@@ -18,6 +18,7 @@ def test_task_child_has_only_the_seven_task_module_families():
         "tools.sentiment.recruit_weekly",
         "tools.sentiment.retail_window_tick",
         "tools.maintenance.sentiment_retention",
+        "tools.financial.valuation_market_price_reconcile",
     }.issubset(ALLOWED_TASK_MODULES)
 
 
