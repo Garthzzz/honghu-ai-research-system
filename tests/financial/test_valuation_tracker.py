@@ -235,6 +235,37 @@ def test_monthly_ai_rejects_two_outputs_from_one_run_and_non_equity_outputs() ->
     assert _candidate(member, {"valuation_model_runs": [one_run]}) is None
 
 
+def test_monthly_ai_rejects_unreconciled_multi_method_outputs() -> None:
+    member = {
+        "member_id": 1, "company_id": 635, "security_id": 616,
+        "latest_ai_version": None,
+    }
+    runs = []
+    for run_id, run_key in ((1, "pe"), (2, "pb")):
+        runs.append({
+            "id": run_id, "run_key": run_key, "model_name": run_key,
+            "status": "reviewed", "valuation_date": "2026-08-19",
+            "outputs": [{
+                "output_name": "目标市值", "range_low": 90,
+                "range_high": 100, "unit": "亿元人民币",
+            }],
+            "reconciliations": [],
+        })
+    assert _candidate(member, {"valuation_model_runs": runs}) is None
+
+
+def test_no_candidate_migration_records_audited_monthly_evaluation() -> None:
+    source = (
+        ROOT / "migrations/postgresql/0022_valuation_ai_no_candidate_run.sql"
+    ).read_text(encoding="utf-8")
+    assert "CREATE TABLE IF NOT EXISTS valuation_tracker.ai_refresh_run" in source
+    assert "record_ai_no_candidates_v1" in source
+    assert "array_agg(member_id ORDER BY member_id)" in source
+    assert "human_values_overwritten',false" in source
+    assert "valuation_tracker.assert_writer_v1" in source
+    assert "REVOKE ALL ON FUNCTION" in source
+
+
 def test_monthly_ai_ignores_general_financial_model_runs() -> None:
     member = {
         "member_id": 1,

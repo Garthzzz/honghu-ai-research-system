@@ -39,6 +39,7 @@ REVIEWED_MIGRATIONS = (
     "0019_shared_identity_company_profile_batch.sql",
     "0020_shared_identity_financial_security_completion.sql",
     "0021_valuation_tracker.sql",
+    "0022_valuation_ai_no_candidate_run.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -87,6 +88,11 @@ MIGRATION_IDENTIFIERS = {
         "writer_role": "honghu_writer_shared_identity",
     },
     "0021_valuation_tracker.sql": {
+        "writer_role": "honghu_writer_financial_data",
+        "reader_role": "honghu_viewer_reader",
+        "audit_reader_role": "honghu_audit_reader",
+    },
+    "0022_valuation_ai_no_candidate_run.sql": {
         "writer_role": "honghu_writer_financial_data",
         "reader_role": "honghu_viewer_reader",
         "audit_reader_role": "honghu_audit_reader",

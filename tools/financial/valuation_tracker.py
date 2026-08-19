@@ -426,6 +426,28 @@ class ValuationTrackerRepository:
         finally:
             connection.close()
 
+    def record_ai_no_candidates(
+        self, valuation_date: date, skipped: list[dict[str, Any]], *,
+        prompt_sha256: str, model_name: str, actor: str, idempotency_key: str,
+    ) -> dict[str, Any]:
+        connection = self._write_factory()
+        try:
+            authority = self._authority()
+            result = connection.execute(
+                "SELECT valuation_tracker.record_ai_no_candidates_v1(%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (valuation_date, _jsonb(skipped), prompt_sha256, model_name,
+                 idempotency_key, WRITER_IDENTITY, authority.state,
+                 authority.cutover_epoch, authority.approval_reference,
+                 authority.state_revision, actor),
+            ).fetchone()[0]
+            connection.commit()
+            return dict(result)
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
 
 def load_seed(path: str | Path) -> dict[str, Any]:
     payload = json.loads(Path(path).read_text(encoding="utf-8"))

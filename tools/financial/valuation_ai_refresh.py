@@ -163,6 +163,17 @@ def _candidate(member: dict[str, Any], bundle: dict[str, Any]) -> dict[str, Any]
         if key not in source_keys:
             source_keys.add(key)
             dedup_sources.append(source)
+    # A frozen model output without an external reconciliation is not a new
+    # monthly AI valuation.  Keep it out of the candidate batch rather than
+    # letting the database reject the entire run or weakening provenance.
+    if (
+        len(dedup_sources) < 2
+        or not any(
+            source.get("source_type") == "model_reconciliation"
+            for source in dedup_sources
+        )
+    ):
+        return None
     previous = member.get("latest_ai_version") or {}
     prior = previous.get("ceiling_value")
     if prior and previous.get("currency") == currency:
@@ -221,16 +232,34 @@ def run(*, valuation_date: date | None = None) -> dict[str, Any]:
     for member in members:
         bundle = company_bundle(int(member["company_id"]))
         if not bundle:
-            skipped.append({"company_id": member["company_id"], "reason": "无公司财务模型"})
+            skipped.append({
+                "member_id": member["member_id"],
+                "company_id": member["company_id"],
+                "security_id": member["security_id"],
+                "reason": "无公司财务模型",
+            })
             continue
         candidate = _candidate(member, bundle)
         if candidate is None:
-            skipped.append({"company_id": member["company_id"], "reason": "不足两种同币种适用估值方法"})
+            skipped.append({
+                "member_id": member["member_id"],
+                "company_id": member["company_id"],
+                "security_id": member["security_id"],
+                "reason": "不足两种同币种、具备外部对账的适用估值方法",
+            })
             continue
         candidates.append(candidate)
-    if not candidates:
-        raise RuntimeError(f"no company passed the multi-method valuation gate: {skipped}")
     actor = str(os.environ.get("HONGHU_AUDIT_ACTOR") or "HonghuTaskRunner")
+    if not candidates:
+        result = repo.record_ai_no_candidates(
+            as_of, skipped, prompt_sha256=PROMPT_SHA256,
+            model_name=MODEL_NAME, actor=actor,
+            idempotency_key=f"{idempotency_key}:no-candidate",
+        )
+        result["skipped"] = skipped
+        result["prompt_contract_sha256"] = PROMPT_SHA256
+        result["automatic_publish"] = False
+        return result
     result = repo.record_ai_candidates(
         as_of, candidates, prompt_sha256=PROMPT_SHA256, model_name=MODEL_NAME,
         actor=actor, idempotency_key=idempotency_key,
