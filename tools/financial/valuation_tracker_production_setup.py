@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             "--seed", str(args.workbook_seed), "--actor", args.actor,
         ])
 
-    connection = reader()
+    connection = migration_reader()
     try:
         rows = connection.execute(
             """SELECT m.company_id,m.security_id,m.canonical_name,m.canonical_ticker,
