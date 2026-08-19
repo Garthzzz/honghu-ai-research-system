@@ -340,7 +340,8 @@ DECLARE v_request text; v_old valuation_tracker.mutation_result%ROWTYPE; v_item 
 BEGIN
  IF p_slot NOT IN ('1140','1510') OR jsonb_typeof(p_calendar_evidence)<>'object' OR jsonb_typeof(p_items)<>'array' OR jsonb_array_length(p_items)<>6
     OR (p_observed_at AT TIME ZONE 'Asia/Shanghai')::date IS DISTINCT FROM p_trade_date
-    OR (p_observed_at AT TIME ZONE 'Asia/Shanghai')::time < CASE WHEN p_slot='1140' THEN time '11:40' ELSE time '15:10' END
+    OR (p_observed_at AT TIME ZONE 'Asia/Shanghai')::time
+       < (CASE WHEN p_slot='1140' THEN '11:40' ELSE '15:10' END)::time
     OR p_calendar_provider IS DISTINCT FROM 'Wind.tdays:SSE+SZSE'
     OR p_calendar_evidence->'is_trading_day' IS DISTINCT FROM 'true'::jsonb
     OR p_calendar_evidence->>'slot' IS DISTINCT FROM p_slot
