@@ -11,6 +11,7 @@ from tools.operations.task_enable_evidence import (
     TaskEnableEvidenceError,
     _normalized_text_sha256,
     verify_local_disabled_evidence,
+    verify_valuation_setup_evidence,
 )
 from tools.operations.task_manifest import load_task_manifest
 
@@ -65,7 +66,7 @@ def _verify(tmp_path: Path, payload: dict[str, object]) -> dict[str, object]:
 def test_complete_fresh_local_disabled_evidence_passes(tmp_path: Path) -> None:
     result = _verify(tmp_path, _payload())
     assert result["verified"] is True
-    assert result["task_count"] == 7
+    assert result["task_count"] == 10
     assert result["legacy_runner_process_count"] == 0
 
 
@@ -107,3 +108,66 @@ def test_old_forged_or_incomplete_evidence_fails_closed(
     mutator(payload)
     with pytest.raises(TaskEnableEvidenceError):
         _verify(tmp_path, payload)
+
+
+def _valuation_setup_payload() -> dict[str, object]:
+    contracts = [
+        ("紫金矿业", "601899.SH", "上海", "铜资源", "15379", "CNY"),
+        ("洛阳钼业", "603993.SH", "上海", "铜资源", "4787", "CNY"),
+        ("五矿资源", "1208.HK", "香港", "铜资源", "1085", "HKD"),
+        ("藏格矿业", "000408.SZ", "深圳", "铜资源", "1197", "CNY"),
+        ("锡业股份", "000960.SZ", "深圳", "锡", "538", "CNY"),
+        ("华锡有色", "600301.SH", "上海", "锡", "294", "CNY"),
+        ("兴业银锡", "000426.SZ", "深圳", "锡", "958", "CNY"),
+    ]
+    return {
+        "schema_version": "honghu.valuation_tracker.production_setup_evidence.v1",
+        "status": "pass",
+        "contract_verified": True,
+        "migration_id": "0021_valuation_tracker",
+        "migration_sha256": "1" * 64,
+        "workbook_sha256": "453ded4b67ad53848ffd90ab27ddcad21ba3262d623e3946de613c414091e3e0",
+        "workbook_seed_sha256": "09907358d4e3ee9751e7196fcd9f27574553b434915bce38af3d7c4175f19e41",
+        "identity_seed_sha256": "a0f27b5ffd30bda0eddaeb2f39ef6a0e49e98ad9a618f49f378003e4d874fa8f",
+        "members": [
+            {
+                "company_id": 100 + order,
+                "security_id": 200 + order,
+                "researcher_version_id": 300 + order,
+                "display_order": order,
+                "name": values[0],
+                "ticker": values[1],
+                "market": values[2],
+                "board": values[3],
+                "ceiling_value": values[4],
+                "currency": values[5],
+            }
+            for order, values in enumerate(contracts, start=1)
+        ],
+    }
+
+
+def test_exact_valuation_setup_evidence_is_required_and_verified(tmp_path: Path) -> None:
+    path = tmp_path / "setup.json"
+    path.write_text(json.dumps(_valuation_setup_payload(), ensure_ascii=False), encoding="utf-8")
+    assert verify_valuation_setup_evidence(path)["member_count"] == 7
+
+
+@pytest.mark.parametrize(
+    "mutator",
+    [
+        lambda data: data.update(contract_verified=False),
+        lambda data: data.update(workbook_seed_sha256="0" * 64),
+        lambda data: data["members"][0].update(ticker="601889.SH"),
+        lambda data: data["members"][1].update(display_order=1),
+        lambda data: data["members"][2].update(currency="CNY"),
+        lambda data: data["members"].pop(),
+    ],
+)
+def test_valuation_setup_evidence_drift_fails_closed(tmp_path: Path, mutator) -> None:
+    payload = _valuation_setup_payload()
+    mutator(payload)
+    path = tmp_path / "setup.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(TaskEnableEvidenceError):
+        verify_valuation_setup_evidence(path)

@@ -61,6 +61,7 @@ from tools.financial.read_models import (  # noqa: E402
     peer_asset_return_rows as financial_peer_asset_return_rows,
 )
 from tools.financial.valuation import historical_pb_roa, historical_pb_roe  # noqa: E402
+from tools.financial.valuation_tracker import ValuationTrackerRepository  # noqa: E402
 from tools.data_platform.postgres_runtime import (  # noqa: E402
     build_catalog_connection_factory,
     build_postgres_connection_factory,
@@ -398,6 +399,18 @@ if SHARED_IDENTITY_ROUTE.backend is DataBackend.POSTGRESQL_PRODUCTION:
         SHARED_IDENTITY_POSTGRES_WRITE_FACTORY,
         SHARED_IDENTITY_ROUTE,
     )
+
+VALUATION_TRACKER_REPOSITORY = None
+VALUATION_TRACKER_POSTGRES_WRITE_FACTORY = None
+if AUTHORITY_MATRIX is not None:
+    valuation_route = AUTHORITY_MATRIX.routes.get("financial_data")
+    if valuation_route is not None and valuation_route.backend is DataBackend.POSTGRESQL_PRODUCTION:
+        VALUATION_TRACKER_POSTGRES_WRITE_FACTORY = build_catalog_connection_factory(
+            POSTGRES_RUNTIME_CATALOG, role="writer_financial_data"
+        )
+        VALUATION_TRACKER_REPOSITORY = ValuationTrackerRepository(
+            COMMON_POSTGRES_READ_FACTORY, VALUATION_TRACKER_POSTGRES_WRITE_FACTORY
+        )
 
 DOMAIN_READ_CACHES: dict[str, PostgresDomainReadCache] = {}
 if AUTHORITY_MATRIX is not None:
@@ -987,6 +1000,15 @@ def _user_content_error(exc: Exception):
         return jsonify(
             {"ok": False, "error": str(exc), "code": "identity_mapping_missing"}
         ), 409
+    sqlstate = getattr(exc, "sqlstate", None) or getattr(
+        getattr(exc, "diag", None), "sqlstate", None
+    )
+    if sqlstate in {"23505", "40001"}:
+        return jsonify({
+            "ok": False,
+            "error": "数据已被其他操作更新，或幂等键对应了不同请求；请刷新后重试",
+            "code": "valuation_tracker_conflict",
+        }), 409
     log.exception("user-content operation failed")
     return jsonify({"ok": False, "error": "user-content operation failed"}), 500
 
@@ -3452,6 +3474,95 @@ def _asset_return_peer_summary(
 def tools_index():
     """Read-only landing page for researcher calculators."""
     return render_template("tools_index.html")
+
+
+def valuation_tracker_repository() -> ValuationTrackerRepository:
+    if VALUATION_TRACKER_REPOSITORY is None:
+        raise RuntimeError("市值空间与估值跟踪仅在 PostgreSQL 正式数据层可用")
+    return VALUATION_TRACKER_REPOSITORY
+
+
+@app.route("/tools/valuation-tracker")
+def valuation_tracker_page():
+    """Render the whole watchlist from one set-based PostgreSQL read."""
+    try:
+        members = valuation_tracker_repository().watchlist()
+    except Exception as exc:
+        log.exception("加载市值空间与估值跟踪失败")
+        return render_template(
+            "valuation_tracker.html", members=[], tracker_error=str(exc)
+        ), 503
+    return render_template(
+        "valuation_tracker.html", members=members, tracker_error=None
+    )
+
+
+@app.route(
+    "/api/valuation-tracker/member/<int:member_id>/valuation", methods=["POST"]
+)
+def valuation_tracker_edit_valuation(member_id: int):
+    try:
+        principal = require_user_content_principal(
+            app, request, permission="valuation_tracker:publish", csrf=True
+        )
+        payload = request.get_json(silent=True) or {}
+        kind = str(payload.pop("kind", ""))
+        expected_revision = int(payload.pop("expected_revision"))
+        idempotency_key = str(
+            request.headers.get("X-Idempotency-Key") or ""
+        ).strip()
+        if not idempotency_key:
+            return jsonify({
+                "ok": False, "code": "idempotency_required",
+                "error": "缺少 X-Idempotency-Key",
+            }), 400
+        result = valuation_tracker_repository().edit_valuation(
+            member_id, kind, payload, expected_revision=expected_revision,
+            actor=principal.subject, idempotency_key=idempotency_key,
+        )
+        return jsonify({"ok": True, "result": result})
+    except (ValueError, TypeError) as exc:
+        return jsonify({
+            "ok": False, "code": "invalid_payload", "error": str(exc)
+        }), 400
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route(
+    "/api/valuation-tracker/member/<int:member_id>/policy", methods=["POST"]
+)
+def valuation_tracker_edit_policy(member_id: int):
+    try:
+        principal = require_user_content_principal(
+            app, request, permission="valuation_tracker:write", csrf=True
+        )
+        payload = request.get_json(silent=True) or {}
+        idempotency_key = str(
+            request.headers.get("X-Idempotency-Key") or ""
+        ).strip()
+        if not idempotency_key:
+            return jsonify({
+                "ok": False, "code": "idempotency_required",
+                "error": "缺少 X-Idempotency-Key",
+            }), 400
+        result = valuation_tracker_repository().edit_policy(
+            member_id,
+            float(payload["researcher_threshold"]),
+            float(payload["ai_threshold"]),
+            int(payload.get("max_age_hours", 48)),
+            str(payload.get("reason") or ""),
+            expected_revision=int(payload["expected_policy_revision"]),
+            actor=principal.subject,
+            idempotency_key=idempotency_key,
+        )
+        return jsonify({"ok": True, "result": result})
+    except (ValueError, TypeError, KeyError) as exc:
+        return jsonify({
+            "ok": False, "code": "invalid_payload", "error": str(exc)
+        }), 400
+    except Exception as exc:
+        return _user_content_error(exc)
 
 
 def _load_battery_calculator_model() -> dict[str, Any]:

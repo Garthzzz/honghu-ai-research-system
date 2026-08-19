@@ -21,8 +21,8 @@ $manifestPayload = Get-Content -Raw -LiteralPath $Manifest | ConvertFrom-Json
 $definitions = @($manifestPayload.tasks)
 if (
     $manifestPayload.schema_version -ne 'honghu.production_task_manifest.v1' -or
-    $definitions.Count -ne 7
-) { throw 'The reviewed seven-task manifest is invalid.' }
+    $definitions.Count -ne 10
+) { throw 'The reviewed ten-task manifest is invalid.' }
 
 $hostName = $env:COMPUTERNAME.ToUpperInvariant()
 if ($hostName -ne ([string]$manifestPayload.legacy_runner_host).ToUpperInvariant()) {
@@ -40,11 +40,13 @@ foreach ($definition in $definitions) {
     $name = [string]$definition.task_id
     $task = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue
     if ($null -eq $task) {
+        $expectedAbsent = ([string]$definition.legacy_principal -eq 'not_applicable_new_task')
         $observed += [ordered]@{
             task_id=$name; present=$false; enabled=$false; state='Absent'
             principal=$null; definition_sha256=$null
             expected_definition_sha256=[string]$definition.legacy_definition_sha256
-            definition_matches_manifest=$false
+            legacy_absence_expected=$expectedAbsent
+            definition_matches_manifest=$expectedAbsent
         }
         continue
     }
@@ -57,6 +59,7 @@ foreach ($definition in $definitions) {
         enabled=[bool]$task.Settings.Enabled
         state=$task.State.ToString()
         principal=$principal
+        legacy_absence_expected=$false
         definition_sha256=$definitionSha
         expected_definition_sha256=[string]$definition.legacy_definition_sha256
         definition_matches_manifest=(
@@ -107,7 +110,8 @@ $payload = [ordered]@{
     collector_sha256=Get-TextSha256 (([IO.File]::ReadAllText($PSCommandPath)).Replace("`r`n","`n").Replace("`r","`n"))
     tasks=@($observed)
     all_present=(@($observed | Where-Object { -not $_.present }).Count -eq 0)
-    all_disabled=(@($observed | Where-Object { $_.enabled -or $_.state -ne 'Disabled' }).Count -eq 0)
+    all_legacy_tasks_safe=(@($observed | Where-Object { -not $_.definition_matches_manifest }).Count -eq 0)
+    all_disabled=(@($observed | Where-Object { $_.enabled -or ($_.state -ne 'Disabled' -and -not $_.legacy_absence_expected) }).Count -eq 0)
     all_definitions_match=(@($observed | Where-Object { -not $_.definition_matches_manifest }).Count -eq 0)
     legacy_runner_process_count=$matchedProcesses.Count
     legacy_runner_processes=@($matchedProcesses)

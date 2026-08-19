@@ -12,9 +12,9 @@ ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = ROOT / "config/operations/production_tasks.json"
 
 
-def test_production_manifest_has_exactly_seven_safe_tasks():
+def test_production_manifest_has_exactly_ten_safe_tasks():
     manifest = load_task_manifest(MANIFEST)
-    assert len(manifest.tasks) == 7
+    assert len(manifest.tasks) == 10
     assert manifest.runner_host == "DESKTOP-VGD07J4"
     assert all(task.command[0] == "-m" for task in manifest.tasks.values())
     assert all(task.command[1].startswith("tools.") for task in manifest.tasks.values())
@@ -23,7 +23,14 @@ def test_production_manifest_has_exactly_seven_safe_tasks():
     assert manifest.legacy_runner_host != manifest.runner_host
     assert manifest.local_disabled_evidence_max_age_seconds == 900
     assert all(task.legacy_definition_sha256 for task in manifest.tasks.values())
-    assert all(task.legacy_principal == "zhang" for task in manifest.tasks.values())
+    assert {task.legacy_principal for task in manifest.tasks.values()} == {
+        "zhang", "not_applicable_new_task"
+    }
+    assert manifest.tasks["IndustryDemo_ValuationMarket_1140"].schedule["at"] == "11:40"
+    assert manifest.tasks["IndustryDemo_ValuationMarket_1510"].schedule["at"] == "15:10"
+    assert manifest.tasks["IndustryDemo_ValuationAI_Monthly"].schedule == {
+        "kind": "monthly_at", "day": 5, "at": "07:30"
+    }
 
 
 @pytest.mark.parametrize(

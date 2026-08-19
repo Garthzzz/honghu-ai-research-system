@@ -84,8 +84,13 @@
       </button>
     </div>
     {% if nav_active == 'tools' %}
-    <div class="sb-section-label">研究与估值工具 · 3</div>
+    <div class="sb-section-label">研究与估值工具 · 4</div>
     <div class="sb-list" id="sb-list">
+      <a href="{{ url_for('valuation_tracker_page') }}"
+         class="sb-ind{{ ' active' if request.endpoint == 'valuation_tracker_page' else '' }}" data-name="市值空间与估值跟踪">
+        <span class="tier-dot tier-1"></span>
+        <span class="sb-ind-name">市值空间与估值跟踪</span>
+      </a>
       <a href="{{ url_for('lithium_calculator') }}"
          class="sb-ind{{ ' active' if request.endpoint in ['lithium_calculator', 'lithium_industry_comparison'] else '' }}" data-name="碳酸锂估值计算器">
         <span class="tier-dot tier-1"></span>

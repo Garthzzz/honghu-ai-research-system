@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Strict, secret-free contract for the seven production task triggers."""
+"""Strict, secret-free contract for reviewed production task triggers."""
 
 import hashlib
 import json
@@ -16,9 +16,10 @@ UNITS = {
     "operations_governance",
     "dynamic_intelligence",
     "sentiment_analytics",
+    "financial_data",
 }
-SCHEDULE_KINDS = {"weekday_interval", "weekdays_at", "weekly_at"}
-WINDOW_KINDS = {"quarter_hour", "business_date", "iso_week", "business_date_slot"}
+SCHEDULE_KINDS = {"weekday_interval", "weekdays_at", "weekly_at", "monthly_at"}
+WINDOW_KINDS = {"quarter_hour", "business_date", "iso_week", "business_date_slot", "calendar_month"}
 TASK_MODULES = {
     "IndustryDemo_DynamicTick": "tools.dynamic.scheduler",
     "IndustryDemo_EventIngest": "tools.sentiment.event_ingest",
@@ -27,6 +28,9 @@ TASK_MODULES = {
     "IndustryDemo_Retail_Morning": "tools.sentiment.retail_window_tick",
     "IndustryDemo_Retail_Afternoon": "tools.sentiment.retail_window_tick",
     "IndustryDemo_SentimentRetention": "tools.maintenance.sentiment_retention",
+    "IndustryDemo_ValuationMarket_1140": "tools.financial.valuation_market_refresh",
+    "IndustryDemo_ValuationMarket_1510": "tools.financial.valuation_market_refresh",
+    "IndustryDemo_ValuationAI_Monthly": "tools.financial.valuation_ai_refresh",
 }
 
 
@@ -119,7 +123,14 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
         if window.get("kind") == "quarter_hour" and int(window.get("minutes") or 0) != int(schedule.get("minutes") or 0):
             raise TaskManifestError(f"task {task_id} interval/window cadence differs")
         if window.get("kind") == "business_date_slot":
-            expected_slot = task_id.removeprefix("IndustryDemo_Retail_").casefold()
+            if task_id.startswith("IndustryDemo_ValuationMarket_"):
+                expected_slot = task_id.removeprefix(
+                    "IndustryDemo_ValuationMarket_"
+                )
+            else:
+                expected_slot = task_id.removeprefix(
+                    "IndustryDemo_Retail_"
+                ).casefold()
             if window.get("slot") != expected_slot:
                 raise TaskManifestError(f"task {task_id} slot identity differs")
         freshness = int(raw_task.get("freshness_seconds") or 0)
@@ -128,10 +139,10 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
         # reviewed worst case is one lock wait + one orphan wait + four
         # sequential 12-hour windows, so a one-day cap would terminate a
         # healthy writer before its own child budgets expire.
-        if not 60 <= freshness <= 14 * 86400 or not 60 <= timeout <= 3 * 86400:
+        if not 60 <= freshness <= 45 * 86400 or not 60 <= timeout <= 3 * 86400:
             raise TaskManifestError(f"task {task_id} time contract is outside bounds")
         if task_id not in TASK_MODULES:
-            raise TaskManifestError("the reviewed seven-task identity set changed")
+            raise TaskManifestError("the reviewed production-task identity set changed")
         command = _command(raw_task.get("command"))
         if command[1] != TASK_MODULES[task_id]:
             raise TaskManifestError(f"task {task_id} module is not the reviewed producer")
@@ -152,6 +163,8 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
             _clock(schedule.get("at"), field=f"task {task_id} at")
             if kind == "weekly_at" and schedule.get("weekday") != "Monday":
                 raise TaskManifestError(f"task {task_id} weekly schedule is unreviewed")
+            if kind == "monthly_at" and not 1 <= int(schedule.get("day") or 0) <= 28:
+                raise TaskManifestError(f"task {task_id} monthly day is invalid")
         definitions[task_id] = TaskDefinition(
             task_id=task_id,
             cutover_unit=unit,
@@ -165,7 +178,7 @@ def load_task_manifest(path: str | Path) -> TaskManifest:
             legacy_principal=legacy_principal,
         )
     if set(definitions) != set(TASK_MODULES):
-        raise TaskManifestError("the production manifest must contain exactly seven tasks")
+        raise TaskManifestError("the production manifest differs from the reviewed task set")
     return TaskManifest(
         path=source,
         sha256=hashlib.sha256(raw).hexdigest(),

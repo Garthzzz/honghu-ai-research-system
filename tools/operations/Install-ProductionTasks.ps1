@@ -12,7 +12,8 @@ param(
     [System.Management.Automation.PSCredential]$TaskCredential,
     [string]$TaskName = '',
     [string]$LocalDisabledEvidence = '',
-    [string]$TrialEvidence = ''
+    [string]$TrialEvidence = '',
+    [string]$ValuationSetupEvidence = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -66,6 +67,9 @@ function Get-TriggerXml([object]$Schedule) {
     if ($Schedule.kind -eq 'weekly_at' -and $Schedule.weekday -eq 'Monday') {
         return "<CalendarTrigger><StartBoundary>${today}T$($Schedule.at):00</StartBoundary><Enabled>true</Enabled><ScheduleByWeek><WeeksInterval>1</WeeksInterval><DaysOfWeek><Monday/></DaysOfWeek></ScheduleByWeek></CalendarTrigger>"
     }
+    if ($Schedule.kind -eq 'monthly_at') {
+        return "<CalendarTrigger><StartBoundary>${today}T$($Schedule.at):00</StartBoundary><Enabled>true</Enabled><ScheduleByMonth><DaysOfMonth><Day>$($Schedule.day)</Day></DaysOfMonth><Months><January/><February/><March/><April/><May/><June/><July/><August/><September/><October/><November/><December/></Months></ScheduleByMonth></CalendarTrigger>"
+    }
     throw "Unsupported reviewed schedule for $($Schedule.kind)."
 }
 
@@ -109,13 +113,14 @@ foreach ($path in @($PythonExe,$ReleaseBootstrap,$ReleaseManifest,$LocalEvidence
 $payload = Get-Content -Raw -LiteralPath $Manifest | ConvertFrom-Json
 $tasks = @($payload.tasks)
 $verificationResult = $null
-if ($payload.schema_version -ne 'honghu.production_task_manifest.v1' -or $tasks.Count -ne 7) {
-    throw 'Production task manifest is not the reviewed seven-task contract.'
+$isValuationTask = $false
+if ($payload.schema_version -ne 'honghu.production_task_manifest.v1' -or $tasks.Count -ne 10) {
+    throw 'Production task manifest is not the reviewed ten-task contract.'
 }
 if ($payload.runner_host -ne $env:COMPUTERNAME) { throw 'Manifest runner host mismatch.' }
 
 if ($Mode -eq 'Plan') {
-    [ordered]@{ mode='plan'; task_count=7; enabled=$false; runner_host=$env:COMPUTERNAME } | ConvertTo-Json
+    [ordered]@{ mode='plan'; task_count=$tasks.Count; enabled=$false; runner_host=$env:COMPUTERNAME } | ConvertTo-Json
     exit 0
 }
 if ($Mode -eq 'InstallDisabled') {
@@ -144,6 +149,21 @@ if ($Mode -eq 'InstallDisabled') {
                 throw 'Enable requires local-disabled and controlled-trial evidence.'
             }
         }
+        $isValuationTask = $TaskName -in @(
+            'IndustryDemo_ValuationMarket_1140',
+            'IndustryDemo_ValuationMarket_1510',
+            'IndustryDemo_ValuationAI_Monthly'
+        )
+        if ($isValuationTask -and (
+            -not $ValuationSetupEvidence -or
+            -not (Test-Path -LiteralPath $ValuationSetupEvidence -PathType Leaf)
+        )) {
+            throw 'Valuation task enable requires exact production setup evidence.'
+        }
+        $setupArguments = @()
+        if ($isValuationTask) {
+            $setupArguments = @('--valuation-setup-evidence', $ValuationSetupEvidence)
+        }
         $verification = (& $PythonExe -I -B -S $ReleaseBootstrap `
             --site-packages $SitePackages `
             --module tools.operations.task_enable_evidence `
@@ -152,7 +172,7 @@ if ($Mode -eq 'InstallDisabled') {
             --release-manifest $ReleaseManifest `
             --local-evidence $LocalDisabledEvidence `
             --trial-evidence $TrialEvidence `
-            --task $TaskName | Out-String)
+            --task $TaskName @setupArguments | Out-String)
         if ($LASTEXITCODE -ne 0) {
             throw 'Unique-runner enable evidence failed strict verification.'
         }
@@ -190,6 +210,7 @@ $evidence = [ordered]@{
     enable_evidence_verified=($Mode -ne 'Enable' -or [bool]$verificationResult.verified)
     local_disabled_evidence_sha256=$(if ($Mode -eq 'Enable') { (Get-FileHash $LocalDisabledEvidence -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null })
     trial_evidence_sha256=$(if ($Mode -eq 'Enable') { (Get-FileHash $TrialEvidence -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null })
+    valuation_setup_evidence_sha256=$(if ($Mode -eq 'Enable' -and $isValuationTask) { (Get-FileHash $ValuationSetupEvidence -Algorithm SHA256).Hash.ToLowerInvariant() } else { $null })
     tasks=@($observed); all_present=(@($observed | Where-Object { -not $_.present }).Count -eq 0)
 }
 Write-JsonNoBom (Join-Path $RuntimeDir 'evidence\production_task_installation.json') $evidence

@@ -75,7 +75,7 @@ def test_service_preflight_binds_release_manifest_access_and_current_users(
     assert result["access_verified"] is True
     assert result["postgresql_roles_verified"] is True
     assert result["overall_verified"] is True
-    assert len(result["postgresql_roles"]) == 4
+    assert len(result["postgresql_roles"]) == 5
     assert result["secret_recorded"] is False
 
 

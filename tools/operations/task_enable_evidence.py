@@ -7,6 +7,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,23 @@ from tools.operations.recovery_metrics import RecoveryMetricError, parse_utc
 
 
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+VALUATION_TASKS = {
+    "IndustryDemo_ValuationMarket_1140",
+    "IndustryDemo_ValuationMarket_1510",
+    "IndustryDemo_ValuationAI_Monthly",
+}
+VALUATION_WORKBOOK_SHA256 = "453ded4b67ad53848ffd90ab27ddcad21ba3262d623e3946de613c414091e3e0"
+VALUATION_WORKBOOK_SEED_SHA256 = "09907358d4e3ee9751e7196fcd9f27574553b434915bce38af3d7c4175f19e41"
+VALUATION_IDENTITY_SEED_SHA256 = "a0f27b5ffd30bda0eddaeb2f39ef6a0e49e98ad9a618f49f378003e4d874fa8f"
+VALUATION_MEMBER_CONTRACT = [
+    ("紫金矿业", "601899.SH", "上海", "铜资源", "15379", "CNY"),
+    ("洛阳钼业", "603993.SH", "上海", "铜资源", "4787", "CNY"),
+    ("五矿资源", "1208.HK", "香港", "铜资源", "1085", "HKD"),
+    ("藏格矿业", "000408.SZ", "深圳", "铜资源", "1197", "CNY"),
+    ("锡业股份", "000960.SZ", "深圳", "锡", "538", "CNY"),
+    ("华锡有色", "600301.SH", "上海", "锡", "294", "CNY"),
+    ("兴业银锡", "000426.SZ", "深圳", "锡", "958", "CNY"),
+]
 
 
 class TaskEnableEvidenceError(RuntimeError):
@@ -85,7 +103,7 @@ def verify_local_disabled_evidence(
 
     tasks = evidence.get("tasks")
     if not isinstance(tasks, list) or len(tasks) != len(manifest.tasks):
-        raise TaskEnableEvidenceError("local-disabled evidence does not contain seven tasks")
+        raise TaskEnableEvidenceError("local-disabled evidence has the wrong task count")
     indexed: dict[str, dict[str, Any]] = {}
     for item in tasks:
         if not isinstance(item, dict):
@@ -100,21 +118,32 @@ def verify_local_disabled_evidence(
         item = indexed[task_id]
         observed_sha = str(item.get("definition_sha256") or "").lower()
         expected_sha = str(item.get("expected_definition_sha256") or "").lower()
-        if (
-            item.get("present") is not True
-            or item.get("enabled") is not False
-            or item.get("state") != "Disabled"
-            or item.get("principal") != definition.legacy_principal
-            or not SHA256.fullmatch(observed_sha)
-            or observed_sha != definition.legacy_definition_sha256
-            or expected_sha != definition.legacy_definition_sha256
-            or item.get("definition_matches_manifest") is not True
-        ):
+        is_new_absent = definition.legacy_principal == "not_applicable_new_task"
+        valid_absence = (
+            is_new_absent
+            and item.get("present") is False
+            and item.get("enabled") is False
+            and item.get("state") == "Absent"
+            and item.get("legacy_absence_expected") is True
+            and expected_sha == definition.legacy_definition_sha256
+            and item.get("definition_matches_manifest") is True
+        )
+        valid_disabled = (
+            item.get("present") is True
+            and item.get("enabled") is False
+            and item.get("state") == "Disabled"
+            and item.get("principal") == definition.legacy_principal
+            and bool(SHA256.fullmatch(observed_sha))
+            and observed_sha == definition.legacy_definition_sha256
+            and expected_sha == definition.legacy_definition_sha256
+            and item.get("definition_matches_manifest") is True
+        )
+        if not (valid_absence or valid_disabled):
             raise TaskEnableEvidenceError(
                 f"legacy task is not the reviewed disabled definition: {task_id}"
             )
     if (
-        evidence.get("all_present") is not True
+        evidence.get("all_legacy_tasks_safe", evidence.get("all_present")) is not True
         or evidence.get("all_disabled") is not True
         or evidence.get("all_definitions_match") is not True
     ):
@@ -162,6 +191,64 @@ def verify_trial_evidence(
     }
 
 
+def verify_valuation_setup_evidence(evidence_path: Path) -> dict[str, Any]:
+    evidence = _json(evidence_path)
+    if (
+        evidence.get("schema_version")
+        != "honghu.valuation_tracker.production_setup_evidence.v1"
+        or evidence.get("status") != "pass"
+        or evidence.get("contract_verified") is not True
+        or evidence.get("migration_id") != "0021_valuation_tracker"
+        or not SHA256.fullmatch(str(evidence.get("migration_sha256") or "").lower())
+        or evidence.get("workbook_sha256") != VALUATION_WORKBOOK_SHA256
+        or evidence.get("workbook_seed_sha256") != VALUATION_WORKBOOK_SEED_SHA256
+        or evidence.get("identity_seed_sha256") != VALUATION_IDENTITY_SEED_SHA256
+    ):
+        raise TaskEnableEvidenceError("valuation setup evidence identity is invalid")
+    members = evidence.get("members")
+    if not isinstance(members, list) or len(members) != len(VALUATION_MEMBER_CONTRACT):
+        raise TaskEnableEvidenceError("valuation setup member count is invalid")
+    company_ids: set[int] = set()
+    security_ids: set[int] = set()
+    version_ids: set[int] = set()
+    for order, (item, expected) in enumerate(
+        zip(members, VALUATION_MEMBER_CONTRACT, strict=True), start=1
+    ):
+        if not isinstance(item, dict):
+            raise TaskEnableEvidenceError("valuation setup member is malformed")
+        observed_identity = (
+            item.get("name"), item.get("ticker"), item.get("market"), item.get("board"),
+            item.get("currency"),
+        )
+        expected_identity = (expected[0], expected[1], expected[2], expected[3], expected[5])
+        try:
+            company_id = int(item["company_id"])
+            security_id = int(item["security_id"])
+            version_id = int(item["researcher_version_id"])
+            display_order = int(item["display_order"])
+            ceiling = Decimal(str(item["ceiling_value"]))
+        except (KeyError, TypeError, ValueError, InvalidOperation) as exc:
+            raise TaskEnableEvidenceError("valuation setup identities are invalid") from exc
+        if (
+            observed_identity != expected_identity
+            or ceiling != Decimal(expected[4])
+            or display_order != order
+            or min(company_id, security_id, version_id) <= 0
+        ):
+            raise TaskEnableEvidenceError("valuation setup exact member contract differs")
+        company_ids.add(company_id)
+        security_ids.add(security_id)
+        version_ids.add(version_id)
+    if min(len(company_ids), len(security_ids), len(version_ids)) != len(VALUATION_MEMBER_CONTRACT):
+        raise TaskEnableEvidenceError("valuation setup identities or versions are duplicated")
+    return {
+        "workbook_sha256": VALUATION_WORKBOOK_SHA256,
+        "workbook_seed_sha256": VALUATION_WORKBOOK_SEED_SHA256,
+        "member_count": len(members),
+        "verified": True,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
@@ -169,6 +256,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--release-manifest", type=Path, required=True)
     parser.add_argument("--local-evidence", type=Path, required=True)
     parser.add_argument("--trial-evidence", type=Path, required=True)
+    parser.add_argument("--valuation-setup-evidence", type=Path)
     parser.add_argument("--task", required=True)
     args = parser.parse_args(argv)
     manifest = load_task_manifest(args.manifest)
@@ -183,7 +271,15 @@ def main(argv: list[str] | None = None) -> int:
         release_manifest_path=args.release_manifest,
         task_id=args.task,
     )
-    print(json.dumps({"verified": True, "local": local, "trial": trial}, sort_keys=True))
+    setup = None
+    if args.task in VALUATION_TASKS:
+        if args.valuation_setup_evidence is None:
+            raise TaskEnableEvidenceError("valuation task requires production setup evidence")
+        setup = verify_valuation_setup_evidence(args.valuation_setup_evidence)
+    print(json.dumps(
+        {"verified": True, "local": local, "trial": trial, "valuation_setup": setup},
+        sort_keys=True,
+    ))
     return 0
 
 

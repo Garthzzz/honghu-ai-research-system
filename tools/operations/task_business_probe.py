@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-"""Read-only domain checkpoint probes for the seven production tasks."""
+"""Read-only domain checkpoint probes for reviewed production tasks."""
 
 import hashlib
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,53 @@ def probe(task_id: str, logical_window: str, *, data_root: Path) -> dict[str, An
     """Capture a task-specific business checkpoint without mutating authority."""
 
     from tools.data_platform.domain_data import connect_domain_database
+
+    if task_id.startswith("IndustryDemo_ValuationMarket_") or task_id == "IndustryDemo_ValuationAI_Monthly":
+        from tools.data_platform.postgres_runtime import (
+            build_catalog_connection_factory,
+            load_postgres_runtime_catalog,
+        )
+
+        runtime = os.environ.get("HONGHU_POSTGRES_RUNTIME_CONFIG")
+        if not runtime:
+            raise ValueError("valuation tracker probe requires PostgreSQL runtime")
+        connection = build_catalog_connection_factory(
+            load_postgres_runtime_catalog(runtime), role="reader"
+        )()
+        try:
+            if task_id.startswith("IndustryDemo_ValuationMarket_"):
+                trade_date, slot = logical_window.split(":", 1)
+                observed = _rows(
+                    connection,
+                    """SELECT status,observed_count,request_sha256,recorded_at
+                         FROM valuation_tracker.market_run
+                        WHERE trade_date=%s AND slot=%s""",
+                    (trade_date, slot),
+                )
+                kind = "valuation_market_run"
+            else:
+                observed = _rows(
+                    connection,
+                    """SELECT count(*),max(created_at),
+                              count(DISTINCT member_id),
+                              bool_and(status='candidate')
+                         FROM valuation_tracker.valuation_version
+                        WHERE origin='scheduled_ai'
+                          AND to_char(valuation_date,'YYYY-MM')=%s""",
+                    (logical_window,),
+                )
+                kind = "valuation_ai_candidate"
+        finally:
+            connection.close()
+        payload = {
+            "schema_version": "honghu.production_task_business_checkpoint.v1",
+            "task_id": task_id,
+            "logical_window": logical_window,
+            "unit": "financial_data",
+            "probe_kind": kind,
+            "rows": observed,
+        }
+        return {**payload, "identity_sha256": _sha(payload)}
 
     if task_id == "IndustryDemo_DynamicTick":
         unit, database = "operations_governance", data_root / "research.db"

@@ -185,7 +185,8 @@ def probe_task_freshness(
     manifest = load_task_manifest(manifest_path)
     payload = task_health(manifest, catalog_path)
     tasks = payload.get("tasks") if isinstance(payload.get("tasks"), list) else []
-    exact_definition_identity = len(tasks) == 7 and all(
+    expected_count = len(getattr(manifest, "tasks", tasks))
+    exact_definition_identity = len(tasks) == expected_count and all(
         isinstance(item, Mapping)
         and item.get("manifest_sha256") == manifest.sha256
         and str(item.get("application_commit_sha") or "").lower() == expected_commit_sha
@@ -368,6 +369,7 @@ def aggregate_stage5_health(
             "process_alive_is_not_data_freshness": True,
         },
         "data_freshness": {
+            "all_reviewed_tasks_fresh": tasks.get("data_fresh") is True,
             "all_seven_tasks_fresh": tasks.get("data_fresh") is True,
             "task_count": tasks.get("task_count"),
             "gate_independent_of_process_alive": True,

@@ -1,0 +1,110 @@
+{
+  "schema_version": "honghu.valuation_tracker.workbook_seed.v1",
+  "workbook_name": "股票篮子.xlsx",
+  "workbook_sha256": "453ded4b67ad53848ffd90ab27ddcad21ba3262d623e3946de613c414091e3e0",
+  "source_file_size_bytes": 10254,
+  "source_workbook_contract": {"sheet_count":1,"sheet_names":["Sheet1"],"used_range":"A1:E8","data_row_count":7,"formula_count":0,"merged_range_count":0,"hidden_row_count":0,"hidden_column_count":0,"auto_filter":null,"table_count":0},
+  "valuation_date": "2026-08-19",
+  "valuation_date_semantics": "导入基准日；原工作簿未提供估值日期，不表示研究员在该日重新出具估值",
+  "expected_sheet_names": ["Sheet1"],
+  "expected_headers": [
+    "股票名称",
+    "股票代码",
+    "所属板块",
+    "2028年预期归母净利润（亿元）",
+    "市值天花板预估（亿元）"
+  ],
+  "rows": [
+    {
+      "display_order": 1,
+      "source_row_number": 2,
+      "canonical_name": "紫金矿业",
+      "canonical_ticker": "601899.SH",
+      "market": "上海",
+      "board": "铜资源",
+      "currency": "CNY",
+      "expected_net_profit": 1183,
+      "ceiling_value": 15379,
+      "source_row": {"股票名称":"紫金矿业","股票代码":"601889","所属板块":"铜资源","2028年预期归母净利润（亿元）":1183,"市值天花板预估（亿元）":15379},
+      "identity_correction": {"corrected":true,"source_ticker":"601889","canonical_ticker":"601899.SH","reason":"源工作簿代码与公司名称冲突；按生产共享身份及上交所证券身份显式纠正，原值永久保留供审计"}
+    },
+    {
+      "display_order": 2,
+      "source_row_number": 3,
+      "canonical_name": "洛阳钼业",
+      "canonical_ticker": "603993.SH",
+      "market": "上海",
+      "board": "铜资源",
+      "currency": "CNY",
+      "expected_net_profit": 405,
+      "ceiling_value": 4787,
+      "source_row": {"股票名称":"洛阳钼业","股票代码":"603993","所属板块":"铜资源","2028年预期归母净利润（亿元）":405,"市值天花板预估（亿元）":4787},
+      "identity_correction": {"corrected":false,"source_ticker":"603993","canonical_ticker":"603993.SH","reason":"补充交易所后缀"}
+    },
+    {
+      "display_order": 3,
+      "source_row_number": 4,
+      "canonical_name": "五矿资源",
+      "canonical_ticker": "1208.HK",
+      "market": "香港",
+      "board": "铜资源",
+      "currency": "HKD",
+      "expected_net_profit": 98,
+      "ceiling_value": 1085,
+      "source_row": {"股票名称":"五矿资源","股票代码":"1208","所属板块":"铜资源","2028年预期归母净利润（亿元）":"98（港元）","市值天花板预估（亿元）":"1085（港元）"},
+      "identity_correction": {"corrected":true,"source_ticker":"1208","canonical_ticker":"1208.HK","reason":"源金额显式标注港元；规范为 HKD 亿元并补充港交所后缀，禁止与人民币市值直接比较"}
+    },
+    {
+      "display_order": 4,
+      "source_row_number": 5,
+      "canonical_name": "藏格矿业",
+      "canonical_ticker": "000408.SZ",
+      "market": "深圳",
+      "board": "铜资源",
+      "currency": "CNY",
+      "expected_net_profit": 99,
+      "ceiling_value": 1197,
+      "source_row": {"股票名称":"藏格矿业","股票代码":"000408","所属板块":"铜资源","2028年预期归母净利润（亿元）":99,"市值天花板预估（亿元）":1197},
+      "identity_correction": {"corrected":false,"source_ticker":"000408","canonical_ticker":"000408.SZ","reason":"保留前导零并补充交易所后缀"}
+    },
+    {
+      "display_order": 5,
+      "source_row_number": 6,
+      "canonical_name": "锡业股份",
+      "canonical_ticker": "000960.SZ",
+      "market": "深圳",
+      "board": "锡",
+      "currency": "CNY",
+      "expected_net_profit": 47,
+      "ceiling_value": 538,
+      "source_row": {"股票名称":"锡业股份","股票代码":"000960","所属板块":"锡","2028年预期归母净利润（亿元）":47,"市值天花板预估（亿元）":538},
+      "identity_correction": {"corrected":false,"source_ticker":"000960","canonical_ticker":"000960.SZ","reason":"保留前导零并补充交易所后缀"}
+    },
+    {
+      "display_order": 6,
+      "source_row_number": 7,
+      "canonical_name": "华锡有色",
+      "canonical_ticker": "600301.SH",
+      "market": "上海",
+      "board": "锡",
+      "currency": "CNY",
+      "expected_net_profit": 21,
+      "ceiling_value": 294,
+      "source_row": {"股票名称":"华锡有色","股票代码":"600301","所属板块":"锡","2028年预期归母净利润（亿元）":21,"市值天花板预估（亿元）":294},
+      "identity_correction": {"corrected":false,"source_ticker":"600301","canonical_ticker":"600301.SH","reason":"补充交易所后缀"}
+    },
+    {
+      "display_order": 7,
+      "source_row_number": 8,
+      "canonical_name": "兴业银锡",
+      "canonical_ticker": "000426.SZ",
+      "market": "深圳",
+      "board": "锡",
+      "currency": "CNY",
+      "expected_net_profit": 71,
+      "ceiling_value": 958,
+      "source_row": {"股票名称":"兴业银锡","股票代码":"000426","所属板块":"锡","2028年预期归母净利润（亿元）":71,"市值天花板预估（亿元）":958},
+      "identity_correction": {"corrected":false,"source_ticker":"000426","canonical_ticker":"000426.SZ","reason":"保留前导零并补充交易所后缀"}
+    }
+  ]
+}

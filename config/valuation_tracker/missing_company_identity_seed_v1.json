@@ -1,0 +1,45 @@
+{
+  "schema_version": "honghu.valuation_tracker.company_identity_seed.v1",
+  "purpose": "补齐股票篮子中生产共享身份客观缺失的三家公司；页面与财务 writer 不得隐式创建",
+  "companies": [
+    {
+      "canonical_name": "锡业股份",
+      "ticker": "000960.SZ",
+      "market": "A股",
+      "listing_status": "listed",
+      "financial_market": "A股",
+      "financial_listing_status": "a_share",
+      "reporting_currency": "CNY",
+      "name_en": null,
+      "fiscal_year_end": "12-31",
+      "verification_source_ref": "https://www.szse.cn/disclosure/notice/t20041104_499325.html",
+      "aliases": ["云南锡业股份有限公司"]
+    },
+    {
+      "canonical_name": "华锡有色",
+      "ticker": "600301.SH",
+      "market": "A股",
+      "listing_status": "listed",
+      "financial_market": "A股",
+      "financial_listing_status": "a_share",
+      "reporting_currency": "CNY",
+      "name_en": null,
+      "fiscal_year_end": "12-31",
+      "verification_source_ref": "https://www.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-06-03/600301_20260603_8FOA.pdf",
+      "aliases": ["广西华锡有色金属股份有限公司"]
+    },
+    {
+      "canonical_name": "兴业银锡",
+      "ticker": "000426.SZ",
+      "market": "A股",
+      "listing_status": "listed",
+      "financial_market": "A股",
+      "financial_listing_status": "a_share",
+      "reporting_currency": "CNY",
+      "name_en": null,
+      "fiscal_year_end": "12-31",
+      "verification_source_ref": "https://www.szse.cn/disclosure/notice/t20231127_604734.html",
+      "aliases": ["内蒙古兴业银锡矿业股份有限公司"]
+    }
+  ]
+}

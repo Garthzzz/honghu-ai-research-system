@@ -68,9 +68,9 @@ def read_task_checkpoint_snapshot(
     """Read the reviewed task definitions and latest durable checkpoint rows."""
 
     expected = tuple(sorted(dict.fromkeys(expected_task_ids)))
-    if len(expected) != 7 or any(not task_id.strip() for task_id in expected):
+    if len(expected) != 10 or any(not task_id.strip() for task_id in expected):
         raise ProductionRecoveryError(
-            "task checkpoint recovery requires the reviewed seven-task manifest"
+            "task checkpoint recovery requires the reviewed ten-task manifest"
         )
     rows = connection.execute(
         """
@@ -191,7 +191,8 @@ def verify_task_checkpoint_restore(
                 f"{label} task checkpoint snapshot identity is invalid"
             )
         tasks = snapshot.get("tasks")
-        if not isinstance(tasks, list) or len(tasks) != 7:
+        expected_count = int(snapshot.get("task_count") or 0)
+        if not isinstance(tasks, list) or expected_count <= 0 or len(tasks) != expected_count:
             raise ProductionRecoveryError(
                 f"{label} task checkpoint snapshot is incomplete"
             )
@@ -213,14 +214,17 @@ def verify_task_checkpoint_restore(
         raise ProductionRecoveryError(
             "restored production task definitions/checkpoints do not match source"
         )
-    if source.get("task_count") != 7 or restored.get("task_count") != 7:
+    if (
+        int(source.get("task_count") or 0) <= 0
+        or source.get("task_count") != restored.get("task_count")
+    ):
         raise ProductionRecoveryError(
             "restored production task checkpoint set is incomplete"
         )
     return {
         "status": "pass",
         "verified": True,
-        "task_count": 7,
+        "task_count": int(source["task_count"]),
         "latest_run_count": int(source.get("latest_run_count") or 0),
         "source_snapshot_identity_sha256": source_identity,
         "restored_snapshot_identity_sha256": restored_identity,
@@ -608,12 +612,12 @@ def run_production_recovery(
     if (
         task_manifest.get("schema_version")
         != "honghu.production_task_manifest.v1"
-        or len(expected_task_ids) != 7
-        or len(set(expected_task_ids)) != 7
+        or len(expected_task_ids) != 10
+        or len(set(expected_task_ids)) != 10
         or any(not value for value in expected_task_ids)
     ):
         raise ProductionRecoveryError(
-            "exact release has no reviewed seven-task manifest"
+            "exact release has no reviewed ten-task manifest"
         )
     output_dir.mkdir(parents=True, exist_ok=True)
     data_dir = install_root / "data"

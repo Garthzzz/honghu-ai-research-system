@@ -18,6 +18,7 @@ TASK_ROLES = {
     "writer_operations_governance",
     "writer_dynamic_intelligence",
     "writer_sentiment_analytics",
+    "writer_financial_data",
 }
 CRYPTPROTECT_LOCAL_MACHINE = 0x4
 

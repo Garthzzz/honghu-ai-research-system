@@ -131,6 +131,8 @@ def logical_window(task: TaskDefinition, now: datetime | None = None) -> str:
         return f"{year}-W{week:02d}"
     if kind == "business_date_slot":
         return f"{current.date().isoformat()}:{task.window['slot']}"
+    if kind == "calendar_month":
+        return current.strftime("%Y-%m")
     return current.date().isoformat()
 
 
@@ -170,6 +172,13 @@ def _most_recent_scheduled_at(task: TaskDefinition, now: datetime) -> datetime:
         candidate = at(current - timedelta(days=(current.weekday() - wanted) % 7), schedule["at"])
         if candidate > current:
             candidate -= timedelta(days=7)
+        return candidate
+    if kind == "monthly_at":
+        day = int(schedule["day"])
+        candidate = at(current.replace(day=day), schedule["at"])
+        if candidate > current:
+            previous = (candidate.replace(day=1) - timedelta(days=1))
+            candidate = at(previous.replace(day=day), schedule["at"])
         return candidate
     raise TaskRunnerError(f"unsupported health schedule: {kind}")
 
@@ -649,8 +658,8 @@ def health(
         "schema_version": "honghu.production_task_health.v1",
         "process_alive_is_not_data_freshness": True,
         "task_count": len(observed),
-        "all_identity_ok": len(observed) == 7 and all(item["identity_ok"] for item in observed),
-        "all_enabled_and_fresh": len(observed) == 7 and all(
+        "all_identity_ok": len(observed) == len(manifest.tasks) and all(item["identity_ok"] for item in observed),
+        "all_enabled_and_fresh": len(observed) == len(manifest.tasks) and all(
             item["data_fresh"] and item["business_checkpoint_observed"]
             for item in observed
         ),

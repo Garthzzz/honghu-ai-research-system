@@ -89,6 +89,42 @@
       "legacy_definition_sha256": "c2a3bb2bbf10e3defe3c4b03c49bea61411d93236fb0fb9c21714d442330755f",
       "legacy_principal": "zhang",
       "command": ["-m", "tools.maintenance.sentiment_retention", "--apply", "--grace-days", "3", "--include-expired-incomplete", "--incomplete-age-days", "3"]
+    },
+    {
+      "task_id": "IndustryDemo_ValuationMarket_1140",
+      "cutover_unit": "financial_data",
+      "writer_units": ["financial_data"],
+      "schedule": {"kind": "weekdays_at", "at": "11:40"},
+      "window": {"kind": "business_date_slot", "slot": "1140"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 900,
+      "legacy_definition_sha256": "82e286a2a1c7b730408da1c8ce7a7038572021757c70a562653779a4de7a6f3b",
+      "legacy_principal": "not_applicable_new_task",
+      "command": ["-m", "tools.financial.valuation_market_refresh", "--slot", "1140"]
+    },
+    {
+      "task_id": "IndustryDemo_ValuationMarket_1510",
+      "cutover_unit": "financial_data",
+      "writer_units": ["financial_data"],
+      "schedule": {"kind": "weekdays_at", "at": "15:10"},
+      "window": {"kind": "business_date_slot", "slot": "1510"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 900,
+      "legacy_definition_sha256": "3a13b69af584b59a7930f85affef4f9fe24b66480d7e85b164b8d7ce4fda19b0",
+      "legacy_principal": "not_applicable_new_task",
+      "command": ["-m", "tools.financial.valuation_market_refresh", "--slot", "1510"]
+    },
+    {
+      "task_id": "IndustryDemo_ValuationAI_Monthly",
+      "cutover_unit": "financial_data",
+      "writer_units": ["financial_data"],
+      "schedule": {"kind": "monthly_at", "day": 5, "at": "07:30"},
+      "window": {"kind": "calendar_month"},
+      "freshness_seconds": 3456000,
+      "execution_timeout_seconds": 3600,
+      "legacy_definition_sha256": "010695f13342cda3cc202094ecbe37301407d37f4e5a13965e532e68b96fbc3b",
+      "legacy_principal": "not_applicable_new_task",
+      "command": ["-m", "tools.financial.valuation_ai_refresh"]
     }
   ]
 }

@@ -57,6 +57,7 @@ $bootstrap = Join-Path $ReleaseDir 'tools\release\direct_candidate.py'
 $manifest = Join-Path $ReleaseDir 'config\operations\production_tasks.json'
 $registry = Join-Path $ReleaseDir 'config\migration\cutover_unit_registry.json'
 $migrationEvidence = Join-Path $RuntimeDir 'evidence\stage5_migration_application.json'
+$valuationSetupEvidence = Join-Path $RuntimeDir 'evidence\valuation_tracker_production_setup.json'
 $servicePreflightEvidence = Join-Path $RuntimeDir 'evidence\production_task_service_preflight.json'
 foreach ($path in @($bootstrap,$manifest,$registry,(Join-Path $ReleaseDir 'RELEASE_MANIFEST.json'))) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -105,8 +106,21 @@ foreach ($readOnlyRoot in $readOnlyRoots) {
     --migration '0016_stage5_bounded_mutation_batch_result.sql' `
     --migration '0017_stage5_set_based_sentiment_delete_batch.sql' `
     --migration '0018_stage5_recovery_checkpoint_read_grant.sql' `
+    --migration '0019_shared_identity_company_profile_batch.sql' `
+    --migration '0020_shared_identity_financial_security_completion.sql' `
+    --migration '0021_valuation_tracker.sql' `
     --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
+# This is the single mutation entry. It verifies both frozen seed file hashes
+# before starting either shared-identity or valuation-tracker writes.
+& $python -I -B -S $bootstrap --site-packages $SitePackages `
+    --module tools.financial.valuation_tracker_production_setup -- `
+    --postgres-runtime-catalog $RuntimeCatalog --cutover-unit-registry $registry `
+    --identity-seed (Join-Path $ReleaseDir 'config\valuation_tracker\missing_company_identity_seed_v1.json') `
+    --workbook-seed (Join-Path $ReleaseDir 'config\valuation_tracker\workbook_seed_v1.json') `
+    --actor 'principal:codex-valuation-tracker-deploy' `
+    --evidence-output $valuationSetupEvidence | Out-Null
+if ($LASTEXITCODE -ne 0) { throw 'Valuation tracker production readback failed.' }
 & $python -I -B -S $bootstrap --site-packages $SitePackages `
     --module tools.operations.task_runner register `
     --manifest $manifest --postgres-runtime-catalog $RuntimeCatalog `
@@ -175,7 +189,7 @@ try {
         $servicePreflight.principal -ne "$computer\$LocalUser" -or
         -not [bool]$servicePreflight.access_verified -or
         -not [bool]$servicePreflight.postgresql_roles_verified -or
-        @($servicePreflight.postgresql_roles).Count -ne 4
+        @($servicePreflight.postgresql_roles).Count -ne 5
     ) {
         throw 'Service-account preflight evidence does not match the exact release contract.'
     }
@@ -197,11 +211,11 @@ if ($LASTEXITCODE -ne 0) { throw 'Disabled production task installation failed.'
     principal="$computer\$LocalUser"
     local_administrator=$false
     credential_store='Windows Credential Manager under dedicated principal'
-    credential_roles=4
+    credential_roles=5
     encrypted_transfer_removed=$true
     service_account_preflight_verified=$true
     service_account_preflight_sha256=(Get-FileHash -LiteralPath $servicePreflightEvidence -Algorithm SHA256).Hash.ToLowerInvariant()
-    tasks_installed_disabled=7
+    tasks_installed_disabled=10
     secret_recorded=$false
 } | ConvertTo-Json -Depth 8
 

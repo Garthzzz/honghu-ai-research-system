@@ -9,10 +9,14 @@
     "research-operator": [
       "analyst_note:read",
       "analyst_note:write",
-      "shared_identity:write"
+      "shared_identity:write",
+      "valuation_tracker:read",
+      "valuation_tracker:write",
+      "valuation_tracker:publish"
     ],
     "research-auditor": [
-      "analyst_note:read"
+      "analyst_note:read",
+      "valuation_tracker:read"
     ]
   }
 }

@@ -60,6 +60,9 @@ TASK_IDS = (
     "IndustryDemo_Retail_Morning",
     "IndustryDemo_Retail_Preopen",
     "IndustryDemo_SentimentRetention",
+    "IndustryDemo_ValuationMarket_1140",
+    "IndustryDemo_ValuationMarket_1510",
+    "IndustryDemo_ValuationAI_Monthly",
 )
 
 
@@ -85,7 +88,7 @@ class _TaskCheckpointConnection:
 def _task_checkpoint_rows() -> list[tuple[object, ...]]:
     observed_at = datetime(2026, 8, 17, 1, 2, 3, tzinfo=timezone.utc)
     rows: list[tuple[object, ...]] = []
-    for index, task_id in enumerate(TASK_IDS):
+    for index, task_id in enumerate(sorted(TASK_IDS)):
         definition = (
             task_id,
             "a" * 64,
@@ -143,7 +146,7 @@ def test_task_checkpoint_restore_canonical_snapshot_and_hash() -> None:
     result = verify_task_checkpoint_restore(source, restored)
 
     assert result["verified"] is True
-    assert result["task_count"] == 7
+    assert result["task_count"] == 10
     assert result["latest_run_count"] == 1
     assert result["source_snapshot_identity_sha256"] == source["identity_sha256"]
     assert result["restored_snapshot_identity_sha256"] == source["identity_sha256"]

@@ -167,6 +167,39 @@ def latest_completed_trade_date(*, client=None, now: datetime | None = None) -> 
     raise WindHttpUnavailable("Wind tdaysoffset 返回中没有可解析交易日")
 
 
+def a_share_trading_day_evidence(
+    trade_date: str, *, client=None
+) -> dict[str, Any]:
+    """Validate one date against both SSE and SZSE Wind calendars."""
+    parsed = _parse_wind_date(trade_date)
+    if not parsed:
+        raise WindHttpUnavailable("trade_date must be an ISO date")
+    actual_client = client or load_wind_http_client()
+    results: dict[str, dict[str, Any]] = {}
+    for exchange in ("SSE", "SZSE"):
+        response = actual_client.tdays(parsed, parsed, f"TradingCalendar={exchange}")
+        code = int(getattr(response, "ErrorCode", -1))
+        if code != 0:
+            raise WindHttpUnavailable(
+                f"Wind {exchange} trading calendar failed: ErrorCode={code}"
+            )
+        candidates: list[Any] = []
+        data = getattr(response, "Data", None)
+        if isinstance(data, (list, tuple)):
+            for row in data:
+                candidates.extend(row if isinstance(row, (list, tuple)) else [row])
+        candidates.extend(getattr(response, "Times", None) or [])
+        dates = sorted({value for item in candidates if (value := _parse_wind_date(item))})
+        results[exchange] = {"dates": dates, "exact_match": parsed in dates}
+    return {
+        "provider": "Wind.tdays",
+        "trade_date": parsed,
+        "exchanges": results,
+        "is_trading_day": all(item["exact_match"] for item in results.values()),
+        "weekday_heuristic_used": False,
+    }
+
+
 def _wss_row(
     ticker: str,
     fields: tuple[str, ...],
@@ -194,6 +227,51 @@ def _wss_row(
         return {str(column).upper(): row[column] for column in frame.columns}
     except Exception as exc:
         raise WindHttpUnavailable("Wind wss 响应结构无法解析") from exc
+
+
+def fetch_intraday_market_cap(
+    ticker: str, *, trade_date: str, client=None
+) -> dict[str, Any]:
+    """Read current-day total market cap without the 16:30 close-date gate."""
+    symbol = str(ticker or "").strip().upper()
+    parsed = _parse_wind_date(trade_date)
+    if not symbol.endswith((".SH", ".SZ")) or not parsed:
+        raise WindHttpUnavailable(
+            "intraday market cap requires an A-share ticker and ISO date"
+        )
+    row = _wss_row(
+        symbol,
+        ("mkt_cap_ard", "trade_status"),
+        options=f"tradeDate={parsed.replace('-', '')};unit=1",
+        client=client,
+    )
+    raw = _finite(row.get("MKT_CAP_ARD"))
+    if raw is None or raw <= 0:
+        raise WindHttpUnavailable(
+            f"Wind market cap is empty or invalid for {symbol}"
+        )
+    raw_status = str(row.get("TRADE_STATUS") or "").strip().casefold()
+    if raw_status in {"交易", "正常交易", "trading", "trade", "normal"}:
+        trading_status = "trading"
+    elif raw_status in {"停牌", "全天停牌", "suspended", "suspend"}:
+        trading_status = "suspended"
+    else:
+        raise WindHttpUnavailable(
+            f"Wind trading status is empty or unsupported for {symbol}: {raw_status!r}"
+        )
+    return {
+        "ticker": symbol,
+        "trade_date": parsed,
+        "raw_field": "mkt_cap_ard",
+        "raw_value_cny": raw,
+        "market_cap_value": raw / 1e8,
+        "currency": "CNY",
+        "unit": "亿元",
+        "provider": "Wind",
+        "trading_status": trading_status,
+        "raw_trading_status": str(row.get("TRADE_STATUS") or "").strip(),
+        "source_ref": f"Wind WSS.mkt_cap_ard+trade_status:{symbol}:{parsed}",
+    }
 
 
 def fetch_current_market_financial_snapshot(

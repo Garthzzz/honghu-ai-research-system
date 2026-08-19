@@ -17,6 +17,8 @@ def test_installer_is_exact_release_disabled_first_and_noninteractive():
     assert "Disable-ScheduledTask" in text
     assert "LocalDisabledEvidence" in text
     assert "TrialEvidence" in text
+    assert "ValuationSetupEvidence" in text
+    assert "--valuation-setup-evidence" in text
     assert "tools.operations.task_enable_evidence" in text
     assert "collector-script" in text
     assert "Interactive" not in text
@@ -75,6 +77,10 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--output $migrationEvidence" in text
     assert "--migrations-dir" not in text
     assert "--evidence $migrationEvidence" not in text
+    assert "--module tools.financial.valuation_tracker_production_setup" in text
+    assert "--verify-only" not in text
+    assert "--module tools.financial.valuation_tracker_seed" not in text
+    assert "--module tools.financial.valuation_tracker_identity_seed" not in text
 
 
 def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():
