@@ -61,13 +61,19 @@ class ValuationTrackerRepository:
         names = [column.name if hasattr(column, "name") else column[0] for column in cursor.description]
         return [dict(zip(names, row)) for row in cursor.fetchall()]
 
-    @staticmethod
-    def _authority(connection: Any) -> AuthorityToken:
-        row = connection.execute(
-            """SELECT state,cutover_epoch,approval_reference,state_revision
-                 FROM operations.cutover_unit_authority
-                WHERE cutover_unit='financial_data'"""
-        ).fetchone()
+    def _authority(self) -> AuthorityToken:
+        # The financial writer intentionally has no direct SELECT capability
+        # on the operations control plane. Read the token with the reader,
+        # then let every SECURITY DEFINER mutation re-check it under row lock.
+        connection = self._read_factory()
+        try:
+            row = connection.execute(
+                """SELECT state,cutover_epoch,approval_reference,state_revision
+                     FROM operations.cutover_unit_authority
+                    WHERE cutover_unit='financial_data'"""
+            ).fetchone()
+        finally:
+            connection.close()
         if row is None or row[0] not in {"S3", "S4"} or not all(row[1:3]):
             raise ValuationTrackerError("financial_data authority is unavailable")
         return AuthorityToken(str(row[0]), str(row[1]), str(row[2]), int(row[3]))
@@ -89,7 +95,7 @@ class ValuationTrackerRepository:
             raise ValuationTrackerError("operation is not a scheduled task scope")
         connection = self._write_factory()
         try:
-            authority = self._authority(connection)
+            authority = self._authority()
             row = connection.execute(
                 """SELECT valuation_tracker.replay_task_result_v1(
                     %s,%s,%s,%s,%s,%s,%s)""",
@@ -179,7 +185,7 @@ class ValuationTrackerRepository:
         payload = self.resolve_seed_identities(seed)
         connection = self._write_factory()
         try:
-            authority = self._authority(connection)
+            authority = self._authority()
             result = connection.execute(
                 "SELECT valuation_tracker.seed_workbook_v1(%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
                 (
@@ -326,7 +332,7 @@ class ValuationTrackerRepository:
             raise ValuationTrackerError("unreviewed valuation tracker function")
         connection = self._write_factory()
         try:
-            authority = self._authority(connection)
+            authority = self._authority()
             params = (*prefix, idempotency_key, WRITER_IDENTITY, authority.state,
                       authority.cutover_epoch, authority.approval_reference,
                       authority.state_revision, actor)
@@ -362,7 +368,7 @@ class ValuationTrackerRepository:
     ) -> dict[str, Any]:
         connection = self._write_factory()
         try:
-            authority = self._authority(connection)
+            authority = self._authority()
             result = connection.execute(
                 "SELECT valuation_tracker.record_market_batch_v1(%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
                 (trade_date, slot, observed_at, calendar_provider, _jsonb(calendar_evidence), _jsonb(items),
@@ -383,7 +389,7 @@ class ValuationTrackerRepository:
     ) -> dict[str, Any]:
         connection = self._write_factory()
         try:
-            authority = self._authority(connection)
+            authority = self._authority()
             result = connection.execute(
                 "SELECT valuation_tracker.record_market_skip_v1(%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
                 (trade_date, slot, calendar_provider, _jsonb(calendar_evidence), idempotency_key,
@@ -404,7 +410,7 @@ class ValuationTrackerRepository:
     ) -> dict[str, Any]:
         connection = self._write_factory()
         try:
-            authority = self._authority(connection)
+            authority = self._authority()
             result = connection.execute(
                 "SELECT valuation_tracker.record_ai_candidates_v1(%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (valuation_date, _jsonb(candidates), prompt_sha256, model_name,
