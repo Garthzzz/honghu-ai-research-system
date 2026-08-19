@@ -115,6 +115,18 @@
       "command": ["-m", "tools.financial.valuation_market_refresh", "--slot", "1510"]
     },
     {
+      "task_id": "IndustryDemo_ValuationMarket_1610",
+      "cutover_unit": "financial_data",
+      "writer_units": ["financial_data"],
+      "schedule": {"kind": "weekdays_at", "at": "16:10"},
+      "window": {"kind": "business_date_slot", "slot": "1610"},
+      "freshness_seconds": 129600,
+      "execution_timeout_seconds": 900,
+      "legacy_definition_sha256": "031e2b2cbf245a3eba670e834d7e42dd0334ab809d0ea7a4643fca0efaa867ef",
+      "legacy_principal": "not_applicable_new_task",
+      "command": ["-m", "tools.financial.valuation_market_refresh", "--slot", "1610"]
+    },
+    {
       "task_id": "IndustryDemo_ValuationAI_Monthly",
       "cutover_unit": "financial_data",
       "writer_units": ["financial_data"],

@@ -111,6 +111,7 @@ foreach ($readOnlyRoot in $readOnlyRoots) {
     --migration '0021_valuation_tracker.sql' `
     --migration '0022_valuation_ai_no_candidate_run.sql' `
     --migration '0023_valuation_market_realtime_provenance.sql' `
+    --migration '0024_valuation_ranges_share_price_hk.sql' `
     --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
 # This is the single mutation entry. It verifies both frozen seed file hashes
@@ -120,6 +121,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
     --postgres-runtime-catalog $RuntimeCatalog --cutover-unit-registry $registry `
     --identity-seed (Join-Path $ReleaseDir 'config\valuation_tracker\missing_company_identity_seed_v1.json') `
     --workbook-seed (Join-Path $ReleaseDir 'config\valuation_tracker\workbook_seed_v1.json') `
+    --valuation-history (Join-Path $ReleaseDir 'config\valuation_tracker\valuation_history_v2.json') `
     --actor 'principal:codex-valuation-tracker-deploy' `
     --evidence-output $valuationSetupEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Valuation tracker production readback failed.' }

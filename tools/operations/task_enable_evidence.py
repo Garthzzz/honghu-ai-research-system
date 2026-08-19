@@ -19,11 +19,13 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 VALUATION_TASKS = {
     "IndustryDemo_ValuationMarket_1140",
     "IndustryDemo_ValuationMarket_1510",
+    "IndustryDemo_ValuationMarket_1610",
     "IndustryDemo_ValuationAI_Monthly",
 }
 VALUATION_WORKBOOK_SHA256 = "453ded4b67ad53848ffd90ab27ddcad21ba3262d623e3946de613c414091e3e0"
 VALUATION_WORKBOOK_SEED_SHA256 = "09907358d4e3ee9751e7196fcd9f27574553b434915bce38af3d7c4175f19e41"
 VALUATION_IDENTITY_SEED_SHA256 = "a0f27b5ffd30bda0eddaeb2f39ef6a0e49e98ad9a618f49f378003e4d874fa8f"
+VALUATION_HISTORY_SHA256 = "6210bc15f3884bb28e3c6bb9ea52d4dee2d5e68f5e33d90b771c7adcfea05ff0"
 VALUATION_MEMBER_CONTRACT = [
     ("紫金矿业", "601899.SH", "上海", "铜资源", "15379", "CNY"),
     ("洛阳钼业", "603993.SH", "上海", "铜资源", "4787", "CNY"),
@@ -195,14 +197,16 @@ def verify_valuation_setup_evidence(evidence_path: Path) -> dict[str, Any]:
     evidence = _json(evidence_path)
     if (
         evidence.get("schema_version")
-        != "honghu.valuation_tracker.production_setup_evidence.v1"
+        != "honghu.valuation_tracker.production_setup_evidence.v2"
         or evidence.get("status") != "pass"
         or evidence.get("contract_verified") is not True
-        or evidence.get("migration_id") != "0021_valuation_tracker"
+        or evidence.get("migration_id") != "0024_valuation_ranges_share_price_hk"
         or not SHA256.fullmatch(str(evidence.get("migration_sha256") or "").lower())
         or evidence.get("workbook_sha256") != VALUATION_WORKBOOK_SHA256
         or evidence.get("workbook_seed_sha256") != VALUATION_WORKBOOK_SEED_SHA256
         or evidence.get("identity_seed_sha256") != VALUATION_IDENTITY_SEED_SHA256
+        or evidence.get("valuation_history_sha256") != VALUATION_HISTORY_SHA256
+        or evidence.get("valuation_history_version_count") != 11
     ):
         raise TaskEnableEvidenceError("valuation setup evidence identity is invalid")
     members = evidence.get("members")
@@ -245,6 +249,7 @@ def verify_valuation_setup_evidence(evidence_path: Path) -> dict[str, Any]:
         "workbook_sha256": VALUATION_WORKBOOK_SHA256,
         "workbook_seed_sha256": VALUATION_WORKBOOK_SEED_SHA256,
         "member_count": len(members),
+        "valuation_history_version_count": 11,
         "verified": True,
     }
 

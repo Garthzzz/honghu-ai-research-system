@@ -30,6 +30,7 @@ TASK_MODULES = {
     "IndustryDemo_SentimentRetention": "tools.maintenance.sentiment_retention",
     "IndustryDemo_ValuationMarket_1140": "tools.financial.valuation_market_refresh",
     "IndustryDemo_ValuationMarket_1510": "tools.financial.valuation_market_refresh",
+    "IndustryDemo_ValuationMarket_1610": "tools.financial.valuation_market_refresh",
     "IndustryDemo_ValuationAI_Monthly": "tools.financial.valuation_ai_refresh",
 }
 

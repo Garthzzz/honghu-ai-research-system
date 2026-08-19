@@ -27,8 +27,8 @@ from tools.financial.valuation_tracker import (
 )
 
 
-MODEL_NAME = "honghu-existing-multi-method-valuation-v1"
-PROMPT_CONTRACT = """按公司详情页现有财务与估值体系复核：经营、盈利、现金流、股东回报、行业与市场变化；仅使用已冻结且有来源的模型输出，至少两种适用估值方法；以各方法上界的中位数作为候选市值天花板。不得用统一固定PE，不得覆盖人工版本；证据不足时不生成。"""
+MODEL_NAME = "honghu-existing-multi-method-valuation-v2"
+PROMPT_CONTRACT = """按公司详情页与行业计算器的既有财务估值体系复核经营、盈利、现金流、股东回报、行业与市场变化；仅使用已冻结且有来源的适用模型，至少两种方法。估值下限取各方法下限中位数，基准估值取各方法中点中位数，估值上限取各方法上限中位数；不得用统一固定PE，不得覆盖人工版本。每期必须冻结输入、方法、来源与变化原因；证据不足时不生成。"""
 PROMPT_SHA256 = hashlib.sha256(PROMPT_CONTRACT.encode("utf-8")).hexdigest()
 
 
@@ -137,9 +137,28 @@ def _candidate(member: dict[str, Any], bundle: dict[str, Any]) -> dict[str, Any]
         return None
     currency = compatible[0]["currency"]
     expected_currency = "HKD" if member.get("market") == "香港" else "CNY"
+    if currency == "USD" and expected_currency == "HKD":
+        previous_input = (member.get("latest_ai_version") or {}).get("frozen_input") or {}
+        fx = previous_input.get("fx_usd_hkd")
+        if not fx or float(fx) <= 0:
+            return None
+        compatible = [
+            {
+                **method,
+                "source_currency": "USD",
+                "currency": "HKD",
+                "low": float(method["low"]) * float(fx),
+                "high": float(method["high"]) * float(fx),
+                "conversion": f"USD估值×{float(fx):.4f} HKD/USD",
+            }
+            for method in compatible
+        ]
+        currency = "HKD"
     if currency != expected_currency:
         return None
-    ceiling = median(method["high"] for method in compatible)
+    lower = median(method["low"] for method in compatible)
+    base = median((method["low"] + method["high"]) / 2 for method in compatible)
+    upper = median(method["high"] for method in compatible)
     detail = _summary(bundle)
     metrics = bundle.get("current_metrics") or {}
     historical = bundle.get("historical_table") or []
@@ -175,10 +194,10 @@ def _candidate(member: dict[str, Any], bundle: dict[str, Any]) -> dict[str, Any]
     ):
         return None
     previous = member.get("latest_ai_version") or {}
-    prior = previous.get("ceiling_value")
+    prior = previous.get("base_value") or previous.get("ceiling_value")
     if prior and previous.get("currency") == currency:
-        pct = (ceiling / float(prior) - 1) * 100
-        reason = f"相对上一期候选变化{pct:+.2f}%；本期重新读取最新冻结模型、经营事实与外部对账。"
+        pct = (base / float(prior) - 1) * 100
+        reason = f"基准估值相对上一期变化{pct:+.2f}%；本期重新读取最新冻结模型、经营事实与外部对账。"
     else:
         reason = "首次形成可比 AI 候选；已重新读取最新冻结模型、经营事实与外部对账。"
     candidate = {
@@ -189,10 +208,13 @@ def _candidate(member: dict[str, Any], bundle: dict[str, Any]) -> dict[str, Any]
             [int(str(method.get("valuation_date") or "0")[:4]) for method in compatible if str(method.get("valuation_date") or "")[:4].isdigit()]
             or [date.today().year + 1]
         ),
-        "ceiling_value": round(float(ceiling), 8),
+        "lower_value": round(float(lower), 8),
+        "base_value": round(float(base), 8),
+        "upper_value": round(float(upper), 8),
+        "ceiling_value": round(float(upper), 8),
         "currency": currency,
         "expected_net_profit": None,
-        "method_summary": f"复用公司详情页{len(compatible)}种冻结估值方法；取各适用方法上界的中位数作为候选天花板，不采用统一固定PE。",
+        "method_summary": f"复用公司详情页{len(compatible)}种冻结估值方法；分别取方法下限、中点和上限的中位数形成估值区间，不采用统一固定PE。",
         "change_reason": reason,
         "operating_context": {"summary": detail.get("operating_analysis") or "以公司详情页最新经营数据与冻结模型为准。"},
         "profit_context": {"summary": detail.get("future_view") or "复核 FY1—FY3 盈利与模型输入。"},
@@ -205,13 +227,91 @@ def _candidate(member: dict[str, Any], bundle: dict[str, Any]) -> dict[str, Any]
                 "已复核当前市值快照："
                 + str((member.get("market_snapshot") or {}).get("market_cap_value") or "暂无")
                 + " " + str((member.get("market_snapshot") or {}).get("currency") or "")
-                + "亿元；估值天花板仍由适用的冻结多方法模型决定。"
+                + "亿元；估值区间仍由适用的冻结多方法模型决定。"
             )
         },
         "sources": dedup_sources,
         "frozen_input": frozen_input,
     }
     return candidate
+
+
+def _review_existing_version(member: dict[str, Any]) -> dict[str, Any] | None:
+    """Create a new monthly review from the last complete reviewed version.
+
+    This path serves companies whose full financial model has not yet been
+    promoted into ``valuation_model_runs``.  It never invents a fixed multiple:
+    it verifies the prior version's named methods and frozen aggregation, freezes
+    the newest Wind market snapshot, and states explicitly when reviewed
+    operating inputs did not change.
+    """
+    previous = member.get("latest_ai_version") or {}
+    methods = previous.get("valuation_methods") or []
+    sources = previous.get("sources") or []
+    normalized = []
+    for method in methods:
+        try:
+            low = float(method["low"])
+            high = float(method["high"])
+            base = float(method.get("base", (low + high) / 2))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if low <= 0 or not low <= base <= high:
+            continue
+        normalized.append({**method, "low": low, "base": base, "high": high})
+    if len(normalized) < 2 or len(sources) < 2:
+        return None
+    try:
+        lower = float(previous["lower_value"])
+        base = float(previous["base_value"])
+        upper = float(previous["upper_value"])
+    except (KeyError, TypeError, ValueError):
+        return None
+    if lower <= 0 or not lower <= base <= upper:
+        return None
+    market = member.get("market_snapshot") or {}
+    frozen_input = {
+        "review_type": "monthly_review_of_last_complete_model",
+        "previous_version_id": previous.get("version_id"),
+        "previous_input_sha256": previous.get("input_sha256"),
+        "previous_output_sha256": previous.get("output_sha256"),
+        "valuation_methods": normalized,
+        "latest_market_snapshot": market,
+        "review_conclusion": "reviewed_inputs_unchanged",
+    }
+    return {
+        "member_id": member["member_id"],
+        "company_id": member["company_id"],
+        "security_id": member["security_id"],
+        "target_year": previous.get("target_year"),
+        "lower_value": round(lower, 8),
+        "base_value": round(base, 8),
+        "upper_value": round(upper, 8),
+        "ceiling_value": round(upper, 8),
+        "currency": previous.get("currency"),
+        "expected_net_profit": previous.get("expected_net_profit"),
+        "method_summary": (
+            "复核上一期完整多方法模型及最新 Wind 行情；各方法的经营、盈利、"
+            "现金流与股东回报输入未出现经审核的变化，因此按原冻结聚合规则复算的区间不变。"
+        ),
+        "change_reason": (
+            "基准估值较上一期变化+0.00%；最新股价和总市值只改变市场相对位置，"
+            "未发现经审核且足以改写模型输入的新事实，故不机械调整内在价值。"
+        ),
+        "operating_context": previous.get("operating_context") or {},
+        "profit_context": previous.get("profit_context") or {},
+        "cash_flow_context": previous.get("cash_flow_context") or {},
+        "shareholder_return_context": previous.get("shareholder_return_context") or {},
+        "valuation_methods": normalized,
+        "market_context": {
+            "summary": (
+                f"本期复核 Wind 最新股价 {market.get('share_price_value', '暂无')}、"
+                f"总市值 {market.get('market_cap_value', '暂无')}；行情变化不直接作为估值输入。"
+            )
+        },
+        "sources": sources,
+        "frozen_input": frozen_input,
+    }
 
 
 def run(*, valuation_date: date | None = None) -> dict[str, Any]:
@@ -221,7 +321,7 @@ def run(*, valuation_date: date | None = None) -> dict[str, Any]:
     window = as_of.strftime("%Y-%m")
     idempotency_key = f"monthly-ai:{window}"
     committed = repo.committed_task_result(
-        "record_ai_candidates_v1", idempotency_key
+        "record_ai_candidates_v2", idempotency_key
     )
     if committed is not None:
         committed["automatic_publish"] = False
@@ -231,15 +331,9 @@ def run(*, valuation_date: date | None = None) -> dict[str, Any]:
     skipped = []
     for member in members:
         bundle = company_bundle(int(member["company_id"]))
-        if not bundle:
-            skipped.append({
-                "member_id": member["member_id"],
-                "company_id": member["company_id"],
-                "security_id": member["security_id"],
-                "reason": "无公司财务模型",
-            })
-            continue
-        candidate = _candidate(member, bundle)
+        candidate = _candidate(member, bundle) if bundle else None
+        if candidate is None:
+            candidate = _review_existing_version(member)
         if candidate is None:
             skipped.append({
                 "member_id": member["member_id"],

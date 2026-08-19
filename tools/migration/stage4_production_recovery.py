@@ -68,9 +68,9 @@ def read_task_checkpoint_snapshot(
     """Read the reviewed task definitions and latest durable checkpoint rows."""
 
     expected = tuple(sorted(dict.fromkeys(expected_task_ids)))
-    if len(expected) != 10 or any(not task_id.strip() for task_id in expected):
+    if len(expected) != 11 or any(not task_id.strip() for task_id in expected):
         raise ProductionRecoveryError(
-            "task checkpoint recovery requires the reviewed ten-task manifest"
+            "task checkpoint recovery requires the reviewed eleven-task manifest"
         )
     rows = connection.execute(
         """
@@ -612,12 +612,12 @@ def run_production_recovery(
     if (
         task_manifest.get("schema_version")
         != "honghu.production_task_manifest.v1"
-        or len(expected_task_ids) != 10
-        or len(set(expected_task_ids)) != 10
+        or len(expected_task_ids) != 11
+        or len(set(expected_task_ids)) != 11
         or any(not value for value in expected_task_ids)
     ):
         raise ProductionRecoveryError(
-            "exact release has no reviewed ten-task manifest"
+            "exact release has no reviewed eleven-task manifest"
         )
     output_dir.mkdir(parents=True, exist_ok=True)
     data_dir = install_root / "data"

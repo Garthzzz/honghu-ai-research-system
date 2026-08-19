@@ -62,6 +62,7 @@ TASK_IDS = (
     "IndustryDemo_SentimentRetention",
     "IndustryDemo_ValuationMarket_1140",
     "IndustryDemo_ValuationMarket_1510",
+    "IndustryDemo_ValuationMarket_1610",
     "IndustryDemo_ValuationAI_Monthly",
 )
 
@@ -146,7 +147,7 @@ def test_task_checkpoint_restore_canonical_snapshot_and_hash() -> None:
     result = verify_task_checkpoint_restore(source, restored)
 
     assert result["verified"] is True
-    assert result["task_count"] == 10
+    assert result["task_count"] == 11
     assert result["latest_run_count"] == 1
     assert result["source_snapshot_identity_sha256"] == source["identity_sha256"]
     assert result["restored_snapshot_identity_sha256"] == source["identity_sha256"]

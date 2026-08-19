@@ -88,9 +88,9 @@ class ValuationTrackerRepository:
         reject same-key/different-payload conflicts.
         """
         if operation_scope not in {
-            "record_market_batch_v1",
-            "record_market_skip_v1",
-            "record_ai_candidates_v1",
+            "record_market_batch_v2",
+            "record_market_skip_v2",
+            "record_ai_candidates_v2",
         }:
             raise ValuationTrackerError("operation is not a scheduled task scope")
         connection = self._write_factory()
@@ -286,7 +286,8 @@ class ValuationTrackerRepository:
             elif snapshot.get("currency") != version.get("currency"):
                 reason = "市值与估值币种不同，不能直接比较"
             else:
-                ratio = float(Decimal(str(market_cap)) / Decimal(str(version["ceiling_value"])))
+                comparison_value = version.get("base_value") or version.get("ceiling_value")
+                ratio = float(Decimal(str(market_cap)) / Decimal(str(comparison_value)))
                 alert = ratio >= float(row[threshold_key])
             row[f"{key}_ratio"] = ratio
             row[f"{key}_alert"] = alert
@@ -295,11 +296,13 @@ class ValuationTrackerRepository:
         previous = row.get("previous_ai_version") or {}
         change = None
         if (
-            latest.get("ceiling_value") is not None
-            and previous.get("ceiling_value") not in (None, 0)
+            (latest.get("base_value") or latest.get("ceiling_value")) is not None
+            and (previous.get("base_value") or previous.get("ceiling_value")) not in (None, 0)
             and latest.get("currency") == previous.get("currency")
         ):
-            change = float((Decimal(str(latest["ceiling_value"])) / Decimal(str(previous["ceiling_value"])) - 1) * 100)
+            latest_base = latest.get("base_value") or latest.get("ceiling_value")
+            previous_base = previous.get("base_value") or previous.get("ceiling_value")
+            change = float((Decimal(str(latest_base)) / Decimal(str(previous_base)) - 1) * 100)
         row["ai_change_pct"] = change
 
     def edit_valuation(
@@ -307,7 +310,7 @@ class ValuationTrackerRepository:
         actor: str, idempotency_key: str,
     ) -> dict[str, Any]:
         return self._write_function(
-            "valuation_tracker.edit_valuation_v1",
+            "valuation_tracker.edit_valuation_v2",
             (member_id, kind, _jsonb(payload), expected_revision),
             actor=actor, idempotency_key=idempotency_key,
         )
@@ -327,7 +330,7 @@ class ValuationTrackerRepository:
         self, function_name: str, prefix: tuple[Any, ...], *, actor: str, idempotency_key: str,
     ) -> dict[str, Any]:
         if function_name not in {
-            "valuation_tracker.edit_valuation_v1", "valuation_tracker.edit_alert_policy_v1"
+            "valuation_tracker.edit_valuation_v2", "valuation_tracker.edit_alert_policy_v1"
         }:
             raise ValuationTrackerError("unreviewed valuation tracker function")
         connection = self._write_factory()
@@ -361,6 +364,24 @@ class ValuationTrackerRepository:
         finally:
             connection.close()
 
+    def hk_share_members(self) -> list[dict[str, Any]]:
+        """Return the single HK watchlist security in canonical display order."""
+        connection = self._read_factory()
+        try:
+            cursor = connection.execute(
+                """SELECT member_id,security_id,canonical_name,canonical_ticker,market
+                     FROM valuation_tracker.member
+                    WHERE enabled AND market='香港' ORDER BY display_order"""
+            )
+            rows = self._dict_rows(cursor)
+            if len(rows) != 1:
+                raise ValuationTrackerError(
+                    "Hong Kong watchlist must contain exactly one security"
+                )
+            return rows
+        finally:
+            connection.close()
+
     def record_market_batch(
         self, trade_date: date, slot: str, observed_at: datetime,
         calendar_provider: str, calendar_evidence: dict[str, Any], items: list[dict[str, Any]],
@@ -370,7 +391,7 @@ class ValuationTrackerRepository:
         try:
             authority = self._authority()
             result = connection.execute(
-                "SELECT valuation_tracker.record_market_batch_v1(%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
+                "SELECT valuation_tracker.record_market_batch_v2(%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
                 (trade_date, slot, observed_at, calendar_provider, _jsonb(calendar_evidence), _jsonb(items),
                  idempotency_key, WRITER_IDENTITY, authority.state, authority.cutover_epoch,
                  authority.approval_reference, authority.state_revision, actor),
@@ -391,7 +412,7 @@ class ValuationTrackerRepository:
         try:
             authority = self._authority()
             result = connection.execute(
-                "SELECT valuation_tracker.record_market_skip_v1(%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
+                "SELECT valuation_tracker.record_market_skip_v2(%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
                 (trade_date, slot, calendar_provider, _jsonb(calendar_evidence), idempotency_key,
                  WRITER_IDENTITY, authority.state, authority.cutover_epoch,
                  authority.approval_reference, authority.state_revision, actor),
@@ -412,11 +433,34 @@ class ValuationTrackerRepository:
         try:
             authority = self._authority()
             result = connection.execute(
-                "SELECT valuation_tracker.record_ai_candidates_v1(%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                "SELECT valuation_tracker.record_ai_candidates_v2(%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (valuation_date, _jsonb(candidates), prompt_sha256, model_name,
                  idempotency_key, WRITER_IDENTITY, authority.state,
                  authority.cutover_epoch, authority.approval_reference,
                  authority.state_revision, actor),
+            ).fetchone()[0]
+            connection.commit()
+            return dict(result)
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def seed_ai_history(
+        self, payload: dict[str, Any], *, actor: str, idempotency_key: str,
+    ) -> dict[str, Any]:
+        """Append the reviewed initial/current valuation history atomically."""
+        connection = self._write_factory()
+        try:
+            authority = self._authority()
+            result = connection.execute(
+                "SELECT valuation_tracker.seed_ai_history_v2(%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
+                (
+                    _jsonb(payload), idempotency_key, WRITER_IDENTITY,
+                    authority.state, authority.cutover_epoch,
+                    authority.approval_reference, authority.state_revision, actor,
+                ),
             ).fetchone()[0]
             connection.commit()
             return dict(result)

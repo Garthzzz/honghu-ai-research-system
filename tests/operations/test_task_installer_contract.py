@@ -75,6 +75,7 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--migration '0017_stage5_set_based_sentiment_delete_batch.sql'" in text
     assert "--migration '0018_stage5_recovery_checkpoint_read_grant.sql'" in text
     assert "--migration '0023_valuation_market_realtime_provenance.sql'" in text
+    assert "--migration '0024_valuation_ranges_share_price_hk.sql'" in text
     assert "--output $migrationEvidence" in text
     assert "--migrations-dir" not in text
     assert "--evidence $migrationEvidence" not in text
@@ -82,6 +83,7 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--verify-only" not in text
     assert "--module tools.financial.valuation_tracker_seed" not in text
     assert "--module tools.financial.valuation_tracker_identity_seed" not in text
+    assert "--valuation-history" in text
 
 
 def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():

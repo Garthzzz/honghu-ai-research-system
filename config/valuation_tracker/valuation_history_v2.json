@@ -1,0 +1,330 @@
+{
+  "schema_version": "honghu.valuation_history.v2",
+  "artifact_sha256": "6210bc15f3884bb28e3c6bb9ea52d4dee2d5e68f5e33d90b771c7adcfea05ff0",
+  "prompt_sha256": "c61fc6dac74db91446e7836bad4bce8794c77ddb86a0de162be2604a75abab5e",
+  "versions": [
+    {
+      "company_id": 635,
+      "ticker": "601899.SH",
+      "valuation_date": "2026-07-27",
+      "target_year": 2027,
+      "lower_value": 8260.93,
+      "base_value": 9832.60,
+      "upper_value": 11406.43,
+      "currency": "CNY",
+      "expected_net_profit": 877.70,
+      "method_summary": "初始版本复用铜矿计算器冻结的正常化市盈率、PB—ROE与股权自由现金流三种方法；区间分别取各方法下限、中点和上限的中位数。",
+      "change_reason": "平台首次冻结的AI估值版本，作为后续月度比较基线。",
+      "operating_context": {"summary": "2026—2028权益铜产量基准为91.49/99.19/112.86万吨；Kamoa恢复、巨龙与塞尔维亚爬坡共同决定兑现。"},
+      "profit_context": {"summary": "FY1—FY3独立收入4300/4750/5350亿元，归母净利润795.3/877.7/980.1亿元；外部一致预期仅用于冻结后对账。"},
+      "cash_flow_context": {"summary": "FY1—FY3股权自由现金流620/690/800亿元，资本开支450/500/550亿元；高投入期现金转化是估值约束。"},
+      "shareholder_return_context": {"summary": "以分红、回购和扩张资本开支共同判断股东回报；2026年回购计划是增量信息，但不替代自由现金流。"},
+      "market_context": {"summary": "估值日平台市场值8378.73亿元；区间不由当前市值反推。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 8777.00, "base": 10532.40, "high": 12287.80, "formula": "2027归母净利润877.7亿元×10—14倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 7438.20, "base": 8614.20, "high": 9790.20, "formula": "2027期末归母净资产2940亿元×2.53—3.33倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 8260.93, "base": 9833.68, "high": 11406.43, "formula": "FY1—FY3 FCFE折现，股权成本10.5%—12.5%，永续增长2%—3%"}
+      ],
+      "sources": [
+        {"title": "紫金矿业2026—2028主要矿产品产量规划", "source_type": "company_filing", "date": "2026-02-09", "source_ref": "https://www.zijinmining.com/upload/file/2026/02/09/c08d3f959bdd4800a9c30c15e6afaab5.pdf"},
+        {"title": "紫金矿业铜矿计算器冻结模型", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "config/copper_calculator_models/copper_calculator_model_v1.json"},
+        {"title": "紫金矿业Wind当前财务与估值快照", "source_type": "model_reconciliation", "date": "2026-07-24", "source_ref": "Wind WSS"}
+      ],
+      "frozen_input": {"model": "copper_calculator_v1", "input_sha256": "sha256:10f39f21c5698af1751aa67092d9ce7f3edec11cf652b4e88ee5cc907f75a486", "output_sha256": "sha256:4d2bd12da43155bc74184a8ea56b0fe3d990074ed774115425a8a5deca2efbb7", "aggregation": "method low/mid/high medians"}
+    },
+    {
+      "company_id": 635,
+      "ticker": "601899.SH",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 8260.93,
+      "base_value": 9832.60,
+      "upper_value": 11406.43,
+      "currency": "CNY",
+      "expected_net_profit": 877.70,
+      "method_summary": "沿用已冻结经营模型并重新核对Wind实时行情、估值倍数和截至估值日新增官方信息；三种方法仍形成同一区间。",
+      "change_reason": "基准估值较上期0.00%。未发现足以修改产量、成本、FY1—FY3利润或现金流假设的新官方事实；股价和市值上升只改变市场相对位置，不直接抬高内在价值。",
+      "operating_context": {"summary": "权益铜产量与项目爬坡假设未变；继续跟踪Kamoa恢复、巨龙及塞尔维亚项目兑现。"},
+      "profit_context": {"summary": "独立FY1—FY3归母净利润仍为795.3/877.7/980.1亿元；2026-08-19 Wind前瞻PE为9.40倍，作为市场对账而非模型输入。"},
+      "cash_flow_context": {"summary": "FY1—FY3 FCFE仍为620/690/800亿元，资本开支仍为450/500/550亿元。"},
+      "shareholder_return_context": {"summary": "股东回报判断未改变：分红和回购需以经营现金流覆盖扩张资本开支为前提。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价32.76元，总市值约8567.52亿元；实时WSQ和日终WSS口径差异留在行情快照。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 8777.00, "base": 10532.40, "high": 12287.80, "formula": "2027归母净利润877.7亿元×10—14倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 7438.20, "base": 8614.20, "high": 9790.20, "formula": "2027期末归母净资产2940亿元×2.53—3.33倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 8260.93, "base": 9833.68, "high": 11406.43, "formula": "FY1—FY3 FCFE折现"}
+      ],
+      "sources": [
+        {"title": "紫金矿业铜矿计算器冻结模型", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "config/copper_calculator_models/copper_calculator_model_v1.json"},
+        {"title": "Wind实时股价、市值与估值快照", "source_type": "model_reconciliation", "date": "2026-08-19", "source_ref": "Wind WSQ/WSS 601899.SH"},
+        {"title": "紫金矿业2026—2028主要矿产品产量规划", "source_type": "company_filing", "date": "2026-02-09", "source_ref": "https://www.zijinmining.com/upload/file/2026/02/09/c08d3f959bdd4800a9c30c15e6afaab5.pdf"}
+      ],
+      "frozen_input": {"previous_input_sha256": "sha256:10f39f21c5698af1751aa67092d9ce7f3edec11cf652b4e88ee5cc907f75a486", "wind_as_of": "2026-08-19", "close": 32.76, "market_cap": 8567.52, "pe_forward": 9.4008, "review_result": "no_model_input_change"}
+    },
+    {
+      "company_id": 634,
+      "ticker": "603993.SH",
+      "valuation_date": "2026-07-27",
+      "target_year": 2027,
+      "lower_value": 2548.15,
+      "base_value": 2960.16,
+      "upper_value": 3418.50,
+      "currency": "CNY",
+      "expected_net_profit": 358.70,
+      "method_summary": "初始版本复用铜矿计算器正常化市盈率、PB—ROE和股权自由现金流，按方法下限、中点和上限的中位数形成区间。",
+      "change_reason": "平台首次冻结的AI估值版本，作为后续月度比较基线。",
+      "operating_context": {"summary": "TFM/KFM高盈利铜钴基座与KFM二期决定增长；2026—2028组合权益铜代理60.04/67.64/72.96万吨。"},
+      "profit_context": {"summary": "FY1—FY3独立归母净利润325.2/358.7/382.1亿元。"},
+      "cash_flow_context": {"summary": "FY1—FY3 FCFE 220/250/270亿元，资本开支160/180/200亿元；现金汇回和营运资金是关键约束。"},
+      "shareholder_return_context": {"summary": "分红与回购必须服从刚果（金）项目资本需求、税费和现金汇回能力。"},
+      "market_context": {"summary": "估值日平台市场值4073.48亿元，已接近或超过部分方法上界。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 3228.30, "base": 3766.35, "high": 4304.40, "formula": "2027归母净利润358.7亿元×9—12倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 2502.60, "base": 2960.55, "high": 3418.50, "formula": "2027期末归母净资产1290亿元×1.94—2.65倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 2548.15, "base": 2964.98, "high": 3381.82, "formula": "FY1—FY3 FCFE折现"}
+      ],
+      "sources": [
+        {"title": "洛阳钼业2025年度业绩", "source_type": "company_filing", "date": "2026-03-27", "source_ref": "https://www.cmoc.com/html/2026/News_0327/398.html"},
+        {"title": "洛阳钼业铜矿计算器冻结模型", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "config/copper_calculator_models/copper_calculator_model_v1.json"},
+        {"title": "洛阳钼业Wind当前财务与估值快照", "source_type": "model_reconciliation", "date": "2026-07-24", "source_ref": "Wind WSS"}
+      ],
+      "frozen_input": {"model": "copper_calculator_v1", "input_sha256": "sha256:ec0fcbe79cf9aa255418206ed2d55f9c394331212469a0c18d3ab2071922d844", "output_sha256": "sha256:3c83e1047f514a79410247035206a2a9de0f6dd352ed5370e7f31f6ae30e8cb3"}
+    },
+    {
+      "company_id": 634,
+      "ticker": "603993.SH",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 2548.15,
+      "base_value": 2960.16,
+      "upper_value": 3418.50,
+      "currency": "CNY",
+      "expected_net_profit": 358.70,
+      "method_summary": "重新核对Wind实时行情和最新官方披露后，经营、盈利与现金流核心假设未改变，继续采用三方法区间。",
+      "change_reason": "基准估值较上期0.00%。本期市场价格变化显著，但没有新的可核验事实改变KFM二期、产量、成本或FY1—FY3现金流，因此不随股价上调估值。",
+      "operating_context": {"summary": "TFM/KFM产量成本和KFM二期假设维持。"},
+      "profit_context": {"summary": "FY1—FY3归母净利润仍为325.2/358.7/382.1亿元；Wind前瞻PE 10.74倍仅用于市场对账。"},
+      "cash_flow_context": {"summary": "FCFE 220/250/270亿元；继续核验利润向现金的转化和现金汇回。"},
+      "shareholder_return_context": {"summary": "股东回报边界未变，资本开支和国家风险仍优先于简单提高分红率。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价18.00元，总市值约3704.37亿元，已高于基准估值。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 3228.30, "base": 3766.35, "high": 4304.40, "formula": "2027归母净利润358.7亿元×9—12倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 2502.60, "base": 2960.55, "high": 3418.50, "formula": "净资产×目标PB"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 2548.15, "base": 2964.98, "high": 3381.82, "formula": "FY1—FY3 FCFE折现"}
+      ],
+      "sources": [
+        {"title": "洛阳钼业铜矿计算器冻结模型", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "config/copper_calculator_models/copper_calculator_model_v1.json"},
+        {"title": "Wind实时股价、市值与估值快照", "source_type": "model_reconciliation", "date": "2026-08-19", "source_ref": "Wind WSQ/WSS 603993.SH"},
+        {"title": "洛阳钼业KFM二期与2028年铜产量目标", "source_type": "company_filing", "date": "2026-04-20", "source_ref": "https://en.cmoc.com/html/2026/News_0420/84.html"}
+      ],
+      "frozen_input": {"previous_input_sha256": "sha256:ec0fcbe79cf9aa255418206ed2d55f9c394331212469a0c18d3ab2071922d844", "wind_as_of": "2026-08-19", "close": 18.0, "market_cap": 3704.37, "pe_forward": 10.7365, "review_result": "no_model_input_change"}
+    },
+    {
+      "company_id": 636,
+      "ticker": "1208.HK",
+      "valuation_date": "2026-07-27",
+      "target_year": 2027,
+      "lower_value": 584.06,
+      "base_value": 693.58,
+      "upper_value": 803.09,
+      "currency": "HKD",
+      "expected_net_profit": 73.01,
+      "method_summary": "初始版本复用铜矿计算器三种美元股权估值，并按冻结的7.80港元/美元换算为亿港元；区间按方法下限、中点和上限中位数形成。",
+      "change_reason": "平台首次冻结的AI估值版本，作为后续月度比较基线。",
+      "operating_context": {"summary": "Las Bambas、Kinsevere和Khoemacau三矿驱动，2026—2028权益铜34.15/35.78/38.90万吨。"},
+      "profit_context": {"summary": "FY1—FY3独立归母净利润10.87/9.36/10.42亿美元；明显低于近期卖方中位数，差异来自项目权益和少数股东约束。"},
+      "cash_flow_context": {"summary": "FY1—FY3 FCFE 12/10/11亿美元，资本开支12.5/14.5/13亿美元。"},
+      "shareholder_return_context": {"summary": "母公司累计亏损与扩产期资本需求限制分红，初始版本不假定回购或稳定派息。"},
+      "market_context": {"summary": "初始模型以港股价值展示，但底层经营模型采用美元；所有换算保存汇率。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 584.06, "base": 693.58, "high": 803.09, "formula": "2027归母净利润9.36亿美元×8—11倍×7.80"},
+        {"name": "PB—ROE", "role": "诊断", "low": 381.19, "base": 485.78, "high": 590.38, "formula": "美元股权价值×7.80"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 644.66, "base": 759.50, "high": 873.15, "formula": "美元FCFE折现结果×7.80"}
+      ],
+      "sources": [
+        {"title": "MMG 2025 Annual Report", "source_type": "company_filing", "date": "2026-04-21", "source_ref": "https://www.mmg.com/wp-content/uploads/2026/04/e_2026-04-21_2025-Annual-Report-1.pdf"},
+        {"title": "五矿资源铜矿计算器冻结模型", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "config/copper_calculator_models/copper_calculator_model_v1.json"},
+        {"title": "最近两个季度卖方预测对账", "source_type": "model_reconciliation", "date": "2026-07-26", "source_ref": "J.P. Morgan/Morgan Stanley/Jefferies/Citi"}
+      ],
+      "frozen_input": {"model": "copper_calculator_v1", "input_sha256": "sha256:6ad6978bc5e9d02212e323217ed8b335d5f74daf1083540409f1983eb5e90eec", "output_sha256": "sha256:dc98513d61ba16385c52d53d73a627e4bae97e9b4c2c6ea61596b526d765235a", "fx_usd_hkd": 7.80}
+    },
+    {
+      "company_id": 636,
+      "ticker": "1208.HK",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 584.06,
+      "base_value": 693.58,
+      "upper_value": 803.09,
+      "currency": "HKD",
+      "expected_net_profit": 73.01,
+      "method_summary": "复核MMG二季度生产报告、三矿扩产路径及Wind港股实时行情；经营模型未出现需要重估的新增事实，继续使用三方法港元区间。",
+      "change_reason": "基准估值较上期0.00%。2026年二季度生产按计划且成本指引改善已在上一版对账中体现；港股市值上升改变相对估值，但不直接改变项目净现值。",
+      "operating_context": {"summary": "Q2生产报告继续支持全年指引；Khoemacau扩建首批精矿仍计划2028年上半年。"},
+      "profit_context": {"summary": "独立FY1—FY3归母净利润10.87/9.36/10.42亿美元；卖方预测差异继续单列。"},
+      "cash_flow_context": {"summary": "扩建资本开支和去杠杆并行，FCFE路径未变。"},
+      "shareholder_return_context": {"summary": "分红约束未解除，不用高铜价短期现金流推导稳定高派息。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价9.25港元，总市值1188.29亿港元，显著高于模型上限。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 584.06, "base": 693.58, "high": 803.09, "formula": "美元利润×PE×7.80港元/美元"},
+        {"name": "PB—ROE", "role": "诊断", "low": 381.19, "base": 485.78, "high": 590.38, "formula": "净资产×目标PB×汇率"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 644.66, "base": 759.50, "high": 873.15, "formula": "美元FCFE折现×汇率"}
+      ],
+      "sources": [
+        {"title": "MMG 2026 Second Quarter Production Report", "source_type": "company_filing", "date": "2026-07-21", "source_ref": "https://www.mmg.com/investors/reports-and-presentations/strong-q2-production-drives-confidence-in-full-year-outlook/"},
+        {"title": "五矿资源铜矿计算器冻结模型", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "config/copper_calculator_models/copper_calculator_model_v1.json"},
+        {"title": "Wind港股实时股价和总市值", "source_type": "model_reconciliation", "date": "2026-08-19", "source_ref": "Wind WSQ 1208.HK"}
+      ],
+      "frozen_input": {"previous_input_sha256": "sha256:6ad6978bc5e9d02212e323217ed8b335d5f74daf1083540409f1983eb5e90eec", "fx_usd_hkd": 7.80, "wind_as_of": "2026-08-19", "close": 9.25, "market_cap": 1188.29, "review_result": "no_model_input_change"}
+    },
+    {
+      "company_id": 650,
+      "ticker": "000408.SZ",
+      "valuation_date": "2026-07-27",
+      "target_year": 2027,
+      "lower_value": 1056.40,
+      "base_value": 1232.45,
+      "upper_value": 1408.50,
+      "currency": "CNY",
+      "expected_net_profit": 88.03,
+      "method_summary": "初始版本复用锂行业公司冻结模型，以2027正常化归母净利润和12—16倍市盈率为核心，PB—ROE与FCFE作诊断。",
+      "change_reason": "平台首次冻结的AI估值版本，作为后续月度比较基线。",
+      "operating_context": {"summary": "盐湖锂、钾肥与巨龙铜业权益构成三条利润线；Mamico项目与巨龙放量决定增量。"},
+      "profit_context": {"summary": "FY1—FY3独立归母净利润67.93/88.03/93.36亿元。"},
+      "cash_flow_context": {"summary": "FY1—FY3 FCFE 55.71/72.19/76.55亿元，轻资本权益收益与项目现金回收存在时差。"},
+      "shareholder_return_context": {"summary": "高权益法利润不等于当期可分配现金，分红判断同时检查项目资本需求和回款。"},
+      "market_context": {"summary": "初始模型区间1056.4—1408.5亿元。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 1056.40, "base": 1232.45, "high": 1408.50, "formula": "2027归母净利润88.03亿元×12—16倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 412.50, "base": 522.50, "high": 632.50, "formula": "预测净资产×1.65—2.53倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 682.60, "base": 814.05, "high": 945.50, "formula": "FY1—FY3 FCFE折现"}
+      ],
+      "sources": [
+        {"title": "藏格矿业公司独立模型冻结输出", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "cache/lithium_research/models/lithium_company_independent_models_v1.json"},
+        {"title": "藏格矿业2025年度财务快照", "source_type": "company_filing", "date": "2026-03-31", "source_ref": "Wind WSS/公司年报"},
+        {"title": "外部机构预测对账", "source_type": "model_reconciliation", "date": "2026-07-27", "source_ref": "cache/lithium_research/models/lithium_external_reconciliation_v1.json"}
+      ],
+      "frozen_input": {"input_sha256": "sha256:17dae942293fb4d85aedce7d4d828436351b8254cc871c5043b1f873a8a58edf", "output_sha256": "sha256:cb6944577a25e306c2cdca4921fda59c2ec112d36d093c23656b8c285d4cac54"}
+    },
+    {
+      "company_id": 650,
+      "ticker": "000408.SZ",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 1081.20,
+      "base_value": 1261.40,
+      "upper_value": 1441.60,
+      "currency": "CNY",
+      "expected_net_profit": 90.10,
+      "method_summary": "在原独立模型上纳入2026年半年度业绩预告和近期机构盈利对账；核心PE方法使用更新后的2027正常化利润，诊断方法保留。",
+      "change_reason": "基准估值较上期上调2.35%。主要来自2026年上半年归母净利润35.5—37.5亿元及巨龙铜业投资收益强于原路径，2027正常化利润由88.03亿元上调至90.10亿元；目标倍数未变。",
+      "operating_context": {"summary": "巨龙铜业放量和钾锂价格改善是本期新增正向事实；项目投产节奏未作额外提前。"},
+      "profit_context": {"summary": "FY1—FY3更新为74.4/90.1/100.2亿元，并与原独立路径67.93/88.03/93.36亿元逐年对比。"},
+      "cash_flow_context": {"summary": "权益法收益与现金分配仍有时差，FCFE方法不按利润同比机械同步上调。"},
+      "shareholder_return_context": {"summary": "利润上修提高潜在分红能力，但实际回报仍取决于巨龙分配、项目投入和公司资本政策。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价75.56元，总市值1185.47亿元，位于更新后估值区间内。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 1081.20, "base": 1261.40, "high": 1441.60, "formula": "2027归母净利润90.10亿元×12—16倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 430.00, "base": 545.00, "high": 660.00, "formula": "更新净资产桥×目标PB"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 682.60, "base": 814.05, "high": 945.50, "formula": "原FCFE路径保持，待现金分配事实更新"}
+      ],
+      "sources": [
+        {"title": "藏格矿业2026年半年度业绩预告", "source_type": "company_filing", "date": "2026-07-07", "source_ref": "https://static.cninfo.com.cn/finalpage/2026-07-07/1225412388.PDF"},
+        {"title": "藏格矿业公司独立模型冻结输出", "source_type": "financial_model_ledger", "date": "2026-07-27", "source_ref": "cache/lithium_research/models/lithium_company_independent_models_v1.json"},
+        {"title": "近期机构盈利预测对账", "source_type": "model_reconciliation", "date": "2026-08-05", "source_ref": "2026-2028归母净利润74.4/90.1/100.2亿元"},
+        {"title": "Wind实时行情与估值快照", "source_type": "market_data", "date": "2026-08-19", "source_ref": "Wind WSQ/WSS 000408.SZ"}
+      ],
+      "frozen_input": {"previous_output_sha256": "sha256:cb6944577a25e306c2cdca4921fda59c2ec112d36d093c23656b8c285d4cac54", "h1_net_profit_range": [35.5,37.5], "forecast_net_profit": {"2026":74.4,"2027":90.1,"2028":100.2}, "pe_range": [12,16], "wind_as_of": "2026-08-19"}
+    },
+    {
+      "company_id": 705,
+      "ticker": "000960.SZ",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 525.00,
+      "base_value": 600.00,
+      "upper_value": 675.00,
+      "currency": "CNY",
+      "expected_net_profit": 37.50,
+      "method_summary": "首次专项模型以锡价、自产矿与冶炼量价桥形成FY1—FY3利润，正常化PE为核心，PB—ROE和FCFE仅作资产回报与现金质量诊断。",
+      "change_reason": "此前公司详情页没有可冻结的AI估值，因此本期是首个版本，不伪造上一期比较。",
+      "operating_context": {"summary": "全球锡产销量龙头，2025年全球市场份额约27.16%；2026年盈利受锡价与铟价上行、矿冶一体化和供应约束驱动。"},
+      "profit_context": {"summary": "独立FY1—FY3归母净利润33.7/37.5/41.0亿元；Wind一致预期36.33/39.84/41.26亿元用于冻结后对账。"},
+      "cash_flow_context": {"summary": "2025经营现金流12.95亿元、资本开支6.30亿元、简化自由现金流6.65亿元；模型不把单年营运资金波动永久化。"},
+      "shareholder_return_context": {"summary": "低毛利冶炼业务与资源端共同决定现金转化；股东回报需同时看分红、可续期债与资本开支。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价36.19元，总市值595.48亿元，接近基准估值。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 525.00, "base": 600.00, "high": 675.00, "formula": "2027独立归母净利润37.5亿元×14—18倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 382.00, "base": 485.00, "high": 588.00, "formula": "2027平均归母净资产约277亿元×1.38—2.12倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 225.00, "base": 275.00, "high": 326.00, "formula": "FY1—FY3正常化FCFE折现；因营运资金与资本开支资料有限降权"}
+      ],
+      "sources": [
+        {"title": "锡业股份2025年年度报告", "source_type": "company_filing", "date": "2026-03-30", "source_ref": "https://disc.static.szse.cn/disc/disk03/finalpage/2026-03-30/2c7a8361-7472-4165-b8e6-9ff9898373d7.PDF"},
+        {"title": "锡业股份2026年半年度业绩预告", "source_type": "company_filing", "date": "2026-07-15", "source_ref": "CNINFO announcement 2026-041"},
+        {"title": "Wind 2025实际财务与FY1—FY3一致预期", "source_type": "model_reconciliation", "date": "2026-08-19", "source_ref": "Wind WSS 000960.SZ"},
+        {"title": "近期机构锡业股份盈利与目标价预测", "source_type": "sell_side_report", "date": "2026-05-06", "source_ref": "2026/2027归母净利润41.2/45.7亿元，目标价38.84元"}
+      ],
+      "frozen_input": {"actual_2025":{"revenue":435.35,"net_profit":19.66,"ocf":12.95,"capex":6.30,"equity":229.75},"h1_2026_net_profit_range":[14.7,15.7],"independent_net_profit":{"2026":33.7,"2027":37.5,"2028":41.0},"wind_consensus_net_profit":{"2026":36.33,"2027":39.84,"2028":41.26},"pe_range":[14,18]}
+    },
+    {
+      "company_id": 706,
+      "ticker": "600301.SH",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 240.00,
+      "base_value": 285.00,
+      "upper_value": 330.00,
+      "currency": "CNY",
+      "expected_net_profit": 15.00,
+      "method_summary": "首次专项模型按锡锑资源产销量、价格与成本桥预测盈利；正常化PE为核心，PB—ROE和FCFE用于验证资源回报与现金质量。",
+      "change_reason": "此前公司详情页没有可冻结的AI估值，因此本期是首个版本，不伪造上一期比较。",
+      "operating_context": {"summary": "锡锑双主业和广西关键金属资源整合提供增长；资源品位、采选进度、锡锑价格和整合兑现是主要变量。"},
+      "profit_context": {"summary": "独立FY1—FY3归母净利润12.5/15.0/17.5亿元；Wind一致预期13.56/16.77/19.27亿元用于对账。"},
+      "cash_flow_context": {"summary": "2025经营现金流14.63亿元、资本开支1.61亿元；高现金转化包含营运资金影响，估值未将其直接永续化。"},
+      "shareholder_return_context": {"summary": "资源整合和扩产优先消耗现金；分红能力需以持续经营现金流和少数股东口径复核。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价47.10元，总市值297.94亿元，略高于基准估值。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 240.00, "base": 285.00, "high": 330.00, "formula": "2027独立归母净利润15亿元×16—22倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 211.50, "base": 247.00, "high": 282.00, "formula": "2027归母净资产约70.5亿元×3.0—4.0倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 90.00, "base": 120.00, "high": 150.00, "formula": "正常化FCFE折现；营运资金波动较大因此降权"}
+      ],
+      "sources": [
+        {"title": "华锡有色2025年年度报告", "source_type": "company_filing", "date": "2026-04-22", "source_ref": "SSE 600301 2025 annual report"},
+        {"title": "华锡有色2026年第一季度报告", "source_type": "company_filing", "date": "2026-04-22", "source_ref": "https://static.sse.com.cn/disclosure/listedinfo/announcement/c/new/2026-04-22/600301_20260422_EIWP.pdf"},
+        {"title": "Wind 2025实际财务与FY1—FY3一致预期", "source_type": "model_reconciliation", "date": "2026-08-19", "source_ref": "Wind WSS 600301.SH"},
+        {"title": "华锡有色首次覆盖报告", "source_type": "sell_side_report", "date": "2026-04-02", "source_ref": "2026年25倍PE、目标价54.75元"}
+      ],
+      "frozen_input": {"actual_2025":{"revenue":58.03,"net_profit":8.01,"ocf":14.63,"capex":1.61,"equity_total":58.99},"q1_2026_parent_profit":1.78,"independent_net_profit":{"2026":12.5,"2027":15.0,"2028":17.5},"wind_consensus_net_profit":{"2026":13.56,"2027":16.77,"2028":19.27},"pe_range":[16,22]}
+    },
+    {
+      "company_id": 707,
+      "ticker": "000426.SZ",
+      "valuation_date": "2026-08-19",
+      "target_year": 2027,
+      "lower_value": 616.00,
+      "base_value": 704.00,
+      "upper_value": 792.00,
+      "currency": "CNY",
+      "expected_net_profit": 44.00,
+      "method_summary": "首次专项模型拆分银锡价格、宇邦矿业放量和一次性处置收益；正常化PE为核心，PB—ROE与FCFE作诊断，不把一次性收益永久化。",
+      "change_reason": "此前公司详情页没有可冻结的AI估值，因此本期是首个版本，不伪造上一期比较。",
+      "operating_context": {"summary": "宇邦矿业产能释放、银锡价格和矿山品位是主要驱动；825万吨项目达产后白银产量目标需按建设进度逐期验证。"},
+      "profit_context": {"summary": "独立FY1—FY3归母净利润37.5/44.0/54.0亿元；2026上半年预告21.4—23.7亿元中约4.54亿元为股权处置非经常损益。"},
+      "cash_flow_context": {"summary": "2025经营现金流24.88亿元、资本开支5.28亿元；2026Q1经营现金流12.17亿元，扩产期需继续扣除建设资本开支。"},
+      "shareholder_return_context": {"summary": "2024年现金分红率较低；宇邦扩产和债务安排优先，估值不假定大幅提高派息。"},
+      "market_context": {"summary": "Wind 2026-08-19未复权股价35.96元，总市值638.52亿元，略高于区间下限、低于基准估值。"},
+      "valuation_methods": [
+        {"name": "正常化市盈率", "role": "核心", "low": 616.00, "base": 704.00, "high": 792.00, "formula": "2027正常化归母净利润44亿元×14—18倍"},
+        {"name": "PB—ROE", "role": "诊断", "low": 510.00, "base": 612.00, "high": 714.00, "formula": "2027预测归母净资产约170亿元×3.0—4.2倍"},
+        {"name": "股权自由现金流", "role": "诊断", "low": 260.00, "base": 335.00, "high": 410.00, "formula": "FY1—FY3正常化FCFE折现，扣除扩产资本开支"}
+      ],
+      "sources": [
+        {"title": "兴业银锡2025年年度报告", "source_type": "company_filing", "date": "2026-04-30", "source_ref": "SZSE/CNINFO 000426 annual report"},
+        {"title": "兴业银锡2026年半年度业绩预告", "source_type": "company_filing", "date": "2026-07-15", "source_ref": "CNINFO 000426 announcement"},
+        {"title": "Wind 2025实际财务及实时行情", "source_type": "model_reconciliation", "date": "2026-08-19", "source_ref": "Wind WSS/WSQ 000426.SZ"},
+        {"title": "国信证券兴业银锡深度报告", "source_type": "sell_side_report", "date": "2025-05-16", "source_ref": "2025-2027完整三表和FCFE预测，仅作历史模型对账"}
+      ],
+      "frozen_input": {"actual_2025":{"revenue":55.55,"net_profit":17.04,"ocf":24.88,"capex":5.28,"equity_total":101.61},"h1_2026_net_profit_range":[21.4,23.7],"h1_2026_recurring_net_profit_range":[16.9,19.2],"one_off_gain":4.54,"independent_net_profit":{"2026":37.5,"2027":44.0,"2028":54.0},"pe_range":[14,18]}
+    }
+  ]
+}

@@ -8,7 +8,8 @@ from tools.financial import valuation_market_refresh
 
 from tools.pipeline.wind_http_provider import (
     a_share_trading_day_evidence,
-    fetch_intraday_market_cap,
+    fetch_intraday_market_quote,
+    hk_trading_day_evidence,
 )
 
 
@@ -29,6 +30,7 @@ class FakeWind:
             ErrorCode=0,
             dfData=pd.DataFrame([{
                 "RT_MKT_CAP": 123_456_000_000.0,
+                "RT_LAST": 12.34,
                 "RT_SUSP_FLAG": self.suspension_flag,
             }]),
         )
@@ -49,23 +51,35 @@ def test_exchange_holiday_returns_non_trading_day() -> None:
     assert evidence["is_trading_day"] is False
 
 
-def test_intraday_market_cap_uses_same_day_and_cny_yi_conversion() -> None:
+def test_intraday_market_quote_uses_same_day_and_cny_yi_conversion() -> None:
     client = FakeWind(["2026-08-19"])
-    value = fetch_intraday_market_cap(
+    value = fetch_intraday_market_quote(
         "601899.SH", trade_date="2026-08-19", client=client
     )
     assert value["market_cap_value"] == 1234.56
+    assert value["share_price_value"] == 12.34
     assert value["currency"] == "CNY"
     assert value["trading_status"] == "trading"
     assert value["raw_field"] == "rt_mkt_cap"
-    assert client.wsq_calls == [("601899.SH", "rt_mkt_cap,rt_susp_flag")]
+    assert client.wsq_calls == [("601899.SH", "rt_last,rt_mkt_cap,rt_susp_flag")]
 
 
 def test_intraday_market_cap_preserves_suspension_as_non_comparable_state() -> None:
-    value = fetch_intraday_market_cap(
+    value = fetch_intraday_market_quote(
         "601899.SH", trade_date="2026-08-19", client=FakeWind([], 1)
     )
     assert value["trading_status"] == "suspended"
+
+
+def test_hk_calendar_and_quote_keep_hkd_units() -> None:
+    client = FakeWind(["2026-08-19"])
+    evidence = hk_trading_day_evidence("2026-08-19", client=client)
+    value = fetch_intraday_market_quote("1208.HK", trade_date="2026-08-19", client=client)
+    assert evidence["is_trading_day"] is True
+    assert client.calendar_calls[0][2] == "TradingCalendar=HKEX"
+    assert value["currency"] == value["share_price_currency"] == "HKD"
+    assert value["unit"] == "亿元"
+    assert value["share_price_unit"] == "元"
 
 
 def test_refresh_passes_realtime_raw_field_into_persisted_batch(monkeypatch) -> None:
@@ -96,14 +110,18 @@ def test_refresh_passes_realtime_raw_field_into_persisted_batch(monkeypatch) -> 
     )
     monkeypatch.setattr(
         valuation_market_refresh,
-        "fetch_intraday_market_cap",
+        "fetch_intraday_market_quote",
         lambda *_args, **_kwargs: {
             "market_cap_value": 100,
+            "share_price_value": 10,
             "currency": "CNY",
+            "share_price_currency": "CNY",
             "unit": "亿元",
+            "share_price_unit": "元",
+            "share_price_raw_field": "rt_last",
             "raw_field": "rt_mkt_cap",
             "trading_status": "trading",
-            "source_ref": "Wind WSQ.rt_mkt_cap+rt_susp_flag:test:2026-08-19",
+            "source_ref": "Wind WSQ.rt_last+rt_mkt_cap+rt_susp_flag:test:2026-08-19",
         },
     )
     result = valuation_market_refresh.run(

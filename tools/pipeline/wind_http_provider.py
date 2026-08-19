@@ -200,6 +200,34 @@ def a_share_trading_day_evidence(
     }
 
 
+def hk_trading_day_evidence(trade_date: str, *, client=None) -> dict[str, Any]:
+    """Validate one ISO date against Wind's HKEX trading calendar."""
+    parsed = _parse_wind_date(trade_date)
+    if not parsed:
+        raise WindHttpUnavailable("trade_date must be an ISO date")
+    actual_client = client or load_wind_http_client()
+    response = actual_client.tdays(parsed, parsed, "TradingCalendar=HKEX")
+    code = int(getattr(response, "ErrorCode", -1))
+    if code != 0:
+        raise WindHttpUnavailable(
+            f"Wind HKEX trading calendar failed: ErrorCode={code}"
+        )
+    candidates: list[Any] = []
+    data = getattr(response, "Data", None)
+    if isinstance(data, (list, tuple)):
+        for row in data:
+            candidates.extend(row if isinstance(row, (list, tuple)) else [row])
+    candidates.extend(getattr(response, "Times", None) or [])
+    dates = sorted({value for item in candidates if (value := _parse_wind_date(item))})
+    return {
+        "provider": "Wind.tdays",
+        "trade_date": parsed,
+        "exchanges": {"HKEX": {"dates": dates, "exact_match": parsed in dates}},
+        "is_trading_day": parsed in dates,
+        "weekday_heuristic_used": False,
+    }
+
+
 def _wss_row(
     ticker: str,
     fields: tuple[str, ...],
@@ -258,28 +286,35 @@ def _wsq_row(
         raise WindHttpUnavailable("Wind wsq response cannot be parsed") from exc
 
 
-def fetch_intraday_market_cap(
+def fetch_intraday_market_quote(
     ticker: str, *, trade_date: str, client=None
 ) -> dict[str, Any]:
-    """Read current-day total market cap without the 16:30 close-date gate."""
+    """Read an unadjusted real-time price and total market cap.
+
+    Units: ``share_price_value`` is CNY/share for A shares and HKD/share for
+    Hong Kong shares; ``market_cap_value`` is hundred-million units of the
+    same currency.  ``observed_at`` is supplied by the caller in
+    Asia/Shanghai and is not inferred from the quote payload.
+    """
     symbol = str(ticker or "").strip().upper()
     parsed = _parse_wind_date(trade_date)
-    if not symbol.endswith((".SH", ".SZ")) or not parsed:
+    if not symbol.endswith((".SH", ".SZ", ".HK")) or not parsed:
         raise WindHttpUnavailable(
-            "intraday market cap requires an A-share ticker and ISO date"
+            "intraday market quote requires an A/H-share ticker and ISO date"
         )
     # mkt_cap_ard is an end-of-day WSS field and is NULL during the current
     # session on the production proxy.  The two intraday slots must therefore
     # use Wind's real-time WSQ market cap and explicit suspension flag.
     row = _wsq_row(
         symbol,
-        ("rt_mkt_cap", "rt_susp_flag"),
+        ("rt_last", "rt_mkt_cap", "rt_susp_flag"),
         client=client,
     )
+    raw_price = _finite(row.get("RT_LAST"))
     raw = _finite(row.get("RT_MKT_CAP"))
-    if raw is None or raw <= 0:
+    if raw_price is None or raw_price <= 0 or raw is None or raw <= 0:
         raise WindHttpUnavailable(
-            f"Wind market cap is empty or invalid for {symbol}"
+            f"Wind price or market cap is empty or invalid for {symbol}"
         )
     raw_suspension = row.get("RT_SUSP_FLAG")
     normalized_suspension = str(raw_suspension).strip().casefold()
@@ -292,19 +327,40 @@ def fetch_intraday_market_cap(
             f"Wind suspension flag is empty or unsupported for {symbol}: "
             f"{raw_suspension!r}"
         )
+    currency = "HKD" if symbol.endswith(".HK") else "CNY"
     return {
         "ticker": symbol,
         "trade_date": parsed,
         "raw_field": "rt_mkt_cap",
-        "raw_value_cny": raw,
+        "raw_value": raw,
         "market_cap_value": raw / 1e8,
-        "currency": "CNY",
+        "currency": currency,
         "unit": "亿元",
+        "share_price_value": raw_price,
+        "share_price_currency": currency,
+        "share_price_unit": "元",
+        "share_price_raw_field": "rt_last",
         "provider": "Wind",
         "trading_status": trading_status,
         "raw_trading_status": str(raw_suspension).strip(),
-        "source_ref": f"Wind WSQ.rt_mkt_cap+rt_susp_flag:{symbol}:{parsed}",
+        "source_ref": (
+            f"Wind WSQ.rt_last+rt_mkt_cap+rt_susp_flag:{symbol}:{parsed}"
+        ),
     }
+
+
+def fetch_intraday_market_cap(
+    ticker: str, *, trade_date: str, client=None
+) -> dict[str, Any]:
+    """Backward-compatible alias returning the richer A-share quote payload."""
+    symbol = str(ticker or "").strip().upper()
+    if not symbol.endswith((".SH", ".SZ")):
+        raise WindHttpUnavailable(
+            "intraday market cap compatibility path only accepts A shares"
+        )
+    return fetch_intraday_market_quote(
+        symbol, trade_date=trade_date, client=client
+    )
 
 
 def fetch_current_market_financial_snapshot(

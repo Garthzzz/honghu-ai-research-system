@@ -2,9 +2,10 @@ from __future__ import annotations
 
 """One reviewed production setup path for valuation tracker seed data.
 
-PostgreSQL migrations must already have been applied through 0021.  The tool
+PostgreSQL migrations must already have been applied through 0024.  The tool
 then creates only the three frozen missing shared identities, imports the
-reviewed workbook exactly once, and performs an exact seven-member readback.
+reviewed workbook and valuation history exactly once, and performs an exact
+seven-member/eleven-version readback.
 """
 
 import argparse
@@ -25,6 +26,11 @@ from tools.financial.valuation_tracker_identity_seed import (
     main as identity_seed_main,
 )
 from tools.financial.valuation_tracker_seed import main as workbook_seed_main
+from tools.financial.valuation_tracker_history_seed import (
+    REVIEWED_HISTORY_SHA256,
+    canonical_history_sha256,
+    main as history_seed_main,
+)
 
 
 REVIEWED_WORKBOOK_SEED_SHA256 = (
@@ -54,6 +60,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--cutover-unit-registry", type=Path, required=True)
     parser.add_argument("--identity-seed", type=Path, required=True)
     parser.add_argument("--workbook-seed", type=Path, required=True)
+    parser.add_argument("--valuation-history", type=Path, required=True)
     parser.add_argument("--actor", required=True)
     parser.add_argument("--evidence-output", type=Path, required=True)
     parser.add_argument("--verify-only", action="store_true")
@@ -62,12 +69,19 @@ def main(argv: list[str] | None = None) -> int:
     identity_sha = hashlib.sha256(args.identity_seed.read_bytes()).hexdigest()
     workbook_seed_sha = hashlib.sha256(args.workbook_seed.read_bytes()).hexdigest()
     workbook_payload = json.loads(args.workbook_seed.read_text(encoding="utf-8"))
+    history_payload = json.loads(args.valuation_history.read_text(encoding="utf-8"))
     if identity_sha != REVIEWED_SEED_SHA256:
         raise RuntimeError("identity seed SHA does not match reviewed production input")
     if workbook_seed_sha != REVIEWED_WORKBOOK_SEED_SHA256:
         raise RuntimeError("workbook seed file SHA does not match reviewed production input")
     if workbook_payload.get("workbook_sha256") != WORKBOOK_SHA256:
         raise RuntimeError("workbook source SHA does not match reviewed production input")
+    history_sha = canonical_history_sha256(history_payload)
+    if (
+        history_sha != REVIEWED_HISTORY_SHA256
+        or history_payload.get("artifact_sha256") != history_sha
+    ):
+        raise RuntimeError("valuation history content hash is not reviewed")
 
     catalog = load_postgres_runtime_catalog(args.postgres_runtime_catalog)
     migration_reader = build_catalog_connection_factory(catalog, role="migration")
@@ -76,7 +90,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         migration = connection.execute(
             """SELECT migration_sha256 FROM operations.schema_migration
-                WHERE migration_id='0021_valuation_tracker'"""
+                WHERE migration_id='0024_valuation_ranges_share_price_hk'"""
         ).fetchone()
         if migration is None:
             raise RuntimeError("migration 0021 is not applied; refusing to seed")
@@ -85,6 +99,7 @@ def main(argv: list[str] | None = None) -> int:
 
     identity_result = {"status": "verified_existing"}
     workbook_result = {"status": "verified_existing"}
+    history_result = {"status": "verified_existing"}
     if not args.verify_only:
         identity_result = _run(identity_seed_main, [
             "--postgres-runtime-catalog", str(args.postgres_runtime_catalog),
@@ -94,6 +109,10 @@ def main(argv: list[str] | None = None) -> int:
         workbook_result = _run(workbook_seed_main, [
             "--postgres-runtime-catalog", str(args.postgres_runtime_catalog),
             "--seed", str(args.workbook_seed), "--actor", args.actor,
+        ])
+        history_result = _run(history_seed_main, [
+            "--postgres-runtime-catalog", str(args.postgres_runtime_catalog),
+            "--history", str(args.valuation_history), "--actor", args.actor,
         ])
 
     connection = reader()
@@ -202,19 +221,68 @@ def main(argv: list[str] | None = None) -> int:
     if len(seen_company_ids) != 7 or len(seen_security_ids) != 7:
         raise RuntimeError("production company or security identities are duplicated")
 
+    expected_history = {
+        (int(row["company_id"]), str(row["valuation_date"])): row
+        for row in history_payload["versions"]
+    }
+    connection = reader()
+    try:
+        history_rows = connection.execute(
+            """SELECT m.company_id,m.security_id,m.canonical_ticker,v.valuation_date,
+                      v.lower_value,v.base_value,v.upper_value,v.currency,
+                      v.operating_context,v.profit_context,v.cash_flow_context,
+                      v.shareholder_return_context,v.valuation_methods,v.market_context,
+                      v.sources,v.frozen_input,v.method_summary,v.change_reason
+                 FROM valuation_tracker.valuation_version v
+                 JOIN valuation_tracker.member m USING(member_id)
+                WHERE v.model_name='honghu-reviewed-valuation-history-v2'
+                ORDER BY m.company_id,v.valuation_date"""
+        ).fetchall()
+    finally:
+        connection.close()
+    if len(history_rows) != 11:
+        raise RuntimeError("production valuation history is not the exact eleven-version set")
+    for row in history_rows:
+        expected = expected_history.get((int(row[0]), str(row[3])))
+        if expected is None:
+            raise RuntimeError("production valuation history contains an unexpected identity")
+        exact = (
+            int(row[1]) > 0
+            and str(row[2]) == expected["ticker"]
+            and float(row[4]) == float(expected["lower_value"])
+            and float(row[5]) == float(expected["base_value"])
+            and float(row[6]) == float(expected["upper_value"])
+            and str(row[7]) == expected["currency"]
+            and _json_value(row[8]) == expected["operating_context"]
+            and _json_value(row[9]) == expected["profit_context"]
+            and _json_value(row[10]) == expected["cash_flow_context"]
+            and _json_value(row[11]) == expected["shareholder_return_context"]
+            and _json_value(row[12]) == expected["valuation_methods"]
+            and _json_value(row[13]) == expected["market_context"]
+            and _json_value(row[14]) == expected["sources"]
+            and _json_value(row[15]) == expected["frozen_input"]
+            and str(row[16]) == expected["method_summary"]
+            and str(row[17]) == expected["change_reason"]
+        )
+        if not exact:
+            raise RuntimeError("production valuation history differs from reviewed input")
+
     evidence = {
-        "schema_version": "honghu.valuation_tracker.production_setup_evidence.v1",
+        "schema_version": "honghu.valuation_tracker.production_setup_evidence.v2",
         "status": "pass",
         "recorded_at": datetime.now(timezone.utc).isoformat(),
         "actor": args.actor,
-        "migration_id": "0021_valuation_tracker",
+        "migration_id": "0024_valuation_ranges_share_price_hk",
         "migration_sha256": str(migration[0]),
         "identity_seed_sha256": identity_sha,
         "workbook_seed_sha256": workbook_seed_sha,
         "workbook_sha256": WORKBOOK_SHA256,
+        "valuation_history_sha256": history_sha,
         "contract_verified": True,
         "identity_result": identity_result,
         "workbook_result": workbook_result,
+        "history_result": history_result,
+        "valuation_history_version_count": len(history_rows),
         "members": [
             {
                 "company_id": int(row[0]), "security_id": int(row[1]),

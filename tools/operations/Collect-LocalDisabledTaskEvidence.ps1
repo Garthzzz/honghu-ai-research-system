@@ -21,7 +21,7 @@ $manifestPayload = Get-Content -Raw -LiteralPath $Manifest | ConvertFrom-Json
 $definitions = @($manifestPayload.tasks)
 if (
     $manifestPayload.schema_version -ne 'honghu.production_task_manifest.v1' -or
-    $definitions.Count -ne 10
+    $definitions.Count -ne 11
 ) { throw 'The reviewed ten-task manifest is invalid.' }
 
 $hostName = $env:COMPUTERNAME.ToUpperInvariant()

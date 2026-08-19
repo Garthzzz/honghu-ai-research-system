@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""Refresh the six A-share market-cap snapshots for one reviewed intraday slot."""
+"""Refresh A/H-share price and market-cap snapshots for one reviewed slot."""
 
 import argparse
 import hashlib
@@ -17,13 +17,14 @@ from tools.data_platform.postgres_runtime import (
 from tools.financial.valuation_tracker import ValuationTrackerRepository, sha256_json
 from tools.pipeline.wind_http_provider import (
     a_share_trading_day_evidence,
-    fetch_intraday_market_cap,
+    fetch_intraday_market_quote,
+    hk_trading_day_evidence,
     load_wind_http_client,
 )
 
 
 BEIJING = ZoneInfo("Asia/Shanghai")
-SLOT_TIMES = {"1140": time(11, 40), "1510": time(15, 10)}
+SLOT_TIMES = {"1140": time(11, 40), "1510": time(15, 10), "1610": time(16, 10)}
 
 
 def _repository(path: Path) -> ValuationTrackerRepository:
@@ -36,7 +37,7 @@ def _repository(path: Path) -> ValuationTrackerRepository:
 
 def run(slot: str, *, now: datetime | None = None) -> dict:
     if slot not in SLOT_TIMES:
-        raise ValueError("slot must be 1140 or 1510")
+        raise ValueError("slot must be 1140, 1510, or 1610")
     current = (now or datetime.now(BEIJING)).astimezone(BEIJING)
     if current.time() < SLOT_TIMES[slot]:
         raise RuntimeError(f"slot {slot} has not reached its trigger time")
@@ -49,15 +50,18 @@ def run(slot: str, *, now: datetime | None = None) -> dict:
     repo = _repository(runtime)
     idem = hashlib.sha256(operation_id.encode("utf-8")).hexdigest()
     for scope, key in (
-        ("record_market_batch_v1", f"market-batch:{idem}"),
-        ("record_market_skip_v1", f"market-skip:{idem}"),
+        ("record_market_batch_v2", f"market-batch:{idem}"),
+        ("record_market_skip_v2", f"market-skip:{idem}"),
     ):
         committed = repo.committed_task_result(scope, key)
         if committed is not None:
             return committed
     client = load_wind_http_client()
-    evidence = a_share_trading_day_evidence(
-        current.date().isoformat(), client=client
+    is_hk = slot == "1610"
+    evidence = (
+        hk_trading_day_evidence(current.date().isoformat(), client=client)
+        if is_hk
+        else a_share_trading_day_evidence(current.date().isoformat(), client=client)
     )
     evidence.update({
         "slot": slot,
@@ -80,12 +84,14 @@ def run(slot: str, *, now: datetime | None = None) -> dict:
     })
     if not evidence["is_trading_day"]:
         return repo.record_market_skip(
-            current.date(), slot, "Wind.tdays:SSE+SZSE", evidence,
+            current.date(), slot,
+            "Wind.tdays:HKEX" if is_hk else "Wind.tdays:SSE+SZSE", evidence,
             actor=actor, idempotency_key=f"market-skip:{idem}",
         )
     items = []
-    for member in repo.a_share_members():
-        observed = fetch_intraday_market_cap(
+    members = repo.hk_share_members() if is_hk else repo.a_share_members()
+    for member in members:
+        observed = fetch_intraday_market_quote(
             member["canonical_ticker"],
             trade_date=current.date().isoformat(),
             client=client,
@@ -97,6 +103,10 @@ def run(slot: str, *, now: datetime | None = None) -> dict:
             "market_cap_value": observed["market_cap_value"],
             "currency": observed["currency"],
             "unit": observed["unit"],
+            "share_price_value": observed["share_price_value"],
+            "share_price_currency": observed["share_price_currency"],
+            "share_price_unit": observed["share_price_unit"],
+            "share_price_raw_field": observed["share_price_raw_field"],
             "raw_field": observed["raw_field"],
             "trading_status": observed["trading_status"],
             "source_ref": observed["source_ref"],
@@ -104,14 +114,16 @@ def run(slot: str, *, now: datetime | None = None) -> dict:
         }
         items.append(item)
     result = repo.record_market_batch(
-        current.date(), slot, current, "Wind.tdays:SSE+SZSE", evidence, items,
+        current.date(), slot, current,
+        "Wind.tdays:HKEX" if is_hk else "Wind.tdays:SSE+SZSE", evidence, items,
         actor=actor, idempotency_key=f"market-batch:{idem}",
     )
     result["task_scope"] = {
-        "security_count": 6,
-        "field_count": 2,
-        "estimated_observations": 12,
-        "task_daily_security_calls": 12,
+        "security_count": len(members),
+        "field_count": 3,
+        "estimated_observations": len(members) * 3,
+        "task_daily_security_calls": (12 if not is_hk else 1),
+        "market_segment": "港股" if is_hk else "A股",
         "large_request_permission_required": False,
     }
     return result

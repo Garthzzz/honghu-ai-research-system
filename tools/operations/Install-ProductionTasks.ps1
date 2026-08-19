@@ -114,7 +114,7 @@ $payload = Get-Content -Raw -LiteralPath $Manifest | ConvertFrom-Json
 $tasks = @($payload.tasks)
 $verificationResult = $null
 $isValuationTask = $false
-if ($payload.schema_version -ne 'honghu.production_task_manifest.v1' -or $tasks.Count -ne 10) {
+if ($payload.schema_version -ne 'honghu.production_task_manifest.v1' -or $tasks.Count -ne 11) {
     throw 'Production task manifest is not the reviewed ten-task contract.'
 }
 if ($payload.runner_host -ne $env:COMPUTERNAME) { throw 'Manifest runner host mismatch.' }

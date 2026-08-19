@@ -4,13 +4,17 @@ import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from tools.financial.valuation_ai_refresh import _candidate
+from tools.financial.valuation_ai_refresh import _candidate, _review_existing_version
 from tools.financial.valuation_tracker import (
     WORKBOOK_SHA256,
     ValuationTrackerRepository,
     load_seed,
 )
 from tools.financial.valuation_tracker_seed import REVIEWED_WORKBOOK_SEED_SHA256
+from tools.financial.valuation_tracker_history_seed import (
+    REVIEWED_HISTORY_SHA256,
+    load_history,
+)
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,6 +37,27 @@ def test_frozen_workbook_seed_preserves_all_rows_and_explicit_correction() -> No
     mmg = seed["rows"][2]
     assert mmg["currency"] == "HKD"
     assert "港元" in mmg["source_row"]["市值天花板预估（亿元）"]
+
+
+def test_reviewed_history_has_exact_ranges_contexts_and_truthful_first_versions() -> None:
+    payload = load_history(ROOT / "config/valuation_tracker/valuation_history_v2.json")
+    assert payload["artifact_sha256"] == REVIEWED_HISTORY_SHA256
+    assert len(payload["versions"]) == 11
+    by_company = {}
+    for version in payload["versions"]:
+        by_company.setdefault(version["company_id"], []).append(version)
+        assert 0 < version["lower_value"] <= version["base_value"] <= version["upper_value"]
+        assert len(version["valuation_methods"]) >= 2
+        assert len(version["sources"]) >= 2
+        for field in (
+            "operating_context", "profit_context", "cash_flow_context",
+            "shareholder_return_context", "market_context", "frozen_input",
+        ):
+            assert version[field]
+    assert {key: len(value) for key, value in by_company.items()} == {
+        635: 2, 634: 2, 636: 2, 650: 2, 705: 1, 706: 1, 707: 1,
+    }
+    assert all(row["currency"] == "HKD" for row in by_company[636])
 
 
 def test_alert_is_red_only_for_fresh_same_currency_threshold_breach() -> None:
@@ -152,6 +177,36 @@ def test_monthly_ai_candidate_reuses_multiple_existing_methods() -> None:
     assert len(result["valuation_methods"]) == 2
     assert "统一固定PE" in result["method_summary"]
     assert result["frozen_input"]["company_id"] == 635
+
+
+def test_monthly_review_keeps_complete_prior_model_without_inventing_change() -> None:
+    history = load_history(ROOT / "config/valuation_tracker/valuation_history_v2.json")
+    prior = next(
+        row for row in reversed(history["versions"])
+        if row["company_id"] == 707
+    )
+    prior = {**prior, "version_id": 99, "input_sha256": "1" * 64, "output_sha256": "2" * 64}
+    member = {
+        "member_id": 7, "company_id": 707, "security_id": 999,
+        "latest_ai_version": prior,
+        "market_snapshot": {"share_price_value": 35.96, "market_cap_value": 638.52},
+    }
+    candidate = _review_existing_version(member)
+    assert candidate is not None
+    assert candidate["lower_value"] <= candidate["base_value"] <= candidate["upper_value"]
+    assert candidate["frozen_input"]["previous_version_id"] == 99
+    assert "+0.00%" in candidate["change_reason"]
+
+
+def test_range_price_hk_migration_is_fail_closed_and_keeps_bootstrap_compatibility() -> None:
+    source = (ROOT / "migrations/postgresql/0024_valuation_ranges_share_price_hk.sql").read_text(encoding="utf-8")
+    assert "lower_value<=base_value AND base_value<=upper_value" in source
+    assert "fill_legacy_valuation_range_v1" in source
+    assert "share_price_value numeric" in source
+    assert "slot IN ('1140','1510','1610')" in source
+    assert "Wind.tdays:HKEX" in source
+    assert "record_market_batch_v2" in source
+    assert "seed_ai_history_v2" in source
 
 
 def test_postgres_migration_has_separate_slots_versions_and_narrow_grants() -> None:

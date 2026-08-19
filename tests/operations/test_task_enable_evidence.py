@@ -66,7 +66,7 @@ def _verify(tmp_path: Path, payload: dict[str, object]) -> dict[str, object]:
 def test_complete_fresh_local_disabled_evidence_passes(tmp_path: Path) -> None:
     result = _verify(tmp_path, _payload())
     assert result["verified"] is True
-    assert result["task_count"] == 10
+    assert result["task_count"] == 11
     assert result["legacy_runner_process_count"] == 0
 
 
@@ -121,14 +121,16 @@ def _valuation_setup_payload() -> dict[str, object]:
         ("兴业银锡", "000426.SZ", "深圳", "锡", "958", "CNY"),
     ]
     return {
-        "schema_version": "honghu.valuation_tracker.production_setup_evidence.v1",
+        "schema_version": "honghu.valuation_tracker.production_setup_evidence.v2",
         "status": "pass",
         "contract_verified": True,
-        "migration_id": "0021_valuation_tracker",
+        "migration_id": "0024_valuation_ranges_share_price_hk",
         "migration_sha256": "1" * 64,
         "workbook_sha256": "453ded4b67ad53848ffd90ab27ddcad21ba3262d623e3946de613c414091e3e0",
         "workbook_seed_sha256": "09907358d4e3ee9751e7196fcd9f27574553b434915bce38af3d7c4175f19e41",
         "identity_seed_sha256": "a0f27b5ffd30bda0eddaeb2f39ef6a0e49e98ad9a618f49f378003e4d874fa8f",
+        "valuation_history_sha256": "6210bc15f3884bb28e3c6bb9ea52d4dee2d5e68f5e33d90b771c7adcfea05ff0",
+        "valuation_history_version_count": 11,
         "members": [
             {
                 "company_id": 100 + order,

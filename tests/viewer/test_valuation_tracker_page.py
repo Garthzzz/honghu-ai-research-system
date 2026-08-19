@@ -51,10 +51,11 @@ def test_tracker_page_links_existing_company_and_shows_truthful_missing_ai(monke
     assert "市值空间与估值跟踪" in html
     assert "601899.SH" in html
     assert "/company/635#asset-return-valuation" in html
-    assert "暂无上一期 AI 估值" in html
-    assert "待建模" in html
+    assert "暂无上一期平台估值" in html
+    assert "估值下限" in html and "基准估值" in html and "估值上限" in html
     assert "估值方法名称（每行一项）" in html
     assert "沿用公司详情页既有经营分析" not in html
+    assert "AI 天花板" not in html
 
 
 def test_tracker_database_conflicts_are_http_409() -> None:
