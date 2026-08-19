@@ -34,10 +34,12 @@ ALLOWED_MODULES = {
     "tools.operations.recovery_health": "main",
     "tools.operations.stage5_health": "main",
     "tools.migration.stage4_apply_postgresql_migrations": "main",
+    "tools.migration.stage4_runtime_release_binding": "main",
     "tools.pipeline.apply_fiber_company_production_delta": "main",
     "tools.financial.valuation_tracker_identity_seed": "main",
     "tools.financial.valuation_tracker_seed": "main",
     "tools.financial.valuation_tracker_production_setup": "main",
+    "tools.financial.fiber_yfinance_valuation_history": "main",
 }
 
 

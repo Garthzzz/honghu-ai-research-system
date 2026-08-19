@@ -12,6 +12,15 @@ def test_direct_candidate_allows_reviewed_stage5_migration_entrypoint():
     )
 
 
+def test_direct_candidate_allows_reviewed_release_binding_and_valuation_history():
+    assert (
+        ALLOWED_MODULES["tools.migration.stage4_runtime_release_binding"] == "main"
+    )
+    assert (
+        ALLOWED_MODULES["tools.financial.fiber_yfinance_valuation_history"] == "main"
+    )
+
+
 def test_direct_candidate_allows_task_enable_evidence_entrypoint():
     assert ALLOWED_MODULES["tools.operations.task_enable_evidence"] == "main"
 
