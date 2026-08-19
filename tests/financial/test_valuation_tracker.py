@@ -266,6 +266,18 @@ def test_no_candidate_migration_records_audited_monthly_evaluation() -> None:
     assert "REVOKE ALL ON FUNCTION" in source
 
 
+def test_realtime_market_provenance_migration_corrects_and_fences_raw_field() -> None:
+    source = (
+        ROOT / "migrations/postgresql/0023_valuation_market_realtime_provenance.sql"
+    ).read_text(encoding="utf-8")
+    assert "migration_0023_correct_market_provenance" in source
+    assert "source_ref NOT LIKE 'Wind WSQ.rt_mkt_cap+rt_susp_flag:%'" in source
+    assert "SET raw_field='rt_mkt_cap'" in source
+    assert "CHECK(raw_field='rt_mkt_cap')" in source
+    assert "v_item->>'raw_field' IS DISTINCT FROM 'rt_mkt_cap'" in source
+    assert "v_item->>'raw_field'" in source
+
+
 def test_monthly_ai_ignores_general_financial_model_runs() -> None:
     member = {
         "member_id": 1,

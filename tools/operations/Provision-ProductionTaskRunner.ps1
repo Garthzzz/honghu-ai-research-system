@@ -110,6 +110,7 @@ foreach ($readOnlyRoot in $readOnlyRoots) {
     --migration '0020_shared_identity_financial_security_completion.sql' `
     --migration '0021_valuation_tracker.sql' `
     --migration '0022_valuation_ai_no_candidate_run.sql' `
+    --migration '0023_valuation_market_realtime_provenance.sql' `
     --output $migrationEvidence | Out-Null
 if ($LASTEXITCODE -ne 0) { throw 'Stage5 expand migration application failed.' }
 # This is the single mutation entry. It verifies both frozen seed file hashes

@@ -4,6 +4,8 @@ from types import SimpleNamespace
 
 import pandas as pd
 
+from tools.financial import valuation_market_refresh
+
 from tools.pipeline.wind_http_provider import (
     a_share_trading_day_evidence,
     fetch_intraday_market_cap,
@@ -64,3 +66,47 @@ def test_intraday_market_cap_preserves_suspension_as_non_comparable_state() -> N
         "601899.SH", trade_date="2026-08-19", client=FakeWind([], 1)
     )
     assert value["trading_status"] == "suspended"
+
+
+def test_refresh_passes_realtime_raw_field_into_persisted_batch(monkeypatch) -> None:
+    class Repo:
+        def committed_task_result(self, *_args):
+            return None
+
+        def a_share_members(self):
+            return [
+                {"member_id": idx, "security_id": idx, "canonical_ticker": ticker}
+                for idx, ticker in enumerate(
+                    ("601899.SH", "603993.SH", "000408.SZ", "000960.SZ", "600301.SH", "000426.SZ"),
+                    start=1,
+                )
+            ]
+
+        def record_market_batch(self, _date, _slot, _observed_at, _provider, _evidence, items, **_kwargs):
+            assert {item["raw_field"] for item in items} == {"rt_mkt_cap"}
+            return {"status": "completed", "observed_count": len(items)}
+
+    monkeypatch.setenv("HONGHU_POSTGRES_RUNTIME_CONFIG", "ignored.json")
+    monkeypatch.setattr(valuation_market_refresh, "_repository", lambda _path: Repo())
+    monkeypatch.setattr(valuation_market_refresh, "load_wind_http_client", lambda: object())
+    monkeypatch.setattr(
+        valuation_market_refresh,
+        "a_share_trading_day_evidence",
+        lambda *_args, **_kwargs: {"is_trading_day": True},
+    )
+    monkeypatch.setattr(
+        valuation_market_refresh,
+        "fetch_intraday_market_cap",
+        lambda *_args, **_kwargs: {
+            "market_cap_value": 100,
+            "currency": "CNY",
+            "unit": "亿元",
+            "raw_field": "rt_mkt_cap",
+            "trading_status": "trading",
+            "source_ref": "Wind WSQ.rt_mkt_cap+rt_susp_flag:test:2026-08-19",
+        },
+    )
+    result = valuation_market_refresh.run(
+        "1140", now=pd.Timestamp("2026-08-19T11:40:00+08:00").to_pydatetime()
+    )
+    assert result["observed_count"] == 6

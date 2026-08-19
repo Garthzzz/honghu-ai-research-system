@@ -97,6 +97,7 @@ def run(slot: str, *, now: datetime | None = None) -> dict:
             "market_cap_value": observed["market_cap_value"],
             "currency": observed["currency"],
             "unit": observed["unit"],
+            "raw_field": observed["raw_field"],
             "trading_status": observed["trading_status"],
             "source_ref": observed["source_ref"],
             "raw_sha256": sha256_json(observed),
