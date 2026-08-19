@@ -96,7 +96,7 @@ def main(argv: list[str] | None = None) -> int:
             "--seed", str(args.workbook_seed), "--actor", args.actor,
         ])
 
-    connection = migration_reader()
+    connection = reader()
     try:
         rows = connection.execute(
             """SELECT m.company_id,m.security_id,m.canonical_name,m.canonical_ticker,
@@ -110,8 +110,10 @@ def main(argv: list[str] | None = None) -> int:
                       c.payload->>'name',upper(c.payload->>'ticker'),c.stable_key,
                       s.payload->>'canonical_name',upper(s.payload->>'ticker'),
                       s.payload->>'research_company_id',s.stable_key,
-                      l.payload->>'security_id',l.payload->>'link_role'
+                      l.payload->>'security_id',l.payload->>'link_role',
+                      w.workbook_sha256,w.stable_key,w.title
                  FROM valuation_tracker.member m
+                 JOIN valuation_tracker.watchlist w USING(watchlist_id)
                  JOIN valuation_tracker.valuation_version v
                    ON v.member_id=m.member_id AND v.origin='workbook_seed'
                  JOIN valuation_tracker.alert_policy_revision p
@@ -129,14 +131,8 @@ def main(argv: list[str] | None = None) -> int:
                   AND l.legacy_id=m.company_id::text AND l.formal_business_data=true
                 WHERE m.enabled ORDER BY m.display_order"""
         ).fetchall()
-        imports = connection.execute(
-            """SELECT workbook_sha256,workbook_name,row_count
-                 FROM valuation_tracker.workbook_import"""
-        ).fetchall()
     finally:
         connection.close()
-    if imports != [(WORKBOOK_SHA256, workbook_payload["workbook_name"], 7)]:
-        raise RuntimeError("production workbook import identity is not exact")
     if len(rows) != 7:
         raise RuntimeError("production readback is not the exact seven-security basket")
     expected_rows = workbook_payload["rows"]
@@ -151,6 +147,7 @@ def main(argv: list[str] | None = None) -> int:
             researcher_threshold, ai_threshold, operator, max_age, company_name,
             company_ticker, company_key, security_name, security_ticker,
             linked_company_id, security_key, linked_security_id, link_role,
+            imported_workbook_sha, watchlist_key, watchlist_title,
         ) = observed
         expected_source = [{
             "title": workbook_payload["workbook_name"],
@@ -192,6 +189,9 @@ def main(argv: list[str] | None = None) -> int:
             and int(linked_security_id) == int(security_id)
             and company_key == security_key
             and link_role == "canonical"
+            and imported_workbook_sha == WORKBOOK_SHA256
+            and watchlist_key == "market-cap-space-v1"
+            and watchlist_title == "市值空间与估值跟踪"
         )
         if not exact:
             raise RuntimeError(
