@@ -22,7 +22,7 @@ $definitions = @($manifestPayload.tasks)
 if (
     $manifestPayload.schema_version -ne 'honghu.production_task_manifest.v1' -or
     $definitions.Count -ne 11
-) { throw 'The reviewed ten-task manifest is invalid.' }
+) { throw 'The reviewed eleven-task manifest is invalid.' }
 
 $hostName = $env:COMPUTERNAME.ToUpperInvariant()
 if ($hostName -ne ([string]$manifestPayload.legacy_runner_host).ToUpperInvariant()) {

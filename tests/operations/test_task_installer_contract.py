@@ -112,6 +112,7 @@ def test_local_disabled_evidence_reads_scheduler_without_mutating_tasks():
     assert "legacy_runner_process_count" in text
     assert "source_host_identity_sha256" in text
     assert "checked_at" in text
+    assert "reviewed ten-task" not in text
     assert "collector_sha256" in text
     assert "MachineGuid" in text
     assert "machine_guid_recorded=$false" in text
