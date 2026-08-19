@@ -264,6 +264,16 @@ def test_idempotent_skip_returns_full_exact_release_evidence_contract():
     assert '"business_checkpoint_after_sha256"' in source
 
 
+def test_business_checkpoint_json_accepts_postgresql_datetime_values():
+    source = inspect.getsource(
+        __import__("tools.operations.task_runner", fromlist=["run_task"]).run_task
+    )
+    before = source.index("json.dumps(\n                    checkpoint_before")
+    after = source.index("json.dumps(\n                    checkpoint_after")
+    assert "default=str" in source[before:before + 240]
+    assert "default=str" in source[after:after + 240]
+
+
 def test_definition_enable_is_exact_identity_checked_before_update():
     source = inspect.getsource(set_definition_enabled)
     assert "manifest_sha256,application_commit_sha,runner_host" in source

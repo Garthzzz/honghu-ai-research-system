@@ -466,7 +466,12 @@ def run_task(
                   SET business_checkpoint_before=%s::jsonb
                 WHERE task_id=%s AND logical_window=%s AND run_attempt=%s""",
             (
-                json.dumps(checkpoint_before, ensure_ascii=False, sort_keys=True),
+                json.dumps(
+                    checkpoint_before,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                ),
                 task.task_id,
                 window,
                 attempt,
@@ -547,7 +552,12 @@ def run_task(
                 failure,
                 returncode,
                 output_hash,
-                json.dumps(checkpoint_after, ensure_ascii=False, sort_keys=True),
+                json.dumps(
+                    checkpoint_after,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    default=str,
+                ),
                 task.task_id,
                 window,
                 attempt,
