@@ -152,6 +152,7 @@ if ($Mode -eq 'InstallDisabled') {
         $isValuationTask = $TaskName -in @(
             'IndustryDemo_ValuationMarket_1140',
             'IndustryDemo_ValuationMarket_1510',
+            'IndustryDemo_ValuationMarket_1610',
             'IndustryDemo_ValuationAI_Monthly'
         )
         if ($isValuationTask -and (

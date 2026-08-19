@@ -19,6 +19,7 @@ def test_installer_is_exact_release_disabled_first_and_noninteractive():
     assert "TrialEvidence" in text
     assert "ValuationSetupEvidence" in text
     assert "--valuation-setup-evidence" in text
+    assert "'IndustryDemo_ValuationMarket_1610'" in text
     assert "tools.operations.task_enable_evidence" in text
     assert "collector-script" in text
     assert "Interactive" not in text
