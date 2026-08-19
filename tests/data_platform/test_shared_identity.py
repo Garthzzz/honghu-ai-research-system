@@ -129,6 +129,22 @@ def test_identity_cache_attaches_to_readonly_file_connection(tmp_path: Path) -> 
         cache.close()
 
 
+def test_identity_cache_direct_connection_does_not_depend_on_attach_uri() -> None:
+    cache = SharedIdentityReadCache(lambda: _Postgres(), refresh_check_seconds=60)
+    try:
+        opened = cache.connect()
+        try:
+            assert opened.execute(
+                "SELECT ticker FROM company WHERE id=1"
+            ).fetchone()[0] == "PG.SH"
+            with pytest.raises(sqlite3.OperationalError, match="readonly"):
+                opened.execute("UPDATE company SET name='forbidden' WHERE id=1")
+        finally:
+            opened.close()
+    finally:
+        cache.close()
+
+
 def test_independent_identity_caches_do_not_collide_on_same_authority_version(
     tmp_path: Path,
 ) -> None:

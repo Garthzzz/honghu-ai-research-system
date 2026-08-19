@@ -794,15 +794,21 @@ class SharedIdentityReadCache:
                 )
 
     def connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(":memory:")
+        # Open the named shared-memory database directly.  Attaching its URI
+        # to an unrelated ``:memory:`` connection is not portable across the
+        # SQLite builds used by the workstation and the production VM: some
+        # builds treat the bound ATTACH target as a literal filename and fail
+        # with ``unable to open database``.  A direct URI connection keeps the
+        # same process-local, keeper-owned cache semantics without relying on
+        # ATTACH URI parsing.
+        uri = self.ensure_current()
+        with self._lock:
+            if self._keeper is None:
+                raise SharedIdentityError("shared identity cache has no keeper")
+            connection = sqlite3.connect(uri, uri=True)
         connection.row_factory = sqlite3.Row
-        try:
-            self.attach(connection)
-            connection.execute("PRAGMA query_only=ON")
-            return connection
-        except Exception:
-            connection.close()
-            raise
+        connection.execute("PRAGMA query_only=ON")
+        return connection
 
     def close(self) -> None:
         with self._lock:
