@@ -260,6 +260,8 @@ def test_idempotent_skip_returns_full_exact_release_evidence_contract():
     source = inspect.getsource(__import__("tools.operations.task_runner", fromlist=["run_task"]).run_task)
     assert '"status": "skipped"' in source
     assert '"application_commit_sha": commit' in source
+    assert '"manifest_sha256": manifest.sha256' in source
+    assert '"prior_success_manifest_sha256": str(prior[3])' in source
     assert '"prior_success_application_commit_sha": str(prior[4])' in source
     assert '"business_checkpoint_after_sha256"' in source
 

@@ -431,7 +431,12 @@ def run_task(
                 "failure_classification": None,
                 "returncode": 0,
                 "operation_id_sha256": str(prior[2]),
-                "manifest_sha256": str(prior[3]),
+                # The replay envelope is evidence produced by the current
+                # exact release and therefore binds the current reviewed
+                # manifest.  Keep the manifest that originally completed the
+                # logical window as separate provenance, just like its commit.
+                "manifest_sha256": manifest.sha256,
+                "prior_success_manifest_sha256": str(prior[3]),
                 # The envelope describes the exact release that performed
                 # this idempotent verification.  Preserve the commit that
                 # originally completed the window as separate audit data.
