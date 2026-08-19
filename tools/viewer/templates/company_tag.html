@@ -431,7 +431,7 @@
 
   <h2 style="margin-top:18px">PE / PB Band 与资本回报路径</h2>
   <div class="cp-method">
-    Wind 风格估值带先计算<code>每期隐含每股基础＝当期收盘价÷当期估值倍数</code>，再计算<code>估值带价格＝每期隐含每股基础×五年估值倍数分位</code>。黑线是实际收盘价，绿色、橙色和红色分别对应历史20%分位、中位和80%分位。估值带只说明历史相对位置，不是目标价；仍要结合ROE、ROA、周期、资产质量和现金流。
+    点时估值带先计算<code>每期隐含每股基础＝当期收盘价÷当期估值倍数</code>，再计算<code>估值带价格＝每期隐含每股基础×历史估值倍数分位</code>。黑线是实际收盘价，绿色、橙色和红色分别对应历史20%分位、中位和80%分位。估值带只说明历史相对位置，不是目标价；海外公司的年报口径近似会在图下注明。
   </div>
   <div class="cp-grid" style="margin-top:10px">
     <div class="cp-stat"><b>{{ '%.2f×'|format(cur.pb.value_num) if cur.pb else '—' }}</b><span>当前 PB</span><span class="as">{{ cur.pb.as_of_date if cur.pb else '无直接数据' }}{% if cur.pb_historical_percentile is not none %} · 历史月末分位 {{ '%.0f%%'|format(cur.pb_historical_percentile*100) }}（{{ cur.pb_percentile_sample_size }}期）{% endif %}</span></div>
@@ -451,6 +451,7 @@
     <div><div id="pbBandChart" class="cp-fin-chart" role="img" aria-label="公司股价与PB历史估值带，横轴为交易日期，纵轴为元每股"></div></div>
     <div><div id="peBandChart" class="cp-fin-chart" role="img" aria-label="公司股价与PE历史估值带，横轴为交易日期，纵轴为元每股"></div></div>
   </div>
+  {% set valuation_band=ar.pb_price_band or ar.pe_price_band %}{% if valuation_band %}<div class="cp-model-note">历史口径：{{ valuation_band.history_basis }}。{{ valuation_band.boundary }}</div>{% endif %}
   <div id="roePathChart" class="cp-fin-chart" role="img" aria-label="公司历史与预测ROE路径，横轴为报告年度，纵轴为ROE百分比" style="margin-top:12px"></div>
   {% set forecasts=financial_bundle.forecast_table %}
   {% set roe_display=ar.roe_history_display if ar.roe_history_display else ar.roe_history %}
@@ -573,38 +574,43 @@
   <h2>多方法估值结果</h2>
   {% if financial_bundle and financial_bundle.valuation_model_runs %}
   {% set role_labels={'primary':'主方法','core':'核心估值','validation':'交叉验证','reference':'有效参考','diagnostic':'诊断方法','not_applicable':'不适用'} %}
-  {% set status_labels={'draft':'草稿','frozen_independent':'独立结果已冻结','reconciled':'已完成外部对账','reviewed':'已复核','superseded':'已被更新版本替代'} %}
-  {% set input_type_labels={'direct_fact':'已披露事实','derived_fact':'由已披露数据推导','external_consensus':'外部一致预期','company_guidance':'公司指引','expert_assumption':'内部研究假设','objectively_unavailable':'客观不可得'} %}
+  {% set input_type_labels={'direct_fact':'现有数据','derived_fact':'推导','external_consensus':'现有数据','company_guidance':'现有数据','expert_assumption':'研究假设','objectively_unavailable':'暂缺'} %}
   {% set benchmark_type_labels={'consensus':'市场一致预期','guidance':'公司指引','market_implied':'市场隐含预期','peer':'同行估值','historical':'历史区间'} %}
   <div class="cp-table-scroll" tabindex="0" role="region" aria-label="公司多方法估值结果，可横向滚动">
-    <table class="cp-tab cp-valuation-table"><thead><tr><th>方法</th><th>角色</th><th>状态</th><th>估值日</th><th>核心结果</th><th>外部对账</th></tr></thead><tbody>
+    <table class="cp-tab cp-valuation-table"><thead><tr><th>方法</th><th>用途</th><th>估值日</th><th>核心结果</th></tr></thead><tbody>
     {% for run in financial_bundle.valuation_model_runs[:12] %}<tr>
-      <td>{{ run.model_name }}</td><td>{{ role_labels.get(run.model_role,run.model_role) }}</td><td>{{ status_labels.get(run.status,run.status) }}</td><td>{{ run.valuation_date or '—' }}</td>
+      <td>{{ run.model_name }}</td><td>{{ role_labels.get(run.model_role,run.model_role) }}</td><td>{{ run.valuation_date or '—' }}</td>
       <td>{% for out in run.outputs[:4] %}{{ out.output_name }}：{% if out.range_low is not none and out.range_high is not none %}{{ '%.2f'|format(out.range_low) }}—{{ '%.2f'|format(out.range_high) }}{% elif out.value_num is not none %}{{ '%.2f'|format(out.value_num) }}{% else %}{{ out.value_text or '—' }}{% endif %} {{ out.unit }}{% if not loop.last %}<br>{% endif %}{% endfor %}</td>
-      <td>{{ run.reconciliations|length }} 项</td>
     </tr>{% endfor %}
     </tbody></table>
   </div>
   <div class="cp-model-note">不同方法先识别是否依赖同一组经营假设，再解释核心区间；页面不对高度相关的 PE、DCF、PB 结果机械平均。</div>
   <div class="cp-model-ledgers">
   {% for run in financial_bundle.valuation_model_runs[:12] %}
-    <details class="cp-model-detail"><summary>{{ run.model_name }}：公式、输入与外部对账</summary>
+    <details class="cp-model-detail"><summary>{{ run.model_name }}：展开计算过程</summary>
       <div class="cp-method">估值日：{{ run.valuation_date or '未设置' }}；预测区间：{{ run.forecast_start or '—' }} 至 {{ run.forecast_end or '—' }}。{{ run.limitations or '未另列方法限制。' }}</div>
-      {% if run.inputs %}<div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ run.model_name }}模型输入，可横向滚动"><table class="cp-tab"><thead><tr><th>输入</th><th>数值/区间</th><th>期间</th><th>类型</th><th>来源</th><th>方法与限制</th></tr></thead><tbody>
-      {% for item in run.inputs %}<tr><td>{{ item.input_name }}</td><td>{% if item.value_num is not none %}{{ '%.4g'|format(item.value_num) }}{% else %}{{ item.value_text or '—' }}{% endif %}{% if item.range_low is not none or item.range_high is not none %}<br>{{ item.range_low if item.range_low is not none else '—' }}—{{ item.range_high if item.range_high is not none else '—' }}{% endif %} {{ item.unit }}</td><td>{{ item.period_or_as_of_date }}</td><td>{{ input_type_labels.get(item.input_type,item.input_type) }}</td><td>{{ item.source_label or '已冻结模型底稿' }}</td><td>{{ item.formula_or_method or '直接读取' }}{% if item.limitation_note %}<br>{{ item.limitation_note }}{% endif %}</td></tr>{% endfor %}
+      {% if run.inputs %}<div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ run.model_name }}模型输入，可横向滚动"><table class="cp-tab"><thead><tr><th>输入</th><th>数值/区间</th><th>期间</th><th>类型</th><th>取值依据与限制</th></tr></thead><tbody>
+      {% for item in run.inputs %}<tr><td>{{ item.input_name }}</td><td>{% if item.value_num is not none %}{{ '%.2f'|format(item.value_num) }}{% else %}{{ item.value_text or '—' }}{% endif %}{% if item.range_low is not none or item.range_high is not none %}<br>{{ '%.2f'|format(item.range_low) if item.range_low is not none else '—' }}—{{ '%.2f'|format(item.range_high) if item.range_high is not none else '—' }}{% endif %} {{ item.unit }}</td><td>{{ item.period_or_as_of_date }}</td><td>{{ input_type_labels.get(item.input_type,item.input_type) }}</td><td>{{ item.formula_or_method or '直接读取' }}{% if item.limitation_note %}<br>{{ item.limitation_note }}{% endif %}</td></tr>{% endfor %}
       </tbody></table></div>{% endif %}
-      {% for out in run.outputs %}<div class="cp-model-note"><b>{{ out.output_name }}</b>：{{ out.formula }}；代入：{{ out.substitution }}。{% if out.conclusion %}{{ out.conclusion }}{% endif %}</div>{% endfor %}
-      {% if run.reconciliations %}<div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ run.model_name }}外部对账，可横向滚动"><table class="cp-tab"><thead><tr><th>对账对象</th><th>指标/期间</th><th>内部结果</th><th>外部结果</th><th>差异</th><th>结论</th></tr></thead><tbody>{% for item in run.reconciliations %}<tr><td>{{ benchmark_type_labels.get(item.benchmark_type,item.benchmark_type) }}{% if item.benchmark_source_label %} · {{ item.benchmark_source_label }}{% endif %}</td><td>{{ item.metric_name }} · {{ item.period }}</td><td>{{ item.independent_value if item.independent_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.benchmark_value if item.benchmark_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.difference_value if item.difference_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.conclusion }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
+      {% for out in run.outputs %}<div class="cp-model-note"><b>{{ out.output_name }}</b><br>公式：{{ out.formula }}<br>实际代入：{{ out.substitution }}{% if out.conclusion %}<br>解释：{{ out.conclusion }}{% endif %}</div>{% endfor %}
+      {% if run.reconciliations %}<div class="cp-table-scroll" tabindex="0" role="region" aria-label="{{ run.model_name }}外部对账，可横向滚动"><table class="cp-tab"><thead><tr><th>比较口径</th><th>指标/期间</th><th>模型结果</th><th>外部结果</th><th>差异</th><th>结论</th></tr></thead><tbody>{% for item in run.reconciliations %}<tr><td>{{ benchmark_type_labels.get(item.benchmark_type,item.benchmark_type) }}</td><td>{{ item.metric_name }} · {{ item.period }}</td><td>{{ '%.2f'|format(item.independent_value) if item.independent_value is not none else '—' }} {{ item.unit }}</td><td>{{ '%.2f'|format(item.benchmark_value) if item.benchmark_value is not none else '—' }} {{ item.unit }}</td><td>{{ '%.2f'|format(item.difference_value) if item.difference_value is not none else '—' }} {{ item.unit }}</td><td>{{ item.conclusion }}</td></tr>{% endfor %}</tbody></table></div>{% endif %}
     </details>
   {% endfor %}
   </div>
-  {% else %}<div class="cp-todo">暂无通过独立预测冻结和外部对账的正式估值模型；当前市场倍数只作为观察值，不等同于合理价值。</div>{% endif %}
+  {% elif valuation_tracker_member and valuation_tracker_member.latest_ai_version %}
+  {% set tracked=valuation_tracker_member.latest_ai_version %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="估值跟踪模型，可横向滚动"><table class="cp-tab cp-valuation-table"><thead><tr><th>方法</th><th>估值日</th><th>下限</th><th>基准</th><th>上限</th></tr></thead><tbody><tr><td>{{ tracked.method_summary }}</td><td>{{ tracked.valuation_date }}</td><td>{{ '%.2f'|format(tracked.lower_value) }}</td><td>{{ '%.2f'|format(tracked.base_value) }}</td><td>{{ '%.2f'|format(tracked.upper_value) }}</td></tr></tbody></table></div>
+  <div class="cp-model-ledgers"><details class="cp-model-detail" open><summary>多方法估值：展开计算过程</summary><div class="cp-table-scroll" tabindex="0" role="region" aria-label="多方法估值计算过程，可横向滚动"><table class="cp-tab"><thead><tr><th>方法</th><th>用途</th><th>下限</th><th>基准</th><th>上限</th><th>公式与实际代入</th></tr></thead><tbody>{% for method in tracked.valuation_methods or [] %}<tr><td>{{ method.name }}</td><td>{{ method.role or '参与聚合' }}</td><td>{{ '%.2f'|format(method.low) if method.low is defined and method.low is not none else '—' }}</td><td>{{ '%.2f'|format(method.base) if method.base is defined and method.base is not none else ('%.2f'|format((method.low + method.high) / 2) if method.low is defined and method.low is not none and method.high is defined and method.high is not none else '—') }}</td><td>{{ '%.2f'|format(method.high) if method.high is defined and method.high is not none else '—' }}</td><td>{{ method.display_formula or '本版本未单列公式' }}{% if method.display_substitution %}<br>实际代入：{{ method.display_substitution }}{% endif %}</td></tr>{% else %}<tr><td colspan="6">本期版本尚未单列分方法计算。</td></tr>{% endfor %}</tbody></table></div><div class="cp-model-note"><b>主要变化</b><br>{{ tracked.change_reason }}</div></details></div>
+  {% else %}<div class="cp-todo">当前尚未形成可复算的多方法估值；市场倍数只作为观察值，不等同于合理价值。</div>{% endif %}
 </div>
 
 <div class="cp-sec">
   <h2>当前市场隐含预期</h2>
   {% if financial_bundle and financial_bundle.implied_expectations %}
-  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="市场隐含预期，可横向滚动"><table class="cp-tab cp-implied-table"><thead><tr><th>指标</th><th>隐含值</th><th>期间</th><th>情景或口径</th><th>估值截面</th><th>反推方法</th></tr></thead><tbody>{% for item in financial_bundle.implied_expectations %}<tr><td>{{ item.metric_label or item.metric_name }}</td><td>{% if item.value_num is not none %}{{ '%.4g'|format(item.value_num) }}{% else %}{{ item.value_text or '—' }}{% endif %} {{ item.unit }}</td><td>{{ item.period }}</td><td>{{ item.scenario_name or '—' }}</td><td>{{ item.as_of_date }}</td><td>{{ item.formula or '模型账本未提供公式' }}</td></tr>{% endfor %}</tbody></table></div>
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="市场隐含预期，可横向滚动"><table class="cp-tab cp-implied-table"><thead><tr><th>指标</th><th>隐含值</th><th>期间</th><th>估值截面</th><th>反推计算</th></tr></thead><tbody>{% for item in financial_bundle.implied_expectations %}<tr><td>{{ item.metric_label or item.metric_name }}</td><td>{% if item.value_num is not none %}{{ '%.2f'|format(item.value_num) }}{% elif item.range_low is not none and item.range_high is not none %}{{ '%.2f'|format(item.range_low) }}—{{ '%.2f'|format(item.range_high) }}{% else %}{{ item.value_text or '—' }}{% endif %} {{ item.unit }}</td><td>{{ item.period }}</td><td>{{ item.as_of_date }}</td><td>{{ item.formula or '模型账本未提供公式' }}{% if item.substitution %}<br>实际代入：{{ item.substitution }}{% endif %}</td></tr>{% endfor %}</tbody></table></div>
+  {% elif valuation_tracker_member and valuation_tracker_member.market_implied_pe is not none %}
+  {% set tracked=valuation_tracker_member.ai_alert_version %}{% set snapshot=valuation_tracker_member.market_snapshot %}
+  <div class="cp-table-scroll" tabindex="0" role="region" aria-label="市场隐含预期，可横向滚动"><table class="cp-tab cp-implied-table"><thead><tr><th>指标</th><th>隐含值</th><th>期间</th><th>估值截面</th><th>反推计算</th></tr></thead><tbody><tr><td>当前市值对应的目标年市盈率</td><td>{{ '%.2f'|format(valuation_tracker_member.market_implied_pe) }} 倍</td><td>{{ tracked.target_year or '目标年' }}</td><td>{{ snapshot.trade_date }}</td><td>当前总市值÷目标年归母净利润<br>实际代入：{{ '%.2f'|format(snapshot.market_cap_value) }}÷{{ '%.2f'|format(tracked.expected_net_profit) }}＝{{ '%.2f'|format(valuation_tracker_member.market_implied_pe) }}</td></tr></tbody></table></div>
   {% else %}<div class="cp-todo">目前没有经过反向估值写入的市场隐含结果；页面不从当前倍数自动猜测增长或利润。</div>{% endif %}
 </div>
 

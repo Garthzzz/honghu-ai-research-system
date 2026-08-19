@@ -4663,6 +4663,17 @@ def company_tag(company_id: int):
     except Exception:
         log.exception("读取 financial.db 公司数据失败 company_id=%s", company_id)
         financial_bundle = None
+    valuation_tracker_member = None
+    if (
+        VALUATION_TRACKER_REPOSITORY is not None
+        and not (financial_bundle or {}).get("valuation_model_runs")
+    ):
+        try:
+            valuation_tracker_member = (
+                VALUATION_TRACKER_REPOSITORY.member_by_company_id(company_id)
+            )
+        except Exception:
+            log.exception("读取公司估值跟踪版本失败 company_id=%s", company_id)
     requested_industry = request.args.get("industry_id", type=int)
     if requested_industry:
         profile = query_one(
@@ -4826,6 +4837,7 @@ def company_tag(company_id: int):
                            metric_cards=metric_cards,
                            financial_rows=financial_rows,
                            financial_bundle=financial_bundle,
+                           valuation_tracker_member=valuation_tracker_member,
                            financial_summary=financial_summary,
                            asset_return=asset_return_figures,
                            asset_return_peers=peer_asset_return_rows,

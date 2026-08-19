@@ -9,6 +9,7 @@ All mutations enter narrow SECURITY DEFINER functions which re-check the full
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -41,6 +42,15 @@ def _jsonb(value: Any) -> Any:
         return Jsonb(value)
     except ImportError:  # pragma: no cover - psycopg is required in production
         return canonical_json(value)
+
+
+def _two_decimal_text(value: Any) -> str:
+    text = str(value or "").strip()
+    return re.sub(
+        r"(?<![A-Za-z0-9.\-])-?\d+(?:\.\d+)?(?![A-Za-z0-9.\-])",
+        lambda match: f"{float(match.group(0)):.2f}",
+        text,
+    )
 
 
 @dataclass(frozen=True)
@@ -203,10 +213,11 @@ class ValuationTrackerRepository:
         finally:
             connection.close()
 
-    def watchlist(self) -> list[dict[str, Any]]:
+    def watchlist(self, *, company_id: int | None = None) -> list[dict[str, Any]]:
         """Return all cards, latest/previous AI versions and history in one SQL query."""
         connection = self._read_factory()
         try:
+            member_filter = " AND m.company_id=%s" if company_id is not None else ""
             cursor = connection.execute(
                 """SELECT m.member_id,m.company_id,m.security_id,m.canonical_name,m.canonical_ticker,
                           m.market,m.board,m.display_order,m.revision,m.current_policy_revision,
@@ -244,7 +255,8 @@ class ValuationTrackerRepository:
                          SELECT jsonb_agg(to_jsonb(v) ORDER BY v.created_at DESC,v.version_id DESC) history
                            FROM valuation_tracker.valuation_version v WHERE v.member_id=m.member_id
                      ) hist ON true
-                    WHERE m.enabled ORDER BY m.display_order"""
+                    WHERE m.enabled""" + member_filter + " ORDER BY m.display_order",
+                (int(company_id),) if company_id is not None else (),
             )
             rows = self._dict_rows(cursor)
             now = datetime.now(timezone.utc)
@@ -254,8 +266,31 @@ class ValuationTrackerRepository:
         finally:
             connection.close()
 
+    def member_by_company_id(self, company_id: int) -> dict[str, Any] | None:
+        rows = self.watchlist(company_id=int(company_id))
+        if len(rows) > 1:
+            raise ValuationTrackerError("company maps to multiple enabled watchlist members")
+        return rows[0] if rows else None
+
     @staticmethod
     def _decorate(row: dict[str, Any], *, now: datetime) -> None:
+        versions = [
+            row.get("researcher_version"), row.get("published_ai_version"),
+            row.get("latest_ai_version"), row.get("previous_ai_version"),
+            *(row.get("valuation_history") or []),
+        ]
+        seen_versions: set[int] = set()
+        for version in versions:
+            if not isinstance(version, dict) or id(version) in seen_versions:
+                continue
+            seen_versions.add(id(version))
+            for method in version.get("valuation_methods") or []:
+                if not isinstance(method, dict):
+                    continue
+                method["display_formula"] = _two_decimal_text(method.get("formula"))
+                method["display_substitution"] = _two_decimal_text(
+                    method.get("substitution")
+                )
         snapshot = row.get("market_snapshot") or {}
         market_cap = snapshot.get("market_cap_value")
         observed_at = snapshot.get("observed_at")
@@ -305,6 +340,15 @@ class ValuationTrackerRepository:
             previous_base = previous.get("base_value") or previous.get("ceiling_value")
             change = float((Decimal(str(latest_base)) / Decimal(str(previous_base)) - 1) * 100)
         row["ai_change_pct"] = change
+        expected_profit = (row.get("ai_alert_version") or {}).get("expected_net_profit")
+        implied_pe = None
+        if (
+            market_cap not in (None, 0)
+            and expected_profit not in (None, 0)
+            and snapshot.get("currency") == (row.get("ai_alert_version") or {}).get("currency")
+        ):
+            implied_pe = float(Decimal(str(market_cap)) / Decimal(str(expected_profit)))
+        row["market_implied_pe"] = implied_pe
 
     def edit_valuation(
         self, member_id: int, kind: str, payload: dict[str, Any], *, expected_revision: int,

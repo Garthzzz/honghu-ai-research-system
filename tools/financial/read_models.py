@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import defaultdict
 from datetime import date
 from pathlib import Path
@@ -131,19 +132,27 @@ def _public_model_substitution(value: Any) -> str:
     text = str(value or "").strip()
     if not text:
         return "模型账本未单列代入值"
+
+    def format_numbers(source: str) -> str:
+        return re.sub(
+            r"(?<![A-Za-z0-9.\-])-?\d+(?:\.\d+)?(?![A-Za-z0-9.\-])",
+            lambda match: f"{float(match.group(0)):.2f}",
+            source,
+        )
+
     try:
         parsed = json.loads(text)
     except (TypeError, ValueError, json.JSONDecodeError):
-        return text
+        return format_numbers(text)
     if not isinstance(parsed, dict):
-        return text
+        return format_numbers(text)
 
     def format_value(item: Any) -> str:
         if isinstance(item, list):
             values = [format_value(child) for child in item]
             return "—".join(values) if len(values) == 2 else "、".join(values)
-        if isinstance(item, float):
-            return f"{item:.4g}"
+        if isinstance(item, (int, float)) and not isinstance(item, bool):
+            return f"{float(item):.2f}"
         return str(item)
 
     return "；".join(
@@ -153,6 +162,48 @@ def _public_model_substitution(value: Any) -> str:
         )
         for key, item in parsed.items()
     )
+
+
+def _model_implied_expectations(model_runs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Expose explicit reverse-valuation outputs already frozen in model ledgers."""
+    def metric_name(output_name: str) -> str:
+        for token, canonical in (
+            ("归母净利润", "net_income"), ("净利润", "net_income"),
+            ("市盈率", "pe_forward"), ("PE", "pe_forward"),
+            ("营业收入", "revenue"), ("收入", "revenue"),
+            ("净资产收益率", "roe"), ("ROE", "roe"),
+            ("自由现金流", "free_cash_flow"),
+        ):
+            if token in output_name:
+                return canonical
+        return output_name
+
+    rows: list[dict[str, Any]] = []
+    for run in model_runs:
+        if run.get("skill_name") != "company_valuation_modeling":
+            continue
+        for output in run.get("outputs") or []:
+            output_name = str(output.get("output_name") or "").strip()
+            if "隐含" not in output_name:
+                continue
+            rows.append({
+                "metric_name": metric_name(output_name),
+                "metric_label": output_name,
+                "value_num": output.get("value_num"),
+                "value_text": output.get("value_text"),
+                "range_low": output.get("range_low"),
+                "range_high": output.get("range_high"),
+                "unit": output.get("unit"),
+                "period": output.get("period_or_as_of_date") or run.get("forecast_end"),
+                "as_of_date": run.get("valuation_date"),
+                "provider": "internal_model",
+                "formula": output.get("formula"),
+                "substitution": output.get("substitution"),
+                "scenario_name": "模型反推",
+                "source_title": run.get("model_name"),
+                "model_run_id": run.get("id"),
+            })
+    return rows
 
 
 def _latest(rows: list[dict[str, Any]], *, fact_types: set[str] | None = None) -> dict[str, Any] | None:
@@ -589,6 +640,10 @@ def _valuation_band_history(
         )
         and float(row.get("value_num") or 0) > 0
     ]
+    derived_point_in_time = any(
+        "yfinance.derived.point_in_time" in str(row.get("raw_feature_name") or "").lower()
+        for row in multiple_rows
+    )
     close_by_date = {
         str(row["as_of_date"])[:10]: row
         for row in _deduplicate_economic_observations(
@@ -634,12 +689,20 @@ def _valuation_band_history(
         "statistics": statistics,
         "current": current,
         "source_provider": _provider_label(current.get("provider")),
+        "history_basis": (
+            "Yahoo Finance月末收盘价＋当时已公开年报EPS/BPS的点时近似"
+            if derived_point_in_time else "供应商同日月末收盘价与估值倍数"
+        ),
         "formula": (
             "每期隐含每股基础＝当期收盘价÷当期估值倍数；"
             "估值带价格＝每期隐含每股基础×历史估值倍数分位。"
         ),
         "boundary": (
-            "估值带展示历史倍数位置，不是目标价；盈利或净资产口径发生结构变化时，"
+            (
+                "海外公司历史PE/PB按当时已公开年报EPS/BPS近似，不是Yahoo Finance历史TTM字段；"
+                if derived_point_in_time else ""
+            )
+            + "估值带展示历史倍数位置，不是目标价；盈利或净资产口径发生结构变化时，"
             "历史分位的可比性会下降。"
         ),
     }
@@ -685,30 +748,18 @@ def _valuation_band_availability(
     current_provider = str((current or {}).get("provider") or "").lower()
     current_provider_label = _provider_label((current or {}).get("provider"))
     sample_size = len(aligned_dates)
-    metric_label = "PB" if multiple_metric == "pb" else "正PE"
+    metric_label = "PB" if multiple_metric == "pb" else "PE"
     if not current_valid:
-        message = (
-            f"当前{metric_label}没有可用正值，无法计算历史估值带；"
-            "这不代表其他财务指标或证券接口不可用。"
-        )
+        message = f"历史估值带待补：当前{metric_label}没有可用正值。"
         status = "current_multiple_missing"
     elif sample_size == 0 and current_provider != "wind":
-        message = (
-            f"当前{metric_label}来自{current_provider_label}，但尚未建立同源月末收盘价与"
-            f"{metric_label}的连续历史；当前快照正常，这不代表接口失败。"
-        )
+        message = f"历史估值带待补：需要至少12个月同口径月末数据，当前为0个月。"
         status = "provider_monthly_history_not_loaded"
     elif sample_size == 0:
-        message = (
-            f"Wind当前{metric_label}快照正常，但月末收盘价与{metric_label}历史尚未写入；"
-            "当前快照不受影响。"
-        )
+        message = f"历史估值带待补：需要至少12个月同口径月末数据，当前为0个月。"
         status = "monthly_history_not_loaded"
     elif sample_size < 12:
-        message = (
-            f"{current_provider_label}已取得{sample_size}个收盘价与{metric_label}同日的有效月末观察，"
-            "至少需要12个才绘制历史估值带；当前快照仍正常显示。"
-        )
+        message = f"历史估值带待补：至少需要12个月同口径月末数据，当前为{sample_size}个月。"
         status = "insufficient_monthly_history"
     else:
         message = (
@@ -1479,6 +1530,21 @@ def company_bundle(research_company_id: int, *, db_path: str | Path = DB_PATH) -
                 ),
             )
         ]
+        observation_implied_keys = {
+            (
+                str(item.get("metric_name") or ""),
+                str(item.get("period") or "")[:4],
+            )
+            for item in implied_expectations
+        }
+        implied_expectations.extend(
+            item
+            for item in _model_implied_expectations(model_runs)
+            if (
+                str(item.get("metric_name") or ""),
+                str(item.get("period") or "")[:4],
+            ) not in observation_implied_keys
+        )
         metrics_view = dict(grouped)
         historical_table = _historical_table(metrics_view)
         forecast_table = _forecast_table(metrics_view)

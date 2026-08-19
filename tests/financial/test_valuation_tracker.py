@@ -84,6 +84,42 @@ def test_alert_is_red_only_for_fresh_same_currency_threshold_breach() -> None:
     assert row["ai_change_pct"] == 25
 
 
+def test_decorated_version_has_two_decimal_calculation_and_market_implied_pe() -> None:
+    now = datetime.now(timezone.utc)
+    version = {
+        "base_value": 200,
+        "ceiling_value": 240,
+        "currency": "CNY",
+        "expected_net_profit": 8,
+        "valuation_methods": [{
+            "name": "股权自由现金流",
+            "formula": "620/690/800亿元折现，股权成本11.5%—14.5%",
+            "substitution": "620+690+800＝2110",
+        }],
+    }
+    row = {
+        "max_snapshot_age_hours": 48,
+        "researcher_ratio_threshold": 1,
+        "ai_ratio_threshold": 1,
+        "market_snapshot": {
+            "market_cap_value": 100,
+            "currency": "CNY",
+            "trading_status": "trading",
+            "observed_at": now.isoformat(),
+        },
+        "researcher_version": None,
+        "published_ai_version": None,
+        "latest_ai_version": version,
+        "previous_ai_version": None,
+        "valuation_history": [version],
+    }
+    ValuationTrackerRepository._decorate(row, now=now)
+    method = row["latest_ai_version"]["valuation_methods"][0]
+    assert method["display_formula"] == "620.00/690.00/800.00亿元折现，股权成本11.50%—14.50%"
+    assert method["display_substitution"] == "620.00+690.00+800.00＝2110.00"
+    assert row["market_implied_pe"] == 12.5
+
+
 def test_stale_or_currency_mismatch_is_not_a_false_red_alert() -> None:
     now = datetime.now(timezone.utc)
     row = {

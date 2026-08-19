@@ -58,6 +58,59 @@ def test_tracker_page_links_existing_company_and_shows_truthful_missing_ai(monke
     assert "AI 天花板" not in html
 
 
+def test_tracker_shows_reproducible_methods_without_internal_status_or_hashes(monkeypatch) -> None:
+    member = _member()
+    method = {
+        "name": "股权自由现金流",
+        "role": "核心",
+        "low": 80,
+        "base": 100,
+        "high": 120,
+        "display_formula": "股权价值＝FY1—FY3 FCFE折现值＋终值折现值",
+        "display_substitution": "股权成本11.50%—14.50%；永续增长1.50%—2.00%",
+    }
+    version = {
+        "version_id": 2,
+        "valuation_kind": "ai",
+        "status": "candidate",
+        "valuation_date": "2026-08-20",
+        "lower_value": 80,
+        "base_value": 100,
+        "upper_value": 120,
+        "ceiling_value": 120,
+        "currency": "CNY",
+        "method_summary": "股权自由现金流与可比估值交叉验证。",
+        "valuation_methods": [method],
+        "sources": [{"title": "公司年报"}],
+        "change_reason": "现金流预测更新。",
+        "operating_context": {"summary": "产量更新。"},
+        "profit_context": {"summary": "盈利更新。"},
+        "cash_flow_context": {"summary": "现金流更新。"},
+        "shareholder_return_context": {"summary": "分红更新。"},
+        "market_context": {"summary": "行业估值更新。"},
+        "input_sha256": "a" * 64,
+        "output_sha256": "b" * 64,
+    }
+    member.update({
+        "latest_ai_version": version,
+        "ai_alert_version": version,
+        "valuation_history": [version],
+    })
+
+    class FakeRepository:
+        def watchlist(self):
+            return [member]
+
+    monkeypatch.setattr(viewer, "VALUATION_TRACKER_REPOSITORY", FakeRepository())
+    html = viewer.app.test_client().get("/tools/valuation-tracker").get_data(as_text=True)
+    assert "股权价值＝FY1—FY3 FCFE折现值＋终值折现值" in html
+    assert "股权成本11.50%—14.50%；永续增长1.50%—2.00%" in html
+    assert "实际代入" in html
+    assert "独立结果已冻结" not in html
+    assert "冻结哈希" not in html
+    assert "input aaaaaaaaaaaa" not in html
+
+
 def test_tracker_database_conflicts_are_http_409() -> None:
     class Conflict(Exception):
         sqlstate = "40001"

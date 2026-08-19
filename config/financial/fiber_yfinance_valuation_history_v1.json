@@ -1,0 +1,1356 @@
+{
+  "schemaVersion": "fiber.yfinance_valuation_history.v1",
+  "asOfDate": "2026-08-20",
+  "startDate": "2022-01-01",
+  "sourceContract": {
+    "price": "Yahoo Finance month-end unadjusted Close",
+    "financials": "Yahoo Finance annual income statement and balance sheet",
+    "lookAheadControl": "March fiscal years become usable 60 days after period end; other fiscal years become usable on the following April 30",
+    "formula": "PE近似值＝月末收盘价÷当时已公开年报EPS；PB近似值＝月末收盘价÷当时已公开年报BPS",
+    "limitation": "点时年报口径近似，不冒充Yahoo Finance历史TTM倍数；财年之间不滚动更新TTM利润或季度净资产。"
+  },
+  "companies": [
+    {
+      "company_id": 59,
+      "ticker": "5802.T",
+      "currency": "JPY",
+      "annualAnchors": [
+        {
+          "periodEnd": "2023-03-31",
+          "availableFrom": "2023-05-30",
+          "netIncome": 112654000000.0,
+          "bookValue": 1899879000000.0,
+          "shares": 3119505944.0,
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254
+        },
+        {
+          "periodEnd": "2024-03-31",
+          "availableFrom": "2024-05-30",
+          "netIncome": 149723000000.0,
+          "bookValue": 2207662000000.0,
+          "shares": 3119554120.0,
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763
+        },
+        {
+          "periodEnd": "2025-03-31",
+          "availableFrom": "2025-05-30",
+          "netIncome": 193771000000.0,
+          "bookValue": 2290394000000.0,
+          "shares": 3119426893.0,
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018
+        },
+        {
+          "periodEnd": "2026-03-31",
+          "availableFrom": "2026-05-30",
+          "netIncome": 369508000000.0,
+          "bookValue": 2743434000000.0,
+          "shares": 3119679500.0,
+          "eps": 118.44421838845946,
+          "bps": 879.3961046319021
+        }
+      ],
+      "observations": [
+        {
+          "date": "2023-05-31",
+          "close": 413.5,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 11.450243292239955,
+          "pbApprox": 0.6789462422838507
+        },
+        {
+          "date": "2023-06-30",
+          "close": 439.25,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 12.163287463401211,
+          "pbApprox": 0.7212264496328451
+        },
+        {
+          "date": "2023-07-31",
+          "close": 455.0,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 12.59942127682994,
+          "pbApprox": 0.74708715898223
+        },
+        {
+          "date": "2023-08-31",
+          "close": 446.375,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 12.360586093285635,
+          "pbApprox": 0.7329253419575668
+        },
+        {
+          "date": "2023-09-29",
+          "close": 450.375,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 12.471350236378646,
+          "pbApprox": 0.7394931411574106
+        },
+        {
+          "date": "2023-10-31",
+          "close": 392.25,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 10.861808782058338,
+          "pbApprox": 0.6440548090346807
+        },
+        {
+          "date": "2023-11-30",
+          "close": 458.5,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 12.696339902036323,
+          "pbApprox": 0.7528339832820933
+        },
+        {
+          "date": "2023-12-29",
+          "close": 448.875,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 12.429813682718766,
+          "pbApprox": 0.7370302164574691
+        },
+        {
+          "date": "2024-01-31",
+          "close": 494.0,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 13.679371671986791,
+          "pbApprox": 0.8111232011807068
+        },
+        {
+          "date": "2024-02-29",
+          "close": 555.125,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 15.371986233626858,
+          "pbApprox": 0.9114873827033195
+        },
+        {
+          "date": "2024-03-29",
+          "close": 588.625,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 16.29963593203082,
+          "pbApprox": 0.9664927010020112
+        },
+        {
+          "date": "2024-04-30",
+          "close": 610.25,
+          "financialPeriodEnd": "2023-03-31",
+          "financialAvailableFrom": "2023-05-30",
+          "eps": 36.11276978544523,
+          "bps": 609.0320179239254,
+          "peAnnualApprox": 16.89845458062741,
+          "pbApprox": 1.0019998654261666
+        },
+        {
+          "date": "2024-05-31",
+          "close": 636.125,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 13.253984789143953,
+          "pbApprox": 0.898881425048309
+        },
+        {
+          "date": "2024-06-28",
+          "close": 625.625,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 13.035212000327272,
+          "pbApprox": 0.8840443176197262
+        },
+        {
+          "date": "2024-07-31",
+          "close": 577.5,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 12.032503384917481,
+          "pbApprox": 0.816040908572055
+        },
+        {
+          "date": "2024-08-30",
+          "close": 602.125,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 12.54557766345184,
+          "pbApprox": 0.8508374581367075
+        },
+        {
+          "date": "2024-09-30",
+          "close": 573.875,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 11.956974684016485,
+          "pbApprox": 0.8109185738645681
+        },
+        {
+          "date": "2024-10-31",
+          "close": 595.625,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 12.410146889422467,
+          "pbApprox": 0.8416525821094897
+        },
+        {
+          "date": "2024-11-29",
+          "close": 721.5,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 15.032815917260542,
+          "pbApprox": 1.0195212390211907
+        },
+        {
+          "date": "2024-12-30",
+          "close": 713.375,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 14.863527449723824,
+          "pbApprox": 1.0080401439871685
+        },
+        {
+          "date": "2025-01-31",
+          "close": 728.125,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 15.17085112925202,
+          "pbApprox": 1.0288827472797013
+        },
+        {
+          "date": "2025-02-28",
+          "close": 654.625,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 13.639441607535248,
+          "pbApprox": 0.9250229952796216
+        },
+        {
+          "date": "2025-03-31",
+          "close": 616.5,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 12.845088029093727,
+          "pbApprox": 0.8711501647353627
+        },
+        {
+          "date": "2025-04-30",
+          "close": 572.25,
+          "financialPeriodEnd": "2024-03-31",
+          "financialAvailableFrom": "2024-05-30",
+          "eps": 47.99500000339792,
+          "bps": 707.6851098194763,
+          "peAnnualApprox": 11.92311699050914,
+          "pbApprox": 0.8086223548577636
+        },
+        {
+          "date": "2025-05-30",
+          "close": 759.0,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 12.218778928668376,
+          "pbApprox": 1.0337282632538332
+        },
+        {
+          "date": "2025-06-30",
+          "close": 773.75,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 12.456232142367796,
+          "pbApprox": 1.0538171853658147
+        },
+        {
+          "date": "2025-07-31",
+          "close": 939.5,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 15.124562323430752,
+          "pbApprox": 1.279562191471642
+        },
+        {
+          "date": "2025-08-29",
+          "close": 1050.75,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 16.91552300302806,
+          "pbApprox": 1.4310803328247237
+        },
+        {
+          "date": "2025-09-30",
+          "close": 1054.5,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 16.97589246413808,
+          "pbApprox": 1.436187685904041
+        },
+        {
+          "date": "2025-10-31",
+          "close": 1412.5,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 22.739163684774812,
+          "pbApprox": 1.9237696598762046
+        },
+        {
+          "date": "2025-11-28",
+          "close": 1535.25,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 24.715257378442853,
+          "pbApprox": 2.0909503506725264
+        },
+        {
+          "date": "2025-12-30",
+          "close": 1581.25,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 25.455789434725784,
+          "pbApprox": 2.153600548445486
+        },
+        {
+          "date": "2026-01-30",
+          "close": 1681.0,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 27.06161710025236,
+          "pbApprox": 2.2894561403553277
+        },
+        {
+          "date": "2026-02-27",
+          "close": 2593.75,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 41.75554393443162,
+          "pbApprox": 3.5325858798611725
+        },
+        {
+          "date": "2026-03-31",
+          "close": 2095.0,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 33.72640560679875,
+          "pbApprox": 2.853307920311964
+        },
+        {
+          "date": "2026-04-30",
+          "close": 2547.5,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 41.010987247408025,
+          "pbApprox": 3.469595191882925
+        },
+        {
+          "date": "2026-05-29",
+          "close": 3146.25,
+          "financialPeriodEnd": "2025-03-31",
+          "financialAvailableFrom": "2025-05-30",
+          "eps": 62.117499991688376,
+          "bps": 734.2355113818018,
+          "peAnnualApprox": 50.649977871308145,
+          "pbApprox": 4.285069233547263
+        },
+        {
+          "date": "2026-06-30",
+          "close": 2927.0,
+          "financialPeriodEnd": "2026-03-31",
+          "financialAvailableFrom": "2026-05-30",
+          "eps": 118.44421838845946,
+          "bps": 879.3961046319021,
+          "peAnnualApprox": 24.712054668640462,
+          "pbApprox": 3.32842047466788
+        },
+        {
+          "date": "2026-07-31",
+          "close": 2184.0,
+          "financialPeriodEnd": "2026-03-31",
+          "financialAvailableFrom": "2026-05-30",
+          "eps": 118.44421838845946,
+          "bps": 879.3961046319021,
+          "peAnnualApprox": 18.439059581930564,
+          "pbApprox": 2.483522486052152
+        },
+        {
+          "date": "2026-08-18",
+          "close": 2419.5,
+          "financialPeriodEnd": "2026-03-31",
+          "financialAvailableFrom": "2026-05-30",
+          "eps": 118.44421838845946,
+          "bps": 879.3961046319021,
+          "peAnnualApprox": 20.427337297839287,
+          "pbApprox": 2.751319896979479
+        }
+      ],
+      "positivePeObservations": 40,
+      "pbObservations": 40
+    },
+    {
+      "company_id": 203,
+      "ticker": "GLW",
+      "currency": "USD",
+      "annualAnchors": [
+        {
+          "periodEnd": "2022-12-31",
+          "availableFrom": "2023-04-30",
+          "netIncome": 1316000000.0,
+          "bookValue": 12008000000.0,
+          "shares": 857000000.0,
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239
+        },
+        {
+          "periodEnd": "2023-12-31",
+          "availableFrom": "2024-04-30",
+          "netIncome": 581000000.0,
+          "bookValue": 11551000000.0,
+          "shares": 859000000.0,
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555
+        },
+        {
+          "periodEnd": "2024-12-31",
+          "availableFrom": "2025-04-30",
+          "netIncome": 506000000.0,
+          "bookValue": 10686000000.0,
+          "shares": 869000000.0,
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285
+        },
+        {
+          "periodEnd": "2025-12-31",
+          "availableFrom": "2026-04-30",
+          "netIncome": 1596000000.0,
+          "bookValue": 11807000000.0,
+          "shares": 871000000.0,
+          "eps": 1.8323765786452353,
+          "bps": 13.555683122847302
+        }
+      ],
+      "observations": [
+        {
+          "date": "2023-05-31",
+          "close": 30.809999465942383,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 20.06395861877859,
+          "pbApprox": 2.198881540832164
+        },
+        {
+          "date": "2023-06-30",
+          "close": 35.040000915527344,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 22.818602419914082,
+          "pbApprox": 2.5007728834616034
+        },
+        {
+          "date": "2023-07-31",
+          "close": 33.939998626708984,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 22.102263543381156,
+          "pbApprox": 2.4222667241080615
+        },
+        {
+          "date": "2023-08-31",
+          "close": 32.81999969482422,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 21.372902536827016,
+          "pbApprox": 2.3423334225903027
+        },
+        {
+          "date": "2023-09-29",
+          "close": 30.469999313354492,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 19.84254514555076,
+          "pbApprox": 2.174616040268554
+        },
+        {
+          "date": "2023-10-31",
+          "close": 26.760000228881836,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 17.426535103458765,
+          "pbApprox": 1.9098367918180992
+        },
+        {
+          "date": "2023-11-30",
+          "close": 28.489999771118164,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 18.55313814882087,
+          "pbApprox": 2.033305280133933
+        },
+        {
+          "date": "2023-12-29",
+          "close": 30.450000762939453,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 19.829521773433974,
+          "pbApprox": 2.173188761978607
+        },
+        {
+          "date": "2024-01-31",
+          "close": 32.4900016784668,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 21.158002612800946,
+          "pbApprox": 2.3187817653602636
+        },
+        {
+          "date": "2024-02-29",
+          "close": 32.2400016784668,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 20.995198661433164,
+          "pbApprox": 2.300939493541476
+        },
+        {
+          "date": "2024-03-28",
+          "close": 32.959999084472656,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.5355892648774796,
+          "bps": 14.011668611435239,
+          "peAnnualApprox": 21.46407235212239,
+          "pbApprox": 2.35232505124859
+        },
+        {
+          "date": "2024-04-30",
+          "close": 33.380001068115234,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 49.35184323151633,
+          "pbApprox": 2.482332345036013
+        },
+        {
+          "date": "2024-05-31",
+          "close": 37.2599983215332,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 55.08836240653532,
+          "pbApprox": 2.770871661171935
+        },
+        {
+          "date": "2024-06-28",
+          "close": 38.849998474121094,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 57.439154370516384,
+          "pbApprox": 2.889113383193665
+        },
+        {
+          "date": "2024-07-31",
+          "close": 40.0099983215332,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 59.15419717417731,
+          "pbApprox": 2.975377764539609
+        },
+        {
+          "date": "2024-08-30",
+          "close": 41.849998474121094,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 61.874610480671286,
+          "pbApprox": 3.1122109505038544
+        },
+        {
+          "date": "2024-09-30",
+          "close": 45.150001525878906,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 66.75361671382096,
+          "pbApprox": 3.357618501491644
+        },
+        {
+          "date": "2024-10-31",
+          "close": 47.59000015258789,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 70.36111898635627,
+          "pbApprox": 3.5390710874446367
+        },
+        {
+          "date": "2024-11-29",
+          "close": 48.66999816894531,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 71.95788025322551,
+          "pbApprox": 3.619386064161027
+        },
+        {
+          "date": "2024-12-31",
+          "close": 47.52000045776367,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 70.25762546165059,
+          "pbApprox": 3.5338655002353905
+        },
+        {
+          "date": "2025-01-31",
+          "close": 52.08000183105469,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 76.99952077947673,
+          "pbApprox": 3.87297390467284
+        },
+        {
+          "date": "2025-02-28",
+          "close": 50.150001525878906,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 74.14604356407914,
+          "pbApprox": 3.7294477803419603
+        },
+        {
+          "date": "2025-03-31",
+          "close": 45.779998779296875,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 0.6763678696158324,
+          "bps": 13.447031431897555,
+          "peAnnualApprox": 67.68505843617214,
+          "pbApprox": 3.404468786374861
+        },
+        {
+          "date": "2025-04-30",
+          "close": 44.380001068115234,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 76.21782792132834,
+          "pbApprox": 3.6090418237125337
+        },
+        {
+          "date": "2025-05-30",
+          "close": 49.59000015258789,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 85.16543504466182,
+          "pbApprox": 4.03272600903976
+        },
+        {
+          "date": "2025-06-30",
+          "close": 52.59000015258789,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 90.31760895770529,
+          "pbApprox": 4.276690074171708
+        },
+        {
+          "date": "2025-07-31",
+          "close": 63.2400016784668,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 108.6078289695408,
+          "pbApprox": 5.142762629476665
+        },
+        {
+          "date": "2025-08-29",
+          "close": 67.02999877929688,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 115.11673703400986,
+          "pbApprox": 5.450970329328933
+        },
+        {
+          "date": "2025-09-30",
+          "close": 82.02999877929688,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 140.87760659922725,
+          "pbApprox": 6.670790654988675
+        },
+        {
+          "date": "2025-10-31",
+          "close": 89.08000183105469,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 152.98522053594175,
+          "pbApprox": 7.244106456221834
+        },
+        {
+          "date": "2025-11-28",
+          "close": 84.19999694824219,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 144.60434258502463,
+          "pbApprox": 6.847257846530269
+        },
+        {
+          "date": "2025-12-31",
+          "close": 87.55999755859375,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 150.37477841584578,
+          "pbApprox": 7.120497649112668
+        },
+        {
+          "date": "2026-01-30",
+          "close": 103.25,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 177.32065217391303,
+          "pbApprox": 8.396429908291221
+        },
+        {
+          "date": "2026-02-27",
+          "close": 150.3800048828125,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 258.2613127335258,
+          "pbApprox": 12.22910576859106
+        },
+        {
+          "date": "2026-03-31",
+          "close": 135.97000122070312,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 0.5822784810126582,
+          "bps": 12.296892980437285,
+          "peAnnualApprox": 233.51369774859884,
+          "pbApprox": 11.057264744599571
+        },
+        {
+          "date": "2026-04-30",
+          "close": 164.24000549316406,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 1.8323765786452353,
+          "bps": 13.555683122847302,
+          "peAnnualApprox": 89.63223357427688,
+          "pbApprox": 12.115951959392385
+        },
+        {
+          "date": "2026-05-29",
+          "close": 181.16000366210938,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 1.8323765786452353,
+          "bps": 13.555683122847302,
+          "peAnnualApprox": 98.86614234943438,
+          "pbApprox": 13.364136799330673
+        },
+        {
+          "date": "2026-06-30",
+          "close": 255.42999267578125,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 1.8323765786452353,
+          "bps": 13.555683122847302,
+          "peAnnualApprox": 139.3981977572716,
+          "pbApprox": 18.843018854967855
+        },
+        {
+          "date": "2026-07-31",
+          "close": 138.25,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 1.8323765786452353,
+          "bps": 13.555683122847302,
+          "peAnnualApprox": 75.4484649122807,
+          "pbApprox": 10.19867451511815
+        },
+        {
+          "date": "2026-08-19",
+          "close": 153.39999389648438,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 1.8323765786452353,
+          "bps": 13.555683122847302,
+          "peAnnualApprox": 83.71641270917162,
+          "pbApprox": 11.316286498165317
+        }
+      ],
+      "positivePeObservations": 40,
+      "pbObservations": 40
+    },
+    {
+      "company_id": 704,
+      "ticker": "PRY.MI",
+      "currency": "EUR",
+      "annualAnchors": [
+        {
+          "periodEnd": "2022-12-31",
+          "availableFrom": "2023-04-30",
+          "netIncome": 504000000.0,
+          "bookValue": 3585000000.0,
+          "shares": 265558000.0,
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451
+        },
+        {
+          "periodEnd": "2023-12-31",
+          "availableFrom": "2024-04-30",
+          "netIncome": 529000000.0,
+          "bookValue": 3781000000.0,
+          "shares": 287500000.0,
+          "eps": 1.84,
+          "bps": 13.151304347826088
+        },
+        {
+          "periodEnd": "2024-12-31",
+          "availableFrom": "2025-04-30",
+          "netIncome": 729000000.0,
+          "bookValue": 5087000000.0,
+          "shares": 290647000.0,
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027
+        },
+        {
+          "periodEnd": "2025-12-31",
+          "availableFrom": "2026-04-30",
+          "netIncome": 1270000000.0,
+          "bookValue": 6474000000.0,
+          "shares": 295348837.0,
+          "eps": 4.300000003047244,
+          "bps": 21.919842535218788
+        }
+      ],
+      "observations": [
+        {
+          "date": "2023-05-31",
+          "close": 34.66999816894531,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 18.267649551088848,
+          "pbApprox": 2.5681716523706495
+        },
+        {
+          "date": "2023-06-30",
+          "close": 38.279998779296875,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 20.169761737762936,
+          "pbApprox": 2.8355815664804793
+        },
+        {
+          "date": "2023-07-31",
+          "close": 36.25,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 19.10015376984127,
+          "pbApprox": 2.68520990237099
+        },
+        {
+          "date": "2023-08-31",
+          "close": 37.790000915527344,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 19.911581474455577,
+          "pbApprox": 2.799285094316767
+        },
+        {
+          "date": "2023-09-29",
+          "close": 38.150001525878906,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 20.101266081764585,
+          "pbApprox": 2.825952051662301
+        },
+        {
+          "date": "2023-10-31",
+          "close": 35.290000915527344,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 18.59432949032859,
+          "pbApprox": 2.614098204498078
+        },
+        {
+          "date": "2023-11-30",
+          "close": 35.33000183105469,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 18.615406004466706,
+          "pbApprox": 2.6170612625526415
+        },
+        {
+          "date": "2023-12-29",
+          "close": 41.16999816894531,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 21.692504709819005,
+          "pbApprox": 3.049657565899241
+        },
+        {
+          "date": "2024-01-31",
+          "close": 40.9900016784668,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 21.59766441613152,
+          "pbApprox": 3.036324369799243
+        },
+        {
+          "date": "2024-02-29",
+          "close": 46.04999923706055,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 24.263781145625643,
+          "pbApprox": 3.411142453945697
+        },
+        {
+          "date": "2024-03-28",
+          "close": 48.38999938964844,
+          "financialPeriodEnd": "2022-12-31",
+          "financialAvailableFrom": "2023-04-30",
+          "eps": 1.8978904796692249,
+          "bps": 13.499875733361451,
+          "peAnnualApprox": 25.496729083167182,
+          "pbApprox": 3.5844773941189008
+        },
+        {
+          "date": "2024-04-30",
+          "close": 51.18000030517578,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 27.81521755716075,
+          "pbApprox": 3.8916292218296844
+        },
+        {
+          "date": "2024-05-31",
+          "close": 60.02000045776367,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 32.61956546617591,
+          "pbApprox": 4.563805906270049
+        },
+        {
+          "date": "2024-06-28",
+          "close": 57.81999969482422,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 31.423912877621856,
+          "pbApprox": 4.396522060899752
+        },
+        {
+          "date": "2024-07-31",
+          "close": 63.540000915527344,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 34.53260919322138,
+          "pbApprox": 4.831460000850069
+        },
+        {
+          "date": "2024-08-30",
+          "close": 63.400001525878906,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 34.456522568412446,
+          "pbApprox": 4.820814715337261
+        },
+        {
+          "date": "2024-09-30",
+          "close": 65.19999694824219,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 35.434780950131625,
+          "pbApprox": 4.95768292055531
+        },
+        {
+          "date": "2024-10-31",
+          "close": 64.81999969482422,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 35.22826070370881,
+          "pbApprox": 4.928788657038339
+        },
+        {
+          "date": "2024-11-29",
+          "close": 62.41999816894531,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 33.923912048339844,
+          "pbApprox": 4.746297136623056
+        },
+        {
+          "date": "2024-12-30",
+          "close": 61.65999984741211,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 33.51086948228919,
+          "pbApprox": 4.688508319526839
+        },
+        {
+          "date": "2025-01-31",
+          "close": 67.33999633789062,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 36.59782409667969,
+          "pbApprox": 5.120404376393429
+        },
+        {
+          "date": "2025-02-28",
+          "close": 57.040000915527344,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 31.000000497569207,
+          "pbApprox": 4.337212447292809
+        },
+        {
+          "date": "2025-03-31",
+          "close": 50.36000061035156,
+          "financialPeriodEnd": "2023-12-31",
+          "financialAvailableFrom": "2024-04-30",
+          "eps": 1.84,
+          "bps": 13.151304347826088,
+          "peAnnualApprox": 27.36956554910411,
+          "pbApprox": 3.829278015201289
+        },
+        {
+          "date": "2025-04-30",
+          "close": 47.939998626708984,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 19.113328917499434,
+          "pbApprox": 2.73906364868431
+        },
+        {
+          "date": "2025-05-30",
+          "close": 56.599998474121094,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 22.566007896444273,
+          "pbApprox": 3.2338548764513213
+        },
+        {
+          "date": "2025-06-30",
+          "close": 60.040000915527344,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 23.937511860213,
+          "pbApprox": 3.430400264614758
+        },
+        {
+          "date": "2025-07-31",
+          "close": 70.37999725341797,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 28.05999322594537,
+          "pbApprox": 4.021178506332646
+        },
+        {
+          "date": "2025-08-29",
+          "close": 74.72000122070312,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 29.790321254861045,
+          "pbApprox": 4.2691457037141145
+        },
+        {
+          "date": "2025-09-30",
+          "close": 84.18000030517578,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 33.56195411344091,
+          "pbApprox": 4.809645085256226
+        },
+        {
+          "date": "2025-10-31",
+          "close": 89.81999969482422,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 35.810580865982956,
+          "pbApprox": 5.131887841812772
+        },
+        {
+          "date": "2025-11-28",
+          "close": 86.30000305175781,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 34.40718379558883,
+          "pbApprox": 4.93077196520233
+        },
+        {
+          "date": "2025-12-30",
+          "close": 86.37999725341797,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 34.43907690221423,
+          "pbApprox": 4.935342453649335
+        },
+        {
+          "date": "2026-01-30",
+          "close": 100.44999694824219,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 40.048683488361796,
+          "pbApprox": 5.739235357384656
+        },
+        {
+          "date": "2026-02-27",
+          "close": 102.5,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 40.8660048010974,
+          "pbApprox": 5.856362787497543
+        },
+        {
+          "date": "2026-03-31",
+          "close": 98.77999877929688,
+          "financialPeriodEnd": "2024-12-31",
+          "financialAvailableFrom": "2025-04-30",
+          "eps": 2.508197228940949,
+          "bps": 17.502331006341027,
+          "peAnnualApprox": 39.38286735967942,
+          "pbApprox": 5.643819600001238
+        },
+        {
+          "date": "2026-04-30",
+          "close": 127.94999694824219,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 4.300000003047244,
+          "bps": 21.919842535218788,
+          "peAnnualApprox": 29.755813222690456,
+          "pbApprox": 5.837176829288983
+        },
+        {
+          "date": "2026-05-29",
+          "close": 148.0,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 4.300000003047244,
+          "bps": 21.919842535218788,
+          "peAnnualApprox": 34.41860462677165,
+          "pbApprox": 6.751873320358356
+        },
+        {
+          "date": "2026-06-30",
+          "close": 146.0500030517578,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 4.300000003047244,
+          "bps": 21.919842535218788,
+          "peAnnualApprox": 33.96511696471112,
+          "pbApprox": 6.6629129665095945
+        },
+        {
+          "date": "2026-07-30",
+          "close": 119.8499984741211,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 4.300000003047244,
+          "bps": 21.919842535218788,
+          "peAnnualApprox": 27.872092648648376,
+          "pbApprox": 5.467648696908161
+        },
+        {
+          "date": "2026-08-19",
+          "close": 123.5999984741211,
+          "financialPeriodEnd": "2025-12-31",
+          "financialAvailableFrom": "2026-04-30",
+          "eps": 4.300000003047244,
+          "bps": 21.919842535218788,
+          "peAnnualApprox": 28.744185671286175,
+          "pbApprox": 5.638726568201025
+        }
+      ],
+      "positivePeObservations": 40,
+      "pbObservations": 40
+    }
+  ],
+  "contentSha256": "47257da1e0b5061e07a1dfffc1beed03d03d3638552051cec6a37714489d8e25"
+}

@@ -233,7 +233,7 @@ class OpportunityProfileExportTests(unittest.TestCase):
                             "formula_or_method": "估值日市场快照",
                         }],
                         "outputs": [{
-                            "output_name": "FY1市盈率",
+                            "output_name": "当前市场隐含FY1市盈率",
                             "value_num": 20,
                             "unit": "倍",
                             "period_or_as_of_date": "2027",

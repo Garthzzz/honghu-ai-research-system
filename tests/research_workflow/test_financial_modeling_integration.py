@@ -13,7 +13,9 @@ from tools.financial.db import connect, initialize_database, verify_database
 from tools.financial.modeling import build_three_year_forecast, external_event_shock
 from tools.financial.read_models import (
     _current_metrics_view,
+    _model_implied_expectations,
     _paired_return_points,
+    _public_model_substitution,
     _asset_return_view,
     _valuation_band_availability,
     _valuation_band_history,
@@ -58,6 +60,37 @@ HASH = "sha256:" + "a" * 64
 
 
 class FinancialModelingIntegrationTests(unittest.TestCase):
+    def test_model_substitution_is_researcher_readable_and_two_decimal(self) -> None:
+        self.assertEqual(
+            _public_model_substitution("1.6500×18—24＝29.7000—39.6000"),
+            "1.65×18.00—24.00＝29.70—39.60",
+        )
+        self.assertEqual(
+            _public_model_substitution('{"fcfe_rmb_bn":[620,690],"cost_of_equity_pct":11.5}'),
+            "股权自由现金流（十亿元）＝620.00—690.00；股权资本成本（%）＝11.50",
+        )
+
+    def test_reverse_valuation_model_outputs_fill_market_implied_section(self) -> None:
+        rows = _model_implied_expectations([{
+            "id": 7,
+            "skill_name": "company_valuation_modeling",
+            "model_name": "股权自由现金流",
+            "valuation_date": "2026-08-20",
+            "forecast_end": "2028",
+            "outputs": [{
+                "output_name": "当前市值隐含归母净利润",
+                "value_num": 17.57,
+                "unit": "亿欧元",
+                "period_or_as_of_date": "2028",
+                "formula": "当前市值÷目标市盈率",
+                "substitution": "36.8959÷21.00＝1.7570",
+            }],
+        }])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["metric_name"], "net_income")
+        self.assertEqual(rows[0]["scenario_name"], "模型反推")
+        self.assertEqual(rows[0]["substitution"], "36.8959÷21.00＝1.7570")
+
     def test_nonmeaningful_annual_roe_is_excluded_but_shown_as_not_applicable(self) -> None:
         observations = [
             {
@@ -237,7 +270,39 @@ class FinancialModelingIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(availability["sample_size"], 0)
         self.assertTrue(availability["current_multiple_available"])
-        self.assertIn("不代表接口失败", availability["message"])
+        self.assertEqual(
+            availability["message"],
+            "历史估值带待补：需要至少12个月同口径月末数据，当前为0个月。",
+        )
+
+    def test_yfinance_point_in_time_history_is_usable_and_never_called_ttm_fact(self) -> None:
+        metrics = {"close": [], "pb": []}
+        for month in range(1, 13):
+            observed = f"2025-{month:02d}-28"
+            metrics["close"].append({
+                "id": month, "metric_name": "close", "value_num": 20 + month,
+                "fact_type": "market", "provider": "yfinance", "frequency": "monthly",
+                "raw_feature_name": "yfinance.history.month_end_close",
+                "as_of_date": observed, "quality_status": "usable",
+            })
+            metrics["pb"].append({
+                "id": 20 + month, "metric_name": "pb", "value_num": 2 + month / 10,
+                "fact_type": "market", "provider": "yfinance", "frequency": "monthly",
+                "raw_feature_name": "yfinance.derived.point_in_time.pb",
+                "as_of_date": observed, "quality_status": "limited",
+            })
+        metrics["pb"].append({
+            "id": 99, "metric_name": "pb", "value_num": 3.4,
+            "fact_type": "market", "provider": "yfinance", "frequency": "snapshot",
+            "raw_feature_name": "yfinance.priceToBook", "as_of_date": "2026-08-20",
+            "quality_status": "usable",
+        })
+        band = _valuation_band_history(metrics, "pb")
+        self.assertIsNotNone(band)
+        assert band is not None
+        self.assertEqual(len(band["rows"]), 12)
+        self.assertIn("点时近似", band["history_basis"])
+        self.assertIn("不是Yahoo Finance历史TTM字段", band["boundary"])
 
     def test_practical_pb_roe_bridge_band_and_double_click_keep_boundaries_visible(self) -> None:
         bridge = book_value_profit_bridge(
