@@ -8,10 +8,10 @@ reviewed workbook exactly once, and performs an exact seven-member readback.
 """
 
 import argparse
+import contextlib
 import hashlib
+import io
 import json
-import subprocess
-import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -20,7 +20,11 @@ from tools.data_platform.postgres_runtime import (
     load_postgres_runtime_catalog,
 )
 from tools.financial.valuation_tracker import WORKBOOK_SHA256
-from tools.financial.valuation_tracker_identity_seed import REVIEWED_SEED_SHA256
+from tools.financial.valuation_tracker_identity_seed import (
+    REVIEWED_SEED_SHA256,
+    main as identity_seed_main,
+)
+from tools.financial.valuation_tracker_seed import main as workbook_seed_main
 
 
 REVIEWED_WORKBOOK_SEED_SHA256 = (
@@ -32,13 +36,15 @@ def _json_value(value):
     return json.loads(value) if isinstance(value, str) else value
 
 
-def _run(command: list[str]) -> dict:
-    completed = subprocess.run(
-        command, check=True, capture_output=True, text=True, encoding="utf-8"
-    )
-    lines = [line for line in completed.stdout.splitlines() if line.strip()]
+def _run(entrypoint, arguments: list[str]) -> dict:
+    output = io.StringIO()
+    with contextlib.redirect_stdout(output):
+        status = entrypoint(arguments)
+    if status != 0:
+        raise RuntimeError(f"setup entrypoint returned {status}")
+    lines = [line for line in output.getvalue().splitlines() if line.strip()]
     if not lines:
-        raise RuntimeError(f"setup command returned no result: {command[2]}")
+        raise RuntimeError("setup entrypoint returned no result")
     return json.loads(lines[-1])
 
 
@@ -80,14 +86,12 @@ def main(argv: list[str] | None = None) -> int:
     identity_result = {"status": "verified_existing"}
     workbook_result = {"status": "verified_existing"}
     if not args.verify_only:
-        identity_result = _run([
-            sys.executable, "-m", "tools.financial.valuation_tracker_identity_seed",
+        identity_result = _run(identity_seed_main, [
             "--postgres-runtime-catalog", str(args.postgres_runtime_catalog),
             "--cutover-unit-registry", str(args.cutover_unit_registry),
             "--seed", str(args.identity_seed), "--actor", args.actor,
         ])
-        workbook_result = _run([
-            sys.executable, "-m", "tools.financial.valuation_tracker_seed",
+        workbook_result = _run(workbook_seed_main, [
             "--postgres-runtime-catalog", str(args.postgres_runtime_catalog),
             "--seed", str(args.workbook_seed), "--actor", args.actor,
         ])
