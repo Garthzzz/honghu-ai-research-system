@@ -229,6 +229,35 @@ def _wss_row(
         raise WindHttpUnavailable("Wind wss 响应结构无法解析") from exc
 
 
+def _wsq_row(
+    ticker: str,
+    fields: tuple[str, ...],
+    *,
+    client=None,
+    large_request_approved: bool = False,
+) -> dict[str, Any]:
+    """Return one real-time Wind quote row under the narrow-scope gate."""
+    assert_wind_request_scope(
+        security_count=1,
+        field_count=len(fields),
+        estimated_observations=len(fields),
+        large_request_approved=large_request_approved,
+    )
+    actual_client = client or load_wind_http_client()
+    result = actual_client.wsq(ticker, ",".join(fields))
+    error_code = int(getattr(result, "ErrorCode", -1))
+    if error_code != 0:
+        raise WindHttpUnavailable(f"Wind wsq failed: ErrorCode={error_code}")
+    frame = getattr(result, "dfData", None)
+    if frame is None or getattr(frame, "empty", True):
+        raise WindHttpUnavailable("Wind wsq returned an empty table")
+    try:
+        row = frame.iloc[0]
+        return {str(column).upper(): row[column] for column in frame.columns}
+    except Exception as exc:
+        raise WindHttpUnavailable("Wind wsq response cannot be parsed") from exc
+
+
 def fetch_intraday_market_cap(
     ticker: str, *, trade_date: str, client=None
 ) -> dict[str, Any]:
@@ -239,38 +268,42 @@ def fetch_intraday_market_cap(
         raise WindHttpUnavailable(
             "intraday market cap requires an A-share ticker and ISO date"
         )
-    row = _wss_row(
+    # mkt_cap_ard is an end-of-day WSS field and is NULL during the current
+    # session on the production proxy.  The two intraday slots must therefore
+    # use Wind's real-time WSQ market cap and explicit suspension flag.
+    row = _wsq_row(
         symbol,
-        ("mkt_cap_ard", "trade_status"),
-        options=f"tradeDate={parsed.replace('-', '')};unit=1",
+        ("rt_mkt_cap", "rt_susp_flag"),
         client=client,
     )
-    raw = _finite(row.get("MKT_CAP_ARD"))
+    raw = _finite(row.get("RT_MKT_CAP"))
     if raw is None or raw <= 0:
         raise WindHttpUnavailable(
             f"Wind market cap is empty or invalid for {symbol}"
         )
-    raw_status = str(row.get("TRADE_STATUS") or "").strip().casefold()
-    if raw_status in {"交易", "正常交易", "trading", "trade", "normal"}:
+    raw_suspension = row.get("RT_SUSP_FLAG")
+    normalized_suspension = str(raw_suspension).strip().casefold()
+    if normalized_suspension in {"0", "0.0", "否", "false", "normal"}:
         trading_status = "trading"
-    elif raw_status in {"停牌", "全天停牌", "suspended", "suspend"}:
+    elif normalized_suspension in {"1", "1.0", "是", "true", "suspended"}:
         trading_status = "suspended"
     else:
         raise WindHttpUnavailable(
-            f"Wind trading status is empty or unsupported for {symbol}: {raw_status!r}"
+            f"Wind suspension flag is empty or unsupported for {symbol}: "
+            f"{raw_suspension!r}"
         )
     return {
         "ticker": symbol,
         "trade_date": parsed,
-        "raw_field": "mkt_cap_ard",
+        "raw_field": "rt_mkt_cap",
         "raw_value_cny": raw,
         "market_cap_value": raw / 1e8,
         "currency": "CNY",
         "unit": "亿元",
         "provider": "Wind",
         "trading_status": trading_status,
-        "raw_trading_status": str(row.get("TRADE_STATUS") or "").strip(),
-        "source_ref": f"Wind WSS.mkt_cap_ard+trade_status:{symbol}:{parsed}",
+        "raw_trading_status": str(raw_suspension).strip(),
+        "source_ref": f"Wind WSQ.rt_mkt_cap+rt_susp_flag:{symbol}:{parsed}",
     }
 
 

@@ -11,23 +11,23 @@ from tools.pipeline.wind_http_provider import (
 
 
 class FakeWind:
-    def __init__(self, dates, trade_status="交易"):
+    def __init__(self, dates, suspension_flag=0):
         self.dates = dates
-        self.trade_status = trade_status
+        self.suspension_flag = suspension_flag
         self.calendar_calls = []
-        self.wss_calls = []
+        self.wsq_calls = []
 
     def tdays(self, start, end, options):
         self.calendar_calls.append((start, end, options))
         return SimpleNamespace(ErrorCode=0, Data=[self.dates], Times=[])
 
-    def wss(self, ticker, fields, options, **_kwargs):
-        self.wss_calls.append((ticker, fields, options))
+    def wsq(self, ticker, fields, **_kwargs):
+        self.wsq_calls.append((ticker, fields))
         return SimpleNamespace(
             ErrorCode=0,
             dfData=pd.DataFrame([{
-                "MKT_CAP_ARD": 123_456_000_000.0,
-                "TRADE_STATUS": self.trade_status,
+                "RT_MKT_CAP": 123_456_000_000.0,
+                "RT_SUSP_FLAG": self.suspension_flag,
             }]),
         )
 
@@ -55,13 +55,12 @@ def test_intraday_market_cap_uses_same_day_and_cny_yi_conversion() -> None:
     assert value["market_cap_value"] == 1234.56
     assert value["currency"] == "CNY"
     assert value["trading_status"] == "trading"
-    assert client.wss_calls == [
-        ("601899.SH", "mkt_cap_ard,trade_status", "tradeDate=20260819;unit=1")
-    ]
+    assert value["raw_field"] == "rt_mkt_cap"
+    assert client.wsq_calls == [("601899.SH", "rt_mkt_cap,rt_susp_flag")]
 
 
 def test_intraday_market_cap_preserves_suspension_as_non_comparable_state() -> None:
     value = fetch_intraday_market_cap(
-        "601899.SH", trade_date="2026-08-19", client=FakeWind([], "停牌")
+        "601899.SH", trade_date="2026-08-19", client=FakeWind([], 1)
     )
     assert value["trading_status"] == "suspended"
