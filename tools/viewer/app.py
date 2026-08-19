@@ -920,6 +920,49 @@ def query_one(sql: str, params: tuple = ()) -> Optional[Dict[str, Any]]:
             conn.close()
 
 
+_INDUSTRY_OVERVIEW_SELECT = """
+    SELECT
+        i.id, i.name, i.parent_id, i.tier, i.status,
+        i.core_dynamic, i.last_updated,
+        (SELECT COUNT(*) FROM source_entity se
+         WHERE se.entity_type='industry' AND se.entity_id=CAST(i.id AS TEXT))
+            AS source_count,
+        (SELECT COUNT(*) FROM industry_data_point dp
+         WHERE dp.industry_id=i.id) AS data_point_count,
+        (SELECT COUNT(DISTINCT ci.company_id) FROM company_industry ci
+         WHERE ci.industry_id=i.id) AS company_count,
+        (SELECT COUNT(*) FROM thesis t
+         WHERE t.industry_id=i.id AND t.status='active') AS active_thesis_count
+    FROM industry i
+"""
+
+
+def _industry_overview_rows(
+    *, deep_only: bool = False, navigation_order: bool = False,
+) -> List[Dict[str, Any]]:
+    """Build industry summaries from the current authoritative projections.
+
+    The legacy ``v_industry_overview`` is a persistent SQLite view. SQLite
+    resolves tables referenced by a persistent view in its own ``main``
+    schema, so that view cannot see the TEMP tables attached from PostgreSQL
+    after a domain cutover. Querying the projected tables directly keeps new
+    PostgreSQL industries visible on /research, navigation and Q pages.
+    """
+
+    sql = _INDUSTRY_OVERVIEW_SELECT
+    if deep_only:
+        sql += " WHERE i.status='深度跟踪'"
+    if navigation_order:
+        sql += " ORDER BY (i.status='深度跟踪') DESC, i.tier ASC, i.name ASC"
+    else:
+        sql += " ORDER BY i.tier ASC, i.name ASC"
+    rows = query_all(sql)
+    for row in rows:
+        if row.get("id") is None or not str(row.get("name") or "").strip():
+            raise RuntimeError("industry overview projection returned an invalid row")
+    return rows
+
+
 def analyst_note_repository():
     return build_analyst_note_repository(
         USER_CONTENT_ROUTE,
@@ -1082,11 +1125,7 @@ def inject_nav():
     防御性:任何查询失败都不应阻断页面渲染。"""
     industries: List[Dict[str, Any]] = []
     try:
-        industries = query_all(
-            "SELECT id, name, tier, status, core_dynamic, "
-            "source_count, data_point_count, company_count "
-            "FROM v_industry_overview ORDER BY (status='深度跟踪') DESC, tier ASC, name ASC"
-        )
+        industries = _industry_overview_rows(navigation_order=True)
     except Exception:
         try:
             industries = query_all(
@@ -1541,10 +1580,7 @@ def research_home():
     - 行业列表
     - active thesis 概览
     """
-    industries = query_all("""
-        SELECT * FROM v_industry_overview
-        ORDER BY tier ASC, name ASC
-    """)
+    industries = _industry_overview_rows()
 
     # 多行业 hero(UI 重设计):所有深度跟踪行业平等展示,各自 Q5 核心结论 + 入口
     # (替代原"只取首个深度行业"的硬编码;光模块不再独大)
@@ -1873,10 +1909,7 @@ def q_horizontal(q: str):
     if q not in Q_TITLE_MAP:
         abort(404, f"研究维度仅支持 {', '.join(Q_TITLE_MAP.keys())}")
     q_title = Q_TITLE_MAP[q]
-    industries = query_all("""
-        SELECT * FROM v_industry_overview WHERE status='深度跟踪'
-        ORDER BY tier ASC, name ASC
-    """)
+    industries = _industry_overview_rows(deep_only=True)
     docs = []
     for ind in industries:
         p = find_industry_md(ind["name"], q)
@@ -8004,6 +8037,18 @@ def api_health():
                 ),
                 "battery_comparison_route": (
                     "/industry/lithium-battery/comparison" in active_routes
+                ),
+            },
+            "research_content_contract": {
+                "contract_count": int(
+                    os.environ.get("HONGHU_RESEARCH_CONTENT_CONTRACT_COUNT") or 0
+                ),
+                "file_count": int(
+                    os.environ.get("HONGHU_RESEARCH_CONTENT_FILE_COUNT") or 0
+                ),
+                "sha256": (
+                    os.environ.get("HONGHU_RESEARCH_CONTENT_CONTRACT_SHA256")
+                    or None
                 ),
             },
             "time": datetime.now().isoformat(timespec="seconds"),

@@ -181,7 +181,7 @@ ai_supply_chain_keywords:
 industry_color_groups:
   software: [大模型, AI应用]
   silicon:  [芯片, 半导体, 存储]
-  optical:  [光模块]
+  optical:  [光模块, 光纤]
   network:  [交换机]
   infra:    [云计算与算力运营, 液冷散热, 电力]
 
@@ -194,7 +194,7 @@ research_sectors:
     description: "从模型与云端需求，到服务器、互连、PCB、芯片、存储、半导体制造与设备材料。"
     industries:
       [大模型, AI应用, 云计算与算力运营, AI服务器, 通信, 电力, 液冷,
-       光模块, 存储, 算力芯片, PCB制造, 高多层PCB板, HDI板,
+       光模块, 光纤, 存储, 算力芯片, PCB制造, 高多层PCB板, HDI板,
        先进封装, 半导体材料, 半导体硅片, 半导体设备, 半导体量测,
        测试机, PCB专用设备, 智能终端与物理AI]
   有色金属与新能源材料:
@@ -214,7 +214,7 @@ ai_chain_directions:
   - name: 数据搬运
     color: "#0d9488"
     description: "交换、光互连、铜互连和板级材料共同决定集群带宽。"
-    industries: [通信, 光模块, 高速铜互连, PCB制造, 高多层PCB板, 低损耗覆铜板与电子材料]
+    industries: [通信, 光模块, 光纤, 高速铜互连, PCB制造, 高多层PCB板, 低损耗覆铜板与电子材料]
   - name: 物理承载
     color: "#7c3aed"
     description: "数据中心建设、运营和热管理决定算力能否按期上线。"

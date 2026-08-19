@@ -10,6 +10,7 @@ the application transport gate rejects authenticated user-content operations.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -37,6 +38,83 @@ class ProductionServeError(RuntimeError):
     pass
 
 
+def verify_research_content_contracts(
+    release: Path, content_root: Path,
+) -> dict[str, object]:
+    """Fail closed when a release-declared research document is absent/stale."""
+
+    contract_root = release / "config" / "research_content_contracts"
+    if not contract_root.is_dir():
+        return {"contract_count": 0, "file_count": 0, "sha256": None}
+    root = content_root.resolve()
+    digest = hashlib.sha256()
+    file_count = 0
+    contracts = sorted(contract_root.glob("*.json"))
+    for contract_path in contracts:
+        contract_bytes = contract_path.read_bytes()
+        digest.update(contract_path.name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(contract_bytes)
+        try:
+            contract = json.loads(contract_bytes)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ProductionServeError(
+                f"invalid research content contract: {contract_path.name}"
+            ) from exc
+        if contract.get("schema_version") != "honghu.research_content_contract.v1":
+            raise ProductionServeError(
+                f"unsupported research content contract: {contract_path.name}"
+            )
+        required_files = contract.get("required_files")
+        if not isinstance(required_files, list) or not required_files:
+            raise ProductionServeError(
+                f"empty research content contract: {contract_path.name}"
+            )
+        seen: set[str] = set()
+        for record in required_files:
+            if not isinstance(record, dict):
+                raise ProductionServeError(
+                    f"invalid research content record: {contract_path.name}"
+                )
+            relative = str(record.get("path") or "").replace("\\", "/")
+            if (
+                not relative
+                or relative in seen
+                or Path(relative).is_absolute()
+                or ".." in Path(relative).parts
+            ):
+                raise ProductionServeError(
+                    f"unsafe research content path: {relative or '<empty>'}"
+                )
+            seen.add(relative)
+            target = (root / Path(relative)).resolve()
+            try:
+                target.relative_to(root)
+            except ValueError as exc:
+                raise ProductionServeError(
+                    f"research content escapes content root: {relative}"
+                ) from exc
+            if not target.is_file():
+                raise ProductionServeError(f"missing research content: {relative}")
+            expected_size = record.get("size")
+            expected_sha = str(record.get("sha256") or "").lower()
+            if not isinstance(expected_size, int) or expected_size < 1:
+                raise ProductionServeError(f"invalid research content size: {relative}")
+            if not re.fullmatch(r"[0-9a-f]{64}", expected_sha):
+                raise ProductionServeError(f"invalid research content hash: {relative}")
+            if target.stat().st_size != expected_size:
+                raise ProductionServeError(f"research content size mismatch: {relative}")
+            actual_sha = hashlib.sha256(target.read_bytes()).hexdigest()
+            if actual_sha != expected_sha:
+                raise ProductionServeError(f"research content hash mismatch: {relative}")
+            file_count += 1
+    return {
+        "contract_count": len(contracts),
+        "file_count": file_count,
+        "sha256": digest.hexdigest() if contracts else None,
+    }
+
+
 def configure_environment(args: argparse.Namespace) -> dict:
     release = args.release_dir.resolve()
     verification = verify_release(release)
@@ -62,6 +140,7 @@ def configure_environment(args: argparse.Namespace) -> dict:
                 raise ProductionServeError(f"missing {kind}")
         elif not resolved.is_file():
             raise ProductionServeError(f"missing {kind}")
+    content_contract = verify_research_content_contracts(release, args.content_root)
     environment = {
         "HONGHU_DATA_ROOT": str(args.data_root.resolve()),
         "HONGHU_CONTENT_ROOT": str(args.content_root.resolve()),
@@ -74,6 +153,13 @@ def configure_environment(args: argparse.Namespace) -> dict:
         "PYTHONDONTWRITEBYTECODE": "1",
         "PYTHONUTF8": "1",
         "PYTHONIOENCODING": "utf-8",
+        "HONGHU_RESEARCH_CONTENT_CONTRACT_COUNT": str(
+            content_contract["contract_count"]
+        ),
+        "HONGHU_RESEARCH_CONTENT_FILE_COUNT": str(content_contract["file_count"]),
+        "HONGHU_RESEARCH_CONTENT_CONTRACT_SHA256": str(
+            content_contract["sha256"] or ""
+        ),
     }
     if common_mode:
         for path, label in (

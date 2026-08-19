@@ -10,6 +10,7 @@ import pytest
 from tools.release.user_content_production import (
     ProductionServeError,
     configure_environment,
+    verify_research_content_contracts,
 )
 
 
@@ -31,10 +32,57 @@ def _restore_production_environment(monkeypatch: pytest.MonkeyPatch):
         "HONGHU_SHARED_IDENTITY_POSTGRES_CONFIG",
         "HONGHU_POSTGRES_RUNTIME_CONFIG",
         "HONGHU_CUTOVER_UNIT_REGISTRY",
+        "HONGHU_RESEARCH_CONTENT_CONTRACT_COUNT",
+        "HONGHU_RESEARCH_CONTENT_FILE_COUNT",
+        "HONGHU_RESEARCH_CONTENT_CONTRACT_SHA256",
     )
     for name in names:
         monkeypatch.setenv(name, os.environ.get(name, "__pytest_restore_absent__"))
     yield
+
+
+def test_research_content_contract_is_hash_bound_and_fail_closed(
+    tmp_path: Path,
+) -> None:
+    release = tmp_path / "release"
+    contracts = release / "config" / "research_content_contracts"
+    contracts.mkdir(parents=True)
+    content = tmp_path / "content"
+    document = content / "docs" / "industries" / "光纤.md"
+    document.parent.mkdir(parents=True)
+    document.write_text("# 光纤行业深度研究\n", encoding="utf-8")
+    payload = document.read_bytes()
+    (contracts / "optical_fiber.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "honghu.research_content_contract.v1",
+                "industry_id": 50,
+                "industry_name": "光纤",
+                "required_files": [
+                    {
+                        "path": "docs/industries/光纤.md",
+                        "size": len(payload),
+                        "sha256": __import__("hashlib").sha256(payload).hexdigest(),
+                    }
+                ],
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    result = verify_research_content_contracts(release, content)
+    assert result["contract_count"] == 1
+    assert result["file_count"] == 1
+    assert len(str(result["sha256"])) == 64
+
+    document.write_text("# 被篡改\n", encoding="utf-8")
+    with pytest.raises(ProductionServeError, match="content (size|hash) mismatch"):
+        verify_research_content_contracts(release, content)
+
+    document.unlink()
+    with pytest.raises(ProductionServeError, match="missing research content"):
+        verify_research_content_contracts(release, content)
 
 
 def _args(tmp_path: Path) -> argparse.Namespace:

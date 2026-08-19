@@ -1,0 +1,47 @@
+{
+  "schema_version": "honghu.research_content_contract.v1",
+  "industry_id": 50,
+  "industry_name": "光纤",
+  "required_files": [
+    {
+      "path": "docs/industries/光纤.md",
+      "size": 23809,
+      "sha256": "729212b5c2bc9eae88935ee0f6dcc0172fc3df127fc23b70fe9b727e045a51a7"
+    },
+    {
+      "path": "docs/industries/光纤_dimensions.json",
+      "size": 496,
+      "sha256": "3cf58a182b400bd69e5f7d142379ecc31985515f75ddab296601a60c07e6e84b"
+    },
+    {
+      "path": "docs/industries/光纤_Q0_历史发展.md",
+      "size": 12693,
+      "sha256": "7ace533a3a5c222b840036234600033404bd5a68078edf044e3b209903f64494"
+    },
+    {
+      "path": "docs/industries/光纤_Q1_竞争格局.md",
+      "size": 19790,
+      "sha256": "e0fc22ac6cb34732b09051f4f96b5040cdded9c8dbc97a2702356a9c6b191caf"
+    },
+    {
+      "path": "docs/industries/光纤_Q2_市场空间.md",
+      "size": 23350,
+      "sha256": "5be99b33016803eff81dafccff2764e82ffde669b4c80c2b47fcdb5a6f1530d3"
+    },
+    {
+      "path": "docs/industries/光纤_Q3_公司壁垒.md",
+      "size": 20702,
+      "sha256": "6af3a26ab0a5a44a87fd56e1ed8e58c82c90310bddedafc719b99e396ed57f80"
+    },
+    {
+      "path": "docs/industries/光纤_Q4_行业特征.md",
+      "size": 21026,
+      "sha256": "f7730c4aea806ce599ee7d1e8e816afd8926b3d1ac530d0a887e59603dd94da3"
+    },
+    {
+      "path": "docs/industries/光纤_公司透视.md",
+      "size": 18967,
+      "sha256": "5090b1d4c7819fd82bc0f187423fe06463fc11e492683e3891bb825648952f57"
+    }
+  ]
+}
