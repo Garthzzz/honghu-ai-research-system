@@ -64,8 +64,9 @@ def main(argv: list[str] | None = None) -> int:
         raise RuntimeError("workbook source SHA does not match reviewed production input")
 
     catalog = load_postgres_runtime_catalog(args.postgres_runtime_catalog)
+    migration_reader = build_catalog_connection_factory(catalog, role="migration")
     reader = build_catalog_connection_factory(catalog, role="reader")
-    connection = reader()
+    connection = migration_reader()
     try:
         migration = connection.execute(
             """SELECT migration_sha256 FROM operations.schema_migration
