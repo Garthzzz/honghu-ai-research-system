@@ -219,7 +219,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Disabled production task installation failed.'
     encrypted_transfer_removed=$true
     service_account_preflight_verified=$true
     service_account_preflight_sha256=(Get-FileHash -LiteralPath $servicePreflightEvidence -Algorithm SHA256).Hash.ToLowerInvariant()
-    tasks_installed_disabled=10
+    tasks_installed_disabled=@(Get-ScheduledTask -TaskName 'IndustryDemo_*' | Where-Object {-not $_.Settings.Enabled}).Count
     secret_recorded=$false
 } | ConvertTo-Json -Depth 8
 

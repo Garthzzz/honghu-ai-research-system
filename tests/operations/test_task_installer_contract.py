@@ -84,6 +84,8 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--module tools.financial.valuation_tracker_seed" not in text
     assert "--module tools.financial.valuation_tracker_identity_seed" not in text
     assert "--valuation-history" in text
+    assert "tasks_installed_disabled=10" not in text
+    assert "tasks_installed_disabled=@(Get-ScheduledTask" in text
 
 
 def test_credential_transfer_is_role_allowlisted_and_deletes_transfer():
