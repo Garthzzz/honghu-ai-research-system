@@ -209,6 +209,21 @@ def test_range_price_hk_migration_is_fail_closed_and_keeps_bootstrap_compatibili
     assert "seed_ai_history_v2" in source
 
 
+def test_price_reconciliation_is_fill_only_and_append_audited() -> None:
+    source = (
+        ROOT / "migrations/postgresql/0025_valuation_market_price_reconciliation.sql"
+    ).read_text(encoding="utf-8")
+    assert "share_price_observed_at timestamptz" in source
+    assert "share_price_source_ref text" in source
+    assert "backfill_market_price_v1" in source
+    assert "v_snapshot.share_price_value IS NOT NULL" in source
+    assert "fill_missing_share_price" in source
+    assert "fields_overwritten',false" in source
+    assert "valuation_tracker.assert_writer_v1" in source
+    assert "pg_advisory_xact_lock" in source
+    assert "REVOKE ALL ON FUNCTION valuation_tracker.backfill_market_price_v1" in source
+
+
 def test_postgres_migration_has_separate_slots_versions_and_narrow_grants() -> None:
     source = (ROOT / "migrations/postgresql/0021_valuation_tracker.sql").read_text(encoding="utf-8")
     assert "UNIQUE(security_id,trade_date,slot,provider)" in source

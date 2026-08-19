@@ -382,6 +382,27 @@ class ValuationTrackerRepository:
         finally:
             connection.close()
 
+    def missing_a_share_price_count(self, trade_date: date, slot: str) -> int:
+        """Return missing prices only when the canonical six-row snapshot is complete."""
+        connection = self._read_factory()
+        try:
+            row = connection.execute(
+                """SELECT count(*) AS total,
+                          count(*) FILTER (WHERE s.share_price_value IS NULL) AS missing
+                     FROM valuation_tracker.market_snapshot s
+                     JOIN valuation_tracker.member m USING(member_id)
+                    WHERE s.trade_date=%s AND s.slot=%s AND s.provider='Wind'
+                      AND m.enabled AND m.market IN ('上海','深圳')""",
+                (trade_date, slot),
+            ).fetchone()
+            if row is None or int(row[0]) != 6:
+                raise ValuationTrackerError(
+                    "A-share market snapshot must contain exactly six securities"
+                )
+            return int(row[1])
+        finally:
+            connection.close()
+
     def record_market_batch(
         self, trade_date: date, slot: str, observed_at: datetime,
         calendar_provider: str, calendar_evidence: dict[str, Any], items: list[dict[str, Any]],
@@ -414,6 +435,28 @@ class ValuationTrackerRepository:
             result = connection.execute(
                 "SELECT valuation_tracker.record_market_skip_v2(%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
                 (trade_date, slot, calendar_provider, _jsonb(calendar_evidence), idempotency_key,
+                 WRITER_IDENTITY, authority.state, authority.cutover_epoch,
+                 authority.approval_reference, authority.state_revision, actor),
+            ).fetchone()[0]
+            connection.commit()
+            return dict(result)
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def backfill_market_prices(
+        self, trade_date: date, slot: str, reconciled_at: datetime,
+        items: list[dict[str, Any]], *, actor: str, idempotency_key: str,
+    ) -> dict[str, Any]:
+        """Fill only missing share prices on an existing audited market snapshot."""
+        connection = self._write_factory()
+        try:
+            authority = self._authority()
+            result = connection.execute(
+                "SELECT valuation_tracker.backfill_market_price_v1(%s,%s,%s,%s::jsonb,%s,%s,%s,%s,%s,%s,%s)",
+                (trade_date, slot, reconciled_at, _jsonb(items), idempotency_key,
                  WRITER_IDENTITY, authority.state, authority.cutover_epoch,
                  authority.approval_reference, authority.state_revision, actor),
             ).fetchone()[0]

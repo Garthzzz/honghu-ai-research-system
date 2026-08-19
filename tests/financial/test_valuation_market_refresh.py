@@ -128,3 +128,26 @@ def test_refresh_passes_realtime_raw_field_into_persisted_batch(monkeypatch) -> 
         "1140", now=pd.Timestamp("2026-08-19T11:40:00+08:00").to_pydatetime()
     )
     assert result["observed_count"] == 6
+
+
+def test_1510_replay_repairs_legacy_snapshot_missing_prices(monkeypatch) -> None:
+    from tools.financial import valuation_market_price_reconcile
+
+    class Repo:
+        def committed_task_result(self, *_args):
+            return {"status": "completed", "observed_count": 6}
+
+        def missing_a_share_price_count(self, _date, _slot):
+            return 6
+
+    monkeypatch.setenv("HONGHU_POSTGRES_RUNTIME_CONFIG", "ignored.json")
+    monkeypatch.setattr(valuation_market_refresh, "_repository", lambda _path: Repo())
+    monkeypatch.setattr(
+        valuation_market_price_reconcile,
+        "run",
+        lambda **_kwargs: {"status": "completed", "reconciled_count": 6},
+    )
+    result = valuation_market_refresh.run(
+        "1510", now=pd.Timestamp("2026-08-19T17:00:00+08:00").to_pydatetime()
+    )
+    assert result["price_reconciliation"]["reconciled_count"] == 6

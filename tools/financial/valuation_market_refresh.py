@@ -55,6 +55,11 @@ def run(slot: str, *, now: datetime | None = None) -> dict:
     ):
         committed = repo.committed_task_result(scope, key)
         if committed is not None:
+            if slot == "1510" and repo.missing_a_share_price_count(current.date(), slot):
+                from tools.financial.valuation_market_price_reconcile import run as reconcile_prices
+
+                committed = dict(committed)
+                committed["price_reconciliation"] = reconcile_prices(now=current)
             return committed
     client = load_wind_http_client()
     is_hk = slot == "1610"

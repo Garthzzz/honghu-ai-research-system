@@ -77,6 +77,7 @@ def test_provisioner_uses_real_isolated_migration_cli_contract():
     assert "--migration '0018_stage5_recovery_checkpoint_read_grant.sql'" in text
     assert "--migration '0023_valuation_market_realtime_provenance.sql'" in text
     assert "--migration '0024_valuation_ranges_share_price_hk.sql'" in text
+    assert "--migration '0025_valuation_market_price_reconciliation.sql'" in text
     assert "--output $migrationEvidence" in text
     assert "--migrations-dir" not in text
     assert "--evidence $migrationEvidence" not in text
