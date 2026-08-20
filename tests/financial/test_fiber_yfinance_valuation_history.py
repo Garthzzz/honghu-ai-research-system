@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from datetime import date
+import json
 from pathlib import Path
 import sqlite3
 import tempfile
+
+import pytest
 
 from tools.financial.db import connect, initialize_database
 from tools.financial.fiber_yfinance_valuation_history import (
@@ -11,6 +14,7 @@ from tools.financial.fiber_yfinance_valuation_history import (
     apply,
     _load_verified,
     _observations,
+    _sha,
 )
 from tools.financial.repository import upsert_observation, upsert_security
 
@@ -47,6 +51,30 @@ def test_annual_financial_anchor_never_looks_ahead() -> None:
     assert len(rows) == 1
     assert rows[0]["peAnnualApprox"] == 10
     assert rows[0]["pbApprox"] == 2
+
+
+def test_self_signed_tamper_is_rejected_before_database_access(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    payload = json.loads(ARTIFACT.read_text(encoding="utf-8"))
+    payload["companies"][0]["observations"][0]["close"] += 1
+    payload.pop("contentSha256")
+    payload["contentSha256"] = _sha(payload)
+    tampered = tmp_path / "self_signed_history.json"
+    tampered.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    database_accessed = False
+
+    def forbidden_connect(*args: object, **kwargs: object) -> object:
+        nonlocal database_accessed
+        database_accessed = True
+        raise AssertionError("冻结输入校验失败前不得访问数据库")
+
+    monkeypatch.setattr(
+        "tools.financial.fiber_yfinance_valuation_history.connect", forbidden_connect
+    )
+    with pytest.raises(ValueError, match="受审冻结版本"):
+        apply(tampered, db_path=tmp_path / "financial.db")
+    assert database_accessed is False
 
 
 def test_frozen_history_applies_idempotently_to_financial_database() -> None:

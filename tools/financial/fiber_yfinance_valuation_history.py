@@ -30,6 +30,15 @@ TARGETS = (
 )
 START_DATE = "2022-01-01"
 AS_OF_DATE = "2026-08-20"
+REVIEWED_CONTENT_SHA256 = (
+    "47257da1e0b5061e07a1dfffc1beed03d03d3638552051cec6a37714489d8e25"
+)
+REVIEWED_OBSERVATIONS_PER_COMPANY = 40
+REVIEWED_DATE_RANGE = {
+    59: ("2023-05-31", "2026-08-18"),
+    203: ("2023-05-31", "2026-08-19"),
+    704: ("2023-05-31", "2026-08-19"),
+}
 
 
 def _canonical(value: Any) -> bytes:
@@ -190,8 +199,105 @@ def _load_verified(path: Path) -> dict[str, Any]:
     payload["contentSha256"] = expected
     if not expected or actual != expected:
         raise ValueError("Yahoo Finance估值历史内容哈希不匹配")
-    if {int(item["company_id"]) for item in payload.get("companies") or []} != {59, 203, 704}:
-        raise ValueError("Yahoo Finance估值历史公司集合不完整")
+    if expected != REVIEWED_CONTENT_SHA256:
+        raise ValueError("Yahoo Finance估值历史不是受审冻结版本")
+    if payload.get("schemaVersion") != "fiber.yfinance_valuation_history.v1":
+        raise ValueError("Yahoo Finance估值历史协议版本不匹配")
+    if payload.get("asOfDate") != AS_OF_DATE or payload.get("startDate") != START_DATE:
+        raise ValueError("Yahoo Finance估值历史时间边界不匹配")
+
+    companies = payload.get("companies")
+    if not isinstance(companies, list):
+        raise ValueError("Yahoo Finance估值历史公司数组缺失")
+    reviewed_targets = {int(item["company_id"]): item for item in TARGETS}
+    company_ids = [int(item.get("company_id")) for item in companies]
+    if company_ids != [59, 203, 704]:
+        raise ValueError("Yahoo Finance估值历史公司集合或顺序不匹配")
+
+    total_rows = 0
+    for company in companies:
+        company_id = int(company["company_id"])
+        target = reviewed_targets[company_id]
+        if company.get("ticker") != target["ticker"]:
+            raise ValueError(f"Yahoo Finance估值历史证券代码不匹配：{company_id}")
+        if company.get("currency") != target["currency"]:
+            raise ValueError(f"Yahoo Finance估值历史币种不匹配：{company_id}")
+
+        anchors = company.get("annualAnchors")
+        if not isinstance(anchors, list) or len(anchors) != 4:
+            raise ValueError(f"Yahoo Finance估值历史年报锚点数量不匹配：{company_id}")
+        anchor_index: dict[str, dict[str, Any]] = {}
+        for anchor in anchors:
+            period_end = date.fromisoformat(str(anchor.get("periodEnd")))
+            available_from = date.fromisoformat(str(anchor.get("availableFrom")))
+            if available_from != _available_from(period_end):
+                raise ValueError(f"Yahoo Finance估值历史年报可用日不匹配：{company_id}")
+            values = {
+                key: _finite(anchor.get(key))
+                for key in ("netIncome", "bookValue", "shares", "eps", "bps")
+            }
+            if any(value is None for value in values.values()):
+                raise ValueError(f"Yahoo Finance估值历史年报锚点含无效数值：{company_id}")
+            assert all(value is not None for value in values.values())
+            if values["shares"] <= 0 or values["bookValue"] <= 0:
+                raise ValueError(f"Yahoo Finance估值历史年报锚点数量级无效：{company_id}")
+            if not math.isclose(
+                values["eps"], values["netIncome"] / values["shares"],
+                rel_tol=1e-12, abs_tol=1e-12,
+            ) or not math.isclose(
+                values["bps"], values["bookValue"] / values["shares"],
+                rel_tol=1e-12, abs_tol=1e-12,
+            ):
+                raise ValueError(f"Yahoo Finance估值历史年报锚点公式不一致：{company_id}")
+            anchor_index[period_end.isoformat()] = anchor
+        if len(anchor_index) != 4:
+            raise ValueError(f"Yahoo Finance估值历史年报锚点重复：{company_id}")
+
+        observations = company.get("observations")
+        if (
+            not isinstance(observations, list)
+            or len(observations) != REVIEWED_OBSERVATIONS_PER_COMPANY
+        ):
+            raise ValueError(f"Yahoo Finance估值历史月末期数不匹配：{company_id}")
+        dates = [str(item.get("date")) for item in observations]
+        if dates != sorted(dates) or len({item[:7] for item in dates}) != len(dates):
+            raise ValueError(f"Yahoo Finance估值历史月份重复或未排序：{company_id}")
+        if (dates[0], dates[-1]) != REVIEWED_DATE_RANGE[company_id]:
+            raise ValueError(f"Yahoo Finance估值历史日期范围不匹配：{company_id}")
+        for item in observations:
+            observation_date = date.fromisoformat(str(item.get("date")))
+            available_from = date.fromisoformat(str(item.get("financialAvailableFrom")))
+            period_end = str(item.get("financialPeriodEnd"))
+            anchor = anchor_index.get(period_end)
+            if (
+                anchor is None
+                or available_from.isoformat() != anchor["availableFrom"]
+                or available_from > observation_date
+                or observation_date > date.fromisoformat(AS_OF_DATE)
+            ):
+                raise ValueError(f"Yahoo Finance估值历史存在前视或锚点错配：{company_id}")
+            values = {
+                key: _finite(item.get(key))
+                for key in ("close", "eps", "bps", "peAnnualApprox", "pbApprox")
+            }
+            if any(value is None or value <= 0 for value in values.values()):
+                raise ValueError(f"Yahoo Finance估值历史月末观测含无效数值：{company_id}")
+            assert all(value is not None for value in values.values())
+            if (
+                not math.isclose(values["eps"], float(anchor["eps"]), rel_tol=1e-12, abs_tol=1e-12)
+                or not math.isclose(values["bps"], float(anchor["bps"]), rel_tol=1e-12, abs_tol=1e-12)
+                or not math.isclose(values["peAnnualApprox"], values["close"] / values["eps"], rel_tol=1e-12, abs_tol=1e-12)
+                or not math.isclose(values["pbApprox"], values["close"] / values["bps"], rel_tol=1e-12, abs_tol=1e-12)
+            ):
+                raise ValueError(f"Yahoo Finance估值历史月末公式不一致：{company_id}")
+        if (
+            company.get("positivePeObservations") != REVIEWED_OBSERVATIONS_PER_COMPANY
+            or company.get("pbObservations") != REVIEWED_OBSERVATIONS_PER_COMPANY
+        ):
+            raise ValueError(f"Yahoo Finance估值历史声明计数不匹配：{company_id}")
+        total_rows += len(observations) * 3
+    if total_rows != 360:
+        raise ValueError("Yahoo Finance估值历史正式写入行数不匹配")
     return payload
 
 
