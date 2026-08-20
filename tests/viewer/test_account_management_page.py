@@ -37,6 +37,7 @@ def test_application_account_migration_uses_dedicated_writer_and_no_table_dml_gr
     assert "local_set_authentication_proof_v1" in source
     assert "application authentication proof is invalid" in source
     assert "application_identity.security_audit" in source
+    assert 'GRANT USAGE ON SCHEMA application_identity TO :"migration_role"' in source
 
 
 def test_application_identity_role_is_forced_to_least_privilege() -> None:

@@ -571,6 +571,7 @@ GRANT EXECUTE ON FUNCTION application_identity.create_account_v1(text,text,text,
 GRANT EXECUTE ON FUNCTION application_identity.update_account_v1(text,text,text,text[],boolean,boolean,bigint,text,text) TO :"writer_role";
 GRANT EXECUTE ON FUNCTION application_identity.reset_password_v1(text,text,text,text,bigint,text,text) TO :"writer_role";
 GRANT EXECUTE ON FUNCTION application_identity.delete_account_v1(text,text,bigint,text,text) TO :"writer_role";
+GRANT USAGE ON SCHEMA application_identity TO :"migration_role";
 GRANT EXECUTE ON FUNCTION application_identity.local_reset_superadmin_v1(text,text,text) TO :"migration_role";
 GRANT EXECUTE ON FUNCTION application_identity.local_set_authentication_proof_v1(text,text,integer) TO :"migration_role";
 GRANT USAGE ON SCHEMA application_identity TO :"audit_reader_role";
