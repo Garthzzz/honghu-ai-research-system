@@ -22,11 +22,11 @@ from tools.data_platform.postgres_runtime import (
     credential_manager_password,
     load_postgres_runtime_catalog,
 )
-from tools.migration.finalize_application_identity_auth_proof import finalize
 from tools.migration.stage4_apply_postgresql_migrations import (
     MIGRATION_IDENTIFIERS,
     render_schema_migration,
 )
+from tools.migration.stage4_user_content_security_provision import _settings
 
 
 def _write_json_atomic(path: Path, value: Any) -> None:
@@ -42,10 +42,13 @@ def _write_json_atomic(path: Path, value: Any) -> None:
 
 
 def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) -> dict[str, Any]:
+    _settings(security_path)
     runtime = json.loads(runtime_path.read_text(encoding="utf-8-sig"))
     database = "honghu_account_rehearsal_" + secrets.token_hex(5)
     writer_role = "honghu_account_rehearsal_" + secrets.token_hex(5)
     writer_password = secrets.token_urlsafe(48)
+    idem_secret = secrets.token_urlsafe(64)
+    proof_secret = secrets.token_urlsafe(64)
     temp_runtime_path = output.with_suffix(".runtime.json")
     admin = runtime["break_glass"]
     admin_password = credential_manager_password(admin["credential_service"], admin["credential_account"])
@@ -152,11 +155,12 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                 connection.rollback()
         if not zero_proof_rejected:
             raise RuntimeError("zero authentication proof was accepted")
-        finalize(
-            temp_runtime_path,
-            security_path,
-            reason="isolated rehearsal initialization",
-        )
+        with migration_factory() as connection:
+            connection.execute(
+                "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
+                (hashlib.sha256(proof_secret.encode("utf-8")).hexdigest(),
+                 "isolated rehearsal initialization", 1),
+            )
         with migration_factory() as connection:
             initial_authority_revision = int(
                 connection.execute(
@@ -168,11 +172,12 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                     "SELECT count(*) FROM application_identity.security_audit"
                 ).fetchone()[0]
             )
-        finalize(
-            temp_runtime_path,
-            security_path,
-            reason="isolated rehearsal idempotent verification",
-        )
+        with migration_factory() as connection:
+            connection.execute(
+                "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
+                (hashlib.sha256(proof_secret.encode("utf-8")).hexdigest(),
+                 "isolated rehearsal idempotent verification", 1),
+            )
         with migration_factory() as connection:
             repeated_authority_revision = int(
                 connection.execute(
@@ -192,14 +197,6 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                 "SELECT application_identity.local_reset_superadmin_v1(%s,%s,%s)",
                 ("research-operator",password_hash("research-operator",operator_password),"isolated rehearsal"),
             )
-        security = json.loads(security_path.read_text(encoding="utf-8-sig"))
-        idem_secret = credential_manager_password(
-            security["password_idempotency_secret_service"],security["password_idempotency_secret_account"]
-        )
-        proof_secret = credential_manager_password(
-            security["authentication_proof_secret_service"],security["authentication_proof_secret_account"]
-        )
-        if not idem_secret or not proof_secret: raise RuntimeError("application secrets are unavailable")
         writer_factory = build_catalog_connection_factory(
             catalog,role="writer_application_identity",
             password_loader=lambda _service,_account: writer_password,
@@ -309,11 +306,12 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                 "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
                 (rotation_probe_sha, "isolated rehearsal rotation probe", 1),
             )
-        finalize(
-            temp_runtime_path,
-            security_path,
-            reason="isolated rehearsal proof restoration",
-        )
+        with migration_factory() as connection:
+            connection.execute(
+                "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
+                (hashlib.sha256(proof_secret.encode("utf-8")).hexdigest(),
+                 "isolated rehearsal proof restoration", 1),
+            )
         with migration_factory() as connection:
             after_rotation = connection.execute(
                 "SELECT authority_revision,(SELECT count(*) FROM application_identity.session WHERE revoked_at IS NULL) FROM application_identity.authority"
