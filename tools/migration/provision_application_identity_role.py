@@ -68,6 +68,9 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
         connect_timeout=int(runtime.get("connect_timeout_seconds", 5)),
     ) as connection:
         with connection.cursor() as cursor:
+            cursor.execute("SET log_statement='none'")
+            cursor.execute("SET log_parameter_max_length='0'")
+            cursor.execute("SET log_parameter_max_length_on_error='0'")
             cursor.execute(
                 """SELECT current_setting('log_statement'),
                           current_setting('log_parameter_max_length'),

@@ -64,6 +64,9 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
     writer_role_created = False
     try:
         with admin_connect("postgres") as connection:
+            connection.execute("SET log_statement='none'")
+            connection.execute("SET log_parameter_max_length='0'")
+            connection.execute("SET log_parameter_max_length_on_error='0'")
             admin_log_settings = tuple(
                 str(value) for value in connection.execute(
                     "SELECT current_setting('log_statement'),current_setting('log_parameter_max_length'),current_setting('log_parameter_max_length_on_error')"
