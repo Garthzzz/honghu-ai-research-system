@@ -14,6 +14,16 @@ def test_account_page_masks_passwords_and_states_system_boundary() -> None:
     assert "account_admin:manage" not in source.split("<script>", 1)[0]
 
 
+def test_account_editor_keeps_an_explicit_save_action_visible() -> None:
+    source = (ROOT / "tools/viewer/templates/account_management.html").read_text(encoding="utf-8")
+    assert 'id="am-save-button"' in source
+    assert ">保存账号</button>" in source
+    assert ".am-form-foot{position:sticky;bottom:0" in source
+    assert "saveButton.textContent=mode==='password'?'保存新密码':'保存账号'" in source
+    assert "尚未保存修改，确定关闭吗？" in source
+    assert "if(submitting)return" in source
+
+
 def test_viewer_has_no_http_subprocess_execution_path() -> None:
     source = (ROOT / "tools/viewer/app.py").read_text(encoding="utf-8")
     assert "import subprocess" not in source
