@@ -161,7 +161,7 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                 (hashlib.sha256(proof_secret.encode("utf-8")).hexdigest(),
                  "isolated rehearsal initialization", 1),
             )
-        with migration_factory() as connection:
+        with admin_connect(database) as connection:
             initial_authority_revision = int(
                 connection.execute(
                     "SELECT authority_revision FROM application_identity.authority"
@@ -178,7 +178,7 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                 (hashlib.sha256(proof_secret.encode("utf-8")).hexdigest(),
                  "isolated rehearsal idempotent verification", 1),
             )
-        with migration_factory() as connection:
+        with admin_connect(database) as connection:
             repeated_authority_revision = int(
                 connection.execute(
                     "SELECT authority_revision FROM application_identity.authority"
@@ -297,11 +297,12 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
         for thread in threads: thread.start()
         for thread in threads: thread.join()
         if sorted(outcomes)!=["rejected","success"]: raise RuntimeError(f"last-admin concurrency invariant failed: {outcomes}")
-        with migration_factory() as connection:
+        with admin_connect(database) as connection:
             before_rotation = connection.execute(
                 "SELECT authority_revision,(SELECT count(*) FROM application_identity.session WHERE revoked_at IS NULL) FROM application_identity.authority"
             ).fetchone()
-            rotation_probe_sha = hashlib.sha256(secrets.token_bytes(64)).hexdigest()
+        rotation_probe_sha = hashlib.sha256(secrets.token_bytes(64)).hexdigest()
+        with migration_factory() as connection:
             connection.execute(
                 "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
                 (rotation_probe_sha, "isolated rehearsal rotation probe", 1),
@@ -312,7 +313,7 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
                 (hashlib.sha256(proof_secret.encode("utf-8")).hexdigest(),
                  "isolated rehearsal proof restoration", 1),
             )
-        with migration_factory() as connection:
+        with admin_connect(database) as connection:
             after_rotation = connection.execute(
                 "SELECT authority_revision,(SELECT count(*) FROM application_identity.session WHERE revoked_at IS NULL) FROM application_identity.authority"
             ).fetchone()
