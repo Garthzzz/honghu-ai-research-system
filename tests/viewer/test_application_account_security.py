@@ -21,6 +21,7 @@ class Store:
         self.active = True
         self.revision = 3
         self.tokens: set[str] = set()
+        self.fail_logout = False
 
     def login(self, *, subject, password, user_agent, remote_address):
         assert user_agent and remote_address
@@ -41,6 +42,8 @@ class Store:
         return self.principal() if self.active and token in self.tokens else None
 
     def logout(self, token):
+        if self.fail_logout:
+            raise RuntimeError("database unavailable")
         self.tokens.discard(token)
 
 
@@ -97,3 +100,33 @@ def test_cross_origin_login_and_mutation_are_rejected() -> None:
     denied = client.post("/login", json={"subject":"admin","password":"Strong-Research-2026!"}, headers={"X-CSRF-Token":csrf,"Origin":"https://evil.example"})
     assert denied.status_code == 403
     assert denied.get_json()["code"] == "origin_invalid"
+
+
+def test_logout_database_failure_still_clears_local_browser_session() -> None:
+    app, store = _app(); client = app.test_client()
+    csrf = client.get("/session").get_json()["csrf"]
+    login = client.post(
+        "/login",
+        json={"subject": "admin", "password": "Strong-Research-2026!"},
+        headers={"X-CSRF-Token": csrf, "Origin": "http://localhost"},
+    )
+    store.fail_logout = True
+    response = client.post(
+        "/logout",
+        headers={"X-CSRF-Token": login.get_json()["csrf"]},
+    )
+    assert response.status_code == 500
+    with client.session_transaction() as browser_session:
+        assert "honghu_account_session" not in browser_session
+        assert "honghu_csrf_token" not in browser_session
+
+
+def test_application_account_secret_identities_must_be_distinct() -> None:
+    settings = UserContentSecuritySettings(
+        True, False, "legacy", "shared", "credential", {"legacy": frozenset({"analyst_note:read"})},
+        "shared", "credential", 1,
+        "account-auth", "login-proof", 1,
+    )
+    import pytest
+    with pytest.raises(ValueError, match="must be distinct"):
+        settings.validate(require_account_store=True)

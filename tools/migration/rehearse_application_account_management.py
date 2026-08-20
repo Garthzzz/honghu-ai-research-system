@@ -7,6 +7,7 @@ import os
 import secrets
 import tempfile
 import threading
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -81,9 +82,54 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             )
             recorded=connection.execute("SELECT migration_sha256 FROM operations.schema_migration WHERE migration_id='0026_application_account_management'").fetchone()
             if recorded is None or recorded[0]!=migration_sha: raise RuntimeError("migration ledger SHA differs")
-        finalize(temp_runtime_path, security_path)
         catalog = load_postgres_runtime_catalog(temp_runtime_path)
         migration_factory = build_catalog_connection_factory(catalog,role="migration")
+        zero_proof_rejected = False
+        with migration_factory() as connection:
+            try:
+                connection.execute(
+                    "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
+                    ("0" * 64, "zero-proof rehearsal", 1),
+                )
+            except Exception:
+                zero_proof_rejected = True
+                connection.rollback()
+        if not zero_proof_rejected:
+            raise RuntimeError("zero authentication proof was accepted")
+        finalize(
+            temp_runtime_path,
+            security_path,
+            reason="isolated rehearsal initialization",
+        )
+        with migration_factory() as connection:
+            initial_authority_revision = int(
+                connection.execute(
+                    "SELECT authority_revision FROM application_identity.authority"
+                ).fetchone()[0]
+            )
+            initial_audit_count = int(
+                connection.execute(
+                    "SELECT count(*) FROM application_identity.security_audit"
+                ).fetchone()[0]
+            )
+        finalize(
+            temp_runtime_path,
+            security_path,
+            reason="isolated rehearsal idempotent verification",
+        )
+        with migration_factory() as connection:
+            repeated_authority_revision = int(
+                connection.execute(
+                    "SELECT authority_revision FROM application_identity.authority"
+                ).fetchone()[0]
+            )
+            repeated_audit_count = int(
+                connection.execute(
+                    "SELECT count(*) FROM application_identity.security_audit"
+                ).fetchone()[0]
+            )
+        if repeated_authority_revision != initial_authority_revision or repeated_audit_count != initial_audit_count + 1:
+            raise RuntimeError("same authentication proof finalization was not idempotent and audited")
         operator_password = secrets.token_urlsafe(32) + "Aa1!"
         with migration_factory() as connection:
             connection.execute(
@@ -99,6 +145,25 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
         )
         if not idem_secret or not proof_secret: raise RuntimeError("application secrets are unavailable")
         writer_factory = build_catalog_connection_factory(catalog,role="writer_application_identity")
+        authentication_proof_denials: list[bool] = []
+        with writer_factory() as connection:
+            for supplied_proof in ("", "incorrect-proof-value-that-is-long-enough"):
+                try:
+                    connection.execute(
+                        "SELECT * FROM application_identity.complete_login_v1(%s,%s,%s,%s,%s,%s,%s,%s)",
+                        (
+                            "research-operator", True, 1, supplied_proof,
+                            hashlib.sha256(secrets.token_bytes(32)).hexdigest(),
+                            datetime.now(timezone.utc) + timedelta(hours=1),
+                            None, None,
+                        ),
+                    )
+                    authentication_proof_denials.append(False)
+                except Exception:
+                    authentication_proof_denials.append(True)
+                    connection.rollback()
+        if authentication_proof_denials != [True, True]:
+            raise RuntimeError("missing or incorrect authentication proof was accepted")
         store = PostgresApplicationAccountStore(
             writer_factory,legacy_password_verifier=lambda _s,_p: False,
             idempotency_secret=idem_secret,authentication_proof_secret=proof_secret,
@@ -175,12 +240,33 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
         for thread in threads: thread.start()
         for thread in threads: thread.join()
         if sorted(outcomes)!=["rejected","success"]: raise RuntimeError(f"last-admin concurrency invariant failed: {outcomes}")
+        with migration_factory() as connection:
+            before_rotation = connection.execute(
+                "SELECT authority_revision,(SELECT count(*) FROM application_identity.session WHERE revoked_at IS NULL) FROM application_identity.authority"
+            ).fetchone()
+            rotation_probe_sha = hashlib.sha256(secrets.token_bytes(64)).hexdigest()
+            connection.execute(
+                "SELECT application_identity.local_set_authentication_proof_v1(%s,%s,%s)",
+                (rotation_probe_sha, "isolated rehearsal rotation probe", 1),
+            )
+        finalize(
+            temp_runtime_path,
+            security_path,
+            reason="isolated rehearsal proof restoration",
+        )
+        with migration_factory() as connection:
+            after_rotation = connection.execute(
+                "SELECT authority_revision,(SELECT count(*) FROM application_identity.session WHERE revoked_at IS NULL) FROM application_identity.authority"
+            ).fetchone()
+        if int(before_rotation[1]) < 1 or int(after_rotation[0]) != int(before_rotation[0]) + 2 or int(after_rotation[1]) != 0:
+            raise RuntimeError("authentication proof rotation did not revoke sessions and restore authority")
         with admin_connect(database) as connection:
             active_admins=connection.execute("SELECT count(*) FROM application_identity.account WHERE status='active' AND is_superadmin").fetchone()[0]
             audit_text=json.dumps(connection.execute("SELECT before_payload,after_payload FROM application_identity.account_revision_audit").fetchall(),default=str)
             result_text=json.dumps(connection.execute("SELECT result_payload FROM application_identity.mutation_result").fetchall(),default=str)
+            security_audit_text=json.dumps(connection.execute("SELECT action,actor,reason,key_version,authority_revision_before,authority_revision_after,sessions_revoked FROM application_identity.security_audit").fetchall(),default=str)
             if active_admins!=1: raise RuntimeError("last active superadmin count differs")
-            if any(token in (audit_text+result_text) for token in ("password_hash","password_fingerprint",operator_password,normal_password,second_password)):
+            if any(token in (audit_text+result_text+security_audit_text) for token in ("password_hash","password_fingerprint","authentication_proof_sha256",operator_password,normal_password,second_password,proof_secret)):
                 raise RuntimeError("secret material reached audit or mutation result")
             functions=connection.execute("""SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
               WHERE n.nspname='application_identity' AND has_function_privilege('honghu_writer_application_identity',p.oid,'EXECUTE') ORDER BY p.proname""").fetchall()
@@ -188,6 +274,11 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             if {row[0] for row in functions}!=allowed: raise RuntimeError(f"writer function allowlist differs: {functions}")
         direct_denials=[]
         with writer_factory() as connection:
+            log_settings = connection.execute(
+                "SELECT current_setting('log_statement'),current_setting('log_parameter_max_length'),current_setting('log_parameter_max_length_on_error')"
+            ).fetchone()
+            if tuple(str(value) for value in log_settings) != ("none", "0", "0"):
+                raise RuntimeError(f"writer parameter logging is not suppressed: {log_settings}")
             for statement in ("SELECT * FROM application_identity.account","UPDATE application_identity.account SET revision=revision","CREATE SCHEMA forbidden_writer_schema"):
                 try: connection.execute(statement); direct_denials.append(False)
                 except Exception: direct_denials.append(True); connection.rollback()
@@ -197,6 +288,11 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             "migration_sha256":migration_sha,
             "same_request_replay":True,"different_payload_conflict":different_payload_conflict,
             "null_fingerprint_rejected":null_fingerprint_rejected,"old_session_revoked":True,
+            "zero_authentication_proof_rejected":zero_proof_rejected,
+            "missing_and_wrong_authentication_proof_rejected":authentication_proof_denials,
+            "same_authentication_proof_idempotent_and_audited":True,
+            "authentication_proof_rotation_revoked_sessions":True,
+            "writer_parameter_logging_suppressed":True,
             "last_superadmin_concurrency":outcomes,"active_superadmin_count":active_admins,
             "writer_direct_denials":direct_denials,"writer_function_allowlist":sorted(allowed),
             "secret_material_recorded":False,"temporary_database_dropped":False,

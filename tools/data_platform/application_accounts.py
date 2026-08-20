@@ -176,6 +176,32 @@ class PostgresApplicationAccountStore:
         self._dummy_hash = generate_password_hash(
             secrets.token_urlsafe(32), method=PASSWORD_METHOD
         )
+        self._verify_runtime_security_boundary()
+
+    def _verify_runtime_security_boundary(self) -> None:
+        """Fail Viewer startup if proof-bearing SQL could enter PostgreSQL logs."""
+        try:
+            with self._connect() as connection:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        """SELECT session_user,current_setting('log_statement'),
+                                  current_setting('log_parameter_max_length'),
+                                  current_setting('log_parameter_max_length_on_error')"""
+                    )
+                    row = cursor.fetchone()
+        except Exception as exc:
+            raise ApplicationAccountError(
+                "账号服务安全边界无法验证"
+            ) from exc
+        if row is None or tuple(str(value) for value in row) != (
+            "honghu_writer_application_identity",
+            "none",
+            "0",
+            "0",
+        ):
+            raise ApplicationAccountError(
+                "账号服务数据库角色或参数日志策略不符合生产安全边界"
+            )
 
     @staticmethod
     def _principal(row: dict[str, Any]) -> AccountPrincipal:

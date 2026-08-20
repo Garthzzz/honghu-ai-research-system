@@ -97,6 +97,18 @@ CREATE TABLE application_identity.mutation_result (
     PRIMARY KEY(operation_scope,idempotency_key)
 );
 
+CREATE TABLE application_identity.security_audit (
+    security_audit_id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    action text NOT NULL CHECK(action IN ('authentication_proof_initialized','authentication_proof_verified','authentication_proof_rotated')),
+    actor text NOT NULL CHECK(btrim(actor)<>''),
+    reason text NOT NULL CHECK(btrim(reason)<>''),
+    key_version integer NOT NULL CHECK(key_version=1),
+    authority_revision_before bigint NOT NULL CHECK(authority_revision_before>0),
+    authority_revision_after bigint NOT NULL CHECK(authority_revision_after>=authority_revision_before),
+    sessions_revoked boolean NOT NULL,
+    occurred_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
 CREATE INDEX application_session_account_idx
   ON application_identity.session(account_id,revoked_at,expires_at);
 CREATE INDEX application_account_status_idx
@@ -244,28 +256,43 @@ BEGIN
 END; $$;
 
 CREATE OR REPLACE FUNCTION application_identity.local_set_authentication_proof_v1(
-  p_authentication_proof_sha256 text
+  p_authentication_proof_sha256 text,p_reason text,p_key_version integer
 ) RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER
 SET search_path=pg_catalog,application_identity AS $$
-DECLARE v_old text;
+DECLARE v_old text; v_revision bigint; v_revoked boolean:=false;
 BEGIN
   IF session_user IS DISTINCT FROM 'honghu_migration'
      OR p_authentication_proof_sha256 IS NULL
      OR p_authentication_proof_sha256 !~ '^[0-9a-f]{64}$'
-     OR p_authentication_proof_sha256=repeat('0',64) THEN
+     OR p_authentication_proof_sha256=repeat('0',64)
+     OR nullif(btrim(p_reason),'') IS NULL OR p_key_version IS DISTINCT FROM 1 THEN
     RAISE EXCEPTION 'local authentication proof provisioning is fenced' USING ERRCODE='42501';
   END IF;
-  SELECT authentication_proof_sha256 INTO v_old FROM application_identity.authority
+  SELECT authentication_proof_sha256,authority_revision INTO v_old,v_revision FROM application_identity.authority
    WHERE authority_key='application_accounts' FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'application identity authority is absent' USING ERRCODE='23503'; END IF;
-  IF v_old IS NOT DISTINCT FROM p_authentication_proof_sha256 THEN RETURN true; END IF;
+  IF v_old IS NOT DISTINCT FROM p_authentication_proof_sha256 THEN
+    INSERT INTO application_identity.security_audit(
+      action,actor,reason,key_version,authority_revision_before,authority_revision_after,sessions_revoked
+    ) VALUES(
+      'authentication_proof_verified','vm-local-provisioner',p_reason,p_key_version,v_revision,v_revision,false
+    );
+    RETURN true;
+  END IF;
   IF v_old IS DISTINCT FROM repeat('0',64) AND v_old IS DISTINCT FROM p_authentication_proof_sha256 THEN
     UPDATE application_identity.session SET revoked_at=clock_timestamp(),revoke_reason='authentication_proof_rotated'
      WHERE revoked_at IS NULL;
+    v_revoked:=FOUND;
   END IF;
   UPDATE application_identity.authority SET authentication_proof_sha256=p_authentication_proof_sha256,
     authority_revision=authority_revision+1,updated_at=clock_timestamp()
    WHERE authority_key='application_accounts';
+  INSERT INTO application_identity.security_audit(
+    action,actor,reason,key_version,authority_revision_before,authority_revision_after,sessions_revoked
+  ) VALUES(
+    CASE WHEN v_old=repeat('0',64) THEN 'authentication_proof_initialized' ELSE 'authentication_proof_rotated' END,
+    'vm-local-provisioner',p_reason,p_key_version,v_revision,v_revision+1,v_revoked
+  );
   RETURN true;
 END; $$;
 
@@ -545,9 +572,10 @@ GRANT EXECUTE ON FUNCTION application_identity.update_account_v1(text,text,text,
 GRANT EXECUTE ON FUNCTION application_identity.reset_password_v1(text,text,text,text,bigint,text,text) TO :"writer_role";
 GRANT EXECUTE ON FUNCTION application_identity.delete_account_v1(text,text,bigint,text,text) TO :"writer_role";
 GRANT EXECUTE ON FUNCTION application_identity.local_reset_superadmin_v1(text,text,text) TO :"migration_role";
-GRANT EXECUTE ON FUNCTION application_identity.local_set_authentication_proof_v1(text) TO :"migration_role";
+GRANT EXECUTE ON FUNCTION application_identity.local_set_authentication_proof_v1(text,text,integer) TO :"migration_role";
 GRANT USAGE ON SCHEMA application_identity TO :"audit_reader_role";
 GRANT SELECT ON application_identity.account_revision_audit TO :"audit_reader_role";
+GRANT SELECT ON application_identity.security_audit TO :"audit_reader_role";
 
 INSERT INTO operations.schema_migration(migration_id,migration_sha256,phase,forward_only)
 VALUES('0026_application_account_management',:'migration_sha256','expand',false)

@@ -35,6 +35,8 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
     idempotency_account = str(security.get("password_idempotency_secret_account") or "")
     proof_service = str(security.get("authentication_proof_secret_service") or "")
     proof_account = str(security.get("authentication_proof_secret_account") or "")
+    session_service = str(security.get("session_secret_service") or "")
+    session_account = str(security.get("session_secret_account") or "")
     if (
         security.get("password_idempotency_secret_version") != 1
         or not idempotency_service
@@ -42,8 +44,20 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
         or security.get("authentication_proof_secret_version") != 1
         or not proof_service
         or not proof_account
+        or not session_service
+        or not session_account
     ):
         raise RuntimeError("dedicated password-idempotency secret identity v1 is required")
+    if len(
+        {
+            (session_service.strip(), session_account.strip()),
+            (idempotency_service.strip(), idempotency_account.strip()),
+            (proof_service.strip(), proof_account.strip()),
+        }
+    ) != 3:
+        raise RuntimeError(
+            "session, password-idempotency, and authentication-proof secret identities must be distinct"
+        )
 
     with psycopg.connect(
         host=runtime["host"], port=int(runtime["port"]), dbname=runtime["dbname"],
@@ -68,6 +82,18 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
                      LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
                      NOBYPASSRLS NOINHERIT"""
             )
+            # The authentication proof is intentionally never recorded in
+            # PostgreSQL logs.  These role-local settings are verified below
+            # and again by the production/rehearsal gates.
+            cursor.execute(
+                "ALTER ROLE honghu_writer_application_identity SET log_statement = 'none'"
+            )
+            cursor.execute(
+                "ALTER ROLE honghu_writer_application_identity SET log_parameter_max_length = '0'"
+            )
+            cursor.execute(
+                "ALTER ROLE honghu_writer_application_identity SET log_parameter_max_length_on_error = '0'"
+            )
             cursor.execute(
                 """SELECT r.rolsuper,r.rolcreatedb,r.rolcreaterole,r.rolreplication,
                           r.rolbypassrls,r.rolinherit,
@@ -79,6 +105,23 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
             attributes = cursor.fetchone()
             if attributes is None or any(bool(value) for value in attributes):
                 raise RuntimeError("application-identity role retained a dangerous attribute, membership, or database CREATE privilege")
+            cursor.execute(
+                """SELECT setconfig FROM pg_db_role_setting s
+                     JOIN pg_roles r ON r.oid=s.setrole
+                    WHERE r.rolname=%s AND s.setdatabase=0""",
+                (ROLE_NAME,),
+            )
+            setting_row = cursor.fetchone()
+            role_settings = set(setting_row[0] or []) if setting_row else set()
+            expected_log_settings = {
+                "log_statement=none",
+                "log_parameter_max_length=0",
+                "log_parameter_max_length_on_error=0",
+            }
+            if not expected_log_settings.issubset(role_settings):
+                raise RuntimeError(
+                    "application-identity role does not suppress SQL statement and parameter logging"
+                )
     keyring.set_password(SERVICE, ROLE_NAME, password)
     if not keyring.get_password(idempotency_service, idempotency_account):
         keyring.set_password(

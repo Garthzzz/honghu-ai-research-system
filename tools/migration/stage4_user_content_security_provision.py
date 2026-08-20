@@ -95,6 +95,28 @@ def _settings(path: Path) -> dict[str, Any]:
     ):
         if not str(payload.get(field) or "").strip():
             raise SecurityProvisionError(f"security configuration is missing {field}")
+    if payload.get("password_idempotency_secret_version") != 1:
+        raise SecurityProvisionError("password-idempotency secret version must be 1")
+    if payload.get("authentication_proof_secret_version") != 1:
+        raise SecurityProvisionError("authentication-proof secret version must be 1")
+    secret_identities = {
+        (
+            str(payload["session_secret_service"]).strip(),
+            str(payload["session_secret_account"]).strip(),
+        ),
+        (
+            str(payload["password_idempotency_secret_service"]).strip(),
+            str(payload["password_idempotency_secret_account"]).strip(),
+        ),
+        (
+            str(payload["authentication_proof_secret_service"]).strip(),
+            str(payload["authentication_proof_secret_account"]).strip(),
+        ),
+    }
+    if len(secret_identities) != 3:
+        raise SecurityProvisionError(
+            "session, password-idempotency, and authentication-proof secret identities must be distinct"
+        )
     return payload
 
 
@@ -188,17 +210,27 @@ def provision(config: Path, envelope: Path, output: Path) -> int:
         raise SecurityProvisionError("rotated session credential is unusable")
     idempotency_service = settings["password_idempotency_secret_service"]
     idempotency_account = settings["password_idempotency_secret_account"]
-    keyring.set_password(
-        idempotency_service,
-        idempotency_account,
-        payload["password_idempotency_secret"],
+    existing_idempotency_secret = keyring.get_password(
+        idempotency_service, idempotency_account
     )
-    if keyring.get_password(idempotency_service, idempotency_account) != payload["password_idempotency_secret"]:
+    idempotency_secret_created = not bool(existing_idempotency_secret)
+    if idempotency_secret_created:
+        keyring.set_password(
+            idempotency_service,
+            idempotency_account,
+            payload["password_idempotency_secret"],
+        )
+    if not keyring.get_password(idempotency_service, idempotency_account):
         raise SecurityProvisionError("password-idempotency credential is unusable")
     proof_service = settings["authentication_proof_secret_service"]
     proof_account = settings["authentication_proof_secret_account"]
-    keyring.set_password(proof_service, proof_account, payload["authentication_proof_secret"])
-    if keyring.get_password(proof_service, proof_account) != payload["authentication_proof_secret"]:
+    existing_proof_secret = keyring.get_password(proof_service, proof_account)
+    proof_secret_created = not bool(existing_proof_secret)
+    if proof_secret_created:
+        keyring.set_password(
+            proof_service, proof_account, payload["authentication_proof_secret"]
+        )
+    if not keyring.get_password(proof_service, proof_account):
         raise SecurityProvisionError("authentication-proof credential is unusable")
     revoked = str(payload["revoked_principal"])
     keyring.set_password(service, revoked, generate_password_hash(payload["revoked_password"]))
@@ -220,8 +252,12 @@ def provision(config: Path, envelope: Path, output: Path) -> int:
         "session_secret_identity": f"{session_service}/{session_account}",
         "password_idempotency_secret_identity": f"{idempotency_service}/{idempotency_account}",
         "password_idempotency_secret_version": 1,
+        "password_idempotency_secret_created": idempotency_secret_created,
+        "password_idempotency_secret_preserved": not idempotency_secret_created,
         "authentication_proof_secret_identity": f"{proof_service}/{proof_account}",
         "authentication_proof_secret_version": 1,
+        "authentication_proof_secret_created": proof_secret_created,
+        "authentication_proof_secret_preserved": not proof_secret_created,
         "create_verified": True,
         "rotate_new_accepted": True,
         "rotate_old_rejected": True,

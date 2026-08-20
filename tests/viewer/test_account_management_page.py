@@ -36,6 +36,7 @@ def test_application_account_migration_uses_dedicated_writer_and_no_table_dml_gr
     assert source.count("p_is_superadmin IS DISTINCT FROM") == 2
     assert "local_set_authentication_proof_v1" in source
     assert "application authentication proof is invalid" in source
+    assert "application_identity.security_audit" in source
 
 
 def test_application_identity_role_is_forced_to_least_privilege() -> None:
@@ -50,3 +51,11 @@ def test_application_identity_role_is_forced_to_least_privilege() -> None:
     finalizer = (ROOT / "tools/migration/finalize_application_identity_auth_proof.py").read_text(encoding="utf-8")
     assert "local_set_authentication_proof_v1" in finalizer
     assert "no secret value was printed" in finalizer
+    orchestrator = (ROOT / "tools/migration/provision_application_identity_production.py").read_text(encoding="utf-8")
+    run_body = orchestrator.split("def run(", 1)[1]
+    assert run_body.index("provision(runtime_path") < run_body.index("_apply_exact(")
+    assert run_body.index("_apply_exact(") < run_body.index("finalize(")
+    assert "log_parameter_max_length_on_error=0" in orchestrator
+    account_store = (ROOT / "tools/data_platform/application_accounts.py").read_text(encoding="utf-8")
+    assert "_verify_runtime_security_boundary" in account_store
+    assert "current_setting('log_parameter_max_length_on_error')" in account_store

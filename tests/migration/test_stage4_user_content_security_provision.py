@@ -3,6 +3,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
+from tools.migration.stage4_user_content_security_provision import (
+    SecurityProvisionError,
+    _settings,
+)
+
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -58,3 +65,30 @@ def test_production_security_config_has_distinct_writer_and_reader() -> None:
     }
     assert payload["password_idempotency_secret_version"] == 1
     assert payload["authentication_proof_secret_version"] == 1
+
+
+def test_security_settings_reject_secret_identity_reuse_and_wrong_version(tmp_path: Path) -> None:
+    import json
+
+    source = json.loads(
+        (ROOT / "config/migration/user_content_security_production.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    source["password_idempotency_secret_service"] = source["session_secret_service"]
+    source["password_idempotency_secret_account"] = source["session_secret_account"]
+    reused = tmp_path / "reused.json"
+    reused.write_text(json.dumps(source), encoding="utf-8")
+    with pytest.raises(SecurityProvisionError, match="must be distinct"):
+        _settings(reused)
+
+    source = json.loads(
+        (ROOT / "config/migration/user_content_security_production.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    source["authentication_proof_secret_version"] = 2
+    wrong_version = tmp_path / "wrong-version.json"
+    wrong_version.write_text(json.dumps(source), encoding="utf-8")
+    with pytest.raises(SecurityProvisionError, match="version must be 1"):
+        _settings(wrong_version)

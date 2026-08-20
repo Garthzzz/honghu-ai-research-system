@@ -108,6 +108,23 @@ class UserContentSecuritySettings:
             or self.authentication_proof_secret_version != 1
         ):
             raise ValueError("dedicated authentication-proof secret identity v1 is required")
+        if require_account_store:
+            secret_identities = {
+                (self.session_secret_service.strip(), self.session_secret_account.strip()),
+                (
+                    self.password_idempotency_secret_service.strip(),
+                    self.password_idempotency_secret_account.strip(),
+                ),
+                (
+                    self.authentication_proof_secret_service.strip(),
+                    self.authentication_proof_secret_account.strip(),
+                ),
+            }
+            if len(secret_identities) != 3:
+                raise ValueError(
+                    "session, password-idempotency, and authentication-proof "
+                    "secret identities must be distinct"
+                )
 
 
 PasswordVerifier = Callable[[str, str], bool]
@@ -350,9 +367,14 @@ def account_session_token() -> str:
 
 
 def clear_principal(app: Flask | None = None) -> None:
-    if app is not None:
-        store = app.config.get("HONGHU_APPLICATION_ACCOUNT_STORE")
-        token = account_session_token()
-        if store is not None and token:
-            store.logout(token)
-    session.clear()
+    try:
+        if app is not None:
+            store = app.config.get("HONGHU_APPLICATION_ACCOUNT_STORE")
+            token = account_session_token()
+            if store is not None and token:
+                store.logout(token)
+    finally:
+        # Local logout must never depend on database availability.  If the
+        # server-side revoke fails, the opaque browser token is still removed
+        # and cannot silently become active again after the database recovers.
+        session.clear()

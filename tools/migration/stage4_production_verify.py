@@ -185,11 +185,30 @@ def verify_production_candidate(
                             SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
                              WHERE c.relkind IN ('r','p') AND n.nspname NOT LIKE 'pg_%'
                                AND n.nspname<>'information_schema'
-                               AND has_table_privilege(r.rolname,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                               AND has_table_privilege(r.rolname,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
                           )
                      FROM pg_roles r WHERE r.rolname='honghu_writer_application_identity'"""
             )
             application_role_boundary = cursor.fetchone()
+            cursor.execute(
+                """SELECT setconfig FROM pg_db_role_setting s
+                     JOIN pg_roles r ON r.oid=s.setrole
+                    WHERE r.rolname='honghu_writer_application_identity'
+                      AND s.setdatabase=0"""
+            )
+            application_role_setting_row = cursor.fetchone()
+            application_role_settings = set(
+                application_role_setting_row[0] or []
+            ) if application_role_setting_row else set()
+            cursor.execute(
+                """SELECT p.proname FROM pg_proc p
+                     JOIN pg_namespace n ON n.oid=p.pronamespace
+                    WHERE n.nspname='application_identity'
+                      AND has_function_privilege(
+                        'honghu_writer_application_identity',p.oid,'EXECUTE'
+                      ) ORDER BY p.proname"""
+            )
+            application_role_functions = [str(row[0]) for row in cursor.fetchall()]
     finally:
         connection.close()
 
@@ -243,6 +262,24 @@ def verify_production_candidate(
         raise ProductionVerificationError(
             "application-identity writer has a dangerous role attribute, membership, CREATE, or direct DML privilege"
         )
+    expected_application_log_settings = {
+        "log_statement=none",
+        "log_parameter_max_length=0",
+        "log_parameter_max_length_on_error=0",
+    }
+    if not expected_application_log_settings.issubset(application_role_settings):
+        raise ProductionVerificationError(
+            "application-identity writer statement/parameter logging is not suppressed"
+        )
+    expected_application_functions = {
+        "complete_login_v1","create_account_v1","delete_account_v1",
+        "list_accounts_v1","login_verifier_v1","logout_v1",
+        "reset_password_v1","resolve_session_v1","update_account_v1",
+    }
+    if set(application_role_functions) not in (set(), expected_application_functions):
+        raise ProductionVerificationError(
+            "application-identity writer function allowlist differs"
+        )
 
     core = {
         "schema_version": "honghu.stage4_production_postgresql_verification.v1",
@@ -271,6 +308,8 @@ def verify_production_candidate(
         "tls": {"verified": bool(tls[0]), "version": tls[1], "cipher": tls[2]},
         "credential_presence": credential_presence,
         "role_attributes": role_attributes,
+        "application_identity_role_log_settings": sorted(application_role_settings),
+        "application_identity_writer_functions": application_role_functions,
         "migrations": migrations,
         "authority": authority,
         "unit_snapshots": unit_snapshots,
