@@ -22,6 +22,8 @@ def test_account_editor_keeps_an_explicit_save_action_visible() -> None:
     assert "saveButton.textContent=mode==='password'?'保存新密码':'保存账号'" in source
     assert "尚未保存修改，确定关闭吗？" in source
     assert "if(submitting)return" in source
+    assert "$('.am-close').addEventListener('click',()=>close())" in source
+    assert "$('.am-cancel').addEventListener('click',()=>close())" in source
 
 
 def test_viewer_has_no_http_subprocess_execution_path() -> None:
