@@ -5,6 +5,12 @@
   "credential_service": "honghu.viewer.user-content.v1",
   "session_secret_service": "honghu.viewer.session.v1",
   "session_secret_account": "flask-session",
+  "password_idempotency_secret_service": "honghu.viewer.application-account-idempotency.v1",
+  "password_idempotency_secret_account": "password-fingerprint",
+  "password_idempotency_secret_version": 1,
+  "authentication_proof_secret_service": "honghu.viewer.application-account-auth-proof.v1",
+  "authentication_proof_secret_account": "login-proof",
+  "authentication_proof_secret_version": 1,
   "principals": {
     "research-operator": [
       "analyst_note:read",

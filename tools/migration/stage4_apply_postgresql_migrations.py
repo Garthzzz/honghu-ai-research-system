@@ -43,6 +43,7 @@ REVIEWED_MIGRATIONS = (
     "0023_valuation_market_realtime_provenance.sql",
     "0024_valuation_ranges_share_price_hk.sql",
     "0025_valuation_market_price_reconciliation.sql",
+    "0026_application_account_management.sql",
 )
 
 MIGRATION_IDENTIFIERS = {
@@ -110,6 +111,11 @@ MIGRATION_IDENTIFIERS = {
     },
     "0025_valuation_market_price_reconciliation.sql": {
         "writer_role": "honghu_writer_financial_data",
+    },
+    "0026_application_account_management.sql": {
+        "writer_role": "honghu_writer_application_identity",
+        "audit_reader_role": "honghu_audit_reader",
+        "migration_role": "honghu_migration",
     },
 }
 

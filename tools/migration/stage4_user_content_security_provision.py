@@ -88,6 +88,10 @@ def _settings(path: Path) -> dict[str, Any]:
         "credential_service",
         "session_secret_service",
         "session_secret_account",
+        "password_idempotency_secret_service",
+        "password_idempotency_secret_account",
+        "authentication_proof_secret_service",
+        "authentication_proof_secret_account",
     ):
         if not str(payload.get(field) or "").strip():
             raise SecurityProvisionError(f"security configuration is missing {field}")
@@ -116,6 +120,8 @@ def generate(config: Path, *, acceptance_credential_service: str | None = None) 
         "current_passwords": current_passwords,
         "old_session_secret": secrets.token_urlsafe(64),
         "current_session_secret": secrets.token_urlsafe(64),
+        "password_idempotency_secret": secrets.token_urlsafe(64),
+        "authentication_proof_secret": secrets.token_urlsafe(64),
         "revoked_principal": "stage4-revoked-probe",
         "revoked_password": secrets.token_urlsafe(36),
     }
@@ -180,6 +186,20 @@ def provision(config: Path, envelope: Path, output: Path) -> int:
     keyring.set_password(session_service, session_account, payload["current_session_secret"])
     if keyring.get_password(session_service, session_account) != payload["current_session_secret"]:
         raise SecurityProvisionError("rotated session credential is unusable")
+    idempotency_service = settings["password_idempotency_secret_service"]
+    idempotency_account = settings["password_idempotency_secret_account"]
+    keyring.set_password(
+        idempotency_service,
+        idempotency_account,
+        payload["password_idempotency_secret"],
+    )
+    if keyring.get_password(idempotency_service, idempotency_account) != payload["password_idempotency_secret"]:
+        raise SecurityProvisionError("password-idempotency credential is unusable")
+    proof_service = settings["authentication_proof_secret_service"]
+    proof_account = settings["authentication_proof_secret_account"]
+    keyring.set_password(proof_service, proof_account, payload["authentication_proof_secret"])
+    if keyring.get_password(proof_service, proof_account) != payload["authentication_proof_secret"]:
+        raise SecurityProvisionError("authentication-proof credential is unusable")
     revoked = str(payload["revoked_principal"])
     keyring.set_password(service, revoked, generate_password_hash(payload["revoked_password"]))
     keyring.delete_password(service, revoked)
@@ -198,6 +218,10 @@ def provision(config: Path, envelope: Path, output: Path) -> int:
         "principal_subjects": sorted(settings["principals"]),
         "credential_service": service,
         "session_secret_identity": f"{session_service}/{session_account}",
+        "password_idempotency_secret_identity": f"{idempotency_service}/{idempotency_account}",
+        "password_idempotency_secret_version": 1,
+        "authentication_proof_secret_identity": f"{proof_service}/{proof_account}",
+        "authentication_proof_secret_version": 1,
         "create_verified": True,
         "rotate_new_accepted": True,
         "rotate_old_rejected": True,

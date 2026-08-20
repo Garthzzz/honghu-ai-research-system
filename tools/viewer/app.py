@@ -30,7 +30,6 @@ import os
 import sys
 import re
 import sqlite3
-import subprocess
 import traceback
 import uuid
 from bisect import bisect_left, bisect_right
@@ -96,6 +95,11 @@ from tools.data_platform.user_content_notes import (  # noqa: E402
     AnalystNoteMutation,
     build_analyst_note_repository,
 )
+from tools.data_platform.application_accounts import (  # noqa: E402
+    ALLOWED_PERMISSIONS,
+    ApplicationAccountError,
+    PostgresApplicationAccountStore,
+)
 from tools.migration.stage4_identity_mapping import (  # noqa: E402
     IdentityMappingError,
     IdentityMappingResolver,
@@ -107,12 +111,15 @@ from tools.runtime_paths import (  # noqa: E402
     resolve_runtime_layout,
 )
 from tools.viewer.user_content_security import (  # noqa: E402
+    KeyringPasswordVerifier,
     UserContentSecurityError,
+    account_session_token as user_content_account_session_token,
     authenticate as authenticate_user_content,
     clear_principal as clear_user_content_principal,
     configure_user_content_security,
     current_principal as current_user_content_principal,
     ensure_csrf_token as ensure_user_content_csrf_token,
+    keyring_session_secret,
     load_security_settings,
     require_principal as require_user_content_principal,
     security_settings as current_user_content_security_settings,
@@ -304,6 +311,7 @@ if bool(COMMON_POSTGRES_RUNTIME_PATH) != bool(COMMON_CUTOVER_REGISTRY_PATH):
 POSTGRES_RUNTIME_CATALOG = None
 AUTHORITY_MATRIX: AuthorityMatrix | None = None
 COMMON_POSTGRES_READ_FACTORY = None
+APPLICATION_ACCOUNT_STORE = None
 if COMMON_POSTGRES_RUNTIME_PATH:
     POSTGRES_RUNTIME_CATALOG = load_postgres_runtime_catalog(COMMON_POSTGRES_RUNTIME_PATH)
     COMMON_POSTGRES_READ_FACTORY = build_catalog_connection_factory(
@@ -311,6 +319,32 @@ if COMMON_POSTGRES_RUNTIME_PATH:
     )
     _, AUTHORITY_MATRIX = load_authority_matrix(
         COMMON_CUTOVER_REGISTRY_PATH, COMMON_POSTGRES_READ_FACTORY
+    )
+    application_identity_factory = build_catalog_connection_factory(
+        POSTGRES_RUNTIME_CATALOG, role="writer_application_identity", pool_size=4
+    )
+    security_preview = load_security_settings(
+        os.environ.get("HONGHU_USER_CONTENT_SECURITY_CONFIG")
+    )
+    password_idempotency_secret = keyring_session_secret(
+        security_preview.password_idempotency_secret_service,
+        security_preview.password_idempotency_secret_account,
+    )
+    if not password_idempotency_secret:
+        raise RuntimeError("application-account password-idempotency secret is unavailable")
+    authentication_proof_secret = keyring_session_secret(
+        security_preview.authentication_proof_secret_service,
+        security_preview.authentication_proof_secret_account,
+    )
+    if not authentication_proof_secret:
+        raise RuntimeError("application-account authentication proof is unavailable")
+    APPLICATION_ACCOUNT_STORE = PostgresApplicationAccountStore(
+        application_identity_factory,
+        legacy_password_verifier=KeyringPasswordVerifier(
+            security_preview.credential_service
+        ),
+        idempotency_secret=password_idempotency_secret,
+        authentication_proof_secret=authentication_proof_secret,
     )
 
 USER_CONTENT_TRACKED_ROUTE = ROOT / "config" / "migration" / "user_content_backend_route.json"
@@ -428,6 +462,7 @@ if AUTHORITY_MATRIX is not None:
 configure_user_content_security(
     app,
     load_security_settings(os.environ.get("HONGHU_USER_CONTENT_SECURITY_CONFIG")),
+    account_store=APPLICATION_ACCOUNT_STORE,
 )
 
 try:
@@ -994,7 +1029,7 @@ def analyst_note_entity_key(entity_type: str, entity_id: str | int) -> str:
 
 
 def _user_content_error(exc: Exception):
-    if isinstance(exc, (UserContentSecurityError, AnalystNoteError)):
+    if isinstance(exc, (UserContentSecurityError, AnalystNoteError, ApplicationAccountError)):
         return jsonify({"ok": False, "error": str(exc), "code": exc.code}), exc.http_status
     if isinstance(exc, (IdentityMappingError, SharedIdentityError)):
         return jsonify(
@@ -5168,13 +5203,9 @@ def incremental_index():
 
 
 # ── 路由:触发增量更新(任务 6a)──────────────────────
-@app.route("/refresh/<int:industry_id>", methods=["GET", "POST"])
+@app.route("/refresh/<int:industry_id>", methods=["GET"])
 def refresh_industry(industry_id: int):
-    """触发增量更新流程。
-    GET:渲染确认页(显示当前 industry 状态 + 即将扫描的目录 + 上次快照)。
-    POST:跑 tools/pipeline/incremental_update.py --industry <id> --dry-run。
-          实际抽 claim 仍需 SCIENTIST session 跑(本路由仅扫描 + 列差异)。
-    """
+    """只读展示增量状态；执行入口只保留在本机/VM 运维工具。"""
     ind = query_one("SELECT * FROM industry WHERE id=?", (industry_id,))
     if not ind:
         abort(404, f"industry id={industry_id} 不存在")
@@ -5185,37 +5216,7 @@ def refresh_industry(industry_id: int):
         (industry_id,),
     )
 
-    if request.method == "POST":
-        script = ROOT / "tools" / "pipeline" / "incremental_update.py"
-        cmd = [sys.executable, str(script), "--industry", str(industry_id), "--dry-run"]
-        try:
-            proc = subprocess.run(
-                cmd, cwd=str(ROOT), capture_output=True, text=True, timeout=60,
-                encoding="utf-8", errors="replace",
-            )
-            return render_template(
-                "refresh_result.html",
-                ind=ind,
-                cmd=" ".join(cmd),
-                stdout=proc.stdout,
-                stderr=proc.stderr,
-                returncode=proc.returncode,
-            )
-        except subprocess.TimeoutExpired:
-            return render_template(
-                "refresh_result.html",
-                ind=ind, cmd=" ".join(cmd),
-                stdout="", stderr="脚本执行超时(60s)", returncode=-1,
-            )
-        except Exception as e:
-            log.error(f"refresh exec failed: {traceback.format_exc()}")
-            return render_template(
-                "refresh_result.html",
-                ind=ind, cmd=" ".join(cmd),
-                stdout="", stderr=f"执行异常:{e}", returncode=-1,
-            )
-
-    # GET:确认页
+    # 扫描结果仅供查看；不能从 HTTP 请求触发任何本机命令。
     papers_subdir = PAPERS_DIR / ind["name"]
     paper_files: List[str] = []
     if papers_subdir.exists():
@@ -6669,6 +6670,7 @@ def api_user_content_session():
                 "authenticated": principal is not None,
                 "principal": principal.subject if principal else None,
                 "permissions": sorted(principal.permissions) if principal else [],
+                "must_change_password": bool(principal and principal.must_change_password),
                 "csrf_token": ensure_user_content_csrf_token(app),
                 "mutation_enabled": bool(
                     principal and "analyst_note:write" in principal.permissions
@@ -6706,10 +6708,152 @@ def api_user_content_login():
 def api_user_content_logout():
     try:
         require_user_content_principal(
-            app, request, permission="analyst_note:read", csrf=True
+            app, request, permission="", csrf=True
         )
-        clear_user_content_principal()
+        clear_user_content_principal(app)
         return jsonify({"ok": True})
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+def _application_account_store():
+    store = app.config.get("HONGHU_APPLICATION_ACCOUNT_STORE")
+    if store is None:
+        raise UserContentSecurityError(
+            "账号管理尚未在 PostgreSQL 生产域启用",
+            code="account_management_not_ready",
+            http_status=503,
+        )
+    return store
+
+
+def _account_admin_payload() -> dict[str, Any]:
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        raise ValueError("请求必须为 JSON 对象")
+    return payload
+
+
+def _account_idempotency_key() -> str:
+    value = str(request.headers.get("X-Idempotency-Key") or "").strip()
+    if not value or len(value) > 160:
+        raise ValueError("缺少有效的 X-Idempotency-Key")
+    return value
+
+
+@app.route("/admin/accounts")
+def account_management_page():
+    return render_template(
+        "account_management.html",
+        allowed_permissions=sorted(ALLOWED_PERMISSIONS),
+    )
+
+
+@app.route("/api/admin/accounts", methods=["GET"])
+def api_admin_accounts_list():
+    try:
+        require_user_content_principal(
+            app, request, permission="account_admin:read", csrf=False
+        )
+        accounts = _application_account_store().list_accounts(
+            user_content_account_session_token()
+        )
+        return jsonify({"ok": True, "accounts": accounts})
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/admin/accounts", methods=["POST"])
+def api_admin_accounts_create():
+    try:
+        require_user_content_principal(
+            app, request, permission="account_admin:manage", csrf=True
+        )
+        payload = _account_admin_payload()
+        password = str(payload.get("password") or "")
+        if password != str(payload.get("password_confirmation") or ""):
+            raise ValueError("两次输入的密码不一致")
+        result = _application_account_store().create_account(
+            user_content_account_session_token(),
+            subject=str(payload.get("subject") or ""),
+            display_name=str(payload.get("display_name") or ""),
+            password=password,
+            permissions=payload.get("permissions"),
+            superadmin=bool(payload.get("is_superadmin")),
+            reason=str(payload.get("reason") or ""),
+            idempotency_key=_account_idempotency_key(),
+        )
+        return jsonify({"ok": True, "account": result})
+    except (ValueError, TypeError) as exc:
+        return jsonify({"ok": False, "code": "invalid_payload", "error": str(exc)}), 400
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/admin/accounts/<subject>", methods=["PATCH"])
+def api_admin_accounts_update(subject: str):
+    try:
+        require_user_content_principal(
+            app, request, permission="account_admin:manage", csrf=True
+        )
+        payload = _account_admin_payload()
+        result = _application_account_store().update_account(
+            user_content_account_session_token(), subject,
+            display_name=str(payload.get("display_name") or ""),
+            permissions=payload.get("permissions"),
+            superadmin=bool(payload.get("is_superadmin")),
+            active=bool(payload.get("active")),
+            expected_revision=int(payload.get("expected_revision")),
+            reason=str(payload.get("reason") or ""),
+            idempotency_key=_account_idempotency_key(),
+        )
+        return jsonify({"ok": True, "account": result})
+    except (ValueError, TypeError) as exc:
+        return jsonify({"ok": False, "code": "invalid_payload", "error": str(exc)}), 400
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/admin/accounts/<subject>/password", methods=["POST"])
+def api_admin_accounts_reset_password(subject: str):
+    try:
+        require_user_content_principal(
+            app, request, permission="account_admin:manage", csrf=True
+        )
+        payload = _account_admin_payload()
+        password = str(payload.get("password") or "")
+        if password != str(payload.get("password_confirmation") or ""):
+            raise ValueError("两次输入的密码不一致")
+        result = _application_account_store().reset_password(
+            user_content_account_session_token(), subject,
+            password=password,
+            expected_revision=int(payload.get("expected_revision")),
+            reason=str(payload.get("reason") or ""),
+            idempotency_key=_account_idempotency_key(),
+        )
+        return jsonify({"ok": True, "account": result})
+    except (ValueError, TypeError) as exc:
+        return jsonify({"ok": False, "code": "invalid_payload", "error": str(exc)}), 400
+    except Exception as exc:
+        return _user_content_error(exc)
+
+
+@app.route("/api/admin/accounts/<subject>", methods=["DELETE"])
+def api_admin_accounts_delete(subject: str):
+    try:
+        require_user_content_principal(
+            app, request, permission="account_admin:manage", csrf=True
+        )
+        payload = _account_admin_payload()
+        result = _application_account_store().delete_account(
+            user_content_account_session_token(), subject,
+            expected_revision=int(payload.get("expected_revision")),
+            reason=str(payload.get("reason") or ""),
+            idempotency_key=_account_idempotency_key(),
+        )
+        return jsonify({"ok": True, "account": result})
+    except (ValueError, TypeError) as exc:
+        return jsonify({"ok": False, "code": "invalid_payload", "error": str(exc)}), 400
     except Exception as exc:
         return _user_content_error(exc)
 

@@ -703,15 +703,15 @@ hostssl replication honghu_backup 127.0.0.1/32 scram-sha-256
         audit_reader = 'honghu_audit_reader'
         backup = 'honghu_backup'
     }
-    foreach ($unit in 'user_content_notes','shared_identity','financial_data','research_publication','dynamic_intelligence','operations_governance','investment_hypotheses','opportunity_lens','sentiment_analytics') {
+    foreach ($unit in 'user_content_notes','application_identity','shared_identity','financial_data','research_publication','dynamic_intelligence','operations_governance','investment_hypotheses','opportunity_lens','sentiment_analytics') {
         $roleNames["writer_$unit"] = "honghu_writer_$unit"
     }
     $rolePasswords = @{}
     foreach ($entry in $roleNames.GetEnumerator()) { $rolePasswords[$entry.Key] = ConvertTo-HonghuSecretHex }
     $roleSql = New-Object System.Collections.Generic.List[string]
     foreach ($entry in $roleNames.GetEnumerator()) {
-        $attributes = if ($entry.Key -eq 'backup') { 'LOGIN REPLICATION NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' } else { 'LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT' }
-        $roleSql.Add(('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=''{0}'') THEN CREATE ROLE {0} {1} PASSWORD ''{2}''; ELSE ALTER ROLE {0} PASSWORD ''{2}''; END IF; END $$;' -f $entry.Value, $attributes, $rolePasswords[$entry.Key]))
+        $attributes = if ($entry.Key -eq 'backup') { 'LOGIN REPLICATION NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT' } else { 'LOGIN NOREPLICATION NOSUPERUSER NOCREATEDB NOCREATEROLE NOBYPASSRLS NOINHERIT' }
+        $roleSql.Add(('DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname=''{0}'') THEN CREATE ROLE {0} {1} PASSWORD ''{2}''; ELSE ALTER ROLE {0} {1} PASSWORD ''{2}''; END IF; END $$;' -f $entry.Value, $attributes, $rolePasswords[$entry.Key]))
     }
     $roleSql.Add("SELECT 'roles-created';")
     Invoke-HonghuPsql -Psql (Join-Path $Bin 'psql.exe') -Database postgres -Password $adminPassword -Sql ($roleSql -join "`n") | Out-Null

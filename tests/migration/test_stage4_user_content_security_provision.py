@@ -52,3 +52,9 @@ def test_production_security_config_has_distinct_writer_and_reader() -> None:
     assert "analyst_note:write" in payload["principals"]["research-operator"]
     assert "analyst_note:write" not in payload["principals"]["research-auditor"]
     assert "analyst_note:read" in payload["principals"]["research-auditor"]
+    assert payload["password_idempotency_secret_service"] != payload["session_secret_service"]
+    assert payload["authentication_proof_secret_service"] not in {
+        payload["session_secret_service"], payload["password_idempotency_secret_service"]
+    }
+    assert payload["password_idempotency_secret_version"] == 1
+    assert payload["authentication_proof_secret_version"] == 1

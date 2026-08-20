@@ -26,6 +26,7 @@ EXPECTED_ROLES = {
     "audit_reader",
     "backup",
     "writer_user_content_notes",
+    "writer_application_identity",
     "writer_shared_identity",
     "writer_financial_data",
     "writer_research_publication",
@@ -163,12 +164,32 @@ def verify_production_candidate(
             cursor.execute(
                 """
                 SELECT r.rolname,r.rolsuper,r.rolcreaterole,r.rolcreatedb,
-                       r.rolreplication,r.rolcanlogin
+                       r.rolreplication,r.rolcanlogin,r.rolinherit,r.rolbypassrls
                   FROM pg_roles r
                  WHERE r.rolname LIKE 'honghu_%' ORDER BY r.rolname
                 """
             )
             role_attributes = [list(row) for row in cursor.fetchall()]
+            cursor.execute(
+                """SELECT r.rolsuper,r.rolcreaterole,r.rolcreatedb,r.rolreplication,
+                          r.rolinherit,r.rolbypassrls,
+                          (SELECT count(*) FROM pg_auth_members m WHERE m.member=r.oid),
+                          has_database_privilege(r.rolname,current_database(),'CREATE'),
+                          EXISTS(
+                            SELECT 1 FROM pg_namespace n
+                             WHERE n.nspname NOT LIKE 'pg_%'
+                               AND n.nspname<>'information_schema'
+                               AND has_schema_privilege(r.rolname,n.oid,'CREATE')
+                          ),
+                          EXISTS(
+                            SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+                             WHERE c.relkind IN ('r','p') AND n.nspname NOT LIKE 'pg_%'
+                               AND n.nspname<>'information_schema'
+                               AND has_table_privilege(r.rolname,c.oid,'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+                          )
+                     FROM pg_roles r WHERE r.rolname='honghu_writer_application_identity'"""
+            )
+            application_role_boundary = cursor.fetchone()
     finally:
         connection.close()
 
@@ -216,6 +237,12 @@ def verify_production_candidate(
         raise ProductionVerificationError("formal PostgreSQL application mutations already exist")
     if not str(server[6]).strip() or str(server[6]).strip() in {"(disabled)", ""}:
         raise ProductionVerificationError("WAL archive command is not configured")
+    if application_role_boundary is None or any(
+        bool(value) for value in application_role_boundary
+    ):
+        raise ProductionVerificationError(
+            "application-identity writer has a dangerous role attribute, membership, CREATE, or direct DML privilege"
+        )
 
     core = {
         "schema_version": "honghu.stage4_production_postgresql_verification.v1",

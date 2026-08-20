@@ -62,9 +62,7 @@
     点击下方按钮触发 <code>tools/pipeline/incremental_update.py --industry {{ ind.id }} --dry-run</code>。
     Dry-run 只列差异,不写 db。实际抽取需 SCIENTIST session 接力。
   </p>
-  <form method="post" action="{{ url_for('refresh_industry', industry_id=ind.id) }}">
-    <button type="submit" class="btn">运行 dry-run 扫描</button>
-  </form>
+  <p class="notice">此页只读。扫描、服务、计划任务和迁移只能在本机或 VM 的受控运维入口执行。</p>
 </section>
 
 {% endblock %}
