@@ -255,16 +255,21 @@ def upsert_observation(
                      VALUES(?,?,?,?)""",
                 (int(existing["id"]), _canonical_json(previous), _canonical_json(replacement), revision_reason),
             )
-    conn.execute(
-        f"""INSERT INTO {_table('financial_observation', schema)}({','.join(columns)})
-            VALUES({','.join('?' for _ in columns)})
-            ON CONFLICT(observation_key) DO UPDATE SET
-              value_num=excluded.value_num,value_text=excluded.value_text,unit=excluded.unit,
-              currency=excluded.currency,source_snapshot_id=excluded.source_snapshot_id,
-              formula=excluded.formula,input_refs_json=excluded.input_refs_json,
-              quality_status=excluded.quality_status,updated_at=datetime('now')""",
-        values,
-    )
+    if existing is None:
+        conn.execute(
+            f"""INSERT INTO {_table('financial_observation', schema)}({','.join(columns)})
+                VALUES({','.join('?' for _ in columns)})""",
+            values,
+        )
+    elif status == "revised":
+        conn.execute(
+            f"""UPDATE {_table('financial_observation', schema)} SET
+                  value_num=?,value_text=?,unit=?,currency=?,source_snapshot_id=?,
+                  formula=?,input_refs_json=?,quality_status=?,updated_at=datetime('now')
+                WHERE observation_key=?""",
+            tuple(replacement[column] for column in tracked_columns)
+            + (payload["observation_key"],),
+        )
     row = conn.execute(
         f"SELECT id FROM {_table('financial_observation', schema)} WHERE observation_key=?",
         (payload["observation_key"],),
