@@ -27,6 +27,7 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
     if not admin_password:
         raise RuntimeError("break-glass credential is unavailable")
     import psycopg
+    from psycopg import sql
     import keyring
 
     security = json.loads(security_config_path.read_text(encoding="utf-8-sig"))
@@ -67,6 +68,16 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
         connect_timeout=int(runtime.get("connect_timeout_seconds", 5)),
     ) as connection:
         with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT current_setting('log_statement'),
+                          current_setting('log_parameter_max_length'),
+                          current_setting('log_parameter_max_length_on_error')"""
+            )
+            admin_log_settings = tuple(str(value) for value in cursor.fetchone())
+            if admin_log_settings != ("none", "0", "0"):
+                raise RuntimeError(
+                    "break-glass connection does not suppress statement and parameter logging"
+                )
             cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (ROLE_NAME,))
             role_exists = cursor.fetchone() is not None
             if role_exists and not password:
@@ -87,8 +98,9 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
                          NOBYPASSRLS NOINHERIT"""
                 )
                 cursor.execute(
-                    "ALTER ROLE honghu_writer_application_identity PASSWORD %s",
-                    (password,),
+                    sql.SQL("ALTER ROLE honghu_writer_application_identity PASSWORD {}").format(
+                        sql.Literal(password)
+                    )
                 )
             cursor.execute(
                 """ALTER ROLE honghu_writer_application_identity

@@ -64,6 +64,15 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
     writer_role_created = False
     try:
         with admin_connect("postgres") as connection:
+            admin_log_settings = tuple(
+                str(value) for value in connection.execute(
+                    "SELECT current_setting('log_statement'),current_setting('log_parameter_max_length'),current_setting('log_parameter_max_length_on_error')"
+                ).fetchone()
+            )
+            if admin_log_settings != ("none", "0", "0"):
+                raise RuntimeError(
+                    "break-glass connection does not suppress statement and parameter logging"
+                )
             connection.execute(
                 sql.SQL(
                     """CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
@@ -72,10 +81,9 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             )
             writer_role_created = True
             connection.execute(
-                sql.SQL("ALTER ROLE {} PASSWORD %s").format(
-                    sql.Identifier(writer_role)
-                ),
-                (writer_password,),
+                sql.SQL("ALTER ROLE {} PASSWORD {}").format(
+                    sql.Identifier(writer_role), sql.Literal(writer_password)
+                )
             )
             connection.execute(
                 sql.SQL("ALTER ROLE {} SET log_statement='none'").format(
