@@ -215,6 +215,28 @@ def _latest(rows: list[dict[str, Any]], *, fact_types: set[str] | None = None) -
     return max(eligible, key=_row_priority) if eligible else None
 
 
+def _is_history_only_market_row(row: dict[str, Any]) -> bool:
+    if str(row.get("frequency") or "").lower() != "monthly":
+        return False
+    feature = str(row.get("raw_feature_name") or "").lower()
+    return (
+        "wsd." in feature
+        or feature.startswith("yfinance.history.month_end_")
+        or feature.startswith("yfinance.derived.point_in_time.")
+    )
+
+
+def _latest_current(
+    rows: list[dict[str, Any]], *, fact_types: set[str] | None = None
+) -> dict[str, Any] | None:
+    """Select a current snapshot without promoting monthly history rows."""
+
+    return _latest(
+        [row for row in rows if not _is_history_only_market_row(row)],
+        fact_types=fact_types,
+    )
+
+
 def _provider_label(provider: Any) -> str:
     return {
         "wind": "Wind",
@@ -248,13 +270,13 @@ def _current_metrics_view(
             if metric in {"roe", "roa", "eps_ttm", "bps_mrq"}
             else {"actual"}
         )
-        row = _latest(metrics.get(metric, []), fact_types=fact_types)
+        row = _latest_current(metrics.get(metric, []), fact_types=fact_types)
         if row:
             row = dict(row)
             row["provider_label"] = _provider_label(row.get("provider"))
         selected[metric] = row
     if selected["market_cap_cny"] is None:
-        row = _latest(metrics.get("market_cap", []), fact_types={"market"})
+        row = _latest_current(metrics.get("market_cap", []), fact_types={"market"})
         if row:
             row = dict(row)
             row["provider_label"] = _provider_label(row.get("provider"))
@@ -611,7 +633,7 @@ def _valuation_band_history(
     """
     if multiple_metric not in {"pe_ttm", "pb"}:
         raise ValueError(f"不支持的估值带指标：{multiple_metric}")
-    current = _latest(metrics.get(multiple_metric, []), fact_types={"market"})
+    current = _latest_current(metrics.get(multiple_metric, []), fact_types={"market"})
     if not current or float(current.get("value_num") or 0) <= 0:
         return None
     close_rows = [
@@ -743,7 +765,7 @@ def _valuation_band_availability(
         )
     }
     aligned_dates = sorted((close_by_date & multiple_by_date) - {""})
-    current = _latest(metrics.get(multiple_metric, []), fact_types={"market"})
+    current = _latest_current(metrics.get(multiple_metric, []), fact_types={"market"})
     current_valid = bool(current and float(current.get("value_num") or 0) > 0)
     current_provider = str((current or {}).get("provider") or "").lower()
     current_provider_label = _provider_label((current or {}).get("provider"))
@@ -780,7 +802,7 @@ def _valuation_band_availability(
 
 
 def _asset_return_view(metrics: dict[str, list[dict[str, Any]]]) -> dict[str, Any]:
-    pb = _latest(metrics.get("pb", []), fact_types={"market"})
+    pb = _latest_current(metrics.get("pb", []), fact_types={"market"})
     roe = _latest(metrics.get("roe", []), fact_types={"market", "actual"})
     roa = _latest(metrics.get("roa", []), fact_types={"market", "actual"})
     roic = _latest(metrics.get("roic", []), fact_types={"actual"})
@@ -914,7 +936,7 @@ def _valuation_framework_view(
         framework = {
             "applicability": (
                 "诊断方法"
-                if _latest(metrics.get("pb", []), fact_types={"market"})
+                if _latest_current(metrics.get("pb", []), fact_types={"market"})
                 else "数据不足，暂不路由"
             ),
             "cycle_sensitivity": "尚未完成专项判断",
@@ -1196,7 +1218,7 @@ def peer_asset_return_rows(
         for security in securities:
             metrics = grouped.get(int(security["id"]), {})
             selected = {
-                "pb": _latest(metrics.get("pb", []), fact_types={"market"}),
+                "pb": _latest_current(metrics.get("pb", []), fact_types={"market"}),
                 "roe": _latest(metrics.get("roe", []), fact_types={"market", "actual"}),
                 "roa": _latest(metrics.get("roa", []), fact_types={"market", "actual"}),
                 "roic": _latest(metrics.get("roic", []), fact_types={"actual"}),

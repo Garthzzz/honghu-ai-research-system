@@ -194,6 +194,27 @@ class FinancialModelingIntegrationTests(unittest.TestCase):
         self.assertEqual(current["eps_ttm"]["provider_label"], "Wind")
         self.assertEqual(current["bps_mrq"]["provider_label"], "Wind")
 
+    def test_monthly_point_in_time_history_never_replaces_current_snapshot(self) -> None:
+        metrics = {
+            "close": [
+                {"id": 1, "value_num": 120.0, "fact_type": "market", "frequency": "snapshot", "provider": "yfinance", "raw_feature_name": "yfinance.info.currentPrice", "as_of_date": "2026-08-18", "quality_status": "usable"},
+                {"id": 2, "value_num": 123.6, "fact_type": "market", "frequency": "monthly", "provider": "yfinance", "raw_feature_name": "yfinance.history.month_end_close", "as_of_date": "2026-08-31", "quality_status": "usable"},
+            ],
+            "pe_ttm": [
+                {"id": 3, "value_num": 31.0, "fact_type": "market", "frequency": "snapshot", "provider": "yfinance", "raw_feature_name": "yfinance.info.trailingPE", "as_of_date": "2026-08-18", "quality_status": "usable"},
+                {"id": 4, "value_num": 28.74, "fact_type": "market", "frequency": "monthly", "provider": "yfinance", "raw_feature_name": "yfinance.derived.point_in_time.pe_ttm", "as_of_date": "2026-08-31", "quality_status": "limited"},
+            ],
+            "pb": [
+                {"id": 5, "value_num": 6.1, "fact_type": "market", "frequency": "snapshot", "provider": "yfinance", "raw_feature_name": "yfinance.info.priceToBook", "as_of_date": "2026-08-18", "quality_status": "usable"},
+                {"id": 6, "value_num": 5.64, "fact_type": "market", "frequency": "monthly", "provider": "yfinance", "raw_feature_name": "yfinance.derived.point_in_time.pb", "as_of_date": "2026-08-31", "quality_status": "limited"},
+            ],
+        }
+        current = _current_metrics_view(metrics)
+        self.assertEqual(current["close"]["value_num"], 120.0)
+        self.assertEqual(current["pe_ttm"]["value_num"], 31.0)
+        self.assertEqual(current["pb"]["value_num"], 6.1)
+        self.assertEqual(current["pe_ttm"]["raw_feature_name"], "yfinance.info.trailingPE")
+
     def test_price_band_uses_only_aligned_wind_wsd_rows(self) -> None:
         metrics = {"close": [], "pb": []}
         for index in range(12):
