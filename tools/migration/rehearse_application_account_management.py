@@ -23,7 +23,6 @@ from tools.data_platform.postgres_runtime import (
     load_postgres_runtime_catalog,
 )
 from tools.migration.finalize_application_identity_auth_proof import finalize
-from tools.migration.provision_application_identity_role import provision
 from tools.migration.stage4_apply_postgresql_migrations import (
     MIGRATION_IDENTIFIERS,
     render_schema_migration,
@@ -43,9 +42,10 @@ def _write_json_atomic(path: Path, value: Any) -> None:
 
 
 def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) -> dict[str, Any]:
-    provision(runtime_path, security_path)
     runtime = json.loads(runtime_path.read_text(encoding="utf-8-sig"))
     database = "honghu_account_rehearsal_" + secrets.token_hex(5)
+    writer_role = "honghu_account_rehearsal_" + secrets.token_hex(5)
+    writer_password = secrets.token_urlsafe(48)
     temp_runtime_path = output.with_suffix(".runtime.json")
     admin = runtime["break_glass"]
     admin_password = credential_manager_password(admin["credential_service"], admin["credential_account"])
@@ -60,10 +60,51 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             sslrootcert=runtime["sslrootcert"],connect_timeout=5,autocommit=autocommit,
         )
 
-    with admin_connect("postgres") as connection:
-        connection.execute(sql.SQL("CREATE DATABASE {} TEMPLATE template0").format(sql.Identifier(database)))
+    database_created = False
+    writer_role_created = False
     try:
+        with admin_connect("postgres") as connection:
+            connection.execute(
+                sql.SQL(
+                    """CREATE ROLE {} LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+                       NOREPLICATION NOBYPASSRLS NOINHERIT"""
+                ).format(sql.Identifier(writer_role))
+            )
+            writer_role_created = True
+            connection.execute(
+                sql.SQL("ALTER ROLE {} PASSWORD %s").format(
+                    sql.Identifier(writer_role)
+                ),
+                (writer_password,),
+            )
+            connection.execute(
+                sql.SQL("ALTER ROLE {} SET log_statement='none'").format(
+                    sql.Identifier(writer_role)
+                )
+            )
+            connection.execute(
+                sql.SQL("ALTER ROLE {} SET log_parameter_max_length='0'").format(
+                    sql.Identifier(writer_role)
+                )
+            )
+            connection.execute(
+                sql.SQL(
+                    "ALTER ROLE {} SET log_parameter_max_length_on_error='0'"
+                ).format(sql.Identifier(writer_role))
+            )
+            connection.execute(
+                sql.SQL("CREATE DATABASE {} TEMPLATE template0").format(
+                    sql.Identifier(database)
+                )
+            )
+            database_created = True
         temp_runtime = dict(runtime); temp_runtime["dbname"] = database
+        temp_runtime["roles"] = dict(runtime["roles"])
+        temp_runtime["roles"]["writer_application_identity"] = {
+            "user": writer_role,
+            "credential_service": "rehearsal.memory.only",
+            "credential_account": writer_role,
+        }
         _write_json_atomic(temp_runtime_path, temp_runtime)
         with admin_connect(database) as connection:
             connection.execute("CREATE EXTENSION IF NOT EXISTS pgcrypto")
@@ -74,10 +115,14 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             )""")
             migration_path=repo_root/"migrations/postgresql/0026_application_account_management.sql"
             migration_sha=hashlib.sha256(migration_path.read_bytes()).hexdigest()
+            rehearsal_sql = migration_path.read_text(encoding="utf-8").replace(
+                "honghu_writer_application_identity", writer_role
+            )
+            rehearsal_identifiers = dict(MIGRATION_IDENTIFIERS[migration_path.name])
+            rehearsal_identifiers["writer_role"] = writer_role
             connection.execute(
                 render_schema_migration(
-                    migration_path.read_text(encoding="utf-8"),migration_sha,
-                    identifiers=MIGRATION_IDENTIFIERS[migration_path.name],
+                    rehearsal_sql,migration_sha,identifiers=rehearsal_identifiers,
                 )
             )
             recorded=connection.execute("SELECT migration_sha256 FROM operations.schema_migration WHERE migration_id='0026_application_account_management'").fetchone()
@@ -144,7 +189,10 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             security["authentication_proof_secret_service"],security["authentication_proof_secret_account"]
         )
         if not idem_secret or not proof_secret: raise RuntimeError("application secrets are unavailable")
-        writer_factory = build_catalog_connection_factory(catalog,role="writer_application_identity")
+        writer_factory = build_catalog_connection_factory(
+            catalog,role="writer_application_identity",
+            password_loader=lambda _service,_account: writer_password,
+        )
         authentication_proof_denials: list[bool] = []
         with writer_factory() as connection:
             for supplied_proof in ("", "incorrect-proof-value-that-is-long-enough"):
@@ -167,6 +215,7 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
         store = PostgresApplicationAccountStore(
             writer_factory,legacy_password_verifier=lambda _s,_p: False,
             idempotency_secret=idem_secret,authentication_proof_secret=proof_secret,
+            expected_writer_identity=writer_role,
         )
         operator = store.login(subject="research-operator",password=operator_password,user_agent="rehearsal",remote_address="127.0.0.1")
         admin_permissions = sorted(ALLOWED_PERMISSIONS)
@@ -269,7 +318,9 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             if any(token in (audit_text+result_text+security_audit_text) for token in ("password_hash","password_fingerprint","authentication_proof_sha256",operator_password,normal_password,second_password,proof_secret)):
                 raise RuntimeError("secret material reached audit or mutation result")
             functions=connection.execute("""SELECT p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-              WHERE n.nspname='application_identity' AND has_function_privilege('honghu_writer_application_identity',p.oid,'EXECUTE') ORDER BY p.proname""").fetchall()
+              WHERE n.nspname='application_identity' AND has_function_privilege(%s,p.oid,'EXECUTE') ORDER BY p.proname""",
+              (writer_role,),
+            ).fetchall()
             allowed={"login_verifier_v1","complete_login_v1","resolve_session_v1","logout_v1","list_accounts_v1","create_account_v1","update_account_v1","reset_password_v1","delete_account_v1"}
             if {row[0] for row in functions}!=allowed: raise RuntimeError(f"writer function allowlist differs: {functions}")
         direct_denials=[]
@@ -295,14 +346,19 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
             "writer_parameter_logging_suppressed":True,
             "last_superadmin_concurrency":outcomes,"active_superadmin_count":active_admins,
             "writer_direct_denials":direct_denials,"writer_function_allowlist":sorted(allowed),
+            "dedicated_temporary_writer_role":True,
+            "production_writer_credential_unchanged":True,
             "secret_material_recorded":False,"temporary_database_dropped":False,
         }
         core["evidence_sha256"]=hashlib.sha256(json.dumps(core,sort_keys=True,separators=(",",":")).encode()).hexdigest()
         return core
     finally:
         with admin_connect("postgres") as connection:
-            connection.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=%s",(database,))
-            connection.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+            if database_created:
+                connection.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname=%s",(database,))
+                connection.execute(sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(database)))
+            if writer_role_created:
+                connection.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(writer_role)))
         if temp_runtime_path.exists(): temp_runtime_path.unlink()
 
 

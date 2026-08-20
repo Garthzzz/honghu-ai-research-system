@@ -26,7 +26,6 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
     )
     if not admin_password:
         raise RuntimeError("break-glass credential is unavailable")
-    password = secrets.token_urlsafe(48)
     import psycopg
     import keyring
 
@@ -59,6 +58,8 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
             "session, password-idempotency, and authentication-proof secret identities must be distinct"
         )
 
+    password = keyring.get_password(SERVICE, ROLE_NAME)
+
     with psycopg.connect(
         host=runtime["host"], port=int(runtime["port"]), dbname=runtime["dbname"],
         user=str(admin.get("user") or ""), password=admin_password,
@@ -66,17 +67,29 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
         connect_timeout=int(runtime.get("connect_timeout_seconds", 5)),
     ) as connection:
         with connection.cursor() as cursor:
-            cursor.execute(
-                """DO $$ BEGIN
-                     IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='honghu_writer_application_identity') THEN
-                       CREATE ROLE honghu_writer_application_identity LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
-                     END IF;
-                   END $$"""
-            )
-            cursor.execute(
-                "ALTER ROLE honghu_writer_application_identity PASSWORD %s",
-                (password,),
-            )
+            cursor.execute("SELECT 1 FROM pg_roles WHERE rolname=%s", (ROLE_NAME,))
+            role_exists = cursor.fetchone() is not None
+            if role_exists and not password:
+                raise RuntimeError(
+                    "existing application-identity role has no matching VM credential; explicit recovery is required"
+                )
+            if not role_exists:
+                if not password:
+                    password = secrets.token_urlsafe(48)
+                    keyring.set_password(SERVICE, ROLE_NAME, password)
+                    if keyring.get_password(SERVICE, ROLE_NAME) != password:
+                        raise RuntimeError(
+                            "application-identity writer credential could not be persisted"
+                        )
+                cursor.execute(
+                    """CREATE ROLE honghu_writer_application_identity LOGIN
+                         NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
+                         NOBYPASSRLS NOINHERIT"""
+                )
+                cursor.execute(
+                    "ALTER ROLE honghu_writer_application_identity PASSWORD %s",
+                    (password,),
+                )
             cursor.execute(
                 """ALTER ROLE honghu_writer_application_identity
                      LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION
@@ -122,7 +135,28 @@ def provision(runtime_path: Path, security_config_path: Path) -> None:
                 raise RuntimeError(
                     "application-identity role does not suppress SQL statement and parameter logging"
                 )
-    keyring.set_password(SERVICE, ROLE_NAME, password)
+    if not password:
+        raise RuntimeError("application-identity writer credential is unavailable")
+    # Verify the effective settings through the exact writer/database
+    # connection. This catches a higher-priority role+database override that
+    # cannot be seen by inspecting only setdatabase=0 catalog rows.
+    with psycopg.connect(
+        host=runtime["host"], port=int(runtime["port"]), dbname=runtime["dbname"],
+        user=ROLE_NAME, password=password,
+        sslmode=runtime["sslmode"], sslrootcert=runtime["sslrootcert"],
+        connect_timeout=int(runtime.get("connect_timeout_seconds", 5)),
+    ) as writer_connection:
+        with writer_connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT session_user,current_setting('log_statement'),
+                          current_setting('log_parameter_max_length'),
+                          current_setting('log_parameter_max_length_on_error')"""
+            )
+            effective = tuple(str(value) for value in cursor.fetchone())
+            if effective != (ROLE_NAME, "none", "0", "0"):
+                raise RuntimeError(
+                    "application-identity writer effective parameter logging settings are unsafe"
+                )
     if not keyring.get_password(idempotency_service, idempotency_account):
         keyring.set_password(
             idempotency_service, idempotency_account, secrets.token_urlsafe(64)

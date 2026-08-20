@@ -46,6 +46,9 @@ def test_application_identity_role_is_forced_to_least_privilege() -> None:
         assert token in provision
     assert "pg_auth_members" in provision
     assert "has_database_privilege" in provision
+    assert "if not role_exists:" in provision
+    assert "explicit recovery is required" in provision
+    assert "effective parameter logging settings are unsafe" in provision
     assert "has_schema_privilege" in verify
     assert "has_table_privilege" in verify
     finalizer = (ROOT / "tools/migration/finalize_application_identity_auth_proof.py").read_text(encoding="utf-8")
@@ -56,6 +59,17 @@ def test_application_identity_role_is_forced_to_least_privilege() -> None:
     assert run_body.index("provision(runtime_path") < run_body.index("_apply_exact(")
     assert run_body.index("_apply_exact(") < run_body.index("finalize(")
     assert "log_parameter_max_length_on_error=0" in orchestrator
+    assert "def _preflight(" in orchestrator
+    assert "def _verify_writer_effective(" in orchestrator
     account_store = (ROOT / "tools/data_platform/application_accounts.py").read_text(encoding="utf-8")
     assert "_verify_runtime_security_boundary" in account_store
     assert "current_setting('log_parameter_max_length_on_error')" in account_store
+
+
+def test_postgresql_rehearsal_never_provisions_or_rotates_production_writer() -> None:
+    source = (ROOT / "tools/migration/rehearse_application_account_management.py").read_text(encoding="utf-8")
+    assert "provision(runtime_path" not in source
+    assert 'writer_role = "honghu_account_rehearsal_"' in source
+    assert 'password_loader=lambda _service,_account: writer_password' in source
+    assert 'DROP ROLE IF EXISTS' in source
+    assert '"production_writer_credential_unchanged":True' in source

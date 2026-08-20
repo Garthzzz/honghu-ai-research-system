@@ -163,6 +163,7 @@ class PostgresApplicationAccountStore:
         legacy_password_verifier: Callable[[str, str], bool],
         idempotency_secret: str,
         authentication_proof_secret: str,
+        expected_writer_identity: str = "honghu_writer_application_identity",
     ):
         self._connect = connection_factory
         self._legacy_verify = legacy_password_verifier
@@ -172,6 +173,9 @@ class PostgresApplicationAccountStore:
         if len(authentication_proof_secret) < 32:
             raise ValueError("application-account authentication proof is too short")
         self._authentication_proof_secret = authentication_proof_secret
+        if not re.fullmatch(r"[a-z_][a-z0-9_]{2,62}", expected_writer_identity):
+            raise ValueError("application-account writer identity is invalid")
+        self._expected_writer_identity = expected_writer_identity
         # Always spend a real scrypt verification on an unknown subject.
         self._dummy_hash = generate_password_hash(
             secrets.token_urlsafe(32), method=PASSWORD_METHOD
@@ -194,7 +198,7 @@ class PostgresApplicationAccountStore:
                 "账号服务安全边界无法验证"
             ) from exc
         if row is None or tuple(str(value) for value in row) != (
-            "honghu_writer_application_identity",
+            self._expected_writer_identity,
             "none",
             "0",
             "0",

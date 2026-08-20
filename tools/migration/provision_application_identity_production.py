@@ -17,6 +17,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from tools.data_platform.postgres_runtime import (
+    build_catalog_connection_factory,
+    credential_manager_password,
+    load_postgres_runtime_catalog,
+)
 from tools.migration.finalize_application_identity_auth_proof import finalize
 from tools.migration.provision_application_identity_role import ROLE_NAME, provision
 from tools.migration.stage4_apply_postgresql_migrations import (
@@ -24,6 +29,7 @@ from tools.migration.stage4_apply_postgresql_migrations import (
     _admin_connection,
     render_schema_migration,
 )
+from tools.migration.stage4_user_content_security_provision import _settings
 
 
 MIGRATION_NAME = "0026_application_account_management.sql"
@@ -168,6 +174,54 @@ def _apply_exact(connection: Any, migration_path: Path, migration_sha: str) -> d
     return {"migration_id": migration_id, "sha256": migration_sha, "status": "applied"}
 
 
+def _preflight(
+    connection: Any,
+    *,
+    migration_path: Path,
+    migration_sha: str,
+    security_config_path: Path,
+) -> dict[str, Any]:
+    security = _settings(security_config_path)
+    existing = connection.execute(
+        "SELECT migration_sha256 FROM operations.schema_migration WHERE migration_id=%s",
+        (migration_path.stem,),
+    ).fetchone()
+    if existing is not None and str(existing[0]) != migration_sha:
+        raise RuntimeError("application-account migration ledger SHA differs")
+    proof = credential_manager_password(
+        str(security["authentication_proof_secret_service"]),
+        str(security["authentication_proof_secret_account"]),
+    )
+    # A missing proof is allowed only for the first deployment, where the
+    # role provisioner creates it. A present proof must already be usable.
+    if proof is not None and len(proof) < 32:
+        raise RuntimeError("existing authentication-proof secret is invalid")
+    return {
+        "migration_ledger": "already_exact" if existing is not None else "absent",
+        "security_contract_valid": True,
+        "existing_authentication_proof_valid": proof is None or len(proof) >= 32,
+    }
+
+
+def _verify_writer_effective(runtime_path: Path) -> None:
+    factory = build_catalog_connection_factory(
+        load_postgres_runtime_catalog(runtime_path),
+        role="writer_application_identity",
+    )
+    with factory() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """SELECT session_user,current_setting('log_statement'),
+                          current_setting('log_parameter_max_length'),
+                          current_setting('log_parameter_max_length_on_error')"""
+            )
+            effective = tuple(str(value) for value in cursor.fetchone())
+    if effective != (ROLE_NAME, "none", "0", "0"):
+        raise RuntimeError(
+            "application-identity writer effective parameter logging settings are unsafe"
+        )
+
+
 def run(
     *, repo_root: Path, runtime_path: Path, security_config_path: Path, output: Path
 ) -> dict[str, Any]:
@@ -177,6 +231,13 @@ def run(
     # Every prerequisite is checked before the first database mutation.
     security_sha = _sha(security_config_path)
     migration_sha = _sha(migration_path)
+    with _admin_connection(runtime_path) as connection:
+        preflight = _preflight(
+            connection,
+            migration_path=migration_path,
+            migration_sha=migration_sha,
+            security_config_path=security_config_path,
+        )
     provision(runtime_path, security_config_path)
     with _admin_connection(runtime_path) as connection:
         migration_result = _apply_exact(connection, migration_path, migration_sha)
@@ -185,14 +246,17 @@ def run(
         security_config_path,
         reason="controlled production application-identity deployment",
     )
+    _verify_writer_effective(runtime_path)
     with _admin_connection(runtime_path) as connection:
         verification = _verify(connection)
+    verification["effective_writer_connection_verified"] = True
     core = {
         "schema_version": "honghu.application_identity_production_provision.v1",
         "status": "pass",
         "completed_at_utc": datetime.now(timezone.utc).isoformat(),
         "security_config_sha256": security_sha,
         "migration_sha256": migration_sha,
+        "preflight": preflight,
         "migration_result": migration_result,
         "verification": verification,
     }

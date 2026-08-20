@@ -35,6 +35,8 @@ ALLOWED_MODULES = {
     "tools.operations.stage5_health": "main",
     "tools.migration.stage4_apply_postgresql_migrations": "main",
     "tools.migration.stage4_runtime_release_binding": "main",
+    "tools.migration.provision_application_identity_production": "main",
+    "tools.migration.rehearse_application_account_management": "main",
     "tools.pipeline.apply_fiber_company_production_delta": "main",
     "tools.financial.valuation_tracker_identity_seed": "main",
     "tools.financial.valuation_tracker_seed": "main",
