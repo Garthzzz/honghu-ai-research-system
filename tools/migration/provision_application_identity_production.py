@@ -80,13 +80,13 @@ def _verify(connection: Any) -> dict[str, Any]:
                   has_database_privilege(r.rolname,current_database(),'CREATE'),
                   EXISTS(
                     SELECT 1 FROM pg_namespace n
-                     WHERE n.nspname NOT LIKE 'pg_%'
+                     WHERE n.nspname NOT LIKE 'pg_%%'
                        AND n.nspname<>'information_schema'
                        AND has_schema_privilege(r.rolname,n.oid,'CREATE')
                   ),
                   EXISTS(
                     SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-                     WHERE c.relkind IN ('r','p') AND n.nspname NOT LIKE 'pg_%'
+                     WHERE c.relkind IN ('r','p') AND n.nspname NOT LIKE 'pg_%%'
                        AND n.nspname<>'information_schema'
                        AND has_table_privilege(r.rolname,c.oid,
                          'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
