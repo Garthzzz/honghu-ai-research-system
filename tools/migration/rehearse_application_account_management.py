@@ -362,11 +362,11 @@ def run(repo_root: Path, runtime_path: Path, security_path: Path, output: Path) 
         if temp_runtime_path.exists(): temp_runtime_path.unlink()
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser=argparse.ArgumentParser(description="Isolated PG17 rehearsal for application account management")
     parser.add_argument("--repo-root",required=True,type=Path); parser.add_argument("--runtime",required=True,type=Path)
     parser.add_argument("--security-config",required=True,type=Path); parser.add_argument("--output",required=True,type=Path)
-    args=parser.parse_args(); result=run(args.repo_root.resolve(),args.runtime.resolve(),args.security_config.resolve(),args.output.resolve())
+    args=parser.parse_args(argv); result=run(args.repo_root.resolve(),args.runtime.resolve(),args.security_config.resolve(),args.output.resolve())
     result["temporary_database_dropped"]=True
     _write_json_atomic(args.output.resolve(),result); print(json.dumps(result,ensure_ascii=False)); return 0
 

@@ -267,13 +267,13 @@ def run(
     return core
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", required=True, type=Path)
     parser.add_argument("--runtime", required=True, type=Path)
     parser.add_argument("--security-config", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     result = run(
         repo_root=args.repo_root.resolve(),
         runtime_path=args.runtime.resolve(),
