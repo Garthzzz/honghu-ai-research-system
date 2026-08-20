@@ -10,6 +10,7 @@ from tools.data_platform.postgres_runtime import (
     PostgresRuntimeCatalog,
     PostgresRuntimeSettings,
     build_catalog_connection_factory,
+    _native_windows_credential_password,
 )
 
 
@@ -101,3 +102,38 @@ def test_production_catalog_selects_named_role_and_never_substitutes(tmp_path, m
     assert observed["user"] == "writer"
     with pytest.raises(ValueError, match="unavailable"):
         build_catalog_connection_factory(catalog, role="writer_missing")
+
+
+def test_native_windows_credential_reader_uses_keyring_target_contract(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class MissingCredential(Exception):
+        def __init__(self) -> None:
+            self.winerror = 1168
+
+    targets: list[str] = []
+
+    def read(target: str, _kind: int) -> dict[str, object]:
+        targets.append(target)
+        if target == "service":
+            raise MissingCredential()
+        return {
+            "UserName": "account",
+            "CredentialBlob": "reviewed-password".encode("utf-16"),
+        }
+
+    monkeypatch.setitem(
+        sys.modules,
+        "win32cred",
+        SimpleNamespace(CRED_TYPE_GENERIC=1, CredRead=read),
+    )
+    monkeypatch.setitem(
+        sys.modules,
+        "pywintypes",
+        SimpleNamespace(error=MissingCredential),
+    )
+    assert (
+        _native_windows_credential_password("service", "account")
+        == "reviewed-password"
+    )
+    assert targets == ["service", "account@service"]

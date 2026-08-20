@@ -1,11 +1,64 @@
 from __future__ import annotations
 
 import json
+import os
 import queue
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
+
+
+def _native_windows_credential_password(service: str, account: str) -> str | None:
+    """Read a generic credential through native pywin32.
+
+    ``keyring`` currently prefers its cffi ``win32ctypes`` compatibility layer
+    even when native pywin32 is installed.  That layer returns WinError 1312
+    from a valid interactive Scheduled Task token, while native ``CredRead``
+    succeeds in the same logon session.  Production release bootstraps already
+    lock and expose pywin32, so use it directly and preserve keyring's target
+    naming and UTF-16/UTF-8 decoding contract.
+    """
+
+    import pywintypes
+    import win32cred
+
+    for target in (service, f"{account}@{service}"):
+        try:
+            credential = win32cred.CredRead(
+                target, win32cred.CRED_TYPE_GENERIC
+            )
+        except pywintypes.error as exc:
+            if int(getattr(exc, "winerror", 0) or 0) == 1168:
+                continue
+            raise
+        if str(credential.get("UserName") or "") != account:
+            continue
+        blob = credential.get("CredentialBlob")
+        if isinstance(blob, str):
+            return blob or None
+        if not isinstance(blob, (bytes, bytearray)) or not blob:
+            return None
+        raw = bytes(blob)
+        try:
+            return raw.decode("utf-16")
+        except UnicodeDecodeError:
+            return raw.decode("utf-8")
+    return None
+
+
+def credential_manager_password(service: str, account: str) -> str | None:
+    if os.name == "nt":
+        try:
+            return _native_windows_credential_password(service, account)
+        except ImportError:
+            # Local development environments may not include pywin32.  The
+            # standard backend remains the portable fallback; native runtime
+            # errors are deliberately not swallowed.
+            pass
+    import keyring
+
+    return keyring.get_password(service, account)
 
 
 @dataclass(frozen=True)
@@ -102,9 +155,7 @@ def build_postgres_connection_factory(
     def connect() -> Any:
         loader = password_loader
         if loader is None:
-            import keyring
-
-            loader = keyring.get_password
+            loader = credential_manager_password
         password = loader(selected.credential_service, selected.credential_account)
         if not password:
             raise RuntimeError("PostgreSQL credential is unavailable")
@@ -225,9 +276,7 @@ def build_catalog_connection_factory(
     def read_password() -> str:
         loader = password_loader
         if loader is None:
-            import keyring
-
-            loader = keyring.get_password
+            loader = credential_manager_password
         password = loader(selected.credential_service, selected.credential_account)
         if not password:
             raise RuntimeError(
