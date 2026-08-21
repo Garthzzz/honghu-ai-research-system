@@ -120,6 +120,29 @@ def test_decorated_version_has_two_decimal_calculation_and_market_implied_pe() -
     assert row["market_implied_pe"] == 12.5
 
 
+def test_decorate_accepts_postgresql_variable_fractional_timestamp_precision() -> None:
+    now = datetime(2026, 8, 21, 4, 0, tzinfo=timezone.utc)
+    for fraction in ("1", "12", "123", "1234", "16779", "123456"):
+        row = {
+            "max_snapshot_age_hours": 48,
+            "researcher_ratio_threshold": 1,
+            "ai_ratio_threshold": 1,
+            "market_snapshot": {
+                "market_cap_value": 100,
+                "currency": "CNY",
+                "trading_status": "trading",
+                "observed_at": f"2026-08-21T11:40:02.{fraction}+08:00",
+            },
+            "researcher_version": None,
+            "published_ai_version": None,
+            "latest_ai_version": {"base_value": 200, "currency": "CNY"},
+            "previous_ai_version": None,
+        }
+        ValuationTrackerRepository._decorate(row, now=now)
+        assert row["snapshot_stale"] is False
+        assert row["ai_ratio"] == 0.5
+
+
 def test_stale_or_currency_mismatch_is_not_a_false_red_alert() -> None:
     now = datetime.now(timezone.utc)
     row = {
